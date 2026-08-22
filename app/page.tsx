@@ -1,11 +1,11 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import { ArrowRight, Building2, Loader2, MessageCircle, SearchCheck, Send } from "lucide-react";
+import { ArrowRight, Building2, Loader2, LogIn, LogOut, MessageCircle, SearchCheck, Send } from "lucide-react";
 import Link from "next/link";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 
-const TEST_DEMAND_ID = "1e7ee478-fa2b-4ca4-8849-30eff5bfa5ef";
+const TEST_DEMAND_ID = "1e7ee478-135b-40c6-b1f8-53bbdc1e0a4e";
 const TEST_OFFER_ID = "89850a29-50ad-4988-a78b-d74691e974aa";
 const MAHDI_ACTOR_ID = "b052b287-135b-40c6-b1f8-53bbdc1e0a4e";
 const YASSER_ACTOR_ID = "b899a65f-a614-4141-a4d4-622a26c39cb7";
@@ -35,8 +35,11 @@ export default function HomePage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [actorId, setActorId] = useState("");
   const [actorName, setActorName] = useState("");
+  const [userEmail, setUserEmail] = useState("");
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(true);
+  const [authLoading, setAuthLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
 
@@ -44,11 +47,24 @@ export default function HomePage() {
     const supabase = createSupabaseBrowserClient();
     const { data: { user } } = await supabase.auth.getUser();
 
+    setIsAuthenticated(!!user);
+    setUserEmail(user?.email ?? "");
+
     if (!user) {
+      setActorId("");
+      setActorName("");
       setError("Connecte-toi avec Mahdi ou Yasser pour tester le chat.");
       setLoading(false);
+      setAuthLoading(false);
       return;
     }
+
+    const metadataName =
+      user.user_metadata?.full_name ||
+      user.user_metadata?.name ||
+      user.user_metadata?.preferred_username ||
+      user.email?.split("@")[0] ||
+      "Utilisateur";
 
     const { data: profile } = await supabase
       .from("profiles")
@@ -58,7 +74,8 @@ export default function HomePage() {
 
     const currentActorId = profile?.actor_id ?? "";
     setActorId(currentActorId);
-    setActorName(actorLabel(currentActorId));
+    setActorName(profile?.name || actorLabel(currentActorId) || metadataName);
+    setAuthLoading(false);
 
     const { data, error: messagesError } = await supabase
       .from("messages")
@@ -73,8 +90,15 @@ export default function HomePage() {
   }
 
   useEffect(() => {
-    loadChat();
     const supabase = createSupabaseBrowserClient();
+    loadChat();
+
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      setIsAuthenticated(!!session?.user);
+      setUserEmail(session?.user?.email ?? "");
+      await loadChat();
+    });
+
     const channel = supabase
       .channel("qimatrade-home-chat")
       .on(
@@ -88,13 +112,46 @@ export default function HomePage() {
       )
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
+    return () => {
+      authListener.subscription.unsubscribe();
+      supabase.removeChannel(channel);
+    };
   }, []);
+
+  async function handleLogin() {
+    setError("");
+    const supabase = createSupabaseBrowserClient();
+    const { error: loginError } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback?next=/`,
+      },
+    });
+
+    if (loginError) setError(loginError.message);
+  }
+
+  async function handleLogout() {
+    setError("");
+    const supabase = createSupabaseBrowserClient();
+    const { error: logoutError } = await supabase.auth.signOut();
+
+    if (logoutError) {
+      setError(logoutError.message);
+      return;
+    }
+
+    setIsAuthenticated(false);
+    setUserEmail("");
+    setActorId("");
+    setActorName("");
+    setText("");
+  }
 
   async function sendMessage(event: FormEvent) {
     event.preventDefault();
     const body = text.trim();
-    if (!body || !actorId) return;
+    if (!body || !actorId || !isAuthenticated) return;
 
     setSending(true);
     setError("");
@@ -122,16 +179,48 @@ export default function HomePage() {
   return (
     <main className="min-h-screen bg-slate-50">
       <section className="mx-auto max-w-7xl px-6 py-8 lg:px-10">
-        <header className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-soft">
+        <header className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-soft">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-500 text-lg font-black text-white">Q</div>
             <div><p className="text-base font-bold tracking-tight text-slate-950">QimaTrade</p><p className="text-xs text-slate-500">Marketplace MVP</p></div>
           </div>
-          <div className="flex items-center gap-3">
+
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            {authLoading ? (
+              <div className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-500">
+                <Loader2 size={16} className="animate-spin" /> Vérification...
+              </div>
+            ) : isAuthenticated ? (
+              <>
+                <div className="hidden rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-right sm:block">
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-green-600">Connecté</p>
+                  <p className="text-sm font-bold text-slate-900">{actorName}</p>
+                  {userEmail && <p className="max-w-[220px] truncate text-[10px] text-slate-500">{userEmail}</p>}
+                </div>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-bold text-red-600 transition hover:bg-red-50"
+                >
+                  <LogOut size={17} />
+                  Logout
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                onClick={handleLogin}
+                className="inline-flex items-center gap-2 rounded-xl bg-orange-500 px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-orange-500/20 transition hover:bg-orange-600"
+              >
+                <LogIn size={17} />
+                Login avec Google
+              </button>
+            )}
+
             <a href="#chat-test" className="inline-flex items-center gap-2 rounded-xl bg-orange-500 px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-orange-500/20 transition hover:bg-orange-600">
               <MessageCircle size={17} /> Ouvrir le chat
             </a>
-            <span className="hidden rounded-full bg-orange-50 px-3 py-1 text-xs font-semibold text-orange-700 sm:inline-flex">Live chat test</span>
+            <span className="hidden rounded-full bg-orange-50 px-3 py-1 text-xs font-semibold text-orange-700 lg:inline-flex">Live chat test</span>
           </div>
         </header>
 
@@ -157,7 +246,7 @@ export default function HomePage() {
               </div>
               <div className="mt-4 flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
                 <span className="text-xs font-semibold text-slate-500">Compte actuellement connecté :</span>
-                {actorId ? (
+                {isAuthenticated && actorId ? (
                   <span className="rounded-full bg-orange-500 px-3 py-1 text-xs font-black uppercase tracking-wide text-white">{actorName}</span>
                 ) : (
                   <span className="rounded-full bg-slate-200 px-3 py-1 text-xs font-bold text-slate-600">Non connecté</span>
