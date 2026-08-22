@@ -93,7 +93,12 @@ export default function HomePage() {
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-500 text-lg font-black text-white">Q</div>
             <div><p className="text-base font-bold tracking-tight text-slate-950">QimaTrade</p><p className="text-xs text-slate-500">Marketplace MVP</p></div>
           </div>
-          <span className="rounded-full bg-orange-50 px-3 py-1 text-xs font-semibold text-orange-700">Live chat test</span>
+          <div className="flex items-center gap-3">
+            <a href="#chat-test" className="inline-flex items-center gap-2 rounded-xl bg-orange-500 px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-orange-500/20 transition hover:bg-orange-600">
+              <MessageCircle size={17} /> Ouvrir le chat
+            </a>
+            <span className="hidden rounded-full bg-orange-50 px-3 py-1 text-xs font-semibold text-orange-700 sm:inline-flex">Live chat test</span>
+          </div>
         </header>
 
         <div className="mt-8 grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
@@ -101,10 +106,13 @@ export default function HomePage() {
             <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-orange-100 bg-orange-50 px-3 py-1.5 text-sm font-semibold text-orange-700"><span className="h-2 w-2 rounded-full bg-orange-500" />Demand → Match → Conversation</div>
             <h1 className="max-w-3xl text-5xl font-black tracking-tight text-slate-950 sm:text-6xl">The foundation of the QimaTrade marketplace.</h1>
             <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-600">Le test du chat est maintenant directement disponible sur la page d'accueil.</p>
-            <div className="mt-8 flex flex-wrap gap-3"><Link href="/demands" className="inline-flex items-center gap-2 rounded-xl bg-orange-500 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-orange-500/20 transition hover:bg-orange-600">Start MVP flow <ArrowRight size={17} /></Link></div>
+            <div className="mt-8 flex flex-wrap gap-3">
+              <Link href="/demands" className="inline-flex items-center gap-2 rounded-xl bg-orange-500 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-orange-500/20 transition hover:bg-orange-600">Start MVP flow <ArrowRight size={17} /></Link>
+              <a href="#chat-test" className="inline-flex items-center gap-2 rounded-xl border border-orange-200 bg-white px-5 py-3 text-sm font-bold text-orange-600 transition hover:bg-orange-50"><MessageCircle size={17} /> Tester la conversation</a>
+            </div>
           </div>
 
-          <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-soft">
+          <section id="chat-test" className="scroll-mt-6 overflow-hidden rounded-3xl border-2 border-orange-200 bg-white shadow-soft">
             <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
               <div className="flex items-center gap-3"><div className="flex h-11 w-11 items-center justify-center rounded-xl bg-orange-50 text-orange-600"><MessageCircle size={21} /></div><div><h2 className="font-black text-slate-950">Direct conversation test</h2><p className="text-xs text-slate-500">Mahdi ↔ Yasser · real Supabase messages</p></div></div>
               <span className="rounded-full bg-green-50 px-3 py-1 text-xs font-bold text-green-700">LIVE</span>
