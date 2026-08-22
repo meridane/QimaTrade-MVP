@@ -13,15 +13,23 @@ export default function LoginPage() {
     setLoading(true);
     setError(null);
 
-    const supabase = createSupabaseBrowserClient();
-    const redirectTo = `${window.location.origin}/auth/callback?next=/demands`;
-    const { error: signInError } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo },
-    });
+    try {
+      const supabase = createSupabaseBrowserClient();
+      const configuredSiteUrl = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "");
+      const siteUrl = configuredSiteUrl || window.location.origin;
+      const redirectTo = `${siteUrl}/auth/callback?next=/demands`;
 
-    if (signInError) {
-      setError(signInError.message);
+      const { error: signInError } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: { redirectTo },
+      });
+
+      if (signInError) {
+        setError(signInError.message);
+        setLoading(false);
+      }
+    } catch (caughtError) {
+      setError(caughtError instanceof Error ? caughtError.message : "Unable to start Google sign-in.");
       setLoading(false);
     }
   }
