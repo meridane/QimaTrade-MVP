@@ -35,8 +35,13 @@ export default function ConversationPage() {
         return;
       }
 
+      setActorId(result.actorId);
       setOfferId(result.offerId);
-      setMessages(result.messages.map((item) => ({ id: item.id, text: item.body, mine: false })));
+      setMessages(result.messages.map((item) => ({
+        id: item.id,
+        text: item.body,
+        mine: item.senderActorId === result.actorId,
+      })));
       setLoading(false);
     });
   }, []);
@@ -56,7 +61,11 @@ export default function ConversationPage() {
       return;
     }
 
-    setMessages((current) => [...current, { id: result.message.id, text: result.message.body, mine: true }]);
+    setMessages((current) => [...current, {
+      id: result.message.id,
+      text: result.message.body,
+      mine: result.message.senderActorId === actorId,
+    }]);
     setMessage("");
     setSending(false);
   }
