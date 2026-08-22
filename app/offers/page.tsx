@@ -2,13 +2,19 @@
 
 import { ArrowLeft, Check, Loader2, Send } from "lucide-react";
 import Link from "next/link";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { createOffer } from "./actions";
 
 export default function OffersPage() {
   const [savedOfferId, setSavedOfferId] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [demandId, setDemandId] = useState("");
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    setDemandId(params.get("demand") ?? "");
+  }, []);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -52,7 +58,7 @@ export default function OffersPage() {
           <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft sm:p-8">
             <p className="text-sm font-bold text-orange-600">Supplier step</p>
             <h1 className="mt-1 text-3xl font-black tracking-tight text-slate-950">Submit an offer</h1>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">Create a structured supplier offer against an existing buyer demand. The next Match step will use these fields to explain compatibility.</p>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">Create a structured supplier offer against an existing buyer demand.</p>
 
             {savedOfferId ? (
               <div className="mt-8 rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-emerald-800">
@@ -62,13 +68,11 @@ export default function OffersPage() {
             ) : (
               <form onSubmit={handleSubmit} className="mt-8 space-y-6">
                 {error && <div role="alert" className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-700">{error}</div>}
-
-                <div><label htmlFor="demandId" className="mb-2 block text-sm font-bold text-slate-800">Demand ID</label><input id="demandId" name="demandId" required placeholder="Paste the demand UUID" className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-4 focus:ring-orange-100" /><p className="mt-1 text-xs text-slate-400">For this first supplier test, use the UUID shown after creating the demand.</p></div>
-                <div><label htmlFor="name" className="mb-2 block text-sm font-bold text-slate-800">Offer name</label><input id="name" name="name" required placeholder="e.g. Recycled copper cathode grade A" className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-4 focus:ring-orange-100" /></div>
+                <div><label htmlFor="demandId" className="mb-2 block text-sm font-bold text-slate-800">Demand ID</label><input id="demandId" name="demandId" required value={demandId} onChange={(event) => setDemandId(event.target.value)} placeholder="Demand UUID" className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-4 focus:ring-orange-100" /><p className="mt-1 text-xs text-slate-400">You can open this page with ?demand=DEMAND_UUID to prefill it.</p></div>
+                <div><label htmlFor="name" className="mb-2 block text-sm font-bold text-slate-800">Offer name</label><input id="name" name="name" required placeholder="e.g. Recycled copper supply" className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-4 focus:ring-orange-100" /></div>
                 <div className="grid gap-5 sm:grid-cols-3"><div><label htmlFor="quantity" className="mb-2 block text-sm font-bold text-slate-800">Quantity</label><input id="quantity" name="quantity" type="number" min="0.000001" step="any" required placeholder="20" className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-4 focus:ring-orange-100" /></div><div><label htmlFor="price" className="mb-2 block text-sm font-bold text-slate-800">Price</label><input id="price" name="price" type="number" min="0" step="any" placeholder="40000" className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-4 focus:ring-orange-100" /></div><div><label htmlFor="currency" className="mb-2 block text-sm font-bold text-slate-800">Currency</label><select id="currency" name="currency" defaultValue="USD" className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-4 focus:ring-orange-100"><option>USD</option><option>EUR</option><option>KRW</option><option>MAD</option><option>CNY</option></select></div></div>
                 <div className="grid gap-5 sm:grid-cols-2"><div><label htmlFor="market" className="mb-2 block text-sm font-bold text-slate-800">Target market</label><input id="market" name="market" placeholder="Morocco" className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-4 focus:ring-orange-100" /></div><div><label htmlFor="geography" className="mb-2 block text-sm font-bold text-slate-800">Supplier geography</label><input id="geography" name="geography" placeholder="South Korea" className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-4 focus:ring-orange-100" /></div></div>
                 <div><label htmlFor="conditions" className="mb-2 block text-sm font-bold text-slate-800">Commercial conditions</label><textarea id="conditions" name="conditions" rows={4} placeholder="Payment terms, Incoterm, delivery conditions, documentation..." className="w-full resize-none rounded-xl border border-slate-200 px-4 py-3 text-sm leading-6 outline-none focus:border-orange-400 focus:ring-4 focus:ring-orange-100" /></div>
-
                 <div className="flex justify-end border-t border-slate-100 pt-6"><button disabled={saving} type="submit" className="inline-flex items-center gap-2 rounded-xl bg-orange-500 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-orange-500/20 hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60">{saving ? <><Loader2 size={17} className="animate-spin" /> Saving...</> : <>Submit offer <Send size={17} /></>}</button></div>
               </form>
             )}
