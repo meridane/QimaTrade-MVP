@@ -13,22 +13,24 @@ export default function ConversationPage() {
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [matchId, setMatchId] = useState("");
+  const [demandId, setDemandId] = useState("");
   const [offerId, setOfferId] = useState<string | null>(null);
   const [actorId, setActorId] = useState("");
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const id = params.get("match") ?? params.get("id") ?? "";
-    setMatchId(id);
+    const demand = params.get("demand") ?? params.get("match") ?? params.get("id") ?? "";
+    const offer = params.get("offer");
+    setDemandId(demand);
+    setOfferId(offer);
 
-    if (!id) {
+    if (!demand) {
       setLoading(false);
       setError("Demand not specified.");
       return;
     }
 
-    loadConversation(id).then((result) => {
+    loadConversation(demand, offer).then((result) => {
       if (!result.ok) {
         setError(result.error);
         setLoading(false);
@@ -49,11 +51,11 @@ export default function ConversationPage() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const text = message.trim();
-    if (!text || !matchId) return;
+    if (!text || !demandId) return;
 
     setSending(true);
     setError("");
-    const result = await sendConversationMessage({ demandId: matchId, offerId, body: text });
+    const result = await sendConversationMessage({ demandId, offerId, body: text });
 
     if (!result.ok) {
       setError(result.error);
@@ -75,7 +77,7 @@ export default function ConversationPage() {
       <div className="mx-auto max-w-5xl px-5 py-6 sm:px-8 lg:py-10">
         <header className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-soft">
           <div className="flex items-center gap-3">
-            <Link href={matchId ? `/demands/match?id=${encodeURIComponent(matchId)}` : "/demands/match"} className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-500 hover:border-orange-200 hover:text-orange-600" aria-label="Back"><ArrowLeft size={18} /></Link>
+            <Link href={demandId ? `/demands/match?id=${encodeURIComponent(demandId)}` : "/demands/match"} className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-500 hover:border-orange-200 hover:text-orange-600" aria-label="Back"><ArrowLeft size={18} /></Link>
             <div><p className="text-base font-bold tracking-tight text-slate-950">QimaTrade</p><p className="text-xs text-slate-500">Matched conversation</p></div>
           </div>
           <span className="rounded-full bg-orange-50 px-3 py-1 text-xs font-semibold text-orange-700">MVP · Conversation</span>
