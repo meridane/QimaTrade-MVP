@@ -31,7 +31,7 @@ type Demand = {
 
 type Offer = {
   id: string;
-  demand_id: string;
+  demand_id: string | null;
   name: string;
   quantity: number;
   price: number | null;
@@ -66,7 +66,7 @@ export default async function DemandMatchPage({
   const supabase = await createSupabaseServerClient();
 
   if (!id) {
-    return <MatchShell><EmptyState title="No demand selected" text="Open Match from a qualified demand so QimaTrade can compare available offers." /></MatchShell>;
+    return <MatchShell><EmptyState title="No demand selected" text="Open Match from a qualified demand so QimaTrade can compare available supplier offers." /></MatchShell>;
   }
 
   const { data: demand } = await supabase
@@ -79,10 +79,12 @@ export default async function DemandMatchPage({
     return <MatchShell><EmptyState title="Demand not found" text="This demand is unavailable or you do not have access to it." /></MatchShell>;
   }
 
+  // Marketplace matching: supplier offers are not required to have been
+  // created from this exact demand. We compare this demand against the
+  // available supplier offers so a supplier can answer another user's demand.
   const { data: offers } = await supabase
     .from("offers")
     .select("id, demand_id, name, quantity, price, currency, market, geography, conditions")
-    .eq("demand_id", demand.id)
     .order("created_at", { ascending: false });
 
   const scope = parseScope(demand.scope);
@@ -105,7 +107,7 @@ export default async function DemandMatchPage({
           <div>
             <p className="text-sm font-bold text-orange-600">Step 03</p>
             <h1 className="mt-1 text-3xl font-black tracking-tight text-slate-950">Explainable match</h1>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">QimaTrade compares structured demand constraints with supplier offers. There is no opaque score.</p>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">QimaTrade compares this demand with available supplier offers. Offers do not need to be pre-linked to this demand.</p>
           </div>
           <span className="rounded-full bg-orange-50 px-3 py-1.5 text-xs font-bold text-orange-700">{demand.demand_id}</span>
         </div>
@@ -119,9 +121,10 @@ export default async function DemandMatchPage({
       </header>
 
       {evaluated.length === 0 ? (
-        <div className="mt-6"><EmptyState title="No supplier offers yet" text="The demand is qualified, but no supplier offer is linked to it. Create an offer first, then return here." /></div>
+        <div className="mt-6"><EmptyState title="No supplier offers available" text="There are currently no supplier offers visible to this account. Create a supplier offer, then return here." /></div>
       ) : (
         <section className="mt-6 space-y-5">
+          <div className="flex items-end justify-between px-1"><div><p className="text-xs font-bold uppercase tracking-[0.16em] text-orange-600">Supplier offers</p><h2 className="mt-1 text-xl font-black text-slate-950">Available offers</h2></div><span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">{evaluated.length} offer{evaluated.length > 1 ? "s" : ""}</span></div>
           {evaluated.map(({ offer, quantityOk, budgetOk, currencyOk, marketOk, matched }, index) => (
             <article key={offer.id} className="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft sm:p-8">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -140,6 +143,8 @@ export default async function DemandMatchPage({
               </div>
 
               {offer.conditions && <div className="mt-5 rounded-2xl bg-slate-50 p-4"><p className="text-xs font-bold uppercase tracking-wide text-slate-500">Commercial conditions</p><p className="mt-2 text-sm leading-6 text-slate-700">{offer.conditions}</p></div>}
+
+              <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-orange-100 bg-orange-50/60 p-4"><div><p className="text-sm font-bold text-slate-900">Interested in this supplier?</p><p className="text-xs text-slate-500">The supplier can be contacted after the match is confirmed.</p></div><Link href={`/demands/conversation?offer=${encodeURIComponent(offer.id)}&demand=${encodeURIComponent(demand.id)}`} className="rounded-xl bg-orange-500 px-4 py-2.5 text-sm font-bold text-white hover:bg-orange-600">Open conversation</Link></div>
             </article>
           ))}
         </section>
