@@ -1,8 +1,9 @@
 "use client";
 
-import { ArrowLeft, Check, ClipboardList, Plus, X } from "lucide-react";
+import { ArrowLeft, Check, ClipboardList, Loader2, Plus, X } from "lucide-react";
 import Link from "next/link";
 import { FormEvent, useState } from "react";
+import { createDemand } from "./actions";
 
 const categories = ["Raw materials", "Industrial equipment", "Packaging", "Automotive", "Other"];
 
@@ -10,11 +11,14 @@ export default function DemandsPage() {
   const [requirements, setRequirements] = useState<string[]>([]);
   const [requirement, setRequirement] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [demandId, setDemandId] = useState("");
 
   function addRequirement() {
     const value = requirement.trim();
     if (!value || requirements.includes(value)) return;
-    setRequirements((current) => [...current, value]);
+    setRequirements((current) => [...current, value].slice(0, 20));
     setRequirement("");
   }
 
@@ -22,9 +26,30 @@ export default function DemandsPage() {
     setRequirements((current) => current.filter((item) => item !== value));
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setSubmitted(true);
+    setSaving(true);
+    setError("");
+
+    const formData = new FormData(event.currentTarget);
+    const result = await createDemand({
+      title: String(formData.get("title") ?? ""),
+      category: String(formData.get("category") ?? ""),
+      quantity: String(formData.get("quantity") ?? ""),
+      unit: String(formData.get("unit") ?? ""),
+      destination: String(formData.get("destination") ?? ""),
+      description: String(formData.get("description") ?? ""),
+      requirements,
+    });
+
+    if (result.ok) {
+      setDemandId(result.demandId);
+      setSubmitted(true);
+    } else {
+      setError(result.error);
+    }
+
+    setSaving(false);
   }
 
   return (
@@ -71,13 +96,20 @@ export default function DemandsPage() {
                     <Check size={18} />
                   </div>
                   <div>
-                    <p className="font-bold">Demand captured</p>
-                    <p className="mt-1 text-sm text-emerald-700">The form is ready to be connected to Supabase in the next step.</p>
+                    <p className="font-bold">Demand saved</p>
+                    <p className="mt-1 text-sm text-emerald-700">Your demand is now stored in QimaTrade and ready for qualification.</p>
+                    <p className="mt-2 break-all text-xs font-medium text-emerald-800">ID: {demandId}</p>
                   </div>
                 </div>
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="space-y-6">
+                {error && (
+                  <div role="alert" className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-700">
+                    {error}
+                  </div>
+                )}
+
                 <div>
                   <label htmlFor="title" className="mb-2 block text-sm font-bold text-slate-800">Demand title</label>
                   <input id="title" name="title" required placeholder="e.g. 20 tonnes of recycled aluminium" className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition placeholder:text-slate-400 focus:border-orange-400 focus:ring-4 focus:ring-orange-100" />
@@ -93,7 +125,7 @@ export default function DemandsPage() {
                   </div>
                   <div>
                     <label htmlFor="quantity" className="mb-2 block text-sm font-bold text-slate-800">Quantity</label>
-                    <input id="quantity" name="quantity" required placeholder="e.g. 20" className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition placeholder:text-slate-400 focus:border-orange-400 focus:ring-4 focus:ring-orange-100" />
+                    <input id="quantity" name="quantity" type="number" min="0.000001" step="any" required placeholder="e.g. 20" className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition placeholder:text-slate-400 focus:border-orange-400 focus:ring-4 focus:ring-orange-100" />
                   </div>
                 </div>
 
@@ -138,7 +170,9 @@ export default function DemandsPage() {
 
                 <div className="flex flex-col gap-3 border-t border-slate-100 pt-6 sm:flex-row sm:items-center sm:justify-between">
                   <p className="text-xs leading-5 text-slate-400">Next: qualification and matching will use this structured demand.</p>
-                  <button type="submit" className="inline-flex items-center justify-center gap-2 rounded-xl bg-orange-500 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-orange-500/20 transition hover:bg-orange-600">Continue to qualification <Plus size={17} /></button>
+                  <button disabled={saving} type="submit" className="inline-flex items-center justify-center gap-2 rounded-xl bg-orange-500 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-orange-500/20 transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60">
+                    {saving ? <><Loader2 size={17} className="animate-spin" /> Saving...</> : <>Save demand <Plus size={17} /></>}
+                  </button>
                 </div>
               </form>
             )}
