@@ -13,7 +13,7 @@ type CreateDemandInput = {
 };
 
 type CreateDemandResult =
-  | { ok: true; demandId: string }
+  | { ok: true; demandId: string; businessDemandId: string }
   | { ok: false; error: string };
 
 const allowedCategories = new Set([
@@ -93,7 +93,7 @@ export async function createDemand(input: CreateDemandInput): Promise<CreateDema
       documentation_status: "incomplete",
       source: "qimatrade_mvp",
     })
-    .select("id")
+    .select("id, demand_id")
     .single();
 
   if (insertError || !demand) {
@@ -103,5 +103,9 @@ export async function createDemand(input: CreateDemandInput): Promise<CreateDema
     };
   }
 
-  return { ok: true, demandId: demand.id };
+  return {
+    ok: true,
+    demandId: demand.id,
+    businessDemandId: demand.demand_id,
+  };
 }
