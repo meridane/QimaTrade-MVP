@@ -16,7 +16,14 @@ const steps = [
   { icon: MessageCircle, number: "03", title: "Conversation", text: "Open a controlled conversation after a relevant match is accepted." },
 ];
 
-type ChatMessage = { id: string; body: string; sender_actor_id: string; created_at: string };
+type ChatMessage = {
+  id: string;
+  body: string;
+  sender_actor_id: string;
+  demand_id: string;
+  offer_id: string;
+  created_at: string;
+};
 
 export default function HomePage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -41,13 +48,13 @@ export default function HomePage() {
 
     const { data, error: messagesError } = await supabase
       .from("messages")
-      .select("id, body, sender_actor_id, created_at")
+      .select("id, body, sender_actor_id, demand_id, offer_id, created_at")
       .eq("demand_id", TEST_DEMAND_ID)
       .eq("offer_id", TEST_OFFER_ID)
       .order("created_at", { ascending: true });
 
     if (messagesError) setError(messagesError.message);
-    else setMessages(data ?? []);
+    else setMessages((data as ChatMessage[]) ?? []);
     setLoading(false);
   }
 
@@ -57,7 +64,8 @@ export default function HomePage() {
     const channel = supabase.channel("qimatrade-home-chat")
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages", filter: `demand_id=eq.${TEST_DEMAND_ID}` }, (payload) => {
         const item = payload.new as ChatMessage;
-        if (item.offer_id === TEST_OFFER_ID) setMessages((current) => current.some((m) => m.id === item.id) ? current : [...current, item]);
+        if (item.offer_id !== TEST_OFFER_ID) return;
+        setMessages((current) => current.some((m) => m.id === item.id) ? current : [...current, item]);
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
@@ -75,11 +83,12 @@ export default function HomePage() {
       offer_id: TEST_OFFER_ID,
       sender_actor_id: actorId,
       body,
-    }).select("id, body, sender_actor_id, created_at").single();
+    }).select("id, body, sender_actor_id, demand_id, offer_id, created_at").single();
 
     if (insertError) setError(insertError.message);
     else if (data) {
-      setMessages((current) => current.some((m) => m.id === data.id) ? current : [...current, data]);
+      const message = data as ChatMessage;
+      setMessages((current) => current.some((m) => m.id === message.id) ? current : [...current, message]);
       setText("");
     }
     setSending(false);
@@ -123,7 +132,7 @@ export default function HomePage() {
                 {loading ? <div className="flex h-64 items-center justify-center"><Loader2 className="animate-spin text-orange-500" /></div> : messages.length === 0 ? <div className="flex h-64 items-center justify-center text-center"><div><MessageCircle className="mx-auto text-orange-500" size={28}/><p className="mt-3 font-bold text-slate-900">No messages yet</p><p className="mt-1 text-sm text-slate-500">Envoie le premier message depuis l'un des deux comptes.</p></div></div> : messages.map((item) => { const mine = item.sender_actor_id === actorId; return <div key={item.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}><div className={`max-w-[78%] rounded-2xl px-4 py-3 text-sm leading-6 ${mine ? "bg-orange-500 text-white" : "bg-white text-slate-800 shadow-sm"}`}><div className={`mb-1 text-[10px] font-bold uppercase ${mine ? "text-orange-100" : "text-slate-400"}`}>{item.sender_actor_id === MAHDI_ACTOR_ID ? "Mahdi" : item.sender_actor_id === YASSER_ACTOR_ID ? "Yasser" : "Participant"}</div>{item.body}</div></div>; })}
               </div>
               {error && <div className="mt-3 rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-700">{error}</div>}
-              <form onSubmit={sendMessage} className="mt-4 flex gap-3"><input value={text} onChange={(e) => setText(e.target.value)} placeholder={actorId ? "Écrire un message..." : "Connecte-toi d'abord..."} disabled={!actorId || sending} className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-4 focus:ring-orange-100"/><button disabled={!actorId || sending || !text.trim()} className="inline-flex items-center gap-2 rounded-xl bg-orange-500 px-5 py-3 text-sm font-bold text-white disabled:opacity-50">{sending ? <Loader2 size={17} className="animate-spin"/> : <Send size={17}/>}Send</button></form>
+              <form onSubmit={sendMessage} className="mt-4 flex gap-3"><input value={text} onChange={(e) => setText(e.target.value)} placeholder={actorId ? "Écrire un message..." : "Connecte-toi d'abord..."} disabled={!actorId || sending} className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-4 focus:ring-orange-100"/><button type="submit" disabled={!actorId || sending || !text.trim()} className="inline-flex items-center gap-2 rounded-xl bg-orange-500 px-5 py-3 text-sm font-bold text-white disabled:opacity-50">{sending ? <Loader2 size={17} className="animate-spin"/> : <Send size={17}/>}Send</button></form>
             </div>
           </section>
         </div>
