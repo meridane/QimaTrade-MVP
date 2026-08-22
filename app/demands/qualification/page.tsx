@@ -2,13 +2,13 @@
 
 import { ArrowLeft, ArrowRight, ClipboardCheck, Loader2 } from "lucide-react";
 import Link from "next/link";
-import { FormEvent, useState } from "react";
+import { FormEvent, Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { qualifyDemand } from "./actions";
 
 const currencies = ["USD", "EUR", "KRW", "MAD", "CNY"];
 
-export default function DemandQualificationPage() {
+function DemandQualificationContent() {
   const searchParams = useSearchParams();
   const initialDemandId = searchParams.get("id") ?? "";
   const [saving, setSaving] = useState(false);
@@ -69,5 +69,19 @@ export default function DemandQualificationPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+export default function DemandQualificationPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="min-h-screen bg-slate-50 p-8">
+          <div className="mx-auto max-w-5xl rounded-2xl border border-slate-200 bg-white p-8 text-sm text-slate-500">Loading qualification…</div>
+        </main>
+      }
+    >
+      <DemandQualificationContent />
+    </Suspense>
   );
 }
