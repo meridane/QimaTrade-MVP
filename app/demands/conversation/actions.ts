@@ -28,7 +28,7 @@ async function getActorId() {
   return { supabase, actorId: profile.actor_id as string, error: null };
 }
 
-export async function loadConversation(demandId: string): Promise<ConversationResult> {
+export async function loadConversation(demandId: string, requestedOfferId?: string | null): Promise<ConversationResult> {
   if (!demandId) return { ok: false, error: "Demand not specified." };
   const { supabase, actorId, error } = await getActorId();
   if (!actorId) return { ok: false, error: error ?? "Unauthorized." };
@@ -40,14 +40,29 @@ export async function loadConversation(demandId: string): Promise<ConversationRe
     .single();
   if (demandError || !demand) return { ok: false, error: "Demand not found or unavailable." };
 
-  const { data: offer, error: offerError } = await supabase
-    .from("offers")
-    .select("id")
-    .eq("demand_id", demandId)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (offerError) return { ok: false, error: offerError.message };
+  let offerId = requestedOfferId ?? null;
+
+  if (offerId) {
+    const { data: offer, error: offerError } = await supabase
+      .from("offers")
+      .select("id")
+      .eq("id", offerId)
+      .eq("demand_id", demandId)
+      .maybeSingle();
+    if (offerError) return { ok: false, error: offerError.message };
+    if (!offer) return { ok: false, error: "Offer not found or unavailable for this demand." };
+    offerId = offer.id;
+  } else {
+    const { data: offer, error: offerError } = await supabase
+      .from("offers")
+      .select("id")
+      .eq("demand_id", demandId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (offerError) return { ok: false, error: offerError.message };
+    offerId = offer?.id ?? null;
+  }
 
   let query = supabase
     .from("messages")
@@ -55,7 +70,7 @@ export async function loadConversation(demandId: string): Promise<ConversationRe
     .eq("demand_id", demandId)
     .order("created_at", { ascending: true });
 
-  if (offer?.id) query = query.eq("offer_id", offer.id);
+  if (offerId) query = query.eq("offer_id", offerId);
 
   const { data: rows, error: messagesError } = await query;
   if (messagesError) return { ok: false, error: messagesError.message };
@@ -63,7 +78,7 @@ export async function loadConversation(demandId: string): Promise<ConversationRe
   return {
     ok: true,
     actorId,
-    offerId: offer?.id ?? null,
+    offerId,
     messages: (rows ?? []).map((row) => ({
       id: row.id,
       body: row.body,
