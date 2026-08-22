@@ -4,7 +4,9 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 type CreateDemandInput = {
   title: string;
+  category: string;
   quantity: string;
+  unit: string;
   destination: string;
   description: string;
   requirements: string[];
@@ -14,14 +16,38 @@ type CreateDemandResult =
   | { ok: true; demandId: string }
   | { ok: false; error: string };
 
+const allowedCategories = new Set([
+  "Raw materials",
+  "Industrial equipment",
+  "Packaging",
+  "Automotive",
+  "Other",
+]);
+
+const allowedUnits = new Set(["tonnes", "kg", "units", "containers"]);
+
 export async function createDemand(input: CreateDemandInput): Promise<CreateDemandResult> {
   const title = input.title.trim();
+  const category = input.category.trim();
   const description = input.description.trim();
   const destination = input.destination.trim();
+  const unit = input.unit.trim();
   const quantity = Number(input.quantity);
+  const requirements = input.requirements
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .slice(0, 20);
 
-  if (!title || !description) {
+  if (!title || !description || !category) {
     return { ok: false, error: "Please complete the required fields." };
+  }
+
+  if (!allowedCategories.has(category)) {
+    return { ok: false, error: "Invalid demand category." };
+  }
+
+  if (!allowedUnits.has(unit)) {
+    return { ok: false, error: "Invalid demand unit." };
   }
 
   if (!Number.isFinite(quantity) || quantity <= 0) {
@@ -48,13 +74,20 @@ export async function createDemand(input: CreateDemandInput): Promise<CreateDema
     return { ok: false, error: "Your account is not linked to a QimaTrade actor yet." };
   }
 
+  const scope = JSON.stringify({
+    category,
+    unit,
+    description,
+    requirements,
+  });
+
   const { data: demand, error: insertError } = await supabase
     .from("demands")
     .insert({
       name: title,
       quantity,
       target_market: destination || null,
-      scope: description,
+      scope,
       requester_actor_id: profile.actor_id,
       demand_status: "draft",
       documentation_status: "incomplete",
