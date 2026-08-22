@@ -10,7 +10,7 @@ type ConversationMessage = {
 };
 
 type ConversationResult =
-  | { ok: true; offerId: string | null; messages: ConversationMessage[] }
+  | { ok: true; actorId: string; offerId: string | null; messages: ConversationMessage[] }
   | { ok: false; error: string };
 
 async function getActorId() {
@@ -62,6 +62,7 @@ export async function loadConversation(demandId: string): Promise<ConversationRe
 
   return {
     ok: true,
+    actorId,
     offerId: offer?.id ?? null,
     messages: (rows ?? []).map((row) => ({
       id: row.id,
