@@ -25,9 +25,16 @@ type ChatMessage = {
   created_at: string;
 };
 
+function actorLabel(actorId: string) {
+  if (actorId === MAHDI_ACTOR_ID) return "Mahdi";
+  if (actorId === YASSER_ACTOR_ID) return "Yasser";
+  return "Participant";
+}
+
 export default function HomePage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [actorId, setActorId] = useState("");
+  const [actorName, setActorName] = useState("");
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
@@ -43,8 +50,15 @@ export default function HomePage() {
       return;
     }
 
-    const { data: profile } = await supabase.from("profiles").select("actor_id").eq("auth_user_id", user.id).maybeSingle();
-    setActorId(profile?.actor_id ?? "");
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("actor_id, name")
+      .eq("auth_user_id", user.id)
+      .maybeSingle();
+
+    const currentActorId = profile?.actor_id ?? "";
+    setActorId(currentActorId);
+    setActorName(actorLabel(currentActorId));
 
     const { data, error: messagesError } = await supabase
       .from("messages")
@@ -61,13 +75,19 @@ export default function HomePage() {
   useEffect(() => {
     loadChat();
     const supabase = createSupabaseBrowserClient();
-    const channel = supabase.channel("qimatrade-home-chat")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages", filter: `demand_id=eq.${TEST_DEMAND_ID}` }, (payload) => {
-        const item = payload.new as ChatMessage;
-        if (item.offer_id !== TEST_OFFER_ID) return;
-        setMessages((current) => current.some((m) => m.id === item.id) ? current : [...current, item]);
-      })
+    const channel = supabase
+      .channel("qimatrade-home-chat")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "messages", filter: `demand_id=eq.${TEST_DEMAND_ID}` },
+        (payload) => {
+          const item = payload.new as ChatMessage;
+          if (item.offer_id !== TEST_OFFER_ID) return;
+          setMessages((current) => current.some((m) => m.id === item.id) ? current : [...current, item]);
+        }
+      )
       .subscribe();
+
     return () => { supabase.removeChannel(channel); };
   }, []);
 
@@ -75,15 +95,20 @@ export default function HomePage() {
     event.preventDefault();
     const body = text.trim();
     if (!body || !actorId) return;
+
     setSending(true);
     setError("");
     const supabase = createSupabaseBrowserClient();
-    const { data, error: insertError } = await supabase.from("messages").insert({
-      demand_id: TEST_DEMAND_ID,
-      offer_id: TEST_OFFER_ID,
-      sender_actor_id: actorId,
-      body,
-    }).select("id, body, sender_actor_id, demand_id, offer_id, created_at").single();
+    const { data, error: insertError } = await supabase
+      .from("messages")
+      .insert({
+        demand_id: TEST_DEMAND_ID,
+        offer_id: TEST_OFFER_ID,
+        sender_actor_id: actorId,
+        body,
+      })
+      .select("id, body, sender_actor_id, demand_id, offer_id, created_at")
+      .single();
 
     if (insertError) setError(insertError.message);
     else if (data) {
@@ -122,17 +147,45 @@ export default function HomePage() {
           </div>
 
           <section id="chat-test" className="scroll-mt-6 overflow-hidden rounded-3xl border-2 border-orange-200 bg-white shadow-soft">
-            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
-              <div className="flex items-center gap-3"><div className="flex h-11 w-11 items-center justify-center rounded-xl bg-orange-50 text-orange-600"><MessageCircle size={21} /></div><div><h2 className="font-black text-slate-950">Direct conversation test</h2><p className="text-xs text-slate-500">Mahdi ↔ Yasser · real Supabase messages</p></div></div>
-              <span className="rounded-full bg-green-50 px-3 py-1 text-xs font-bold text-green-700">LIVE</span>
+            <div className="border-b border-slate-100 px-6 py-5">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-orange-50 text-orange-600"><MessageCircle size={21} /></div>
+                  <div><h2 className="font-black text-slate-950">Direct conversation test</h2><p className="text-xs text-slate-500">Mahdi ↔ Yasser · real Supabase messages</p></div>
+                </div>
+                <span className="rounded-full bg-green-50 px-3 py-1 text-xs font-bold text-green-700">LIVE</span>
+              </div>
+              <div className="mt-4 flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                <span className="text-xs font-semibold text-slate-500">Compte actuellement connecté :</span>
+                {actorId ? (
+                  <span className="rounded-full bg-orange-500 px-3 py-1 text-xs font-black uppercase tracking-wide text-white">{actorName}</span>
+                ) : (
+                  <span className="rounded-full bg-slate-200 px-3 py-1 text-xs font-bold text-slate-600">Non connecté</span>
+                )}
+                {actorId && <span className="text-[10px] text-slate-400">actor: {actorId.slice(0, 8)}…</span>}
+              </div>
             </div>
+
             <div className="flex min-h-[430px] flex-col bg-slate-50/70 p-5">
               <div className="mb-4 rounded-xl border border-orange-100 bg-orange-50 px-4 py-3 text-xs text-orange-800">Demand <b>{TEST_DEMAND_ID.slice(0, 8)}</b> · Offer <b>{TEST_OFFER_ID.slice(0, 8)}</b></div>
               <div className="flex-1 space-y-3 overflow-y-auto">
-                {loading ? <div className="flex h-64 items-center justify-center"><Loader2 className="animate-spin text-orange-500" /></div> : messages.length === 0 ? <div className="flex h-64 items-center justify-center text-center"><div><MessageCircle className="mx-auto text-orange-500" size={28}/><p className="mt-3 font-bold text-slate-900">No messages yet</p><p className="mt-1 text-sm text-slate-500">Envoie le premier message depuis l'un des deux comptes.</p></div></div> : messages.map((item) => { const mine = item.sender_actor_id === actorId; return <div key={item.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}><div className={`max-w-[78%] rounded-2xl px-4 py-3 text-sm leading-6 ${mine ? "bg-orange-500 text-white" : "bg-white text-slate-800 shadow-sm"}`}><div className={`mb-1 text-[10px] font-bold uppercase ${mine ? "text-orange-100" : "text-slate-400"}`}>{item.sender_actor_id === MAHDI_ACTOR_ID ? "Mahdi" : item.sender_actor_id === YASSER_ACTOR_ID ? "Yasser" : "Participant"}</div>{item.body}</div></div>; })}
+                {loading ? <div className="flex h-64 items-center justify-center"><Loader2 className="animate-spin text-orange-500" /></div> : messages.length === 0 ? <div className="flex h-64 items-center justify-center text-center"><div><MessageCircle className="mx-auto text-orange-500" size={28}/><p className="mt-3 font-bold text-slate-900">No messages yet</p><p className="mt-1 text-sm text-slate-500">Envoie le premier message depuis l'un des deux comptes.</p></div></div> : messages.map((item) => {
+                  const mine = item.sender_actor_id === actorId;
+                  const senderName = actorLabel(item.sender_actor_id);
+                  return (
+                    <div key={item.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
+                      <div className={`max-w-[78%] rounded-2xl px-4 py-3 text-sm leading-6 ${mine ? "bg-orange-500 text-white" : "bg-white text-slate-800 shadow-sm"}`}>
+                        <div className={`mb-1 text-[10px] font-bold uppercase ${mine ? "text-orange-100" : "text-slate-400"}`}>
+                          {senderName}{mine ? " · VOUS" : ""}
+                        </div>
+                        {item.body}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
               {error && <div className="mt-3 rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-700">{error}</div>}
-              <form onSubmit={sendMessage} className="mt-4 flex gap-3"><input value={text} onChange={(e) => setText(e.target.value)} placeholder={actorId ? "Écrire un message..." : "Connecte-toi d'abord..."} disabled={!actorId || sending} className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-4 focus:ring-orange-100"/><button type="submit" disabled={!actorId || sending || !text.trim()} className="inline-flex items-center gap-2 rounded-xl bg-orange-500 px-5 py-3 text-sm font-bold text-white disabled:opacity-50">{sending ? <Loader2 size={17} className="animate-spin"/> : <Send size={17}/>}Send</button></form>
+              <form onSubmit={sendMessage} className="mt-4 flex gap-3"><input value={text} onChange={(e) => setText(e.target.value)} placeholder={actorId ? `Écrire en tant que ${actorName}...` : "Connecte-toi d'abord..."} disabled={!actorId || sending} className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-4 focus:ring-orange-100"/><button type="submit" disabled={!actorId || sending || !text.trim()} className="inline-flex items-center gap-2 rounded-xl bg-orange-500 px-5 py-3 text-sm font-bold text-white disabled:opacity-50">{sending ? <Loader2 size={17} className="animate-spin"/> : <Send size={17}/>}Send</button></form>
             </div>
           </section>
         </div>
