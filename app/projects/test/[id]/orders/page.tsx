@@ -35,14 +35,14 @@ export default async function ProjectOrdersPage({ params }: Props) {
         <header className="rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
           <div className="flex items-center justify-between gap-4">
             <div><p className="text-base font-black text-slate-950">QimaTrade</p><p className="text-xs text-slate-500">Order / transaction functional test</p></div>
-            <div className="flex gap-4 text-sm font-bold"><Link href={`/projects/test/${id}`} className="text-slate-600">← Project</Link><Link href={`/projects/test/${id}/payments`} className="text-orange-600">Payments</Link></div>
+            <div className="flex gap-4 text-sm font-bold"><Link href={`/projects/test/${id}`} className="text-slate-600">← Project</Link><Link href={`/projects/test/${id}/payment-requests`} className="text-orange-600">Payment Requests</Link><Link href={`/projects/test/${id}/payments`} className="text-orange-600">Payments</Link></div>
           </div>
         </header>
 
         <section className="mt-5 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <p className="text-xs font-black uppercase tracking-wider text-orange-600">ORDER / TRANSACTION TEST</p>
           <div className="mt-1 flex flex-wrap items-center justify-between gap-4">
-            <div><h1 className="text-3xl font-black text-slate-950">Orders — {project.name}</h1><p className="mt-1 text-xs text-slate-400">{project.project_id} · Demand → Match → Conversation → Payment → Order</p></div>
+            <div><h1 className="text-3xl font-black text-slate-950">Orders — {project.name}</h1><p className="mt-1 text-xs text-slate-400">{project.project_id} · Demand → Match → Conversation → Payment Request → Order</p></div>
             <span className="rounded-full bg-orange-50 px-4 py-2 text-xs font-black text-orange-700">{orders?.length ?? 0} orders</span>
           </div>
         </section>
@@ -50,7 +50,7 @@ export default async function ProjectOrdersPage({ params }: Props) {
         <div className="mt-6 grid gap-6 lg:grid-cols-3">
           <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
             <h2 className="text-xl font-black">Create order</h2>
-            <p className="mt-1 text-sm text-slate-500">Simulation de la transaction commerciale après le match et le paiement.</p>
+            <p className="mt-1 text-sm text-slate-500">Simulation de la transaction commerciale après le match et la demande de paiement.</p>
             <form action={createOrder.bind(null, id)} className="mt-5 space-y-4">
               <label className="block text-sm font-bold">Buyer<select name="buyer_actor_id" required className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm"><option value="">Select buyer</option>{(participants ?? []).map((p) => <option key={p.actor_id} value={p.actor_id}>{actorMap.get(p.actor_id) ?? p.actor_id} — {p.role}</option>)}</select></label>
               <label className="block text-sm font-bold">Seller<select name="seller_actor_id" required className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm"><option value="">Select seller</option>{(participants ?? []).map((p) => <option key={p.actor_id} value={p.actor_id}>{actorMap.get(p.actor_id) ?? p.actor_id} — {p.role}</option>)}</select></label>
