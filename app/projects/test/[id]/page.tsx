@@ -2,12 +2,17 @@ import Link from "next/link";
 import ProjectTestAuthBar from "@/components/project-test-auth-bar";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
-export default async function ProjectWorkspacePage({ params }: { params: { id: string } }) {
+type ProjectWorkspacePageProps = {
+  params: Promise<{ id: string }>;
+};
+
+export default async function ProjectWorkspacePage({ params }: ProjectWorkspacePageProps) {
+  const { id } = await params;
   const supabase = await createSupabaseServerClient();
-  const { data: project, error } = await supabase.from("projects").select("id, project_id, name, description, status, demand_id, offer_id, match_id, created_by_actor_id, start_at, target_end_at, created_at").eq("id", params.id).maybeSingle();
-  const { data: participants } = await supabase.from("project_participants").select("id, actor_id, role, created_at").eq("project_id", params.id).order("created_at");
-  const { data: tasks } = await supabase.from("project_tasks").select("id, title, status, priority, assigned_to_actor_id, due_at, created_at").eq("project_id", params.id).order("created_at", { ascending: false });
-  const { data: events } = await supabase.from("project_events").select("id, event_type, description, actor_id, created_at").eq("project_id", params.id).order("created_at", { ascending: false }).limit(20);
+  const { data: project, error } = await supabase.from("projects").select("id, project_id, name, description, status, demand_id, offer_id, match_id, created_by_actor_id, start_at, target_end_at, created_at").eq("id", id).maybeSingle();
+  const { data: participants } = await supabase.from("project_participants").select("id, actor_id, role, created_at").eq("project_id", id).order("created_at");
+  const { data: tasks } = await supabase.from("project_tasks").select("id, title, status, priority, assigned_to_actor_id, due_at, created_at").eq("project_id", id).order("created_at", { ascending: false });
+  const { data: events } = await supabase.from("project_events").select("id, event_type, description, actor_id, created_at").eq("project_id", id).order("created_at", { ascending: false }).limit(20);
 
   if (error || !project) return <main className="min-h-screen bg-slate-50 p-8"><div className="mx-auto max-w-4xl rounded-3xl border border-red-200 bg-white p-8 text-center"><h1 className="text-2xl font-black text-red-600">Unable to load Project</h1><p className="mt-2 text-sm text-slate-500">Project not found or unavailable.</p><Link href="/projects/test" className="mt-6 inline-block rounded-xl bg-orange-500 px-5 py-3 font-bold text-white">Back to tests</Link></div></main>;
 
