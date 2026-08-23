@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import GlobalActionLoader from "@/components/global-action-loader";
 
 export const metadata: Metadata = {
   title: "QimaTrade MVP",
@@ -13,7 +14,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="fr">
-      <body>{children}</body>
+      <body>
+        {children}
+        <GlobalActionLoader />
+      </body>
     </html>
   );
 }
