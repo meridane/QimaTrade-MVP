@@ -6,6 +6,7 @@ const statuses = ["pending", "authorized", "paid", "failed", "cancelled"] as con
 const methods = ["bank_transfer", "card", "toss", "cash"] as const;
 
 type Props = { params: Promise<{ id: string }> };
+type Actor = { actor_id: string; name: string };
 
 export default async function ProjectPaymentsPage({ params }: Props) {
   const { id } = await params;
@@ -28,11 +29,19 @@ export default async function ProjectPaymentsPage({ params }: Props) {
     .order("created_at");
 
   const actorIds = (participants ?? []).map((p) => p.actor_id);
-  const { data: actors } = actorIds.length
-    ? await supabase.from("actors").select("actor_id, name").in("actor_id", actorIds)
-    : { data: [], error: null };
+  let actors: Actor[] = [];
 
-  const actorMap = new Map((actors ?? []).map((a) => [a.actor_id, a.name]));
+  if (actorIds.length > 0) {
+    const { data, error } = await supabase
+      .from("actors")
+      .select("actor_id, name")
+      .in("actor_id", actorIds);
+
+    if (error) throw new Error(error.message);
+    actors = (data ?? []) as Actor[];
+  }
+
+  const actorMap = new Map(actors.map((a) => [a.actor_id, a.name]));
 
   const { data: payments, error: paymentsError } = await supabase
     .from("project_payments")
