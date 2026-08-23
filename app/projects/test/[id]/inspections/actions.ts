@@ -27,19 +27,60 @@ export async function createInspection(projectId: string, formData: FormData): P
   const supabase = await createSupabaseServerClient();
   const actorId = await actor(supabase);
   await participant(supabase, projectId, actorId);
+
   const type = String(formData.get("type") ?? "");
   if (!TYPES.includes(type as (typeof TYPES)[number])) throw new Error("Type d'inspection invalide.");
+
   const inspector = String(formData.get("inspector_actor_id") ?? "").trim();
   const orderId = String(formData.get("order_id") ?? "").trim();
   const shipmentId = String(formData.get("shipment_id") ?? "").trim();
   const summary = String(formData.get("summary") ?? "").trim();
   const recommendation = String(formData.get("recommendation") ?? "").trim();
+
   if (inspector) await participant(supabase, projectId, inspector);
+
+  if (orderId) {
+    const { data, error } = await supabase.from("project_orders").select("id").eq("id", orderId).eq("project_id", projectId).maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!data) throw new Error("Order introuvable.");
+  }
+
+  if (shipmentId) {
+    const { data, error } = await supabase.from("project_shipments").select("id").eq("id", shipmentId).eq("project_id", projectId).maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!data) throw new Error("Shipment introuvable.");
+  }
+
   const inspectionId = `INS-${Date.now().toString(36).toUpperCase()}`;
-  const { error } = await supabase.from("project_inspections").insert({ inspection_id: inspectionId, project_id: projectId, order_id: orderId || null, shipment_id: shipmentId || null, inspector_actor_id: inspector || null, created_by_actor_id: actorId, type, status: "draft", summary: summary || null, recommendation: recommendation || null }).select("id, inspection_id").single();
+
+  // The deployed database currently contains inspection_type as a NOT NULL
+  // compatibility column in addition to type. Set both so creation works
+  // with the existing production schema and with the current migration.
+  const { error } = await supabase.from("project_inspections").insert({
+    inspection_id: inspectionId,
+    project_id: projectId,
+    order_id: orderId || null,
+    shipment_id: shipmentId || null,
+    inspector_actor_id: inspector || null,
+    created_by_actor_id: actorId,
+    type,
+    inspection_type: type,
+    status: "draft",
+    summary: summary || null,
+    recommendation: recommendation || null,
+  }).select("id, inspection_id").single();
+
   if (error) throw new Error(error.message);
-  const { error: eventError } = await supabase.from("project_events").insert({ project_id: projectId, actor_id: actorId, event_type: "INSPECTION_CREATED", title: "Inspection created", description: `${inspectionId} (${type}).` });
+
+  const { error: eventError } = await supabase.from("project_events").insert({
+    project_id: projectId,
+    actor_id: actorId,
+    event_type: "INSPECTION_CREATED",
+    title: "Inspection created",
+    description: `${inspectionId} (${type}).`,
+  });
   if (eventError) throw new Error(eventError.message);
+
   revalidatePath(`/projects/test/${projectId}/inspections`);
 }
 
@@ -48,14 +89,28 @@ export async function updateInspectionStatus(projectId: string, inspectionId: st
   const supabase = await createSupabaseServerClient();
   const actorId = await actor(supabase);
   await participant(supabase, projectId, actorId);
+
   const { data: inspection, error: readError } = await supabase.from("project_inspections").select("id, inspection_id, status").eq("id", inspectionId).eq("project_id", projectId).maybeSingle();
   if (readError) throw new Error(readError.message);
   if (!inspection) throw new Error("Inspection introuvable.");
+
   const completed = status === "completed" || status === "approved" || status === "rejected";
-  const { error } = await supabase.from("project_inspections").update({ status, updated_at: new Date().toISOString(), completed_at: completed ? new Date().toISOString() : null }).eq("id", inspectionId).eq("project_id", projectId);
+  const { error } = await supabase.from("project_inspections").update({
+    status,
+    updated_at: new Date().toISOString(),
+    completed_at: completed ? new Date().toISOString() : null,
+  }).eq("id", inspectionId).eq("project_id", projectId);
   if (error) throw new Error(error.message);
-  const { error: eventError } = await supabase.from("project_events").insert({ project_id: projectId, actor_id: actorId, event_type: "INSPECTION_STATUS_CHANGED", title: `Inspection ${status}`, description: `${inspection.inspection_id}: ${inspection.status} → ${status}.` });
+
+  const { error: eventError } = await supabase.from("project_events").insert({
+    project_id: projectId,
+    actor_id: actorId,
+    event_type: "INSPECTION_STATUS_CHANGED",
+    title: `Inspection ${status}`,
+    description: `${inspection.inspection_id}: ${inspection.status} → ${status}.`,
+  });
   if (eventError) throw new Error(eventError.message);
+
   revalidatePath(`/projects/test/${projectId}/inspections`);
 }
 
@@ -63,16 +118,36 @@ export async function createFinding(projectId: string, inspectionId: string, for
   const supabase = await createSupabaseServerClient();
   const actorId = await actor(supabase);
   await participant(supabase, projectId, actorId);
+
   const { data: inspection } = await supabase.from("project_inspections").select("id, inspection_id").eq("id", inspectionId).eq("project_id", projectId).maybeSingle();
   if (!inspection) throw new Error("Inspection introuvable.");
+
   const severity = String(formData.get("severity") ?? "low");
   if (!SEVERITIES.includes(severity as (typeof SEVERITIES)[number])) throw new Error("Sévérité invalide.");
+
   const title = String(formData.get("title") ?? "").trim();
   if (!title) throw new Error("Le titre du finding est obligatoire.");
-  const { error } = await supabase.from("project_inspection_findings").insert({ inspection_id: inspectionId, title, description: String(formData.get("description") ?? "").trim() || null, severity, recommendation: String(formData.get("recommendation") ?? "").trim() || null, evidence_url: String(formData.get("evidence_url") ?? "").trim() || null, created_by_actor_id: actorId }).select("id").single();
+
+  const { error } = await supabase.from("project_inspection_findings").insert({
+    inspection_id: inspectionId,
+    title,
+    description: String(formData.get("description") ?? "").trim() || null,
+    severity,
+    recommendation: String(formData.get("recommendation") ?? "").trim() || null,
+    evidence_url: String(formData.get("evidence_url") ?? "").trim() || null,
+    created_by_actor_id: actorId,
+  }).select("id").single();
   if (error) throw new Error(error.message);
-  const { error: eventError } = await supabase.from("project_events").insert({ project_id: projectId, actor_id: actorId, event_type: "INSPECTION_FINDING_CREATED", title: "Inspection finding added", description: `${inspection.inspection_id}: ${title} (${severity}).` });
+
+  const { error: eventError } = await supabase.from("project_events").insert({
+    project_id: projectId,
+    actor_id: actorId,
+    event_type: "INSPECTION_FINDING_CREATED",
+    title: "Inspection finding added",
+    description: `${inspection.inspection_id}: ${title} (${severity}).`,
+  });
   if (eventError) throw new Error(eventError.message);
+
   revalidatePath(`/projects/test/${projectId}/inspections`);
 }
 
@@ -81,13 +156,28 @@ export async function updateFindingStatus(projectId: string, findingId: string, 
   const supabase = await createSupabaseServerClient();
   const actorId = await actor(supabase);
   await participant(supabase, projectId, actorId);
+
   const { data: finding } = await supabase.from("project_inspection_findings").select("id, title, inspection_id, status").eq("id", findingId).maybeSingle();
   if (!finding) throw new Error("Finding introuvable.");
+
   const { data: inspection } = await supabase.from("project_inspections").select("inspection_id, project_id").eq("id", finding.inspection_id).eq("project_id", projectId).maybeSingle();
   if (!inspection) throw new Error("Accès refusé.");
-  const { error } = await supabase.from("project_inspection_findings").update({ status, updated_at: new Date().toISOString(), resolved_at: status === "resolved" || status === "accepted" ? new Date().toISOString() : null }).eq("id", findingId);
+
+  const { error } = await supabase.from("project_inspection_findings").update({
+    status,
+    updated_at: new Date().toISOString(),
+    resolved_at: status === "resolved" || status === "accepted" ? new Date().toISOString() : null,
+  }).eq("id", findingId);
   if (error) throw new Error(error.message);
-  const { error: eventError } = await supabase.from("project_events").insert({ project_id: projectId, actor_id: actorId, event_type: "INSPECTION_FINDING_STATUS_CHANGED", title: "Finding status changed", description: `${finding.title}: ${finding.status} → ${status}.` });
+
+  const { error: eventError } = await supabase.from("project_events").insert({
+    project_id: projectId,
+    actor_id: actorId,
+    event_type: "INSPECTION_FINDING_STATUS_CHANGED",
+    title: "Finding status changed",
+    description: `${finding.title}: ${finding.status} → ${status}.`,
+  });
   if (eventError) throw new Error(eventError.message);
+
   revalidatePath(`/projects/test/${projectId}/inspections`);
 }
