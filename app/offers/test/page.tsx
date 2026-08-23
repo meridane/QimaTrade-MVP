@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { respondToOffer } from "@/app/demands/match/actions";
+import TestAuthBar from "@/components/test-auth-bar";
 
 export default async function OfferTestPage() {
   const supabase = await createSupabaseServerClient();
@@ -12,14 +13,18 @@ export default async function OfferTestPage() {
       <div className="mx-auto max-w-6xl">
         <header className="rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
           <div className="flex items-center justify-between gap-4">
-            <div><p className="text-base font-black text-slate-950">QimaTrade</p><p className="text-xs text-slate-500">Offer acceptance test</p></div>
+            <div><p className="text-base font-black text-slate-950">QimaTrade</p><p className="text-xs text-slate-500">Offer & Counter Offer test</p></div>
             <Link href="/" className="text-sm font-bold text-orange-600">Home</Link>
           </div>
         </header>
 
+        <div className="mt-5">
+          <TestAuthBar />
+        </div>
+
         <section className="mt-6 rounded-3xl border border-orange-100 bg-orange-50 p-6">
-          <h1 className="text-2xl font-black text-slate-950">Test Supplier Offer → Accept → Conversation</h1>
-          <p className="mt-2 text-sm leading-6 text-slate-600">Select a buyer demand and a supplier offer. Accepting creates the official match and redirects to the conversation. Rejecting records a rejected match without blocking the supplier from other demands.</p>
+          <h1 className="text-2xl font-black text-slate-950">Test Supplier Offer → Counter Offer → Agreement</h1>
+          <p className="mt-2 text-sm leading-6 text-slate-600">Test this workflow with the two real Google accounts: <strong>adda.mahdi</strong> as Buyer and <strong>madda.yasser</strong> as Supplier. The account bar above always shows the active Google session.</p>
         </section>
 
         <div className="mt-6 grid gap-6 lg:grid-cols-2">
