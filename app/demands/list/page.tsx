@@ -83,7 +83,7 @@ export default async function DemandsListPage() {
                         <td className="px-5 py-4 text-sm font-semibold text-slate-700">{demand.quantity}</td>
                         <td className="px-5 py-4 text-sm text-slate-600">{demand.target_market || "—"}</td>
                         <td className="px-5 py-4"><span className="rounded-full bg-orange-50 px-3 py-1 text-xs font-bold text-orange-700">{demand.demand_status || "—"}</span></td>
-                        <td className="px-5 py-4"><Link href={`/demands/qualification?id=${encodeURIComponent(demand.id)}`} className="inline-flex items-center gap-1.5 text-sm font-bold text-orange-600 hover:text-orange-700">Open workflow <ArrowRight size={15} /></Link></td>
+                        <td className="px-5 py-4"><Link href={`/demands?id=${encodeURIComponent(demand.id)}`} className="inline-flex items-center gap-1.5 text-sm font-bold text-orange-600 hover:text-orange-700">Open demand <ArrowRight size={15} /></Link></td>
                       </tr>
                     ))}
                   </tbody>
