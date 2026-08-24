@@ -84,12 +84,8 @@ async function participant(
 }
 
 /**
- * Convertit actors.actor_id (ex: ACT-XXXXXXXX)
- * vers actors.id (UUID).
- *
- * project_participants.actor_id référence actors.id,
- * alors que project_inspections.inspector_actor_id
- * référence actors.actor_id.
+ * Convertit actors.actor_id (clé métier) vers actors.id (UUID).
+ * project_participants.actor_id référence actors.id.
  */
 async function getActorFromKey(
   supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
@@ -106,10 +102,37 @@ async function getActorFromKey(
   }
 
   if (!data) {
-    throw new Error("Inspecteur introuvable dans la table actors.");
+    throw new Error("Acteur introuvable dans la table actors.");
   }
 
   return data;
+}
+
+/**
+ * profiles.actor_id et project_participants.actor_id utilisent actors.id,
+ * tandis que les colonnes *_actor_id de project_inspections utilisent
+ * actors.actor_id. On convertit donc explicitement l'ID courant vers
+ * la clé actor_id avant les INSERT concernés.
+ */
+async function getActorKeyFromId(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  actorId: string
+) {
+  const { data, error } = await supabase
+    .from("actors")
+    .select("actor_id")
+    .eq("id", actorId)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  if (!data?.actor_id) {
+    throw new Error("Impossible de retrouver la clé actor_id du compte courant.");
+  }
+
+  return data.actor_id as string;
 }
 
 export async function createInspection(
@@ -119,12 +142,12 @@ export async function createInspection(
   const supabase = await createSupabaseServerClient();
 
   const currentActorId = await actor(supabase);
-
-  await participant(
+  const currentActorKey = await getActorKeyFromId(
     supabase,
-    projectId,
     currentActorId
   );
+
+  await participant(supabase, projectId, currentActorId);
 
   const type = String(formData.get("type") ?? "");
 
@@ -136,38 +159,20 @@ export async function createInspection(
     formData.get("inspector_actor_id") ?? ""
   ).trim();
 
-  const orderId = String(
-    formData.get("order_id") ?? ""
-  ).trim();
-
-  const shipmentId = String(
-    formData.get("shipment_id") ?? ""
-  ).trim();
-
-  const summary = String(
-    formData.get("summary") ?? ""
-  ).trim();
-
+  const orderId = String(formData.get("order_id") ?? "").trim();
+  const shipmentId = String(formData.get("shipment_id") ?? "").trim();
+  const summary = String(formData.get("summary") ?? "").trim();
   const recommendation = String(
     formData.get("recommendation") ?? ""
   ).trim();
 
-  /**
-   * The form sends actors.actor_id (ACT-XXXX).
-   * Resolve it to actors.id only for the project participant check.
-   * The inspection table itself must receive the ACT-XXXX key.
-   */
   if (inspectorActorKey) {
     const selectedActor = await getActorFromKey(
       supabase,
       inspectorActorKey
     );
 
-    await participant(
-      supabase,
-      projectId,
-      selectedActor.id
-    );
+    await participant(supabase, projectId, selectedActor.id);
   }
 
   if (orderId) {
@@ -204,9 +209,7 @@ export async function createInspection(
     }
   }
 
-  const inspectionId = `INS-${Date.now()
-    .toString(36)
-    .toUpperCase()}`;
+  const inspectionId = `INS-${Date.now().toString(36).toUpperCase()}`;
 
   const { error } = await supabase
     .from("project_inspections")
@@ -216,7 +219,7 @@ export async function createInspection(
       order_id: orderId || null,
       shipment_id: shipmentId || null,
       inspector_actor_id: inspectorActorKey || null,
-      created_by_actor_id: currentActorId,
+      created_by_actor_id: currentActorKey,
       type,
       inspection_type: type,
       status: "draft",
@@ -244,9 +247,7 @@ export async function createInspection(
     throw new Error(eventError.message);
   }
 
-  revalidatePath(
-    `/projects/test/${projectId}/inspections`
-  );
+  revalidatePath(`/projects/test/${projectId}/inspections`);
 }
 
 export async function updateInspectionStatus(
@@ -261,11 +262,7 @@ export async function updateInspectionStatus(
   const supabase = await createSupabaseServerClient();
   const currentActorId = await actor(supabase);
 
-  await participant(
-    supabase,
-    projectId,
-    currentActorId
-  );
+  await participant(supabase, projectId, currentActorId);
 
   const { data: inspection, error: readError } = await supabase
     .from("project_inspections")
@@ -292,9 +289,7 @@ export async function updateInspectionStatus(
     .update({
       status,
       updated_at: new Date().toISOString(),
-      completed_at: completed
-        ? new Date().toISOString()
-        : null,
+      completed_at: completed ? new Date().toISOString() : null,
     })
     .eq("id", inspectionId)
     .eq("project_id", projectId);
@@ -317,9 +312,7 @@ export async function updateInspectionStatus(
     throw new Error(eventError.message);
   }
 
-  revalidatePath(
-    `/projects/test/${projectId}/inspections`
-  );
+  revalidatePath(`/projects/test/${projectId}/inspections`);
 }
 
 export async function createFinding(
@@ -329,12 +322,12 @@ export async function createFinding(
 ): Promise<void> {
   const supabase = await createSupabaseServerClient();
   const currentActorId = await actor(supabase);
-
-  await participant(
+  const currentActorKey = await getActorKeyFromId(
     supabase,
-    projectId,
     currentActorId
   );
+
+  await participant(supabase, projectId, currentActorId);
 
   const { data: inspection } = await supabase
     .from("project_inspections")
@@ -347,17 +340,13 @@ export async function createFinding(
     throw new Error("Inspection introuvable.");
   }
 
-  const severity = String(
-    formData.get("severity") ?? "low"
-  );
+  const severity = String(formData.get("severity") ?? "low");
 
   if (!SEVERITIES.includes(severity as (typeof SEVERITIES)[number])) {
     throw new Error("Sévérité invalide.");
   }
 
-  const title = String(
-    formData.get("title") ?? ""
-  ).trim();
+  const title = String(formData.get("title") ?? "").trim();
 
   if (!title) {
     throw new Error("Le titre du finding est obligatoire.");
@@ -375,7 +364,7 @@ export async function createFinding(
         String(formData.get("recommendation") ?? "").trim() || null,
       evidence_url:
         String(formData.get("evidence_url") ?? "").trim() || null,
-      created_by_actor_id: currentActorId,
+      created_by_actor_id: currentActorKey,
     })
     .select("id")
     .single();
@@ -398,9 +387,7 @@ export async function createFinding(
     throw new Error(eventError.message);
   }
 
-  revalidatePath(
-    `/projects/test/${projectId}/inspections`
-  );
+  revalidatePath(`/projects/test/${projectId}/inspections`);
 }
 
 export async function updateFindingStatus(
@@ -419,11 +406,7 @@ export async function updateFindingStatus(
   const supabase = await createSupabaseServerClient();
   const currentActorId = await actor(supabase);
 
-  await participant(
-    supabase,
-    projectId,
-    currentActorId
-  );
+  await participant(supabase, projectId, currentActorId);
 
   const { data: finding } = await supabase
     .from("project_inspection_findings")
@@ -476,7 +459,5 @@ export async function updateFindingStatus(
     throw new Error(eventError.message);
   }
 
-  revalidatePath(
-    `/projects/test/${projectId}/inspections`
-  );
+  revalidatePath(`/projects/test/${projectId}/inspections`);
 }
