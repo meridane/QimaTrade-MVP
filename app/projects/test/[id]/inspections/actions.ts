@@ -44,15 +44,19 @@ async function actor(
 ): Promise<ActorIdentity> {
   const {
     data: { user },
+    error: authError,
   } = await supabase.auth.getUser();
+
+  if (authError) {
+    throw new Error(
+      `Impossible de vérifier la session: ${authError.message}`
+    );
+  }
 
   if (!user) {
     throw new Error("Utilisateur non connecté.");
   }
 
-  // profiles.actor_id is the UUID of actors.id.
-  // The inspection foreign keys use actors.actor_id (ACT-XXXX),
-  // so we resolve both values here once and use the correct one per column.
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
     .select("actor_id")
@@ -60,50 +64,25 @@ async function actor(
     .maybeSingle();
 
   if (profileError) {
-    throw new Error(`Impossible de lire le profil du compte courant: ${profileError.message}`);
-  }
-
-  if (profile?.actor_id) {
-    const { data: actorRow, error: actorError } = await supabase
-      .from("actors")
-      .select("id, actor_id")
-      .eq("id", profile.actor_id)
-      .maybeSingle();
-
-    if (actorError) {
-      throw new Error(`Impossible de retrouver l'acteur du compte courant: ${actorError.message}`);
-    }
-
-    if (actorRow?.id && actorRow.actor_id) {
-      return {
-        uuid: actorRow.id,
-        key: actorRow.actor_id,
-      };
-    }
-  }
-
-  // Fallback for accounts whose profile mapping is temporarily missing.
-  // Existing actors use the ACT- + first 12 hex characters convention.
-  const fallbackKey = `ACT-${user.id.replace(/-/g, "").slice(0, 12).toUpperCase()}`;
-  const { data: fallbackActor, error: fallbackError } = await supabase
-    .from("actors")
-    .select("id, actor_id")
-    .eq("actor_id", fallbackKey)
-    .maybeSingle();
-
-  if (fallbackError) {
-    throw new Error(`Impossible de retrouver l'acteur du compte courant: ${fallbackError.message}`);
-  }
-
-  if (!fallbackActor?.id || !fallbackActor.actor_id) {
     throw new Error(
-      "Impossible de retrouver l'actor_id du compte courant. Vérifiez que votre compte possède bien un profil et un acteur associés."
+      `Impossible de lire le profil du compte courant: ${profileError.message}`
     );
   }
 
+  if (!profile?.actor_id) {
+    throw new Error(
+      "Le compte connecté possède un profil mais aucun acteur associé."
+    );
+  }
+
+  const actorKey = `ACT-${user.id
+    .replace(/-/g, "")
+    .slice(0, 12)
+    .toUpperCase()}`;
+
   return {
-    uuid: fallbackActor.id,
-    key: fallbackActor.actor_id,
+    uuid: profile.actor_id,
+    key: actorKey,
   };
 }
 
@@ -128,27 +107,6 @@ async function participant(
   }
 }
 
-async function getActorFromKey(
-  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
-  actorKey: string
-) {
-  const { data, error } = await supabase
-    .from("actors")
-    .select("id, actor_id, name")
-    .eq("actor_id", actorKey)
-    .maybeSingle();
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  if (!data) {
-    throw new Error("Inspecteur introuvable dans la table actors.");
-  }
-
-  return data;
-}
-
 export async function createInspection(
   projectId: string,
   formData: FormData
@@ -158,7 +116,7 @@ export async function createInspection(
 
   await participant(supabase, projectId, currentActor.uuid);
 
-  const type = String(formData.get("type") ?? "");
+  const type = String(formData.get("type") ?? "").trim();
 
   if (!TYPES.includes(type as (typeof TYPES)[number])) {
     throw new Error("Type d'inspection invalide.");
@@ -171,12 +129,9 @@ export async function createInspection(
   const orderId = String(formData.get("order_id") ?? "").trim();
   const shipmentId = String(formData.get("shipment_id") ?? "").trim();
   const summary = String(formData.get("summary") ?? "").trim();
-  const recommendation = String(formData.get("recommendation") ?? "").trim();
-
-  if (inspectorActorKey) {
-    const selectedActor = await getActorFromKey(supabase, inspectorActorKey);
-    await participant(supabase, projectId, selectedActor.id);
-  }
+  const recommendation = String(
+    formData.get("recommendation") ?? ""
+  ).trim();
 
   if (orderId) {
     const { data, error } = await supabase
@@ -186,8 +141,13 @@ export async function createInspection(
       .eq("project_id", projectId)
       .maybeSingle();
 
-    if (error) throw new Error(error.message);
-    if (!data) throw new Error("Order introuvable.");
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    if (!data) {
+      throw new Error("Order introuvable.");
+    }
   }
 
   if (shipmentId) {
@@ -198,8 +158,13 @@ export async function createInspection(
       .eq("project_id", projectId)
       .maybeSingle();
 
-    if (error) throw new Error(error.message);
-    if (!data) throw new Error("Shipment introuvable.");
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    if (!data) {
+      throw new Error("Shipment introuvable.");
+    }
   }
 
   const inspectionId = `INS-${Date.now().toString(36).toUpperCase()}`;
@@ -222,7 +187,9 @@ export async function createInspection(
     .select("id, inspection_id")
     .single();
 
-  if (error) throw new Error(error.message);
+  if (error) {
+    throw new Error(error.message);
+  }
 
   const { error: eventError } = await supabase
     .from("project_events")
@@ -234,7 +201,9 @@ export async function createInspection(
       description: `${inspectionId} (${type}).`,
     });
 
-  if (eventError) throw new Error(eventError.message);
+  if (eventError) {
+    throw new Error(eventError.message);
+  }
 
   revalidatePath(`/projects/test/${projectId}/inspections`);
 }
@@ -259,11 +228,18 @@ export async function updateInspectionStatus(
     .eq("project_id", projectId)
     .maybeSingle();
 
-  if (readError) throw new Error(readError.message);
-  if (!inspection) throw new Error("Inspection introuvable.");
+  if (readError) {
+    throw new Error(readError.message);
+  }
+
+  if (!inspection) {
+    throw new Error("Inspection introuvable.");
+  }
 
   const completed =
-    status === "completed" || status === "approved" || status === "rejected";
+    status === "completed" ||
+    status === "approved" ||
+    status === "rejected";
 
   const { error } = await supabase
     .from("project_inspections")
@@ -275,7 +251,9 @@ export async function updateInspectionStatus(
     .eq("id", inspectionId)
     .eq("project_id", projectId);
 
-  if (error) throw new Error(error.message);
+  if (error) {
+    throw new Error(error.message);
+  }
 
   const { error: eventError } = await supabase
     .from("project_events")
@@ -287,7 +265,9 @@ export async function updateInspectionStatus(
       description: `${inspection.inspection_id}: ${inspection.status} → ${status}.`,
     });
 
-  if (eventError) throw new Error(eventError.message);
+  if (eventError) {
+    throw new Error(eventError.message);
+  }
 
   revalidatePath(`/projects/test/${projectId}/inspections`);
 }
@@ -308,31 +288,47 @@ export async function createFinding(
     .eq("project_id", projectId)
     .maybeSingle();
 
-  if (!inspection) throw new Error("Inspection introuvable.");
+  if (!inspection) {
+    throw new Error("Inspection introuvable.");
+  }
 
-  const severity = String(formData.get("severity") ?? "low");
+  const severity = String(formData.get("severity") ?? "low").trim();
+
   if (!SEVERITIES.includes(severity as (typeof SEVERITIES)[number])) {
     throw new Error("Sévérité invalide.");
   }
 
   const title = String(formData.get("title") ?? "").trim();
-  if (!title) throw new Error("Le titre du finding est obligatoire.");
+
+  if (!title) {
+    throw new Error("Le titre du finding est obligatoire.");
+  }
+
+  const description = String(formData.get("description") ?? "").trim();
+  const recommendation = String(
+    formData.get("recommendation") ?? ""
+  ).trim();
+  const evidenceUrl = String(
+    formData.get("evidence_url") ?? ""
+  ).trim();
 
   const { error } = await supabase
     .from("project_inspection_findings")
     .insert({
       inspection_id: inspectionId,
       title,
-      description: String(formData.get("description") ?? "").trim() || null,
+      description: description || null,
       severity,
-      recommendation: String(formData.get("recommendation") ?? "").trim() || null,
-      evidence_url: String(formData.get("evidence_url") ?? "").trim() || null,
+      recommendation: recommendation || null,
+      evidence_url: evidenceUrl || null,
       created_by_actor_id: currentActor.key,
     })
     .select("id")
     .single();
 
-  if (error) throw new Error(error.message);
+  if (error) {
+    throw new Error(error.message);
+  }
 
   const { error: eventError } = await supabase
     .from("project_events")
@@ -344,7 +340,9 @@ export async function createFinding(
       description: `${inspection.inspection_id}: ${title} (${severity}).`,
     });
 
-  if (eventError) throw new Error(eventError.message);
+  if (eventError) {
+    throw new Error(eventError.message);
+  }
 
   revalidatePath(`/projects/test/${projectId}/inspections`);
 }
@@ -354,7 +352,11 @@ export async function updateFindingStatus(
   findingId: string,
   status: string
 ): Promise<void> {
-  if (!FINDING_STATUSES.includes(status as (typeof FINDING_STATUSES)[number])) {
+  if (
+    !FINDING_STATUSES.includes(
+      status as (typeof FINDING_STATUSES)[number]
+    )
+  ) {
     throw new Error("Statut du finding invalide.");
   }
 
@@ -368,7 +370,9 @@ export async function updateFindingStatus(
     .eq("id", findingId)
     .maybeSingle();
 
-  if (!finding) throw new Error("Finding introuvable.");
+  if (!finding) {
+    throw new Error("Finding introuvable.");
+  }
 
   const { data: inspection } = await supabase
     .from("project_inspections")
@@ -377,21 +381,24 @@ export async function updateFindingStatus(
     .eq("project_id", projectId)
     .maybeSingle();
 
-  if (!inspection) throw new Error("Accès refusé.");
+  if (!inspection) {
+    throw new Error("Accès refusé.");
+  }
+
+  const resolved = status === "resolved" || status === "accepted";
 
   const { error } = await supabase
     .from("project_inspection_findings")
     .update({
       status,
       updated_at: new Date().toISOString(),
-      resolved_at:
-        status === "resolved" || status === "accepted"
-          ? new Date().toISOString()
-          : null,
+      resolved_at: resolved ? new Date().toISOString() : null,
     })
     .eq("id", findingId);
 
-  if (error) throw new Error(error.message);
+  if (error) {
+    throw new Error(error.message);
+  }
 
   const { error: eventError } = await supabase
     .from("project_events")
@@ -403,7 +410,9 @@ export async function updateFindingStatus(
       description: `${finding.title}: ${finding.status} → ${status}.`,
     });
 
-  if (eventError) throw new Error(eventError.message);
+  if (eventError) {
+    throw new Error(eventError.message);
+  }
 
   revalidatePath(`/projects/test/${projectId}/inspections`);
 }
