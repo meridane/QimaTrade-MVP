@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, ClipboardList, Plus } from "lucide-react";
+import { ArrowLeft, ArrowRight, ClipboardList, Plus, CheckCircle2, Circle } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export default async function DemandsListPage() {
@@ -41,6 +41,20 @@ export default async function DemandsListPage() {
     .eq("requester_actor_id", profile.actor_id)
     .order("id", { ascending: false });
 
+  // Qualification is checked through the real relation from the demand workflow.
+  // We intentionally do not infer qualification from the demand scope or other fields.
+  const demandIds = (demands ?? []).map((demand) => demand.id);
+  let qualifiedDemandIds = new Set<string>();
+
+  if (demandIds.length > 0) {
+    const { data: qualifications } = await supabase
+      .from("demand_qualifications")
+      .select("demand_id")
+      .in("demand_id", demandIds);
+
+    qualifiedDemandIds = new Set((qualifications ?? []).map((qualification) => qualification.demand_id));
+  }
+
   return (
     <main className="min-h-screen bg-slate-50">
       <div className="mx-auto max-w-6xl px-5 py-6 sm:px-8 lg:py-10">
@@ -72,20 +86,29 @@ export default async function DemandsListPage() {
           ) : (
             <div className="mt-8 overflow-hidden rounded-2xl border border-slate-200">
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[720px] text-left">
+                <table className="w-full min-w-[900px] text-left">
                   <thead className="bg-slate-50 text-xs font-bold uppercase tracking-wide text-slate-500">
-                    <tr><th className="px-5 py-4">Demand</th><th className="px-5 py-4">Quantity</th><th className="px-5 py-4">Destination</th><th className="px-5 py-4">Status</th><th className="px-5 py-4">Action</th></tr>
+                    <tr><th className="px-5 py-4">Demand</th><th className="px-5 py-4">Quantity</th><th className="px-5 py-4">Destination</th><th className="px-5 py-4">Status</th><th className="px-5 py-4">Qualification</th><th className="px-5 py-4">Action</th></tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 bg-white">
-                    {demands.map((demand) => (
-                      <tr key={demand.id} className="transition hover:bg-slate-50/70">
-                        <td className="px-5 py-4"><p className="font-bold text-slate-900">{demand.name}</p><p className="mt-1 text-xs text-slate-400">{demand.id}</p></td>
-                        <td className="px-5 py-4 text-sm font-semibold text-slate-700">{demand.quantity}</td>
-                        <td className="px-5 py-4 text-sm text-slate-600">{demand.target_market || "—"}</td>
-                        <td className="px-5 py-4"><span className="rounded-full bg-orange-50 px-3 py-1 text-xs font-bold text-orange-700">{demand.demand_status || "—"}</span></td>
-                        <td className="px-5 py-4"><Link href={`/demands?id=${encodeURIComponent(demand.id)}`} className="inline-flex items-center gap-1.5 text-sm font-bold text-orange-600 hover:text-orange-700">Open demand <ArrowRight size={15} /></Link></td>
-                      </tr>
-                    ))}
+                    {demands.map((demand) => {
+                      const isQualified = qualifiedDemandIds.has(demand.id);
+                      return (
+                        <tr key={demand.id} className="transition hover:bg-slate-50/70">
+                          <td className="px-5 py-4"><p className="font-bold text-slate-900">{demand.name}</p><p className="mt-1 text-xs text-slate-400">{demand.id}</p></td>
+                          <td className="px-5 py-4 text-sm font-semibold text-slate-700">{demand.quantity}</td>
+                          <td className="px-5 py-4 text-sm text-slate-600">{demand.target_market || "—"}</td>
+                          <td className="px-5 py-4"><span className="rounded-full bg-orange-50 px-3 py-1 text-xs font-bold text-orange-700">{demand.demand_status || "—"}</span></td>
+                          <td className="px-5 py-4">
+                            <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold ${isQualified ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>
+                              {isQualified ? <CheckCircle2 size={14} /> : <Circle size={14} />}
+                              {isQualified ? "Checked" : "Not checked"}
+                            </span>
+                          </td>
+                          <td className="px-5 py-4"><Link href={`/demands?id=${encodeURIComponent(demand.id)}`} className="inline-flex items-center gap-1.5 text-sm font-bold text-orange-600 hover:text-orange-700">Open demand <ArrowRight size={15} /></Link></td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
