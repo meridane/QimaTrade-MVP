@@ -20,6 +20,12 @@ export default function DemandsPage() {
   const [loading, setLoading] = useState(isEdit);
   const [error, setError] = useState("");
   const [demandId, setDemandId] = useState(editId || "");
+  const [title, setTitle] = useState("");
+  const [category, setCategory] = useState("");
+  const [quantity, setQuantity] = useState("");
+  const [unit, setUnit] = useState("tonnes");
+  const [destination, setDestination] = useState("");
+  const [description, setDescription] = useState("");
 
   useEffect(() => {
     if (!editId) {
@@ -33,6 +39,7 @@ export default function DemandsPage() {
 
     getDemand(editId).then((result) => {
       if (!active) return;
+
       if (!result.ok) {
         setError(result.error);
         setLoading(false);
@@ -40,20 +47,12 @@ export default function DemandsPage() {
       }
 
       const demand = result.demand;
-      const title = document.getElementById("title") as HTMLInputElement | null;
-      const category = document.getElementById("category") as HTMLSelectElement | null;
-      const quantity = document.getElementById("quantity") as HTMLInputElement | null;
-      const unit = document.getElementById("unit") as HTMLSelectElement | null;
-      const destination = document.getElementById("destination") as HTMLInputElement | null;
-      const description = document.getElementById("description") as HTMLTextAreaElement | null;
-
-      if (title) title.value = demand.title;
-      if (category) category.value = demand.category;
-      if (quantity) quantity.value = demand.quantity;
-      if (unit) unit.value = demand.unit || "tonnes";
-      if (destination) destination.value = demand.destination;
-      if (description) description.value = demand.description;
-
+      setTitle(demand.title);
+      setCategory(demand.category);
+      setQuantity(demand.quantity);
+      setUnit(demand.unit || "tonnes");
+      setDestination(demand.destination);
+      setDescription(demand.description);
       setRequirements(demand.requirements);
       setDemandId(demand.id);
       setLoading(false);
@@ -79,27 +78,25 @@ export default function DemandsPage() {
     event.preventDefault();
     setError("");
 
-    const form = event.currentTarget;
-    const formData = new FormData(form);
-    const title = String(formData.get("title") ?? "").trim();
-    const category = String(formData.get("category") ?? "").trim();
-    const quantity = Number(formData.get("quantity"));
-    const description = String(formData.get("description") ?? "").trim();
+    const cleanTitle = title.trim();
+    const cleanCategory = category.trim();
+    const numericQuantity = Number(quantity);
+    const cleanDescription = description.trim();
 
-    if (!title) return setError("Demand title is required.");
-    if (!category) return setError("Category is required.");
-    if (!Number.isFinite(quantity) || quantity <= 0) return setError("Quantity must be greater than 0.");
-    if (!description) return setError("Description is required.");
+    if (!cleanTitle) return setError("Demand title is required.");
+    if (!cleanCategory) return setError("Category is required.");
+    if (!Number.isFinite(numericQuantity) || numericQuantity <= 0) return setError("Quantity must be greater than 0.");
+    if (!cleanDescription) return setError("Description is required.");
 
     setSaving(true);
 
     const input = {
-      title,
-      category,
-      quantity: String(formData.get("quantity") ?? ""),
-      unit: String(formData.get("unit") ?? ""),
-      destination: String(formData.get("destination") ?? ""),
-      description,
+      title: cleanTitle,
+      category: cleanCategory,
+      quantity,
+      unit,
+      destination: destination.trim(),
+      description: cleanDescription,
       requirements,
     };
 
@@ -121,7 +118,9 @@ export default function DemandsPage() {
     return (
       <main className="min-h-screen bg-slate-50 px-5 py-10">
         <div className="mx-auto flex min-h-[60vh] max-w-5xl items-center justify-center rounded-3xl border border-slate-200 bg-white shadow-soft">
-          <div className="flex items-center gap-3 text-sm font-semibold text-slate-500"><Loader2 className="animate-spin" size={20} /> Loading demand...</div>
+          <div className="flex items-center gap-3 text-sm font-semibold text-slate-500">
+            <Loader2 className="animate-spin" size={20} /> Loading demand...
+          </div>
         </div>
       </main>
     );
@@ -132,8 +131,13 @@ export default function DemandsPage() {
       <div className="mx-auto max-w-5xl px-5 py-6 sm:px-8 lg:py-10">
         <header className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-soft">
           <div className="flex items-center gap-3">
-            <Link href="/demands/list" className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-500 transition hover:border-orange-200 hover:text-orange-600" aria-label="Back to demands"><ArrowLeft size={18} /></Link>
-            <div><p className="text-base font-bold tracking-tight text-slate-950">QimaTrade</p><p className="text-xs text-slate-500">{isEdit ? "Edit demand" : "Create a demand"}</p></div>
+            <Link href="/demands/list" className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-500 transition hover:border-orange-200 hover:text-orange-600" aria-label="Back to demands">
+              <ArrowLeft size={18} />
+            </Link>
+            <div>
+              <p className="text-base font-bold tracking-tight text-slate-950">QimaTrade</p>
+              <p className="text-xs text-slate-500">{isEdit ? "Edit demand" : "Create a demand"}</p>
+            </div>
           </div>
           <span className="rounded-full bg-orange-50 px-3 py-1 text-xs font-semibold text-orange-700">MVP · Demand</span>
         </header>
@@ -141,11 +145,15 @@ export default function DemandsPage() {
         <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_320px]">
           <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft sm:p-8">
             <div className="mb-8 flex items-start gap-4">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-orange-50 text-orange-600"><ClipboardList size={23} /></div>
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-orange-50 text-orange-600">
+                <ClipboardList size={23} />
+              </div>
               <div>
                 <p className="text-sm font-bold text-orange-600">Step 01</p>
                 <h1 className="mt-1 text-3xl font-black tracking-tight text-slate-950">{isEdit ? "Edit your demand" : "Create a demand"}</h1>
-                <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">{isEdit ? "Review and update the commercial information before continuing through the QimaTrade workflow." : "Tell QimaTrade what you need. These first fields define the minimum information used to qualify and match the demand."}</p>
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
+                  {isEdit ? "Review and update the commercial information before continuing through the QimaTrade workflow." : "Tell QimaTrade what you need. These first fields define the minimum information used to qualify and match the demand."}
+                </p>
               </div>
             </div>
 
@@ -160,7 +168,9 @@ export default function DemandsPage() {
                   </div>
                 </div>
                 <div className="mt-5 flex flex-col gap-3 sm:flex-row">
-                  <Link href={`/demands/qualification?id=${encodeURIComponent(demandId)}`} className="inline-flex items-center justify-center gap-2 rounded-xl bg-orange-500 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-orange-500/20 transition hover:bg-orange-600">Continue to qualification <ArrowRight size={17} /></Link>
+                  <Link href={`/demands/qualification?id=${encodeURIComponent(demandId)}`} className="inline-flex items-center justify-center gap-2 rounded-xl bg-orange-500 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-orange-500/20 transition hover:bg-orange-600">
+                    Continue to qualification <ArrowRight size={17} />
+                  </Link>
                   <Link href="/demands/list" className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700">Back to my demands</Link>
                 </div>
               </div>
@@ -170,39 +180,42 @@ export default function DemandsPage() {
 
                 <div>
                   <label htmlFor="title" className="mb-2 block text-sm font-bold text-slate-800">Demand title <span className="text-orange-500">*</span></label>
-                  <input id="title" name="title" required placeholder="e.g. 20 tonnes of recycled aluminium" className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition placeholder:text-slate-400 focus:border-orange-400 focus:ring-4 focus:ring-orange-100" />
+                  <input id="title" name="title" required value={title} onChange={(event) => setTitle(event.target.value)} placeholder="e.g. 20 tonnes of recycled aluminium" className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition placeholder:text-slate-400 focus:border-orange-400 focus:ring-4 focus:ring-orange-100" />
                 </div>
 
                 <div className="grid gap-5 sm:grid-cols-2">
                   <div>
                     <label htmlFor="category" className="mb-2 block text-sm font-bold text-slate-800">Category <span className="text-orange-500">*</span></label>
-                    <select id="category" name="category" required defaultValue="" className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-100">
-                      <option value="" disabled>Select a category</option>
-                      {categories.map((item) => <option key={item}>{item}</option>)}
+                    <select id="category" name="category" required value={category} onChange={(event) => setCategory(event.target.value)} className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-100">
+                      <option value="">Select a category</option>
+                      {categories.map((item) => <option key={item} value={item}>{item}</option>)}
                     </select>
                   </div>
                   <div>
                     <label htmlFor="quantity" className="mb-2 block text-sm font-bold text-slate-800">Quantity <span className="text-orange-500">*</span></label>
-                    <input id="quantity" name="quantity" type="number" min="0.000001" step="any" required placeholder="e.g. 20" className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition placeholder:text-slate-400 focus:border-orange-400 focus:ring-4 focus:ring-orange-100" />
+                    <input id="quantity" name="quantity" type="number" min="0.000001" step="any" required value={quantity} onChange={(event) => setQuantity(event.target.value)} placeholder="e.g. 20" className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition placeholder:text-slate-400 focus:border-orange-400 focus:ring-4 focus:ring-orange-100" />
                   </div>
                 </div>
 
                 <div className="grid gap-5 sm:grid-cols-2">
                   <div>
                     <label htmlFor="unit" className="mb-2 block text-sm font-bold text-slate-800">Unit</label>
-                    <select id="unit" name="unit" defaultValue="tonnes" className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-100">
-                      <option value="tonnes">Tonnes</option><option value="kg">Kilograms</option><option value="units">Units</option><option value="containers">Containers</option>
+                    <select id="unit" name="unit" value={unit} onChange={(event) => setUnit(event.target.value)} className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-100">
+                      <option value="tonnes">Tonnes</option>
+                      <option value="kg">Kilograms</option>
+                      <option value="units">Units</option>
+                      <option value="containers">Containers</option>
                     </select>
                   </div>
                   <div>
                     <label htmlFor="destination" className="mb-2 block text-sm font-bold text-slate-800">Destination market</label>
-                    <input id="destination" name="destination" placeholder="e.g. Morocco" className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition placeholder:text-slate-400 focus:border-orange-400 focus:ring-4 focus:ring-orange-100" />
+                    <input id="destination" name="destination" value={destination} onChange={(event) => setDestination(event.target.value)} placeholder="e.g. Morocco" className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition placeholder:text-slate-400 focus:border-orange-400 focus:ring-4 focus:ring-orange-100" />
                   </div>
                 </div>
 
                 <div>
                   <label htmlFor="description" className="mb-2 block text-sm font-bold text-slate-800">Description <span className="text-orange-500">*</span></label>
-                  <textarea id="description" name="description" rows={5} required placeholder="Describe quality, specifications, delivery expectations and anything a supplier needs to know." className="w-full resize-none rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm leading-6 outline-none transition placeholder:text-slate-400 focus:border-orange-400 focus:ring-4 focus:ring-orange-100" />
+                  <textarea id="description" name="description" rows={5} required value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Describe quality, specifications, delivery expectations and anything a supplier needs to know." className="w-full resize-none rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm leading-6 outline-none transition placeholder:text-slate-400 focus:border-orange-400 focus:ring-4 focus:ring-orange-100" />
                 </div>
 
                 <div>
