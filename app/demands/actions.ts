@@ -28,30 +28,38 @@ export async function createDemand(input: {
     return { ok: false as const, error: "Please complete all required fields." };
   }
 
-  const { data: profile } = await supabase
+  const { data: profile, error: profileError } = await supabase
     .from("profiles")
-    .select("id, actor_id")
-    .eq("id", user.id)
-    .maybeSingle();
+    .select("actor_id")
+    .eq("auth_user_id", user.id)
+    .single();
 
-  const actorId = profile?.actor_id ?? null;
+  if (profileError || !profile?.actor_id) {
+    return {
+      ok: false as const,
+      error: "Your account is not linked to a QimaTrade actor yet.",
+    };
+  }
 
-  const payload: Record<string, unknown> = {
-    title,
+  const scope = JSON.stringify({
     category,
-    quantity,
     unit,
-    destination,
     description,
     requirements,
-    created_by_user_id: user.id,
-  };
-
-  if (actorId) payload.created_by_actor_id = actorId;
+  });
 
   const { data, error } = await supabase
     .from("demands")
-    .insert(payload)
+    .insert({
+      name: title,
+      demand_status: "draft",
+      documentation_status: "incomplete",
+      quantity,
+      scope,
+      source: "qimatrade_mvp",
+      target_market: destination || null,
+      requester_actor_id: profile.actor_id,
+    })
     .select("id")
     .single();
 
