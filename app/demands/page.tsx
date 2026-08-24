@@ -2,18 +2,67 @@
 
 import { ArrowLeft, ArrowRight, Check, ClipboardList, Loader2, Plus, X } from "lucide-react";
 import Link from "next/link";
-import { FormEvent, useState } from "react";
-import { createDemand } from "./actions";
+import { FormEvent, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { createDemand, getDemand, updateDemand } from "./actions";
 
 const categories = ["Raw materials", "Industrial equipment", "Packaging", "Automotive", "Other"];
 
 export default function DemandsPage() {
+  const searchParams = useSearchParams();
+  const editId = searchParams.get("id");
+  const isEdit = Boolean(editId);
+
   const [requirements, setRequirements] = useState<string[]>([]);
   const [requirement, setRequirement] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(isEdit);
   const [error, setError] = useState("");
-  const [demandId, setDemandId] = useState("");
+  const [demandId, setDemandId] = useState(editId || "");
+
+  useEffect(() => {
+    if (!editId) {
+      setLoading(false);
+      return;
+    }
+
+    let active = true;
+    setLoading(true);
+    setError("");
+
+    getDemand(editId).then((result) => {
+      if (!active) return;
+      if (!result.ok) {
+        setError(result.error);
+        setLoading(false);
+        return;
+      }
+
+      const demand = result.demand;
+      const title = document.getElementById("title") as HTMLInputElement | null;
+      const category = document.getElementById("category") as HTMLSelectElement | null;
+      const quantity = document.getElementById("quantity") as HTMLInputElement | null;
+      const unit = document.getElementById("unit") as HTMLSelectElement | null;
+      const destination = document.getElementById("destination") as HTMLInputElement | null;
+      const description = document.getElementById("description") as HTMLTextAreaElement | null;
+
+      if (title) title.value = demand.title;
+      if (category) category.value = demand.category;
+      if (quantity) quantity.value = demand.quantity;
+      if (unit) unit.value = demand.unit || "tonnes";
+      if (destination) destination.value = demand.destination;
+      if (description) description.value = demand.description;
+
+      setRequirements(demand.requirements);
+      setDemandId(demand.id);
+      setLoading(false);
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [editId]);
 
   function addRequirement() {
     const value = requirement.trim();
@@ -37,29 +86,14 @@ export default function DemandsPage() {
     const quantity = Number(formData.get("quantity"));
     const description = String(formData.get("description") ?? "").trim();
 
-    if (!title) {
-      setError("Demand title is required.");
-      return;
-    }
-
-    if (!category) {
-      setError("Category is required.");
-      return;
-    }
-
-    if (!Number.isFinite(quantity) || quantity <= 0) {
-      setError("Quantity must be greater than 0.");
-      return;
-    }
-
-    if (!description) {
-      setError("Description is required.");
-      return;
-    }
+    if (!title) return setError("Demand title is required.");
+    if (!category) return setError("Category is required.");
+    if (!Number.isFinite(quantity) || quantity <= 0) return setError("Quantity must be greater than 0.");
+    if (!description) return setError("Description is required.");
 
     setSaving(true);
 
-    const result = await createDemand({
+    const input = {
       title,
       category,
       quantity: String(formData.get("quantity") ?? ""),
@@ -67,7 +101,11 @@ export default function DemandsPage() {
       destination: String(formData.get("destination") ?? ""),
       description,
       requirements,
-    });
+    };
+
+    const result = isEdit && editId
+      ? await updateDemand(editId, input)
+      : await createDemand(input);
 
     if (result.ok) {
       setDemandId(result.demandId);
@@ -79,18 +117,23 @@ export default function DemandsPage() {
     setSaving(false);
   }
 
+  if (loading) {
+    return (
+      <main className="min-h-screen bg-slate-50 px-5 py-10">
+        <div className="mx-auto flex min-h-[60vh] max-w-5xl items-center justify-center rounded-3xl border border-slate-200 bg-white shadow-soft">
+          <div className="flex items-center gap-3 text-sm font-semibold text-slate-500"><Loader2 className="animate-spin" size={20} /> Loading demand...</div>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-screen bg-slate-50">
       <div className="mx-auto max-w-5xl px-5 py-6 sm:px-8 lg:py-10">
         <header className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-soft">
           <div className="flex items-center gap-3">
-            <Link href="/" className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-500 transition hover:border-orange-200 hover:text-orange-600" aria-label="Back to home">
-              <ArrowLeft size={18} />
-            </Link>
-            <div>
-              <p className="text-base font-bold tracking-tight text-slate-950">QimaTrade</p>
-              <p className="text-xs text-slate-500">Create a demand</p>
-            </div>
+            <Link href="/demands/list" className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-500 transition hover:border-orange-200 hover:text-orange-600" aria-label="Back to demands"><ArrowLeft size={18} /></Link>
+            <div><p className="text-base font-bold tracking-tight text-slate-950">QimaTrade</p><p className="text-xs text-slate-500">{isEdit ? "Edit demand" : "Create a demand"}</p></div>
           </div>
           <span className="rounded-full bg-orange-50 px-3 py-1 text-xs font-semibold text-orange-700">MVP · Demand</span>
         </header>
@@ -98,13 +141,11 @@ export default function DemandsPage() {
         <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_320px]">
           <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft sm:p-8">
             <div className="mb-8 flex items-start gap-4">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-orange-50 text-orange-600">
-                <ClipboardList size={23} />
-              </div>
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-orange-50 text-orange-600"><ClipboardList size={23} /></div>
               <div>
                 <p className="text-sm font-bold text-orange-600">Step 01</p>
-                <h1 className="mt-1 text-3xl font-black tracking-tight text-slate-950">Create a demand</h1>
-                <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">Tell QimaTrade what you need. These first fields define the minimum information used to qualify and match the demand.</p>
+                <h1 className="mt-1 text-3xl font-black tracking-tight text-slate-950">{isEdit ? "Edit your demand" : "Create a demand"}</h1>
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">{isEdit ? "Review and update the commercial information before continuing through the QimaTrade workflow." : "Tell QimaTrade what you need. These first fields define the minimum information used to qualify and match the demand."}</p>
               </div>
             </div>
 
@@ -113,18 +154,18 @@ export default function DemandsPage() {
                 <div className="flex items-center gap-3">
                   <div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-600 text-white"><Check size={18} /></div>
                   <div>
-                    <p className="font-bold">Demand saved</p>
-                    <p className="mt-1 text-sm text-emerald-700">Your demand is now stored in QimaTrade and ready for qualification.</p>
+                    <p className="font-bold">{isEdit ? "Demand updated" : "Demand saved"}</p>
+                    <p className="mt-1 text-sm text-emerald-700">{isEdit ? "Your changes are now stored in QimaTrade." : "Your demand is now stored in QimaTrade and ready for qualification."}</p>
                     <p className="mt-2 break-all text-xs font-medium text-emerald-800">ID: {demandId}</p>
                   </div>
                 </div>
                 <div className="mt-5 flex flex-col gap-3 sm:flex-row">
                   <Link href={`/demands/qualification?id=${encodeURIComponent(demandId)}`} className="inline-flex items-center justify-center gap-2 rounded-xl bg-orange-500 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-orange-500/20 transition hover:bg-orange-600">Continue to qualification <ArrowRight size={17} /></Link>
-                  <Link href="/demands" className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700">Create another demand</Link>
+                  <Link href="/demands/list" className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700">Back to my demands</Link>
                 </div>
               </div>
             ) : (
-              <form onSubmit={handleSubmit} className="space-y-6" noValidate>
+              <form onSubmit={handleSubmit} className="space-y-6">
                 {error && <div role="alert" className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-700">{error}</div>}
 
                 <div>
@@ -150,10 +191,7 @@ export default function DemandsPage() {
                   <div>
                     <label htmlFor="unit" className="mb-2 block text-sm font-bold text-slate-800">Unit</label>
                     <select id="unit" name="unit" defaultValue="tonnes" className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-100">
-                      <option value="tonnes">Tonnes</option>
-                      <option value="kg">Kilograms</option>
-                      <option value="units">Units</option>
-                      <option value="containers">Containers</option>
+                      <option value="tonnes">Tonnes</option><option value="kg">Kilograms</option><option value="units">Units</option><option value="containers">Containers</option>
                     </select>
                   </div>
                   <div>
@@ -177,9 +215,9 @@ export default function DemandsPage() {
                 </div>
 
                 <div className="flex flex-col gap-3 border-t border-slate-100 pt-6 sm:flex-row sm:items-center sm:justify-between">
-                  <p className="text-xs leading-5 text-slate-400">Next: qualification and matching will use this structured demand.</p>
+                  <p className="text-xs leading-5 text-slate-400">{isEdit ? "Your changes will update this existing demand." : "Next: qualification and matching will use this structured demand."}</p>
                   <button disabled={saving} type="submit" className="inline-flex items-center justify-center gap-2 rounded-xl bg-orange-500 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-orange-500/20 transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60">
-                    {saving ? <><Loader2 size={17} className="animate-spin" /> Saving...</> : <>Save demand <Plus size={17} /></>}
+                    {saving ? <><Loader2 size={17} className="animate-spin" /> Saving...</> : <>{isEdit ? "Save changes" : "Save demand"} <Plus size={17} /></>}
                   </button>
                 </div>
               </form>
