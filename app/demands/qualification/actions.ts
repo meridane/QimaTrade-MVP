@@ -130,6 +130,15 @@ export async function getQualificationDemand(
   const deadline = demand.deadline ? new Date(demand.deadline).toISOString().slice(0, 10) : "";
   const qualificationDeadline = stringValue(qualification.deadline) || deadline;
 
+  // Support both the current snake_case key and the legacy camelCase key.
+  // Also fall back to values stored directly in the demand scope so older
+  // qualifications are not lost when the form is reopened.
+  const commercialTerms =
+    stringValue(qualification.commercial_terms) ||
+    stringValue(qualification.commercialTerms) ||
+    stringValue(scope.commercial_terms) ||
+    stringValue(scope.commercialTerms);
+
   const data: QualificationDemandData = {
     demand: {
       id: demand.id,
@@ -155,8 +164,10 @@ export async function getQualificationDemand(
       currency: stringValue(qualification.currency) || stringValue(demand.currency) || "USD",
       deadline: qualificationDeadline,
       geography: stringValue(qualification.geography) || stringValue(demand.geography),
-      commercialTerms: stringValue(qualification.commercial_terms),
-      documentation: stringValue(qualification.documentation),
+      commercialTerms,
+      documentation:
+        stringValue(qualification.documentation) ||
+        stringValue(scope.documentation),
     },
   };
 
