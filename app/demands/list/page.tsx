@@ -2,6 +2,18 @@ import Link from "next/link";
 import { ArrowLeft, ArrowRight, ClipboardList, Plus, CheckCircle2, Circle } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
+function hasQualification(scope: unknown) {
+  if (!scope) return false;
+
+  try {
+    const parsed = typeof scope === "string" ? JSON.parse(scope) : scope;
+    const qualification = (parsed as { qualification?: unknown })?.qualification;
+    return !!qualification && typeof qualification === "object";
+  } catch {
+    return false;
+  }
+}
+
 export default async function DemandsListPage() {
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -37,23 +49,9 @@ export default async function DemandsListPage() {
 
   const { data: demands, error } = await supabase
     .from("demands")
-    .select("id, name, demand_status, quantity, target_market, requester_actor_id")
+    .select("id, name, demand_status, quantity, target_market, requester_actor_id, scope")
     .eq("requester_actor_id", profile.actor_id)
     .order("id", { ascending: false });
-
-  // Qualification is checked through the real relation from the demand workflow.
-  // We intentionally do not infer qualification from the demand scope or other fields.
-  const demandIds = (demands ?? []).map((demand) => demand.id);
-  let qualifiedDemandIds = new Set<string>();
-
-  if (demandIds.length > 0) {
-    const { data: qualifications } = await supabase
-      .from("demand_qualifications")
-      .select("demand_id")
-      .in("demand_id", demandIds);
-
-    qualifiedDemandIds = new Set((qualifications ?? []).map((qualification) => qualification.demand_id));
-  }
 
   return (
     <main className="min-h-screen bg-slate-50">
@@ -92,7 +90,7 @@ export default async function DemandsListPage() {
                   </thead>
                   <tbody className="divide-y divide-slate-100 bg-white">
                     {demands.map((demand) => {
-                      const isQualified = qualifiedDemandIds.has(demand.id);
+                      const isQualified = hasQualification(demand.scope);
                       return (
                         <tr key={demand.id} className="transition hover:bg-slate-50/70">
                           <td className="px-5 py-4"><p className="font-bold text-slate-900">{demand.name}</p><p className="mt-1 text-xs text-slate-400">{demand.id}</p></td>
