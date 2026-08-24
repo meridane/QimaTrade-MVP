@@ -2,7 +2,7 @@
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
-type CreateDemandInput = {
+export async function createDemand(input: {
   title: string;
   category: string;
   quantity: string;
@@ -10,102 +10,60 @@ type CreateDemandInput = {
   destination: string;
   description: string;
   requirements: string[];
-};
+}) {
+  const supabase = await createSupabaseServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
 
-type CreateDemandResult =
-  | { ok: true; demandId: string; businessDemandId: string }
-  | { ok: false; error: string };
+  if (!user) return { ok: false as const, error: "You must be signed in." };
 
-const allowedCategories = new Set([
-  "Raw materials",
-  "Industrial equipment",
-  "Packaging",
-  "Automotive",
-  "Other",
-]);
-
-const allowedUnits = new Set(["tonnes", "kg", "units", "containers"]);
-
-export async function createDemand(input: CreateDemandInput): Promise<CreateDemandResult> {
   const title = input.title.trim();
   const category = input.category.trim();
-  const description = input.description.trim();
-  const destination = input.destination.trim();
-  const unit = input.unit.trim();
   const quantity = Number(input.quantity);
-  const requirements = input.requirements
-    .map((item) => item.trim())
-    .filter(Boolean)
-    .slice(0, 20);
+  const unit = input.unit.trim();
+  const destination = input.destination.trim();
+  const description = input.description.trim();
+  const requirements = input.requirements.map((item) => item.trim()).filter(Boolean);
 
-  if (!title || !description || !category) {
-    return { ok: false, error: "Please complete the required fields." };
+  if (!title || !category || !Number.isFinite(quantity) || quantity <= 0 || !description) {
+    return { ok: false as const, error: "Please complete all required fields." };
   }
 
-  if (!allowedCategories.has(category)) {
-    return { ok: false, error: "Invalid demand category." };
-  }
-
-  if (!allowedUnits.has(unit)) {
-    return { ok: false, error: "Invalid demand unit." };
-  }
-
-  if (!Number.isFinite(quantity) || quantity <= 0) {
-    return { ok: false, error: "Quantity must be a positive number." };
-  }
-
-  const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser();
-
-  if (authError || !user) {
-    return { ok: false, error: "You must be signed in to create a demand." };
-  }
-
-  const { data: profile, error: profileError } = await supabase
+  const { data: profile } = await supabase
     .from("profiles")
-    .select("actor_id")
-    .eq("auth_user_id", user.id)
-    .single();
+    .select("id, actor_id")
+    .eq("id", user.id)
+    .maybeSingle();
 
-  if (profileError || !profile?.actor_id) {
-    return { ok: false, error: "Your account is not linked to a QimaTrade actor yet." };
-  }
+  const actorId = profile?.actor_id ?? null;
 
-  const scope = JSON.stringify({
+  const payload: Record<string, unknown> = {
+    title,
     category,
+    quantity,
     unit,
+    destination,
     description,
     requirements,
-  });
+    created_by_user_id: user.id,
+  };
 
-  const { data: demand, error: insertError } = await supabase
+  if (actorId) payload.created_by_actor_id = actorId;
+
+  const { data, error } = await supabase
     .from("demands")
-    .insert({
-      name: title,
-      quantity,
-      target_market: destination || null,
-      scope,
-      requester_actor_id: profile.actor_id,
-      demand_status: "draft",
-      documentation_status: "incomplete",
-      source: "qimatrade_mvp",
-    })
-    .select("id, demand_id")
+    .insert(payload)
+    .select("id")
     .single();
 
-  if (insertError || !demand) {
-    return {
-      ok: false,
-      error: insertError?.message ?? "Unable to create the demand.",
-    };
+  if (error) {
+    if (error.code === "42501") {
+      return {
+        ok: false as const,
+        error: "Your account is authenticated but is not allowed to create a demand yet. Please verify your profile/actor association.",
+      };
+    }
+    return { ok: false as const, error: error.message };
   }
 
-  return {
-    ok: true,
-    demandId: demand.id,
-    businessDemandId: demand.demand_id,
-  };
+  return { ok: true as const, demandId: data.id };
 }
