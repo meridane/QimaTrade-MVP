@@ -1,19 +1,6 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { DecisionNode, DecisionTree, Rule, SessionState } from "@/lib/decision-tree/types";
 
-type TreeRow = {
-  id: string;
-  title: string;
-  tree_key: string;
-};
-
-type VersionRow = {
-  id: string;
-  version: string;
-  status: "draft" | "published" | "archived";
-  entry_node_id: string | null;
-};
-
 type NodeRow = {
   id: string;
   node_key: string;
@@ -41,19 +28,6 @@ type SessionRow = {
   status: "active" | "completed" | "abandoned";
 };
 
-type ObservationInsert = {
-  tenant_id: string;
-  session_id: string;
-  node_id: string;
-  field: string;
-  value: string | null;
-  client_command_id: string;
-};
-
-function isMissing(value: string | undefined | null): value is undefined | null {
-  return value == null || value === "";
-}
-
 async function getClient() {
   return createSupabaseServerClient();
 }
@@ -73,7 +47,6 @@ export async function getTenantForUser(userId: string) {
     .eq("user_id", userId)
     .limit(1)
     .maybeSingle();
-
   if (error) throw error;
   return data as { tenant_id: string; role: string } | null;
 }
@@ -179,11 +152,12 @@ export async function createDecisionSession(treeVersionId: string, entryNodeId: 
   const row = data as SessionRow;
   return {
     sessionId: row.id,
+    treeId: treeVersionId,
     treeVersion: row.tree_version_id,
     currentNodeId: row.current_node_id,
     revision: row.revision,
     answers: {},
-  } satisfies Omit<SessionState, "treeId"> & { treeVersion: string };
+  } satisfies SessionState;
 }
 
 export async function loadSession(sessionId: string) {
@@ -217,12 +191,12 @@ export async function loadSession(sessionId: string) {
     treeVersion: row.tree_version_id,
     currentNodeId: row.current_node_id,
     revision: row.revision,
-    status: row.status,
     answers,
+    status: row.status,
   };
 }
 
-export async function recordAnswer(params: {
+export async function submitAnswer(params: {
   sessionId: string;
   expectedRevision: number;
   nodeId: string;
@@ -236,85 +210,28 @@ export async function recordAnswer(params: {
   const user = await getCurrentUser();
   if (!user) throw new Error("UNAUTHENTICATED");
 
-  const { data: session, error: sessionError } = await supabase
-    .from("dt_sessions")
-    .select("id, tenant_id, current_node_id, revision, status")
-    .eq("id", params.sessionId)
-    .eq("user_id", user.id)
-    .single();
-  if (sessionError) throw sessionError;
-  if (session.revision !== params.expectedRevision || session.current_node_id !== params.nodeId) {
-    throw new Error("CONCURRENCY_CONFLICT");
-  }
-
-  const observation: ObservationInsert = {
-    tenant_id: session.tenant_id,
-    session_id: params.sessionId,
-    node_id: params.nodeId,
-    field: params.field,
-    value: params.value,
-    client_command_id: params.clientCommandId,
-  };
-
-  const { data: insertedObservation, error: observationError } = await supabase
-    .from("dt_observations")
-    .insert(observation)
-    .select("id")
-    .single();
-
-  if (observationError) {
-    if (observationError.code === "23505") {
-      const { data: existing, error: existingError } = await supabase
-        .from("dt_observations")
-        .select("id, value")
-        .eq("session_id", params.sessionId)
-        .eq("client_command_id", params.clientCommandId)
-        .single();
-      if (existingError) throw existingError;
-      return { duplicate: true, observationId: existing.id };
-    }
-    throw observationError;
-  }
-
-  const nextRevision = params.expectedRevision + 1;
-  const { data: updated, error: updateError } = await supabase
-    .from("dt_sessions")
-    .update({ current_node_id: params.targetNodeId, revision: nextRevision })
-    .eq("id", params.sessionId)
-    .eq("user_id", user.id)
-    .eq("revision", params.expectedRevision)
-    .select("id, revision, current_node_id")
-    .maybeSingle();
-
-  if (updateError) throw updateError;
-  if (!updated) throw new Error("CONCURRENCY_CONFLICT");
-
-  const { error: transitionError } = await supabase.from("dt_transitions").insert({
-    tenant_id: session.tenant_id,
-    session_id: params.sessionId,
-    observation_id: insertedObservation.id,
-    rule_id: params.ruleId,
-    from_node_id: params.nodeId,
-    to_node_id: params.targetNodeId,
-    from_revision: params.expectedRevision,
-    to_revision: nextRevision,
+  const { data, error } = await supabase.rpc("dt_submit_answer", {
+    p_session_id: params.sessionId,
+    p_user_id: user.id,
+    p_expected_revision: params.expectedRevision,
+    p_node_id: params.nodeId,
+    p_field: params.field,
+    p_value: params.value,
+    p_client_command_id: params.clientCommandId,
+    p_rule_id: params.ruleId,
+    p_target_node_id: params.targetNodeId,
   });
 
-  if (transitionError) throw transitionError;
+  if (error) {
+    if (error.message.includes("CONCURRENCY_CONFLICT")) throw new Error("CONCURRENCY_CONFLICT");
+    if (error.message.includes("SESSION_NOT_FOUND")) throw new Error("SESSION_NOT_FOUND");
+    throw error;
+  }
 
-  return {
-    duplicate: false,
-    observationId: insertedObservation.id,
-    revision: nextRevision,
-    currentNodeId: params.targetNodeId,
+  return data as {
+    duplicate: boolean;
+    observationId: string;
+    revision: number;
+    currentNodeId: string;
   };
-}
-
-export function assertRequiredEnvironment() {
-  if (isMissing(process.env.NEXT_PUBLIC_SUPABASE_URL)) {
-    throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL");
-  }
-  if (isMissing(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)) {
-    throw new Error("Missing NEXT_PUBLIC_SUPABASE_ANON_KEY");
-  }
 }
