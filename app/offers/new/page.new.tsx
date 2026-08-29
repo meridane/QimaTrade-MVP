@@ -1,1 +1,0 @@
-export default function NewOffer(){ return <main><h1>Create a new offer</h1></main>; }
