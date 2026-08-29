@@ -39,6 +39,7 @@ type SessionRow = {
   current_node_id: string;
   revision: number;
   status: "active" | "completed" | "abandoned";
+  selected_product_master_id: string | null;
 };
 
 async function getClient() {
@@ -196,8 +197,9 @@ export async function createDecisionSession(treeVersionId: string, entryNodeId: 
       current_node_id: entryNodeId,
       revision: 0,
       status: "active",
+      selected_product_master_id: null,
     })
-    .select("id, tree_version_id, current_node_id, revision, status")
+    .select("id, tree_version_id, current_node_id, revision, status, selected_product_master_id")
     .single();
 
   if (error) throw error;
@@ -209,6 +211,8 @@ export async function createDecisionSession(treeVersionId: string, entryNodeId: 
     currentNodeId: row.current_node_id,
     revision: row.revision,
     answers: {},
+    selectedProductMasterId: row.selected_product_master_id,
+    status: row.status,
   } satisfies SessionState;
 }
 
@@ -219,7 +223,7 @@ export async function loadSession(sessionId: string) {
 
   const { data, error } = await supabase
     .from("dt_sessions")
-    .select("id, tree_version_id, current_node_id, revision, status")
+    .select("id, tree_version_id, current_node_id, revision, status, selected_product_master_id")
     .eq("id", sessionId)
     .eq("user_id", user.id)
     .single();
@@ -244,6 +248,7 @@ export async function loadSession(sessionId: string) {
     currentNodeId: row.current_node_id,
     revision: row.revision,
     answers,
+    selectedProductMasterId: row.selected_product_master_id,
     status: row.status,
   };
 }
@@ -285,5 +290,31 @@ export async function submitAnswer(params: {
     observationId: string;
     revision: number;
     currentNodeId: string;
+  };
+}
+
+export async function selectProductMaster(sessionId: string, productMasterId: string) {
+  const supabase = await getClient();
+  const user = await getCurrentUser();
+  if (!user) throw new Error("UNAUTHENTICATED");
+
+  const { data, error } = await supabase.rpc("dt_select_product_master", {
+    p_session_id: sessionId,
+    p_user_id: user.id,
+    p_product_master_id: productMasterId,
+  });
+
+  if (error) {
+    if (error.message.includes("SESSION_NOT_FOUND")) throw new Error("SESSION_NOT_FOUND");
+    if (error.message.includes("PRODUCT_MASTER_NOT_FOUND")) throw new Error("PRODUCT_MASTER_NOT_FOUND");
+    if (error.message.includes("PRODUCT_MASTER_NOT_IN_CLASSIFICATION")) throw new Error("PRODUCT_MASTER_NOT_IN_CLASSIFICATION");
+    throw error;
+  }
+
+  return data as {
+    sessionId: string;
+    productMasterId: string;
+    productMasterCode: string;
+    status: "completed";
   };
 }
