@@ -10,6 +10,17 @@ export type Rule = {
   targetNodeId: string;
 };
 
+export type ProductMaster = {
+  id: string;
+  code: string;
+  name: string;
+  canonicalName: string;
+  description: string | null;
+  productRole: string | null;
+  classificationStatus: string | null;
+  confidence: number | null;
+};
+
 export type DecisionNode = {
   id: string;
   kind: NodeKind;
@@ -17,6 +28,8 @@ export type DecisionNode = {
   description: string;
   imageUrl: string;
   rules: Rule[];
+  canonicalCategoryId?: string | null;
+  canonicalSubcategoryId?: string | null;
 };
 
 export type DecisionTree = {
