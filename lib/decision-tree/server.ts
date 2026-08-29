@@ -1,5 +1,5 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import type { DecisionNode, DecisionTree, Rule, SessionState } from "@/lib/decision-tree/types";
+import type { DecisionNode, DecisionTree, ProductMaster, Rule, SessionState } from "@/lib/decision-tree/types";
 
 type NodeRow = {
   id: string;
@@ -8,6 +8,8 @@ type NodeRow = {
   title: string;
   description: string;
   image_url: string;
+  canonical_category_id: string | null;
+  canonical_subcategory_id: string | null;
 };
 
 type RuleRow = {
@@ -18,6 +20,17 @@ type RuleRow = {
   value: string;
   target_node_id: string;
   priority: number;
+};
+
+type ProductMasterRow = {
+  id: string;
+  code: string;
+  name: string;
+  canonical_name: string;
+  description: string | null;
+  product_role: string | null;
+  classification_status: string | null;
+  confidence: number | null;
 };
 
 type SessionRow = {
@@ -81,7 +94,7 @@ export async function loadPublishedTree(treeKey = "product-classification") {
   const [{ data: nodes, error: nodesError }, { data: rules, error: rulesError }] = await Promise.all([
     supabase
       .from("dt_nodes")
-      .select("id, node_key, kind, title, description, image_url")
+      .select("id, node_key, kind, title, description, image_url, canonical_category_id, canonical_subcategory_id")
       .eq("tree_version_id", version.id),
     supabase
       .from("dt_rules")
@@ -113,6 +126,8 @@ export async function loadPublishedTree(treeKey = "product-classification") {
     description: row.description,
     imageUrl: row.image_url,
     rules: rulesByNode.get(row.id) ?? [],
+    canonicalCategoryId: row.canonical_category_id,
+    canonicalSubcategoryId: row.canonical_subcategory_id,
   }));
 
   return {
@@ -126,6 +141,43 @@ export async function loadPublishedTree(treeKey = "product-classification") {
     } satisfies DecisionTree,
     treeVersionId: version.id,
   };
+}
+
+export async function getProductMastersForNode(nodeId: string): Promise<ProductMaster[]> {
+  const supabase = await getClient();
+  const user = await getCurrentUser();
+  if (!user) throw new Error("UNAUTHENTICATED");
+
+  const membership = await getTenantForUser(user.id);
+  if (!membership) throw new Error("TENANT_MEMBERSHIP_REQUIRED");
+
+  const { data: node, error: nodeError } = await supabase
+    .from("dt_nodes")
+    .select("canonical_subcategory_id")
+    .eq("id", nodeId)
+    .maybeSingle();
+  if (nodeError) throw nodeError;
+  if (!node?.canonical_subcategory_id) return [];
+
+  const { data, error } = await supabase
+    .from("product_masters")
+    .select("id, code, name, canonical_name, description, product_role, classification_status, confidence")
+    .eq("subcategory_id", node.canonical_subcategory_id)
+    .eq("status", "active")
+    .order("code", { ascending: true })
+    .limit(24);
+  if (error) throw error;
+
+  return ((data ?? []) as ProductMasterRow[]).map((row) => ({
+    id: row.id,
+    code: row.code,
+    name: row.name,
+    canonicalName: row.canonical_name,
+    description: row.description,
+    productRole: row.product_role,
+    classificationStatus: row.classification_status,
+    confidence: row.confidence,
+  }));
 }
 
 export async function createDecisionSession(treeVersionId: string, entryNodeId: string) {
