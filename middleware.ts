@@ -28,18 +28,64 @@ export async function middleware(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser();
   const path = request.nextUrl.pathname;
-  const protectedPath = path.startsWith("/demands") || path.startsWith("/decision-tree");
+  const protectedPath =
+    path.startsWith("/demands") ||
+    path.startsWith("/decision-tree") ||
+    path.startsWith("/offers") ||
+    path.startsWith("/request");
 
   if (!user && protectedPath) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = "/login";
-    loginUrl.searchParams.set("next", path);
+    loginUrl.searchParams.set("next", `${path}${request.nextUrl.search}`);
     return NextResponse.redirect(loginUrl);
+  }
+
+  if (path === "/offers/new" && !request.nextUrl.searchParams.get("productMasterId")) {
+    const treeUrl = request.nextUrl.clone();
+    treeUrl.pathname = "/decision-tree";
+    treeUrl.searchParams.set("flow", "supplier");
+    response.cookies.set("qimatrade_flow", "supplier", {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: 10 * 60,
+    });
+    return NextResponse.redirect(treeUrl);
+  }
+
+  if (path === "/request/new" && request.cookies.get("qimatrade_flow")?.value === "supplier") {
+    const productMasterId = request.nextUrl.searchParams.get("productMasterId");
+    if (productMasterId) {
+      const offerUrl = request.nextUrl.clone();
+      offerUrl.pathname = "/offers/new";
+      offerUrl.searchParams.delete("demandId");
+      offerUrl.searchParams.delete("productMasterId");
+      offerUrl.searchParams.set("productMasterId", productMasterId);
+      response.cookies.delete("qimatrade_flow");
+      return NextResponse.redirect(offerUrl);
+    }
+  }
+
+  if (path === "/decision-tree" && request.nextUrl.searchParams.get("flow") === "supplier") {
+    response.cookies.set("qimatrade_flow", "supplier", {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: 10 * 60,
+    });
   }
 
   return response;
 }
 
 export const config = {
-  matcher: ["/demands/:path*", "/decision-tree/:path*"],
+  matcher: [
+    "/demands/:path*",
+    "/decision-tree/:path*",
+    "/offers/:path*",
+    "/request/:path*",
+  ],
 };
