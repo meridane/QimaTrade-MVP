@@ -27,11 +27,13 @@ export async function middleware(request: NextRequest) {
   });
 
   const { data: { user } } = await supabase.auth.getUser();
+  const path = request.nextUrl.pathname;
+  const protectedPath = path.startsWith("/demands") || path.startsWith("/decision-tree");
 
-  if (!user && request.nextUrl.pathname.startsWith("/demands")) {
+  if (!user && protectedPath) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = "/login";
-    loginUrl.searchParams.set("next", request.nextUrl.pathname);
+    loginUrl.searchParams.set("next", path);
     return NextResponse.redirect(loginUrl);
   }
 
@@ -39,5 +41,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/demands/:path*"],
+  matcher: ["/demands/:path*", "/decision-tree/:path*"],
 };
