@@ -19,6 +19,21 @@ type CreateOfferResult =
 
 const currencies = new Set(["USD", "EUR", "KRW", "MAD", "CNY"]);
 
+function getProductMasterId(scope: unknown) {
+  if (!scope) return null;
+  let value = scope;
+  if (typeof scope === "string") {
+    try {
+      value = JSON.parse(scope);
+    } catch {
+      return null;
+    }
+  }
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const id = (value as Record<string, unknown>).product_master_id;
+  return typeof id === "string" && id ? id : null;
+}
+
 export async function createOffer(input: CreateOfferInput): Promise<CreateOfferResult> {
   const demandId = input.demandId.trim();
   const name = input.name.trim();
@@ -60,7 +75,7 @@ export async function createOffer(input: CreateOfferInput): Promise<CreateOfferR
 
   const { data: demand, error: demandError } = await supabase
     .from("demands")
-    .select("id, demand_id, name, target_market")
+    .select("id, demand_id, name, target_market, scope")
     .eq("id", demandId)
     .single();
 
@@ -68,11 +83,17 @@ export async function createOffer(input: CreateOfferInput): Promise<CreateOfferR
     return { ok: false, error: "Demand not found or unavailable." };
   }
 
+  const productMasterId = getProductMasterId(demand.scope);
+  if (!productMasterId) {
+    return { ok: false, error: "This demand is not linked to a canonical Product Master yet." };
+  }
+
   const { data: offer, error: insertError } = await supabase
     .from("offers")
     .insert({
       name,
       demand_id: demand.id,
+      product_master_id: productMasterId,
       provider_actor_id: profile.actor_id,
       quantity,
       price,
