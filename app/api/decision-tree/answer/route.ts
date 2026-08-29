@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { loadPublishedTree, loadSession, submitAnswer } from "@/lib/decision-tree/server";
+import { getProductMastersForNode, loadPublishedTree, loadSession, submitAnswer } from "@/lib/decision-tree/server";
 import { evaluateAnswer } from "@/lib/decision-tree/engine";
 
 function badRequest(message: string) {
@@ -52,10 +52,14 @@ export async function POST(request: NextRequest) {
     });
 
     const nextNode = tree.nodes.find((node) => node.id === persisted.currentNodeId) ?? null;
+    const productMasters = nextNode?.kind === "terminal"
+      ? await getProductMastersForNode(nextNode.id)
+      : [];
 
     return NextResponse.json({
       ...persisted,
       nextNode,
+      productMasters,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to submit answer";
