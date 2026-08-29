@@ -47,6 +47,8 @@ export type SessionState = {
   currentNodeId: string;
   revision: number;
   answers: Record<string, string>;
+  selectedProductMasterId?: string | null;
+  status?: "active" | "completed" | "abandoned";
 };
 
 export type EvaluationResult = {
