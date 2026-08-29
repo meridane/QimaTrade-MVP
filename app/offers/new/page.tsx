@@ -11,11 +11,7 @@ export type OfferAttribute = {
   options: string[];
 };
 
-function parseId(value: string | string[] | undefined) {
-  return Array.isArray(value) ? value[0] ?? "" : value ?? "";
-}
-
-async function loadContext(productMasterId: string) {
+async function loadProductContext(productMasterId: string) {
   const supabase = await createSupabaseServerClient();
   const [{ data: product, error: productError }, { data: rows, error: rowsError }] = await Promise.all([
     supabase.from("product_masters").select("id, code, name, canonical_name").eq("id", productMasterId).single(),
@@ -50,7 +46,7 @@ async function loadContext(productMasterId: string) {
 
 async function createOfferAction(formData: FormData) {
   "use server";
-  const productMasterId = String(formData.get("productMasterId") ?? "").trim();
+  const productMasterId = String(formData.get("productMasterId") ?? "").trim() || null;
   const name = String(formData.get("name") ?? "").trim();
   const quantity = Number(formData.get("quantity") ?? 0);
   const priceRaw = String(formData.get("price") ?? "").trim();
@@ -59,8 +55,9 @@ async function createOfferAction(formData: FormData) {
   const market = String(formData.get("market") ?? "").trim();
   const geography = String(formData.get("geography") ?? "").trim();
   const conditions = String(formData.get("conditions") ?? "").trim();
+  const demandId = String(formData.get("demandId") ?? "").trim() || null;
 
-  if (!productMasterId || !name || !Number.isFinite(quantity) || quantity <= 0) throw new Error("Product Master, offer name and quantity are required.");
+  if (!name || !Number.isFinite(quantity) || quantity <= 0) throw new Error("Offer name and quantity are required.");
   if (price !== null && (!Number.isFinite(price) || price < 0)) throw new Error("Price must be a valid positive number.");
 
   const attributes: Record<string, string> = {};
@@ -72,6 +69,13 @@ async function createOfferAction(formData: FormData) {
     }
   }
 
+  if (productMasterId) {
+    const context = await loadProductContext(productMasterId);
+    for (const attribute of context.attributes) {
+      if (attribute.required && !attributes[attribute.key]) throw new Error(`Please complete required attribute: ${attribute.name}.`);
+    }
+  }
+
   const supabase = await createSupabaseServerClient();
   const { data: { user }, error: authError } = await supabase.auth.getUser();
   if (authError || !user) throw new Error("You must be signed in to create an offer.");
@@ -80,7 +84,7 @@ async function createOfferAction(formData: FormData) {
 
   const { data: offer, error } = await supabase.from("offers").insert({
     product_master_id: productMasterId,
-    demand_id: null,
+    demand_id: demandId,
     provider_actor_id: profile.actor_id,
     name,
     quantity,
@@ -98,23 +102,35 @@ async function createOfferAction(formData: FormData) {
   if (error || !offer) throw new Error(error?.message ?? "Unable to create the offer.");
 
   const url = new URL("/offers/new", process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000");
-  url.searchParams.set("productMasterId", productMasterId);
   url.searchParams.set("created", offer.id);
   return url.pathname + url.search;
 }
 
 export default async function NewOfferPage({ searchParams }: { searchParams: Promise<{ productMasterId?: string | string[]; created?: string | string[] }> }) {
   const params = await searchParams;
-  const productMasterId = parseId(params.productMasterId);
-  const createdId = parseId(params.created);
+  const productMasterId = Array.isArray(params.productMasterId) ? params.productMasterId[0] ?? "" : params.productMasterId ?? "";
+  const createdId = Array.isArray(params.created) ? params.created[0] ?? "" : params.created ?? "";
 
-  if (!productMasterId) {
-    return <main className="min-h-screen bg-slate-50 px-5 py-10"><div className="mx-auto max-w-xl rounded-3xl border border-slate-200 bg-white p-8 shadow-sm"><h1 className="text-2xl font-black text-slate-950">Create a supplier offer</h1><p className="mt-2 text-sm text-slate-500">Open this page with a Product Master ID.</p><Link href="/decision-tree" className="mt-6 inline-flex rounded-xl bg-orange-500 px-5 py-3 text-sm font-bold text-white">Back to Decision Tree</Link></div></main>;
+  let context: { product: { id: string; code: string; name: string; canonical_name: string }; attributes: OfferAttribute[] } | null = null;
+  let loadError = "";
+  if (productMasterId) {
+    try {
+      context = await loadProductContext(productMasterId);
+    } catch (error) {
+      loadError = error instanceof Error ? error.message : "Unable to load Product Master.";
+    }
   }
 
-  let context: { product: { id: string; code: string; name: string; canonical_name: string }; attributes: OfferAttribute[] };
-  try { context = await loadContext(productMasterId); } catch (error) { return <main className="min-h-screen bg-slate-50 px-5 py-10"><div className="mx-auto max-w-xl rounded-3xl border border-red-200 bg-white p-8"><h1 className="text-2xl font-black">Unable to load Product Master</h1><p className="mt-2 text-sm text-red-700">{error instanceof Error ? error.message : "Unknown error"}</p></div></main>; }
-
-  return <main className="min-h-screen bg-slate-50 px-5 py-8 sm:px-8"><div className="mx-auto max-w-6xl"><Link href="/decision-tree" className="text-sm font-bold text-orange-600">← Back</Link><div className="mt-5 grid gap-6 lg:grid-cols-[1fr_330px]"><section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8"><p className="text-xs font-bold uppercase tracking-[0.16em] text-orange-600">QimaTrade · Supplier</p><h1 className="mt-2 text-3xl font-black tracking-tight text-slate-950">Create an offer</h1><div className="mt-4 rounded-2xl border border-orange-100 bg-orange-50/60 p-4"><p className="text-xs font-bold uppercase tracking-wide text-orange-700">Product Master</p><p className="mt-1 text-lg font-black text-slate-950">{context.product.canonical_name}</p><p className="mt-1 font-mono text-xs text-slate-400">{context.product.code}</p></div>{createdId ? <div className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-emerald-800"><div className="flex items-center gap-3"><Check size={20}/><div><p className="font-bold">Offer created successfully.</p><p className="mt-1 text-xs break-all">Offer ID: {createdId}</p></div></div></div> : <form action={createOfferAction} className="mt-7 space-y-6"><input type="hidden" name="productMasterId" value={productMasterId}/><div><label className="text-sm font-bold text-slate-800">Offer name</label><input name="name" required placeholder="e.g. Used CNC Vertical Machining Center" className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-400"/></div>{context.attributes.length > 0 && <div className="rounded-2xl border border-slate-200 p-5"><p className="text-sm font-black text-slate-950">Product attributes</p><div className="mt-4 grid gap-4 sm:grid-cols-2">{context.attributes.map((attribute)=><label key={attribute.key} className="block"><span className="text-sm font-bold text-slate-800">{attribute.name}{attribute.required && <span className="ml-1 text-orange-500">*</span>}</span><span className="mt-1 block text-xs text-slate-400">{attribute.valueType}{attribute.unit ? ` · ${attribute.unit}` : ""}</span>{attribute.valueType === "select" && attribute.options.length > 0 ? <select name={`attribute:${attribute.key}`} required={attribute.required} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm"><option value="">Select</option>{attribute.options.map((option)=><option key={option}>{option}</option>)}</select> : attribute.valueType === "boolean" ? <select name={`attribute:${attribute.key}`} required={attribute.required} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm"><option value="">Select</option><option value="true">Yes</option><option value="false">No</option></select> : <input name={`attribute:${attribute.key}`} required={attribute.required} type={attribute.valueType === "number" ? "number" : "text"} step={attribute.valueType === "number" ? "any" : undefined} className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm"/>}</label>)}</div></div>}
-<div className="grid gap-4 sm:grid-cols-3"><label className="block"><span className="text-sm font-bold">Quantity</span><input name="quantity" required type="number" min="0.000001" step="any" className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm"/></label><label className="block"><span className="text-sm font-bold">Price</span><input name="price" type="number" min="0" step="any" className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm"/></label><label className="block"><span className="text-sm font-bold">Currency</span><select name="currency" defaultValue="USD" className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm"><option>USD</option><option>EUR</option><option>KRW</option><option>MAD</option><option>CNY</option></select></label></div><div className="grid gap-4 sm:grid-cols-2"><label className="block"><span className="text-sm font-bold">Target market</span><input name="market" placeholder="Morocco" className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm"/></label><label className="block"><span className="text-sm font-bold">Supplier geography</span><input name="geography" placeholder="South Korea" className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm"/></label></div><label className="block"><span className="text-sm font-bold">Commercial terms</span><textarea name="conditions" rows={4} placeholder="Payment terms, Incoterm, delivery conditions, documentation..." className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm"/></label><button type="submit" className="inline-flex items-center gap-2 rounded-xl bg-orange-500 px-6 py-3 text-sm font-bold text-white hover:bg-orange-600"><Send size={17}/> Create offer</button></form>}</section><aside className="h-fit rounded-3xl bg-slate-950 p-6 text-white"><p className="text-xs font-bold uppercase tracking-[0.16em] text-orange-400">Supplier flow</p><div className="mt-5 space-y-3"><div className="rounded-xl bg-white/10 p-3 font-semibold">01 · Product Master</div><div className="rounded-xl bg-white/10 p-3 font-semibold">02 · Product attributes</div><div className="rounded-xl bg-white/10 p-3 font-semibold">03 · Commercial offer</div><div className="rounded-xl p-3 text-slate-500">04 · Match</div><div className="rounded-xl p-3 text-slate-500">05 · Conversation</div></div><div className="mt-7 border-t border-white/10 pt-5"><p className="text-sm font-bold">V1 rule</p><p className="mt-2 text-xs leading-5 text-slate-400">The offer is linked to the Product Master, not to a buyer demand. A demand becomes relevant later during matching.</p></div></aside></div></div></main>;
+  return <main className="min-h-screen bg-slate-50 px-5 py-8 sm:px-8"><div className="mx-auto max-w-6xl"><Link href="/" className="text-sm font-bold text-orange-600">← Back</Link><div className="mt-5 grid gap-6 lg:grid-cols-[1fr_330px]"><section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8"><p className="text-xs font-bold uppercase tracking-[0.16em] text-orange-600">QimaTrade · Supplier</p><h1 className="mt-2 text-3xl font-black tracking-tight text-slate-950">Create a new offer</h1><p className="mt-2 text-sm leading-6 text-slate-500">Start an offer independently. A Product Master and buyer demand are optional at this stage.</p>
+{createdId ? <div className="mt-7 rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-emerald-800"><div className="flex items-center gap-3"><Check size={20}/><div><p className="font-bold">Offer created successfully.</p><p className="mt-1 text-xs break-all">Offer ID: {createdId}</p></div></div></div> : <form action={createOfferAction} className="mt-7 space-y-6">
+{loadError && <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-700">{loadError}</div>}
+<div><label className="text-sm font-bold text-slate-800">Product Master <span className="font-normal text-slate-400">(optional)</span></label><input name="productMasterId" defaultValue={productMasterId} placeholder="Paste Product Master ID only when known" className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-400"/><p className="mt-1 text-xs text-slate-400">Leave empty to create a standalone offer. It can be classified later.</p></div>
+{context && <><div className="rounded-2xl border border-orange-100 bg-orange-50/60 p-4"><p className="text-xs font-bold uppercase tracking-wide text-orange-700">Product Master</p><p className="mt-1 text-lg font-black text-slate-950">{context.product.canonical_name}</p><p className="mt-1 font-mono text-xs text-slate-400">{context.product.code}</p></div>{context.attributes.length > 0 && <div className="rounded-2xl border border-slate-200 p-5"><p className="text-sm font-black text-slate-950">Product attributes</p><div className="mt-4 grid gap-4 sm:grid-cols-2">{context.attributes.map((attribute)=><label key={attribute.key} className="block"><span className="text-sm font-bold text-slate-800">{attribute.name}{attribute.required && <span className="ml-1 text-orange-500">*</span>}</span><span className="mt-1 block text-xs text-slate-400">{attribute.valueType}{attribute.unit ? ` · ${attribute.unit}` : ""}</span>{attribute.valueType === "select" && attribute.options.length > 0 ? <select name={`attribute:${attribute.key}`} required={attribute.required} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm"><option value="">Select</option>{attribute.options.map((option)=><option key={option}>{option}</option>)}</select> : attribute.valueType === "boolean" ? <select name={`attribute:${attribute.key}`} required={attribute.required} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm"><option value="">Select</option><option value="true">Yes</option><option value="false">No</option></select> : <input name={`attribute:${attribute.key}`} required={attribute.required} type={attribute.valueType === "number" ? "number" : "text"} step={attribute.valueType === "number" ? "any" : undefined} className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm"/>}</label>)}</div></div></>}
+<div><label className="text-sm font-bold text-slate-800">Offer name</label><input name="name" required placeholder="e.g. Used CNC Vertical Machining Center" className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-400"/></div>
+<div className="grid gap-4 sm:grid-cols-3"><label className="block"><span className="text-sm font-bold">Quantity</span><input name="quantity" required type="number" min="0.000001" step="any" className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm"/></label><label className="block"><span className="text-sm font-bold">Price</span><input name="price" type="number" min="0" step="any" className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm"/></label><label className="block"><span className="text-sm font-bold">Currency</span><select name="currency" defaultValue="USD" className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm"><option>USD</option><option>EUR</option><option>KRW</option><option>MAD</option><option>CNY</option></select></label></div>
+<div className="grid gap-4 sm:grid-cols-2"><label className="block"><span className="text-sm font-bold">Target market</span><input name="market" placeholder="Morocco" className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm"/></label><label className="block"><span className="text-sm font-bold">Supplier geography</span><input name="geography" placeholder="South Korea" className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm"/></label></div>
+<div><label className="text-sm font-bold text-slate-800">Commercial terms</label><textarea name="conditions" rows={4} placeholder="Payment terms, Incoterm, delivery conditions, documentation..." className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm"/></div>
+<div><label className="text-sm font-bold text-slate-800">Buyer demand <span className="font-normal text-slate-400">(optional)</span></label><input name="demandId" placeholder="Leave empty for a standalone supplier offer" className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm"/></div>
+<button type="submit" className="inline-flex items-center gap-2 rounded-xl bg-orange-500 px-6 py-3 text-sm font-bold text-white hover:bg-orange-600"><Send size={17}/> Create offer</button>
+</form>}</section><aside className="h-fit rounded-3xl bg-slate-950 p-6 text-white"><p className="text-xs font-bold uppercase tracking-[0.16em] text-orange-400">Supplier flow</p><div className="mt-5 space-y-3"><div className="rounded-xl bg-white/10 p-3 font-semibold">01 · Create offer</div><div className="rounded-xl p-3 text-slate-300">02 · Classify product</div><div className="rounded-xl p-3 text-slate-300">03 · Product attributes</div><div className="rounded-xl p-3 text-slate-500">04 · Match</div><div className="rounded-xl p-3 text-slate-500">05 · Conversation</div></div><div className="mt-7 border-t border-white/10 pt-5"><p className="text-sm font-bold">V1 rule</p><p className="mt-2 text-xs leading-5 text-slate-400">A supplier can create an offer without a Product Master or buyer demand. Matching becomes available once the offer is classified.</p></div></aside></div></div></main>;
 }
