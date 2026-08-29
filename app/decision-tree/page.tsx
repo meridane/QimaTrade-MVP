@@ -30,6 +30,7 @@ export default function DecisionTreePage() {
   const [selectedCategory, setSelectedCategory] = useState("");
   const [selectedSubcategory, setSelectedSubcategory] = useState("");
   const [products, setProducts] = useState<ProductMaster[]>([]);
+  const [selectedProduct, setSelectedProduct] = useState<ProductMaster | null>(null);
   const [productsLoading, setProductsLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -39,6 +40,7 @@ export default function DecisionTreePage() {
     setLoading(true);
     setError("");
     setProducts([]);
+    setSelectedProduct(null);
 
     try {
       const response = await fetch("/api/decision-tree/session", {
@@ -90,6 +92,7 @@ export default function DecisionTreePage() {
 
   const loadProducts = useCallback(async (nodeId: string) => {
     setProductsLoading(true);
+    setError("");
     try {
       const response = await fetch(`/api/decision-tree/products?nodeId=${encodeURIComponent(nodeId)}`, {
         cache: "no-store",
@@ -114,6 +117,7 @@ export default function DecisionTreePage() {
       void loadProducts(currentNode.id);
     } else {
       setProducts([]);
+      setSelectedProduct(null);
     }
   }, [currentNode, loadProducts]);
 
@@ -194,6 +198,7 @@ export default function DecisionTreePage() {
         } : current);
         setSelectedSubcategory("");
         setProducts([]);
+        setSelectedProduct(null);
       }
     }
   }
@@ -284,9 +289,9 @@ export default function DecisionTreePage() {
               <div className="space-y-6">
                 <section className="rounded-3xl border border-emerald-200 bg-white p-8 shadow-sm sm:p-10">
                   <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600"><CheckCircle2 size={30} /></div>
-                  <p className="mt-6 text-sm font-bold uppercase tracking-[0.16em] text-emerald-600">Classification complete</p>
+                  <p className="mt-6 text-sm font-bold uppercase tracking-[0.16em] text-emerald-600">Classification path complete</p>
                   <h2 className="mt-2 text-3xl font-black tracking-tight text-slate-950">{currentNode.title}</h2>
-                  <p className="mt-3 text-sm leading-6 text-slate-500">{currentNode.description}</p>
+                  <p className="mt-3 text-sm leading-6 text-slate-500">Select the canonical Product Master that best matches the item.</p>
                   <div className="mt-8 grid gap-3 sm:grid-cols-2">
                     <div className="rounded-2xl bg-slate-50 p-4"><p className="text-xs font-bold uppercase tracking-wide text-slate-400">Category</p><p className="mt-1 font-bold text-slate-900">{selectedCategory || session.answers.category}</p></div>
                     <div className="rounded-2xl bg-slate-50 p-4"><p className="text-xs font-bold uppercase tracking-wide text-slate-400">Subcategory</p><p className="mt-1 font-bold text-slate-900">{selectedSubcategory || session.answers.subcategory}</p></div>
@@ -297,7 +302,8 @@ export default function DecisionTreePage() {
                   <div className="flex flex-wrap items-end justify-between gap-3">
                     <div>
                       <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-400">Canonical Product Master</p>
-                      <h3 className="mt-1 text-2xl font-black tracking-tight text-slate-950">Matching products</h3>
+                      <h3 className="mt-1 text-2xl font-black tracking-tight text-slate-950">Select the matching product</h3>
+                      <p className="mt-1 text-sm text-slate-500">Resolved from the canonical Product Master registry for this subcategory.</p>
                     </div>
                     <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">{products.length} available</span>
                   </div>
@@ -308,21 +314,42 @@ export default function DecisionTreePage() {
                     <div className="mt-6 rounded-2xl bg-slate-50 p-5 text-sm text-slate-500">No active Product Masters are mapped to this classification yet.</div>
                   ) : (
                     <div className="mt-6 grid gap-3 md:grid-cols-2">
-                      {products.map((product) => (
-                        <article key={product.id} className="rounded-2xl border border-slate-200 p-4 transition hover:border-orange-200 hover:shadow-sm">
-                          <div className="flex items-start justify-between gap-3">
-                            <div>
-                              <p className="text-xs font-bold uppercase tracking-wide text-orange-600">{product.code}</p>
-                              <h4 className="mt-1 font-black text-slate-950">{product.canonicalName || product.name}</h4>
+                      {products.map((product) => {
+                        const selected = selectedProduct?.id === product.id;
+                        return (
+                          <button key={product.id} type="button" onClick={() => setSelectedProduct(product)} className={`rounded-2xl border p-4 text-left transition ${selected ? "border-orange-400 bg-orange-50 shadow-md" : "border-slate-200 hover:border-orange-300 hover:shadow-sm"}`}>
+                            <div className="flex items-start justify-between gap-3">
+                              <div>
+                                <p className="text-xs font-bold uppercase tracking-wide text-orange-600">{product.code}</p>
+                                <h4 className="mt-1 font-black text-slate-950">{product.canonicalName || product.name}</h4>
+                                {product.description && <p className="mt-2 text-sm leading-5 text-slate-500">{product.description}</p>}
+                              </div>
+                              {selected && <CheckCircle2 className="mt-1 shrink-0 text-orange-600" size={20} />}
                             </div>
-                            <span className="rounded-lg bg-slate-100 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-500">{product.productRole || "Product"}</span>
-                          </div>
-                          {product.description && <p className="mt-2 text-sm leading-5 text-slate-500">{product.description}</p>}
-                        </article>
-                      ))}
+                          </button>
+                        );
+                      })}
                     </div>
                   )}
                 </section>
+
+                {selectedProduct && (
+                  <section className="rounded-3xl border border-emerald-300 bg-emerald-50 p-6 shadow-sm sm:p-8">
+                    <div className="flex items-start gap-4">
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white text-emerald-600"><CheckCircle2 size={26} /></div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-bold uppercase tracking-[0.16em] text-emerald-700">Canonical Classification Result</p>
+                        <h3 className="mt-1 text-2xl font-black tracking-tight text-slate-950">{selectedProduct.canonicalName || selectedProduct.name}</h3>
+                        <p className="mt-1 text-sm font-semibold text-slate-600">{selectedProduct.code}</p>
+                        <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                          <div className="rounded-2xl bg-white p-4"><p className="text-[11px] font-bold uppercase tracking-wide text-slate-400">Trade Domain</p><p className="mt-1 text-sm font-bold text-slate-900">Industry & Infrastructure</p></div>
+                          <div className="rounded-2xl bg-white p-4"><p className="text-[11px] font-bold uppercase tracking-wide text-slate-400">Category</p><p className="mt-1 text-sm font-bold text-slate-900">{selectedCategory || session.answers.category}</p></div>
+                          <div className="rounded-2xl bg-white p-4"><p className="text-[11px] font-bold uppercase tracking-wide text-slate-400">Subcategory</p><p className="mt-1 text-sm font-bold text-slate-900">{selectedSubcategory || session.answers.subcategory}</p></div>
+                        </div>
+                      </div>
+                    </div>
+                  </section>
+                )}
 
                 <button onClick={() => void startSession()} disabled={submitting} className="rounded-xl bg-orange-500 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-orange-500/20 transition hover:bg-orange-600 disabled:opacity-50">Start another classification</button>
               </div>
