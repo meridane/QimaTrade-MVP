@@ -2,10 +2,17 @@
 
 import { ArrowRight, Loader2, ShieldCheck } from "lucide-react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 
+function getSafeNextPath(value: string | null) {
+  if (!value || !value.startsWith("/") || value.startsWith("//")) return "/demands";
+  return value;
+}
+
 export default function LoginPage() {
+  const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -17,7 +24,8 @@ export default function LoginPage() {
       const supabase = createSupabaseBrowserClient();
       const configuredSiteUrl = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "");
       const siteUrl = configuredSiteUrl || window.location.origin;
-      const redirectTo = `${siteUrl}/auth/callback?next=/demands`;
+      const next = getSafeNextPath(searchParams.get("next"));
+      const redirectTo = `${siteUrl}/auth/callback?next=${encodeURIComponent(next)}`;
 
       const { error: signInError } = await supabase.auth.signInWithOAuth({
         provider: "google",
