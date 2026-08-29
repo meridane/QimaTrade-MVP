@@ -185,6 +185,7 @@ export default function DecisionTreePage() {
       }
       setCompletedProduct(selectedProduct);
       setSession((current) => current ? { ...current, selectedProductMasterId: data.productMasterId, status: "completed" } : current);
+      window.location.assign(`/request/new?productMasterId=${encodeURIComponent(data.productMasterId)}&sessionId=${encodeURIComponent(session.sessionId)}`);
     } catch (caughtError) {
       setError(caughtError instanceof Error ? caughtError.message : "Unable to save this Product Master.");
     } finally {
