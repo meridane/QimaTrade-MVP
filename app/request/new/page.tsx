@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, useState } from "react";
 
 export default function NewProductRequestPage() {
   const params = useSearchParams();
+  const router = useRouter();
   const productMasterId = params.get("productMasterId") ?? "";
   const decisionSessionId = params.get("sessionId") ?? "";
   const [title, setTitle] = useState("");
@@ -13,6 +14,7 @@ export default function NewProductRequestPage() {
   const [quantity, setQuantity] = useState("");
   const [unit, setUnit] = useState("pcs");
   const [saving, setSaving] = useState(false);
+  const [publishing, setPublishing] = useState(false);
   const [error, setError] = useState("");
   const [createdId, setCreatedId] = useState("");
 
@@ -47,6 +49,29 @@ export default function NewProductRequestPage() {
     }
   }
 
+  async function publishAndContinue() {
+    if (!createdId) return;
+    setPublishing(true);
+    setError("");
+    try {
+      const response = await fetch("/api/product-requests/publish", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ requestId: createdId }),
+      });
+      const data = await response.json();
+      if (!response.ok || !data.result?.demandId) {
+        setError(data.error || "Unable to publish the request.");
+        return;
+      }
+      router.push(`/demands/qualification?id=${encodeURIComponent(data.result.demandId)}`);
+    } catch (caughtError) {
+      setError(caughtError instanceof Error ? caughtError.message : "Unable to publish the request.");
+    } finally {
+      setPublishing(false);
+    }
+  }
+
   if (!productMasterId || !decisionSessionId) {
     return (
       <main className="min-h-screen bg-slate-50 px-5 py-10">
@@ -72,7 +97,13 @@ export default function NewProductRequestPage() {
             <section className="mt-8 rounded-2xl border border-emerald-200 bg-emerald-50 p-6">
               <p className="text-sm font-bold text-emerald-700">Request created successfully.</p>
               <p className="mt-1 text-sm text-emerald-800">Request ID: {createdId}</p>
-              <Link href="/decision-tree" className="mt-5 inline-flex rounded-xl bg-orange-500 px-5 py-3 text-sm font-bold text-white">Start another classification</Link>
+              {error && <div role="alert" className="mt-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-700">{error}</div>}
+              <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+                <button type="button" onClick={publishAndContinue} disabled={publishing} className="inline-flex justify-center rounded-xl bg-orange-500 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-orange-500/20 transition hover:bg-orange-600 disabled:opacity-60">
+                  {publishing ? "Publishing…" : "Publish & continue to qualification →"}
+                </button>
+                <Link href="/decision-tree" className="inline-flex justify-center rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700">Start another classification</Link>
+              </div>
             </section>
           ) : (
             <form onSubmit={submit} className="mt-8 space-y-5">
