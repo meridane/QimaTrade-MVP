@@ -1,6 +1,9 @@
-import type { ResolvedActor } from "../domain/contracts/runtime";
-import type { ComposedSchema, ResolvedContext, ValidationResult } from "../domain/contracts/runtime";
+import type { ResolvedActor, ComposedSchema, ResolvedContext, ValidationResult } from "../domain/contracts/runtime";
 import type { ValidationEngine } from "../ports";
+
+function requiredPermission(actionKey: string): string {
+  return `${actionKey.toLowerCase().replaceAll("_", ":")}`;
+}
 
 export class SchemaValidationEngine implements ValidationEngine {
   async validate(
@@ -9,8 +12,12 @@ export class SchemaValidationEngine implements ValidationEngine {
     actor: ResolvedActor,
     _context: ResolvedContext,
   ): Promise<ValidationResult> {
-    if (!actor.permissions.includes(`${schema.action.actionKey.toLowerCase().replaceAll("_", ":")}`) && actor.permissions.length === 0) {
-      return { valid: false, errors: [{ code: "ACTOR_NOT_AUTHORIZED", message: "Actor is not authorized for this action." }] };
+    const permission = requiredPermission(schema.action.actionKey);
+    if (!actor.permissions.includes(permission)) {
+      return {
+        valid: false,
+        errors: [{ code: "ACTOR_NOT_AUTHORIZED", message: `Missing permission: ${permission}.` }],
+      };
     }
 
     const errors: { field?: string; code: string; message: string }[] = [];
@@ -23,7 +30,7 @@ export class SchemaValidationEngine implements ValidationEngine {
       }
       if (value === undefined || value === null) continue;
 
-      if (field.dataType === "integer" && (!Number.isInteger(value))) {
+      if (field.dataType === "integer" && !Number.isInteger(value)) {
         errors.push({ field: field.key, code: "INVALID_TYPE", message: `${field.key} must be an integer.` });
       }
       if (field.dataType === "number" && (typeof value !== "number" || !Number.isFinite(value))) {
