@@ -1,9 +1,11 @@
-import type { ResolvedActor, ComposedSchema, ResolvedContext, ValidationResult } from "../domain/contracts/runtime";
+import type {
+  ComposedSchema,
+  ResolvedActor,
+  ResolvedContext,
+  ValidationError,
+  ValidationResult,
+} from "../domain/contracts/runtime";
 import type { ValidationEngine } from "../ports";
-
-function requiredPermission(actionKey: string): string {
-  return `${actionKey.toLowerCase().replaceAll("_", ":")}`;
-}
 
 export class SchemaValidationEngine implements ValidationEngine {
   async validate(
@@ -12,37 +14,73 @@ export class SchemaValidationEngine implements ValidationEngine {
     actor: ResolvedActor,
     _context: ResolvedContext,
   ): Promise<ValidationResult> {
-    const permission = requiredPermission(schema.action.actionKey);
-    if (!actor.permissions.includes(permission)) {
-      return {
-        valid: false,
-        errors: [{ code: "ACTOR_NOT_AUTHORIZED", message: `Missing permission: ${permission}.` }],
-      };
+    const errors: ValidationError[] = [];
+
+    const requiredPermission = schema.action.actionKey.toLowerCase().replaceAll("_", ":");
+    if (!actor.permissions.includes(requiredPermission)) {
+      errors.push({ code: "ACTOR_NOT_AUTHORIZED", message: `Missing permission: ${requiredPermission}.` });
     }
 
-    const errors: { field?: string; code: string; message: string }[] = [];
+    const knownKeys = new Set(schema.fields.map((field) => field.key));
+    for (const key of Object.keys(input)) {
+      if (!knownKeys.has(key)) {
+        errors.push({ field: key, code: "UNKNOWN_FIELD", message: `${key} is not part of the resolved schema.` });
+      }
+    }
 
     for (const field of schema.fields) {
       const value = input[field.key];
-      if (field.required && (value === undefined || value === null || value === "")) {
+      const missing = value === undefined || value === null || value === "";
+
+      if (field.required && missing) {
         errors.push({ field: field.key, code: "REQUIRED", message: `${field.key} is required.` });
         continue;
       }
-      if (value === undefined || value === null) continue;
+      if (missing) continue;
 
-      if (field.dataType === "integer" && !Number.isInteger(value)) {
-        errors.push({ field: field.key, code: "INVALID_TYPE", message: `${field.key} must be an integer.` });
-      }
-      if (field.dataType === "number" && (typeof value !== "number" || !Number.isFinite(value))) {
-        errors.push({ field: field.key, code: "INVALID_TYPE", message: `${field.key} must be a finite number.` });
+      if (!matchesDataType(value, field.dataType)) {
+        errors.push({ field: field.key, code: "INVALID_TYPE", message: `${field.key} has an invalid type.` });
+        continue;
       }
 
       const validation = field.validation ?? {};
       if (typeof validation.min === "number" && typeof value === "number" && value < validation.min) {
         errors.push({ field: field.key, code: "MIN_VALUE", message: `${field.key} is below the minimum allowed value.` });
       }
+      if (typeof validation.max === "number" && typeof value === "number" && value > validation.max) {
+        errors.push({ field: field.key, code: "MAX_VALUE", message: `${field.key} exceeds the maximum allowed value.` });
+      }
+      if (typeof validation.pattern === "string" && typeof value === "string") {
+        try {
+          if (!new RegExp(validation.pattern).test(value)) {
+            errors.push({ field: field.key, code: "INVALID_FORMAT", message: `${field.key} has an invalid format.` });
+          }
+        } catch {
+          errors.push({ field: field.key, code: "INVALID_VALIDATION_RULE", message: `${field.key} has an invalid validation rule.` });
+        }
+      }
     }
 
-    return errors.length ? { valid: false, errors } : { valid: true };
+    return errors.length > 0 ? { valid: false, errors } : { valid: true };
+  }
+}
+
+function matchesDataType(value: unknown, dataType: string): boolean {
+  switch (dataType) {
+    case "string":
+    case "text":
+    case "currency":
+    case "date":
+      return typeof value === "string";
+    case "number":
+      return typeof value === "number" && Number.isFinite(value);
+    case "integer":
+      return typeof value === "number" && Number.isInteger(value);
+    case "boolean":
+      return typeof value === "boolean";
+    case "object":
+      return typeof value === "object" && value !== null && !Array.isArray(value);
+    default:
+      return false;
   }
 }
