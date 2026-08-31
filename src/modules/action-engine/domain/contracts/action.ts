@@ -17,6 +17,7 @@ export interface ActionRuntimeRequest {
   actionKey: string;
   actionVersion?: number;
   actor: { id: string; type: string };
+  organizationId?: string;
   object?: { type: string; id?: string; masterId?: string };
   context?: { type: string; values?: Record<string, unknown> };
   input?: Record<string, unknown>;
