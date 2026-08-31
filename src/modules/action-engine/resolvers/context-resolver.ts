@@ -10,25 +10,25 @@ export class RequestContextResolver implements ContextResolver {
     object: ResolvedObject,
     actor: ResolvedActor,
   ): Promise<ResolvedContext> {
-    const organizationId = request.organizationId ?? actor.organizationId ?? object.organizationId;
+    const tenantId = request.tenantId;
 
-    if (!organizationId) {
-      throw new ActionEngineError("ORGANIZATION_CONTEXT_REQUIRED", "An organization context is required for action execution.");
+    if (!tenantId) {
+      throw new ActionEngineError("TENANT_CONTEXT_REQUIRED", "A tenant context is required for action execution.");
     }
 
-    for (const candidate of [actor.organizationId, object.organizationId]) {
-      if (candidate && candidate !== organizationId) {
-        throw new ActionEngineError("ORGANIZATION_CONTEXT_MISMATCH", "Actor, object and request must belong to the same organization.");
+    for (const candidate of [actor.tenantId, object.tenantId]) {
+      if (candidate && candidate !== tenantId) {
+        throw new ActionEngineError("TENANT_CONTEXT_MISMATCH", "Actor, object and request must belong to the same tenant.");
       }
     }
 
     return {
       type: request.context?.type ?? action.contextType,
-      organizationId,
+      tenantId,
       values: {
         ...(request.context?.values ?? {}),
         actorId: actor.id,
-        organizationId,
+        tenantId,
         objectType: object.type,
         objectId: object.id ?? object.masterId,
       },
