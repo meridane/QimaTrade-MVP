@@ -1,4 +1,4 @@
-import type { ActionDefinition } from "../domain/contracts/action";
+import type { ResolvedAction } from "../domain/contracts/action";
 import type { ActionCommand } from "../domain/contracts/runtime";
 import { ActionEngineError } from "../domain/errors";
 import type { AuthorizationPolicy } from "../security/authorization";
@@ -15,18 +15,27 @@ export class IdempotentCommandExecutor {
 
   async execute(
     command: ActionCommand,
-    action: ActionDefinition,
+    action: ResolvedAction,
     actor: { id: string; type: string; permissions: string[] },
     object: { type: string; id?: string; masterId?: string },
   ) {
     if (command.actionKey !== action.actionKey || command.actionVersion !== action.version) {
-      throw new ActionEngineError("COMMAND_ACTION_MISMATCH", "Command does not match the resolved action definition.");
+      throw new ActionEngineError(
+        "COMMAND_ACTION_MISMATCH",
+        "Command does not match the resolved action definition.",
+      );
     }
     if (command.actorId !== actor.id) {
-      throw new ActionEngineError("COMMAND_ACTOR_MISMATCH", "Command actor does not match the resolved actor.");
+      throw new ActionEngineError(
+        "COMMAND_ACTOR_MISMATCH",
+        "Command actor does not match the resolved actor.",
+      );
     }
     if (command.objectType !== object.type || command.objectId !== (object.id ?? object.masterId)) {
-      throw new ActionEngineError("COMMAND_OBJECT_MISMATCH", "Command object does not match the resolved object.");
+      throw new ActionEngineError(
+        "COMMAND_OBJECT_MISMATCH",
+        "Command object does not match the resolved object.",
+      );
     }
 
     await assertAuthorized(this.authorization, actor, action, object);
@@ -34,10 +43,16 @@ export class IdempotentCommandExecutor {
     const existing = await this.idempotency.get(command.idempotencyKey);
     if (existing) {
       if (existing.actionKey !== command.actionKey || existing.actorId !== command.actorId) {
-        throw new ActionEngineError("IDEMPOTENCY_KEY_CONFLICT", "Idempotency key is already bound to another command.");
+        throw new ActionEngineError(
+          "IDEMPOTENCY_KEY_CONFLICT",
+          "Idempotency key is already bound to another command.",
+        );
       }
       if (existing.status === "COMPLETED" && existing.result) return existing.result;
-      throw new ActionEngineError("COMMAND_ALREADY_PROCESSED", "A command with this idempotency key is already being processed.");
+      throw new ActionEngineError(
+        "COMMAND_ALREADY_PROCESSED",
+        "A command with this idempotency key is already being processed.",
+      );
     }
 
     const started = await this.idempotency.begin({
@@ -47,7 +62,12 @@ export class IdempotentCommandExecutor {
       requestHash: JSON.stringify(command.payload),
       status: "IN_PROGRESS",
     });
-    if (!started) throw new ActionEngineError("IDEMPOTENCY_RACE", "Command processing was started concurrently.");
+    if (!started) {
+      throw new ActionEngineError(
+        "IDEMPOTENCY_RACE",
+        "Command processing was started concurrently.",
+      );
+    }
 
     try {
       const result = await this.registry.resolve(action).execute(command);
