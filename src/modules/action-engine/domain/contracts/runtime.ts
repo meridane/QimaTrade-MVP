@@ -5,17 +5,20 @@ export interface ResolvedObject {
   id?: string;
   masterId?: string;
   data?: Record<string, unknown>;
+  organizationId?: string;
 }
 
 export interface ResolvedActor {
   id: string;
   type: string;
   permissions: string[];
+  organizationId?: string;
 }
 
 export interface ResolvedContext {
   type: string;
   values: Record<string, unknown>;
+  organizationId?: string;
 }
 
 export type DecisionResult =
@@ -62,6 +65,7 @@ export interface ActionCommand {
   actionKey: string;
   actionVersion: number;
   actorId: string;
+  organizationId: string;
   objectType: string;
   objectId?: string;
   payload: Record<string, unknown>;
