@@ -59,6 +59,14 @@ async function run() {
   );
   assert.deepEqual(validation, { valid: true });
 
+  const unauthorized = await new SchemaValidationEngine().validate(
+    result.schema!,
+    { quantity: 1, price: 25000, currency: "USD" },
+    { id: "supplier-002", type: "Supplier", permissions: [] },
+    result.schema!.context,
+  );
+  assert.equal(unauthorized.valid, false);
+
   console.log("PASS: CREATE_OFFER + ProductMaster vertical schema");
 }
 
