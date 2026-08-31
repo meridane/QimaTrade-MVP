@@ -16,8 +16,8 @@ export interface ActionDefinition {
 export interface ActionRuntimeRequest {
   actionKey: string;
   actionVersion?: number;
+  tenantId: string;
   actor: { id: string; type: string };
-  organizationId?: string;
   object?: { type: string; id?: string; masterId?: string };
   context?: { type: string; values?: Record<string, unknown> };
   input?: Record<string, unknown>;
