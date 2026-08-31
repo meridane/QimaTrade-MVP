@@ -1,5 +1,5 @@
 import type { ResolvedAction } from "../domain/contracts/action";
-import type { ActionCommand } from "../domain/contracts/runtime";
+import type { ActionCommand, ResolvedActor, ResolvedObject } from "../domain/contracts/runtime";
 import { ActionEngineError } from "../domain/errors";
 import type { AuthorizationPolicy } from "../security/authorization";
 import { assertAuthorized } from "../security/authorization";
@@ -16,8 +16,8 @@ export class IdempotentCommandExecutor {
   async execute(
     command: ActionCommand,
     action: ResolvedAction,
-    actor: { id: string; type: string; permissions: string[] },
-    object: { type: string; id?: string; masterId?: string },
+    actor: ResolvedActor,
+    object: ResolvedObject,
   ) {
     if (command.actionKey !== action.actionKey || command.actionVersion !== action.version) {
       throw new ActionEngineError("COMMAND_ACTION_MISMATCH", "Command does not match the resolved action definition.");
@@ -27,6 +27,15 @@ export class IdempotentCommandExecutor {
     }
     if (command.objectType !== object.type || command.objectId !== (object.id ?? object.masterId)) {
       throw new ActionEngineError("COMMAND_OBJECT_MISMATCH", "Command object does not match the resolved object.");
+    }
+
+    const actorOrganizationId = actor.organizationId;
+    const objectOrganizationId = object.organizationId;
+    if (!actorOrganizationId || !objectOrganizationId || command.organizationId !== actorOrganizationId || command.organizationId !== objectOrganizationId) {
+      throw new ActionEngineError(
+        "ORGANIZATION_BOUNDARY_VIOLATION",
+        "Actor, object and command must belong to the same organization.",
+      );
     }
 
     await assertAuthorized(this.authorization, actor, action, object);
