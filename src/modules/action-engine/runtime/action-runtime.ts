@@ -60,10 +60,3 @@ export class ActionRuntime {
     };
   }
 }
-
-export type RuntimeResolution = {
-  action: ResolvedAction;
-  object: ResolvedObject;
-  actor: ResolvedActor;
-  context: ResolvedContext;
-};
