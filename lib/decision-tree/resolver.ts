@@ -2,15 +2,15 @@ import type {
   DecisionContext,
   DecisionNode,
   DecisionResult,
-  DecisionRule,
   DecisionTraceStep,
+  Rule,
 } from "./types";
 import { evaluateRule, sortRulesDeterministically } from "./evaluator";
 
 export interface ResolveInput {
   entryNodeId: string;
   nodes: DecisionNode[];
-  rules: DecisionRule[];
+  rules: Rule[];
   context: DecisionContext;
   maxSteps?: number;
 }
@@ -19,7 +19,7 @@ const DEFAULT_MAX_STEPS = 100;
 
 export function resolveDecisionTree(input: ResolveInput): DecisionResult {
   const nodes = new Map(input.nodes.map((node) => [node.id, node]));
-  const rulesBySource = new Map<string, DecisionRule[]>();
+  const rulesBySource = new Map<string, Rule[]>();
 
   for (const rule of input.rules) {
     const list = rulesBySource.get(rule.sourceNodeId) ?? [];
@@ -44,17 +44,16 @@ export function resolveDecisionTree(input: ResolveInput): DecisionResult {
     visited.add(currentNodeId);
 
     if (node.kind === "terminal") {
-      trace.push({ nodeId: node.id, nodeKey: node.key, reason: "terminal" });
+      trace.push({ nodeId: node.id, matchedRuleId: null, reason: "terminal" });
       return {
         status: "terminal",
         terminalNodeId: node.id,
-        terminalNodeKey: node.key,
         trace,
       };
     }
 
     if (node.kind === "review") {
-      trace.push({ nodeId: node.id, nodeKey: node.key, reason: "human_review" });
+      trace.push({ nodeId: node.id, matchedRuleId: null, reason: "human_review" });
       return { status: "review", trace };
     }
 
@@ -62,13 +61,12 @@ export function resolveDecisionTree(input: ResolveInput): DecisionResult {
     const matched = rules.find((rule) => evaluateRule(rule, input.context));
 
     if (!matched) {
-      trace.push({ nodeId: node.id, nodeKey: node.key, reason: "no_matching_rule" });
+      trace.push({ nodeId: node.id, matchedRuleId: null, reason: "no_matching_rule" });
       return { status: "needs_input", nextNodeId: node.id, trace };
     }
 
     trace.push({
       nodeId: node.id,
-      nodeKey: node.key,
       matchedRuleId: matched.id,
       reason: "rule_matched",
     });
