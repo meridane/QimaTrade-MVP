@@ -1,13 +1,32 @@
-export type NodeKind = "category" | "subcategory" | "terminal";
+export type Primitive = string | number | boolean | null;
 
-export type RuleOperator = "equals";
+export type NodeKind =
+  | "category"
+  | "subcategory"
+  | "question"
+  | "decision"
+  | "terminal"
+  | "review";
+
+export type RuleOperator =
+  | "equals"
+  | "not_equals"
+  | "contains"
+  | "in"
+  | "not_in"
+  | "gt"
+  | "gte"
+  | "lt"
+  | "lte"
+  | "exists";
 
 export type Rule = {
   id: string;
   operator: RuleOperator;
   field: string;
-  value: string;
+  value?: Primitive | Primitive[] | null;
   targetNodeId: string;
+  priority?: number;
 };
 
 export type ProductMaster = {
@@ -25,11 +44,12 @@ export type DecisionNode = {
   id: string;
   kind: NodeKind;
   title: string;
-  description: string;
-  imageUrl: string;
-  rules: Rule[];
+  description?: string | null;
+  imageUrl?: string | null;
+  rules?: Rule[];
   canonicalCategoryId?: string | null;
   canonicalSubcategoryId?: string | null;
+  metadata?: Record<string, unknown>;
 };
 
 export type DecisionTree = {
@@ -38,6 +58,12 @@ export type DecisionTree = {
   title: string;
   entryNodeId: string;
   nodes: DecisionNode[];
+  status?: "draft" | "published" | "archived";
+};
+
+export type DecisionContext = {
+  values: Record<string, Primitive | Primitive[]>;
+  metadata?: Record<string, unknown>;
 };
 
 export type SessionState = {
@@ -54,4 +80,18 @@ export type SessionState = {
 export type EvaluationResult = {
   matchedRuleId: string | null;
   nextNodeId: string | null;
+};
+
+export type DecisionTraceStep = {
+  nodeId: string;
+  matchedRuleId: string | null;
+  reason?: string;
+};
+
+export type DecisionResult = {
+  status: "terminal" | "needs_input" | "review" | "error";
+  terminalNodeId?: string | null;
+  nextNodeId?: string | null;
+  trace: DecisionTraceStep[];
+  errors?: string[];
 };
