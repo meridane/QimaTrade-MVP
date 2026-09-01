@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
-import { executeAction, type ActionInput, type ActionResult } from "./engine";
-import type { ActionContext } from "./types";
+import { executeAction, type ActionInput } from "./engine";
+import type { ActionContext, ActionResult } from "./types";
 
 export async function executeUniversalAction(
   context: ActionContext,
@@ -24,7 +24,6 @@ export async function executeUniversalAction(
         .eq("action_key", actionKey)
         .eq("version", version)
         .maybeSingle();
-
       if (error) throw new Error(error.message);
       return data;
     },
@@ -50,7 +49,6 @@ export async function executeUniversalAction(
           p_offer_type: actionInput.offerType == null ? null : String(actionInput.offerType),
           p_pricing_model: actionInput.pricingModel == null ? null : String(actionInput.pricingModel),
         });
-
         if (error) throw new Error(error.message);
         return data as ActionResult;
       },
