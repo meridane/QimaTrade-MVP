@@ -46,7 +46,7 @@ export type DecisionNode = {
   title: string;
   description?: string | null;
   imageUrl?: string | null;
-  rules?: Rule[];
+  rules: Rule[];
   canonicalCategoryId?: string | null;
   canonicalSubcategoryId?: string | null;
   metadata?: Record<string, unknown>;
