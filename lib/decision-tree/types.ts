@@ -22,6 +22,7 @@ export type RuleOperator =
 
 export type Rule = {
   id: string;
+  sourceNodeId: string;
   operator: RuleOperator;
   field: string;
   value: string;
