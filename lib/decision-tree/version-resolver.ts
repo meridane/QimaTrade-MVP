@@ -1,6 +1,9 @@
-import type { DecisionTreeVersion } from "./types";
-
-export interface VersionCandidate extends DecisionTreeVersion {
+export interface VersionCandidate {
+  id: string;
+  treeId: string;
+  version: string;
+  status: "draft" | "published" | "archived";
+  entryNodeId: string;
   publishedAt?: string | null;
 }
 
