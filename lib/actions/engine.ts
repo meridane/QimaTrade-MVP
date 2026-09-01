@@ -1,9 +1,12 @@
 import type { ActionContext, ActionPrimitive, ActionResult } from "./types";
 
-export type ActionInput = Record<
-  string,
-  ActionPrimitive | Record<string, unknown> | ActionPrimitive[]
->;
+export type ActionInputValue =
+  | ActionPrimitive
+  | Record<string, unknown>
+  | ActionPrimitive[]
+  | null;
+
+export type ActionInput = Record<string, ActionInputValue>;
 
 export type ActionHandler = (
   context: ActionContext,
@@ -26,19 +29,11 @@ export async function executeAction(
   input: ActionInput,
   dependencies: ActionEngineDependencies,
 ): Promise<ActionResult> {
-  const definition = await dependencies.getDefinition(
-    context.actionKey,
-    context.actionVersion,
-  );
-
-  if (!definition || definition.status !== "published") {
-    throw new Error("ACTION_NOT_PUBLISHED");
-  }
+  const definition = await dependencies.getDefinition(context.actionKey, context.actionVersion);
+  if (!definition || definition.status !== "published") throw new Error("ACTION_NOT_PUBLISHED");
 
   const handler = dependencies.handlers[context.actionKey];
-  if (!handler) {
-    throw new Error("ACTION_HANDLER_NOT_FOUND");
-  }
+  if (!handler) throw new Error("ACTION_HANDLER_NOT_FOUND");
 
   return handler(context, input);
 }
