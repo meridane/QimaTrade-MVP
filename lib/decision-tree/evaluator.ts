@@ -1,4 +1,4 @@
-import type { DecisionContext, DecisionRule, Primitive } from "./types";
+import type { DecisionContext, Primitive, Rule } from "./types";
 
 function asArray(value: Primitive | Primitive[]): Primitive[] {
   return Array.isArray(value) ? value : [value];
@@ -9,11 +9,11 @@ function primitiveEquals(a: Primitive, b: Primitive): boolean {
 }
 
 /** Deterministic, side-effect-free evaluation of one universal DT rule. */
-export function evaluateRule(rule: DecisionRule, context: DecisionContext): boolean {
-  if (!rule.field || !rule.operator) return true;
+export function evaluateRule(rule: Rule, context: DecisionContext): boolean {
+  if (!rule.field) return true;
 
   const actual = context.values[rule.field];
-  const expected = rule.value ?? null;
+  const expected: Primitive | Primitive[] = rule.comparisonValue ?? rule.value;
 
   if (rule.operator === "exists") {
     return actual !== undefined && actual !== null;
@@ -31,7 +31,8 @@ export function evaluateRule(rule: DecisionRule, context: DecisionContext): bool
       return actualValues.every((value) => expectedValues.every((item) => !primitiveEquals(value, item)));
     case "contains":
       return actualValues.some((value) =>
-        typeof value === "string" && expectedValues.some((item) => typeof item === "string" && value.includes(item)),
+        typeof value === "string" &&
+        expectedValues.some((item) => typeof item === "string" && value.includes(item)),
       );
     case "in":
       return actualValues.some((value) => expectedValues.some((item) => primitiveEquals(value, item)));
@@ -50,6 +51,6 @@ export function evaluateRule(rule: DecisionRule, context: DecisionContext): bool
   }
 }
 
-export function sortRulesDeterministically(rules: DecisionRule[]): DecisionRule[] {
+export function sortRulesDeterministically(rules: Rule[]): Rule[] {
   return [...rules].sort((a, b) => (a.priority ?? 0) - (b.priority ?? 0) || a.id.localeCompare(b.id));
 }
