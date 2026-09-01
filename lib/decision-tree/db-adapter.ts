@@ -1,10 +1,21 @@
-import type { DecisionNode, DecisionRule, DecisionTreeVersion } from "./types";
+import type { DecisionNode, Rule } from "./types";
+
+type DecisionTreeVersion = {
+  id: string;
+  version: string;
+  status: "draft" | "published" | "archived";
+  title?: string;
+  entryNodeId?: string;
+};
 
 export interface DecisionTreeDataSource {
   getTreeId(treeKey: string, tenantId?: string): Promise<string | null>;
-  getPublishedVersion(treeId: string, requestedVersion?: string | null): Promise<DecisionTreeVersion | null>;
+  getPublishedVersion(
+    treeId: string,
+    requestedVersion?: string | null,
+  ): Promise<DecisionTreeVersion | null>;
   getNodes(treeVersionId: string): Promise<DecisionNode[]>;
-  getRules(treeVersionId: string): Promise<DecisionRule[]>;
+  getRules(treeVersionId: string): Promise<Rule[]>;
 }
 
 export async function loadPublishedTree(
@@ -12,7 +23,7 @@ export async function loadPublishedTree(
   treeKey: string,
   tenantId?: string,
   requestedVersion?: string | null,
-): Promise<DecisionTreeVersion> {
+): Promise<DecisionTreeVersion & { nodes: DecisionNode[]; rules: Rule[] }> {
   const treeId = await source.getTreeId(treeKey, tenantId);
   if (!treeId) throw new Error(`Decision tree not found: ${treeKey}`);
 
