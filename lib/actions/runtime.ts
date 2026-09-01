@@ -26,12 +26,7 @@ export async function executeUniversalAction(
         .maybeSingle();
       if (error) throw new Error(error.message);
       if (!data) return null;
-
-      return {
-        actionKey: data.action_key,
-        version: data.version,
-        status: data.status,
-      };
+      return { actionKey: data.action_key, version: data.version, status: data.status };
     },
     handlers: {
       CREATE_OFFER: async (actionContext, actionInput) => {
@@ -57,6 +52,23 @@ export async function executeUniversalAction(
         });
         if (error) throw new Error(error.message);
         return data as ActionResult;
+      },
+      PUBLISH_PRODUCT_REQUEST: async (actionContext, actionInput) => {
+        const requestId = String(actionInput.requestId ?? actionContext.objectId ?? "");
+        if (!requestId) throw new Error("PRODUCT_REQUEST_ID_REQUIRED");
+        const { data, error } = await supabase.rpc("dt_publish_product_request", {
+          p_request_id: requestId,
+          p_user_id: actionContext.userId,
+        });
+        if (error) throw new Error(error.message);
+        const result = data as Record<string, unknown> | null;
+        const demandId = typeof result?.demandId === "string" ? result.demandId : typeof result?.demand_id === "string" ? result.demand_id : null;
+        return {
+          executionId: actionContext.correlationId,
+          status: "succeeded",
+          objectId: demandId,
+          result: { requestId, demandId, source: "dt_publish_product_request" },
+        };
       },
     },
   });
