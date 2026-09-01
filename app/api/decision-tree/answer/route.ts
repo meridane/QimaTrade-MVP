@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getProductMastersForNode, loadPublishedTree, loadSession, submitAnswer } from "@/lib/decision-tree/server";
-import { evaluateAnswer } from "@/lib/decision-tree/engine";
 
 function badRequest(message: string) {
   return NextResponse.json({ error: message }, { status: 400 });
@@ -20,24 +19,14 @@ export async function POST(request: NextRequest) {
       return badRequest("Invalid answer command");
     }
 
+    // Load the published tree/session only for authorization, current-node
+    // validation and response shaping. The database RPC is authoritative for
+    // rule matching and target-node selection.
     const { tree } = await loadPublishedTree();
     const session = await loadSession(sessionId);
 
     if (session.revision !== expectedRevision || session.currentNodeId !== nodeId) {
       return NextResponse.json({ error: "CONCURRENCY_CONFLICT" }, { status: 409 });
-    }
-
-    const result = evaluateAnswer(tree, {
-      sessionId: session.sessionId,
-      treeId: tree.id,
-      treeVersion: tree.version,
-      currentNodeId: session.currentNodeId,
-      revision: session.revision,
-      answers: session.answers,
-    }, field, value);
-
-    if (!result.nextNodeId || !result.matchedRuleId) {
-      return badRequest("No valid transition for this answer");
     }
 
     const persisted = await submitAnswer({
@@ -46,8 +35,6 @@ export async function POST(request: NextRequest) {
       nodeId,
       field,
       value,
-      targetNodeId: result.nextNodeId,
-      ruleId: result.matchedRuleId,
       clientCommandId,
     });
 
@@ -63,7 +50,12 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to submit answer";
-    const status = message === "UNAUTHENTICATED" ? 401 : message === "TENANT_MEMBERSHIP_REQUIRED" ? 403 : 500;
+    const status = message === "UNAUTHENTICATED" ? 401
+      : message === "TENANT_MEMBERSHIP_REQUIRED" ? 403
+      : message === "CONCURRENCY_CONFLICT" ? 409
+      : message === "CURRENT_NODE_CONFLICT" ? 409
+      : message === "NO_VALID_TRANSITION" ? 400
+      : 500;
     return NextResponse.json({ error: message }, { status });
   }
 }
