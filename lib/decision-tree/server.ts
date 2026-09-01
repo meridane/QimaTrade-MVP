@@ -47,7 +47,7 @@ export async function loadPublishedTree(treeKey = "product-classification", cont
   const rulesByNode = new Map<string, Rule[]>();
   for (const row of (rules ?? []) as RuleRow[]) {
     const list = rulesByNode.get(row.source_node_id) ?? [];
-    list.push({ id: row.id, operator: row.operator, field: row.field, value: row.value, targetNodeId: row.target_node_id });
+    list.push({ id: row.id, sourceNodeId: row.source_node_id, operator: row.operator, field: row.field, value: row.value, targetNodeId: row.target_node_id, priority: row.priority });
     rulesByNode.set(row.source_node_id, list);
   }
 
