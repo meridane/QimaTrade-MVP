@@ -114,7 +114,9 @@ export async function createOffer(input: CreateOfferInput): Promise<CreateOfferR
   const conditions = input.conditions.trim();
   const market = input.market.trim();
   const geography = input.geography.trim();
-  const attributes = Array.isArray(input.attributes) ? input.attributes.filter((item) => item && typeof item.key === "string" && typeof item.value === "string" && item.value.trim()).map((item) => ({ key: item.key.trim(), value: item.value.trim() })) : [];
+  const attributes = Array.isArray(input.attributes)
+    ? input.attributes.filter((item) => item && typeof item.key === "string" && typeof item.value === "string" && item.value.trim()).map((item) => ({ key: item.key.trim(), value: item.value.trim() }))
+    : [];
 
   if (!demandId || !name || !Number.isFinite(quantity) || quantity <= 0) return { ok: false, error: "Please provide a valid demand, offer name and quantity." };
   if (price !== null && (!Number.isFinite(price) || price < 0)) return { ok: false, error: "Price must be a valid positive number." };
@@ -127,23 +129,30 @@ export async function createOffer(input: CreateOfferInput): Promise<CreateOfferR
   const productMasterId = getProductMasterId(demand.scope);
   if (!productMasterId) return { ok: false, error: "This demand is not linked to a canonical Product Master yet." };
 
-  const { data: offer, error: insertError } = await supabase.from("offers").insert({
-    name,
-    demand_id: demand.id,
-    product_master_id: productMasterId,
-    provider_actor_id: profile.actor_id,
-    quantity,
-    price,
-    currency: price === null ? null : currency,
-    conditions: conditions || null,
-    market: market || demand.target_market || null,
-    geography: geography || null,
-    attributes: Object.fromEntries(attributes.map((item) => [item.key, item.value])),
-    lifecycle: "draft",
-    documentation_status: "incomplete",
-    offer_type: "supplier_offer",
-    pricing_model: price === null ? null : "fixed",
-  }).select("id").single();
-  if (insertError || !offer) return { ok: false, error: insertError?.message ?? "Unable to create the offer." };
-  return { ok: true, offerId: offer.id };
+  const { data, error: actionError } = await supabase.rpc("execute_create_offer_v1", {
+    p_tenant_id: null,
+    p_idempotency_key: crypto.randomUUID(),
+    p_input: { demandId, productMasterId, quantity, price, currency, conditions, market, geography, attributes },
+    p_name: name,
+    p_demand_id: demand.id,
+    p_product_master_id: productMasterId,
+    p_provider_actor_id: profile.actor_id,
+    p_quantity: quantity,
+    p_price: price ?? 0,
+    p_currency: price === null ? "USD" : currency,
+    p_conditions: conditions || null,
+    p_market: market || demand.target_market || null,
+    p_geography: geography || null,
+    p_attributes: Object.fromEntries(attributes.map((item) => [item.key, item.value])),
+    p_documentation_status: "incomplete",
+    p_lifecycle: "draft",
+    p_offer_type: "supplier_offer",
+    p_pricing_model: price === null ? null : "fixed",
+  });
+
+  if (actionError) return { ok: false, error: actionError.message };
+  const result = data as { offerId?: string; objectId?: string; status?: string } | null;
+  const offerId = result?.offerId ?? result?.objectId;
+  if (!offerId) return { ok: false, error: "Action completed without an offer identifier." };
+  return { ok: true, offerId };
 }
