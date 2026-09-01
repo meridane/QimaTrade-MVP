@@ -13,8 +13,8 @@ export const V1_DECISION_TREE: DecisionTree = {
       description: "Select the category that best matches your product.",
       imageUrl: "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&w=1200&q=85",
       rules: [
-        { id: "category-industrial", operator: "equals", field: "category", value: "Industrial Machinery", targetNodeId: "industrial-subcategory" },
-        { id: "category-construction", operator: "equals", field: "category", value: "Construction & Building Materials", targetNodeId: "construction-subcategory" },
+        { id: "category-industrial", sourceNodeId: "category", operator: "equals", field: "category", value: "Industrial Machinery", targetNodeId: "industrial-subcategory" },
+        { id: "category-construction", sourceNodeId: "category", operator: "equals", field: "category", value: "Construction & Building Materials", targetNodeId: "construction-subcategory" },
       ],
     },
     {
@@ -24,8 +24,8 @@ export const V1_DECISION_TREE: DecisionTree = {
       description: "Select the closest industrial equipment group.",
       imageUrl: "https://images.unsplash.com/photo-1565043666747-69f6646db940?auto=format&fit=crop&w=1200&q=85",
       rules: [
-        { id: "subcategory-cnc", operator: "equals", field: "subcategory", value: "CNC & Machine Tools", targetNodeId: "terminal-cnc" },
-        { id: "subcategory-pumps", operator: "equals", field: "subcategory", value: "Pumps & Compressors", targetNodeId: "terminal-pumps" },
+        { id: "subcategory-cnc", sourceNodeId: "industrial-subcategory", operator: "equals", field: "subcategory", value: "CNC & Machine Tools", targetNodeId: "terminal-cnc" },
+        { id: "subcategory-pumps", sourceNodeId: "industrial-subcategory", operator: "equals", field: "subcategory", value: "Pumps & Compressors", targetNodeId: "terminal-pumps" },
       ],
     },
     {
@@ -35,8 +35,8 @@ export const V1_DECISION_TREE: DecisionTree = {
       description: "Select the closest construction material group.",
       imageUrl: "https://images.unsplash.com/photo-1503387762-592deb58ef4e?auto=format&fit=crop&w=1200&q=85",
       rules: [
-        { id: "subcategory-cement", operator: "equals", field: "subcategory", value: "Cement & Concrete", targetNodeId: "terminal-cement" },
-        { id: "subcategory-bricks", operator: "equals", field: "subcategory", value: "Bricks & Blocks", targetNodeId: "terminal-bricks" },
+        { id: "subcategory-cement", sourceNodeId: "construction-subcategory", operator: "equals", field: "subcategory", value: "Cement & Concrete", targetNodeId: "terminal-cement" },
+        { id: "subcategory-bricks", sourceNodeId: "construction-subcategory", operator: "equals", field: "subcategory", value: "Bricks & Blocks", targetNodeId: "terminal-bricks" },
       ],
     },
     {
