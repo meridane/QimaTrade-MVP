@@ -1,8 +1,9 @@
 "use server";
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { executeUniversalAction } from "@/lib/actions/runtime";
 
-type OfferAttributeInput = { key: string; value: string };
+export type OfferAttributeInput = { key: string; value: string };
 type CreateOfferInput = { demandId: string; name: string; quantity: string; price: string; currency: string; conditions: string; market: string; geography: string; attributes: OfferAttributeInput[] };
 type CreateOfferResult = { ok: true; offerId: string } | { ok: false; error: string };
 export type OfferAttribute = { key: string; name: string; valueType: "text" | "number" | "boolean" | "select"; unit: string | null; required: boolean; options: string[] };
@@ -60,35 +61,41 @@ export async function createOffer(input: CreateOfferInput): Promise<CreateOfferR
   if (!demandId || !name || !Number.isFinite(quantity) || quantity <= 0) return { ok: false, error: "Please provide a valid demand, offer name and quantity." };
   if (price !== null && (!Number.isFinite(price) || price < 0)) return { ok: false, error: "Price must be a valid positive number." };
   if (price !== null && !currencies.has(currency)) return { ok: false, error: "Please select a valid currency." };
-  const { supabase, profile, tenantId, error } = await getCurrentProfile();
-  if (!profile || !tenantId) return { ok: false, error: error ?? "Authentication failed." };
+  const { supabase, profile, tenantId, user, error } = await getCurrentProfile();
+  if (!profile || !tenantId || !user) return { ok: false, error: error ?? "Authentication failed." };
   const { data: demand, error: demandError } = await supabase.from("demands").select("id, target_market, scope").eq("id", demandId).single();
   if (demandError || !demand) return { ok: false, error: "Demand not found or unavailable." };
   const productMasterId = getProductMasterId(demand.scope);
   if (!productMasterId) return { ok: false, error: "This demand is not linked to a canonical Product Master yet." };
-  const { data, error: actionError } = await supabase.rpc("execute_create_offer_v1", {
-    p_tenant_id: tenantId,
-    p_idempotency_key: crypto.randomUUID(),
-    p_input: { demandId, productMasterId, quantity, price, currency, conditions, market, geography, attributes },
-    p_name: name,
-    p_demand_id: demand.id,
-    p_product_master_id: productMasterId,
-    p_provider_actor_id: profile.actor_id,
-    p_quantity: quantity,
-    p_price: price ?? 0,
-    p_currency: price === null ? "USD" : currency,
-    p_conditions: conditions || null,
-    p_market: market || demand.target_market || null,
-    p_geography: geography || null,
-    p_attributes: Object.fromEntries(attributes.map((item) => [item.key, item.value])),
-    p_documentation_status: "incomplete",
-    p_lifecycle: "draft",
-    p_offer_type: "supplier_offer",
-    p_pricing_model: price === null ? null : "fixed",
-  });
-  if (actionError) return { ok: false, error: actionError.message };
-  const result = data as { offerId?: string; objectId?: string } | null;
-  const offerId = result?.offerId ?? result?.objectId;
+
+  const result = await executeUniversalAction({
+    userId: user.id,
+    tenantId,
+    actionKey: "CREATE_OFFER",
+    actionVersion: 1,
+    objectType: "Demand",
+    objectId: demand.id,
+    correlationId: crypto.randomUUID(),
+    idempotencyKey: crypto.randomUUID(),
+  }, {
+    name,
+    demandId: demand.id,
+    productMasterId,
+    providerActorId: profile.actor_id,
+    quantity,
+    price: price ?? 0,
+    currency: price === null ? "USD" : currency,
+    conditions: conditions || null,
+    market: market || demand.target_market || null,
+    geography: geography || null,
+    attributes: Object.fromEntries(attributes.map((item) => [item.key, item.value])),
+    documentationStatus: "incomplete",
+    lifecycle: "draft",
+    offerType: "supplier_offer",
+    pricingModel: price === null ? null : "fixed",
+  }, await (async () => { const { data: { session } } = await supabase.auth.getSession(); return session?.access_token ?? ""; })());
+
+  const offerId = (result as { offerId?: string; objectId?: string } | null)?.offerId ?? (result as { objectId?: string } | null)?.objectId;
   if (!offerId) return { ok: false, error: "Action completed without an offer identifier." };
   return { ok: true, offerId };
 }
