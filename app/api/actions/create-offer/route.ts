@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { randomUUID } from "crypto";
 import { executeCreateOffer } from "@/lib/actions/create-offer";
-import type { ActionContext, CreateOfferInput } from "@/lib/actions/types";
+import type { ActionContext, ActionResult, CreateOfferInput } from "@/lib/actions/types";
 
 export const dynamic = "force-dynamic";
 
@@ -32,7 +32,6 @@ export async function POST(request: Request) {
       idempotencyKey?: string;
       correlationId?: string;
       name?: string;
-      providerActorId?: string;
       attributes?: Record<string, unknown>;
       documentationStatus?: string | null;
       lifecycle?: string | null;
