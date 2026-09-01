@@ -24,9 +24,10 @@ export type Rule = {
   id: string;
   operator: RuleOperator;
   field: string;
-  value?: Primitive | Primitive[] | null;
+  value: string;
   targetNodeId: string;
   priority?: number;
+  comparisonValue?: Primitive | Primitive[] | null;
 };
 
 export type ProductMaster = {
