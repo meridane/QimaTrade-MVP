@@ -25,7 +25,13 @@ export async function executeUniversalAction(
         .eq("version", version)
         .maybeSingle();
       if (error) throw new Error(error.message);
-      return data;
+      if (!data) return null;
+
+      return {
+        actionKey: data.action_key,
+        version: data.version,
+        status: data.status,
+      };
     },
     handlers: {
       CREATE_OFFER: async (actionContext, actionInput) => {
