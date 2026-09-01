@@ -12,21 +12,25 @@ export async function executeUniversalAction(
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       auth: { autoRefreshToken: false, persistSession: false },
+      persistSession: false,
       global: { headers: { Authorization: `Bearer ${accessToken}` } },
     },
   );
 
   return executeAction(context, input, {
     getDefinition: async (actionKey, version) => {
-      const { data, error } = await supabase
-        .from("action_definitions")
-        .select("action_key, version, status")
-        .eq("action_key", actionKey)
-        .eq("version", version)
-        .maybeSingle();
+      const { data, error } = await supabase.rpc("get_action_definition_v1", {
+        p_action_key: actionKey,
+        p_version: version,
+      });
       if (error) throw new Error(error.message);
-      if (!data) return null;
-      return { actionKey: data.action_key, version: data.version, status: data.status };
+      const definition = Array.isArray(data) ? data[0] : data;
+      if (!definition) return null;
+      return {
+        actionKey: definition.action_key,
+        version: definition.version,
+        status: definition.status,
+      };
     },
     handlers: {
       CREATE_OFFER: async (actionContext, actionInput) => {
