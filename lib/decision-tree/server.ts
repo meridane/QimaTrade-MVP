@@ -102,12 +102,26 @@ export async function loadSession(sessionId: string) {
   return { sessionId: row.id, treeVersion: row.tree_version_id, currentNodeId: row.current_node_id, revision: row.revision, answers, selectedProductMasterId: row.selected_product_master_id, status: row.status };
 }
 
-export async function submitAnswer(params: { sessionId: string; expectedRevision: number; nodeId: string; field: "category" | "subcategory"; value: string; targetNodeId: string; ruleId: string; clientCommandId: string }) {
+export async function submitAnswer(params: { sessionId: string; expectedRevision: number; nodeId: string; field: "category" | "subcategory"; value: string; clientCommandId: string }) {
   const supabase = await getClient();
   const user = await getCurrentUser();
   if (!user) throw new Error("UNAUTHENTICATED");
-  const { data, error } = await supabase.rpc("dt_submit_answer", { p_session_id: params.sessionId, p_user_id: user.id, p_expected_revision: params.expectedRevision, p_node_id: params.nodeId, p_field: params.field, p_value: params.value, p_client_command_id: params.clientCommandId, p_rule_id: params.ruleId, p_target_node_id: params.targetNodeId });
-  if (error) { if (error.message.includes("CONCURRENCY_CONFLICT")) throw new Error("CONCURRENCY_CONFLICT"); if (error.message.includes("SESSION_NOT_FOUND")) throw new Error("SESSION_NOT_FOUND"); throw error; }
+  const { data, error } = await supabase.rpc("dt_submit_answer", {
+    p_session_id: params.sessionId,
+    p_user_id: user.id,
+    p_expected_revision: params.expectedRevision,
+    p_node_id: params.nodeId,
+    p_field: params.field,
+    p_value: params.value,
+    p_client_command_id: params.clientCommandId,
+  });
+  if (error) {
+    if (error.message.includes("CONCURRENCY_CONFLICT")) throw new Error("CONCURRENCY_CONFLICT");
+    if (error.message.includes("SESSION_NOT_FOUND")) throw new Error("SESSION_NOT_FOUND");
+    if (error.message.includes("CURRENT_NODE_CONFLICT")) throw new Error("CURRENT_NODE_CONFLICT");
+    if (error.message.includes("NO_VALID_TRANSITION")) throw new Error("NO_VALID_TRANSITION");
+    throw error;
+  }
   return data as { duplicate: boolean; observationId: string; revision: number; currentNodeId: string };
 }
 
