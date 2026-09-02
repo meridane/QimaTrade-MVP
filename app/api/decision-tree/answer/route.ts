@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getProductMastersForNode, loadPublishedTree, loadSession, submitAnswer } from "@/lib/decision-tree/server";
+import { getProductMastersForNode, loadSession, submitAnswer } from "@/lib/decision-tree/server";
+import { loadTreeForSession } from "@/lib/decision-tree/session-tree";
 
 function badRequest(message: string) {
   return NextResponse.json({ error: message }, { status: 400 });
@@ -19,11 +20,11 @@ export async function POST(request: NextRequest) {
       return badRequest("Invalid answer command");
     }
 
-    // Load the published tree/session only for authorization, current-node
-    // validation and response shaping. The database RPC is authoritative for
-    // rule matching and target-node selection.
-    const { tree } = await loadPublishedTree();
+    // IMPORTANT: resolve the exact tree/version from the session. The previous
+    // implementation always loaded product-classification, which made the
+    // second tree unable to resolve its next node.
     const session = await loadSession(sessionId);
+    const { tree } = await loadTreeForSession(sessionId);
 
     if (session.revision !== expectedRevision || session.currentNodeId !== nodeId) {
       return NextResponse.json({ error: "CONCURRENCY_CONFLICT" }, { status: 409 });
