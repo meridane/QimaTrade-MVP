@@ -1,0 +1,130 @@
+# QIMA Trade — Registre des fonctionnalités V1 et audit de départ
+
+Dernière vérification : 12 octobre 2026  
+Dépôt : `meridane/QimaTrade-MVP` — branche `main`  
+Projet Supabase : `QIMA` (`yyulzlnrfcbaxovzjbnh`)
+
+> Ce document distingue les éléments **présents dans le dépôt**, les éléments **présents dans Supabase** et les éléments **à tester de bout en bout**. La présence d'une table ou d'une route ne prouve pas que la fonctionnalité est prête pour les utilisateurs.
+
+## 1. État de départ vérifié
+
+### Application
+- Stack observée dans `package.json` : Next.js 15.5, React 19, TypeScript, Tailwind CSS, `@supabase/ssr`, `@supabase/supabase-js`.
+- Scripts disponibles : `dev`, `build`, `start`, `typecheck`.
+- Le dépôt contient des routes pour l'authentification, les arbres de décision, les offres, les demandes de produits, les prestataires et des pages de projet de test.
+- Audit à distance seulement : le build et les tests d'intégration n'ont pas été exécutés pendant cet audit.
+
+### Supabase
+- Projet en état `ACTIVE_HEALTHY`, PostgreSQL 17.
+- Le journal de migrations contient les migrations MVP historiques et les migrations d'architecture QIMA appliquées jusqu'à `qima_event_architecture_v1` (10 octobre 2026).
+- Comptes Auth : 3 ; profils `core.profiles` : 3.
+- Organisation plateforme : `QIMA Platform` ; un membership actif `SUPERADMIN` a été confirmé pour le compte principal.
+- Les profils sont tous marqués `onboarding_status = PENDING` au moment de l'audit : le parcours d'onboarding doit être testé.
+- Les tables métier de la nouvelle architecture sont vides au moment de la vérification : publications, demandes, transactions, messages, matchings, politiques, règles, workflows et outbox = 0 ligne chacune.
+- Comptage structurel observé : schémas `core` (65 tables), `config` (16), `integration` (10), `audit` (4), `analytics` (3), `lineage` (3), `reference` (14). Le schéma `public` contient aussi 102 tables historiques/MVP : ne pas supprimer sans plan de migration explicite.
+- RLS : plusieurs tables de la nouvelle architecture disposent de politiques. L'audit a aussi trouvé 31 tables du schéma `public` avec RLS activé mais sans politique, et 16 objets/tableaux du schéma `auth` sans politique dans le relevé système. Ce point doit être analysé table par table ; ne pas appliquer une politique globale à l'aveugle.
+- Les moteurs Policy, Rules, Universal Decision Tree, Workflow Transition et Outbox/Event ont des fonctions SQL installées. Les configurations métier correspondantes sont encore vides.
+- L'outbox possède ses fonctions de réservation/complétion/échec, mais aucun worker de production ni consommateur métier n'a été confirmé comme déployé.
+
+## 2. Registre des fonctionnalités
+
+Statuts :
+- **PRÉSENT** : route, table ou fonction repérée dans le dépôt/la base.
+- **À TESTER** : existence confirmée, comportement réel pas encore validé de bout en bout.
+- **À FAIRE** : implémentation ou intégration manquante.
+- **BLOQUANT** : doit être résolu avant lancement public.
+
+| ID | Fonctionnalité V1 | État constaté | Prochaine vérification / tâche |
+|---|---|---|---|
+| AUTH-01 | Connexion Google et callback | PRÉSENT dans le dépôt | Tester connexion, déconnexion, session expirée et callback |
+| AUTH-02 | Profil utilisateur et onboarding | PRÉSENT en base | Tester progression, validation téléphone et reprise après interruption |
+| AUTH-03 | Rôles et permissions | PRÉSENT en base ; SUPERADMIN confirmé | Tester accès autorisé/refusé avec plusieurs comptes |
+| TAX-01 | Domaines, catégories, sous-catégories, Product Master | PRÉSENT dans le schéma public historique et le dépôt | Vérifier données officielles, cohérence des références et accès RLS |
+| DT-01 | Arbre de décision MVP | PRÉSENT dans le dépôt et l'historique SQL | Tester une session réelle et sa persistance |
+| DT-02 | Arbre de décision universel configurable | PRÉSENT en base | Créer une configuration validée et tester branches, réponses, reprise et actions |
+| OFFER-01 | Création et liste d'offres | PRÉSENT dans le dépôt (routes/API) | Tester validation, ownership, statut, pièces jointes et erreurs |
+| DEM-01 | Création/qualification des demandes | PRÉSENT dans le dépôt | Tester création, sauvegarde, publication et permissions |
+| MATCH-01 | Matching demande ↔ publication | PRÉSENT dans le dépôt et le schéma | Vérifier calcul, explication, doublons et acceptation |
+| CHAT-01 | Conversations et messages | PRÉSENT dans le dépôt et le schéma | Tester participants, envoi, lecture, temps réel et isolation |
+| TRANS-01 | Transaction entre acheteur et vendeur | PRÉSENT en base, 0 donnée | Implémenter et tester le cycle métier ; QIMA ne conserve pas les fonds |
+| SHIP-01 | Demande de transport et suivi | PRÉSENT en base, 0 donnée | Définir transitions et prestataire ; tester informations manuelles/API disponibles |
+| SHOW-01 | Showcase (publication produit d'abord, vidéo ensuite) | PRÉSENT en base, à confirmer côté UI | Vérifier séparation showcase/publication/transaction |
+| TRUST-01 | Signaux et scores de confiance | PRÉSENT en base | Définir modèle V1, règles d'explication et tests ; aucun score utilisateur validé |
+| POLICY-01 | Moteur de politiques | PRÉSENT en base, 0 politique | Ajouter des cas de test puis configurer uniquement les règles métier validées |
+| RULE-01 | Moteur de règles | PRÉSENT en base, 0 règle | Tester opérateurs, valeurs absentes et résultat UNKNOWN |
+| WF-01 | Définition et évaluation des workflows | PRÉSENT en base, 0 workflow | Configurer les transitions approuvées ; l'évaluateur seul ne modifie pas les objets métier |
+| EVENT-01 | Outbox et livraisons consommateurs | PRÉSENT en base, 0 événement | Ajouter worker/consommateurs, retries, DLQ et idempotence ; vérifier supervision |
+| NOTIF-01 | Notifications et préférences | PRÉSENT en base, UI/livraison à tester | Tester création, lecture, préférences et livraison |
+| ADMIN-01 | Administration utilisateurs/rôles/configuration | PARTIEL | Construire les écrans d'administration et tester les permissions |
+| AUDIT-01 | Journal d'audit et historique d'état | PRÉSENT en base | Vérifier écritures automatiques, acteur, horodatage et consultation |
+| UI-01 | Tableau de bord utilisateur | PARTIEL / à auditer visuellement | Vérifier design, navigation, états vides, responsive et erreurs |
+| UI-02 | Tableau de bord administrateur | À FAIRE / à confirmer | Développer les vues d'administration V1 |
+| QA-01 | Tests automatiques et parcours de bout en bout | À FAIRE / non exécutés dans cet audit | Ajouter tests et exécuter `npm run typecheck` + `npm run build` |
+| OPS-01 | Déploiement, secrets et observabilité | À TESTER | Vérifier Vercel, variables d'environnement, logs et environnement de production |
+
+## 3. Routes observées dans le dépôt
+
+### Authentification et accueil
+- `app/page.tsx`
+- `app/login/page.tsx`
+- `app/auth/callback/route.ts`
+
+### Arbre de décision
+- `app/decision-tree/page.tsx`
+- `app/decision-tree/service-provider/page.tsx`
+- `app/api/decision-tree/session/route.ts`
+- `app/api/decision-tree/answer/route.ts`
+- `app/api/decision-tree/products/route.ts`
+- `app/api/decision-tree/select-product/route.ts`
+- `app/api/decision-tree/service-provider/session/route.ts`
+
+### Offres, demandes et prestataires
+- `app/offers/page.tsx`
+- `app/offers/new/page.tsx`
+- `app/offers/actions.ts`
+- `app/api/offers/route.ts`
+- `app/api/actions/create-offer/route.ts`
+- `app/demands/page.tsx`
+- `app/demands/list/page.tsx`
+- `app/demands/qualification/page.tsx`
+- `app/demands/match/page.tsx`
+- `app/demands/conversation/page.tsx`
+- `app/api/product-requests/route.ts`
+- `app/api/product-requests/publish/route.ts`
+- `app/service-provider/page.tsx`
+- `app/service-provider/capabilities/page.tsx`
+- `app/api/service-provider/me/route.ts`
+- `app/api/service-provider/capabilities/route.ts`
+
+### Espace projet de test
+- `app/projects/test/page.tsx`
+- `app/projects/test/[id]/page.tsx`
+- Sous-routes : documents, inspections, orders, payment-requests, payments, shipments.
+- À ne pas confondre avec un parcours transactionnel QIMA V1 validé : ces écrans sont explicitement dans l'espace `projects/test`.
+
+### Moteurs serveur repérés
+- `lib/actions/*`
+- `lib/decision-tree/*`
+- `lib/supabase/browser.ts`
+- `lib/supabase/server.ts`
+- `middleware.ts`
+
+## 4. Ordre d'exécution recommandé
+
+1. **P0 — Sécurité et santé du projet** : auditer les 31 tables `public` sans politique, vérifier le rôle SUPERADMIN et les règles RLS avec tests d'accès. Ne rien supprimer.
+2. **P0 — Vérification du code** : exécuter typecheck et build, puis corriger les erreurs bloquantes.
+3. **P1 — Premier parcours métier vertical** : connexion → onboarding → créer une publication/offre ou demande → matching → conversation.
+4. **P1 — Services métier** : appliquer des transitions validées aux objets métier, avec journal d'audit et événements idempotents.
+5. **P1 — Transaction et transport** : cycle de transaction et suivi, sans détention des fonds par QIMA.
+6. **P2 — Notifications, tableaux de bord et administration**.
+7. **P2 — Tests de sécurité, tests de bout en bout et déploiement V1**.
+
+## 5. Règle de mise à jour de ce registre
+
+Pour chaque modification, mettre à jour la ligne correspondante avec :
+- statut : À FAIRE / EN COURS / À TESTER / VALIDÉ / BLOQUANT ;
+- fichiers touchés et migration SQL ;
+- test exécuté et résultat ;
+- date de validation.
+
+Une fonctionnalité n'est **VALIDÉE** qu'après un test réel, pas simplement parce qu'une route, une table ou une fonction existe.
