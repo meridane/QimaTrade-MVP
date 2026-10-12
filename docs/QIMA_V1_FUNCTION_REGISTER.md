@@ -128,3 +128,11 @@ Pour chaque modification, mettre à jour la ligne correspondante avec :
 - date de validation.
 
 Une fonctionnalité n'est **VALIDÉE** qu'après un test réel, pas simplement parce qu'une route, une table ou une fonction existe.
+
+
+## 6. Point de sécurité P0 — tables `public` sans politique RLS
+
+Au moment de l'audit, les 31 tables suivantes ont RLS activé mais aucune policy PostgreSQL déclarée :
+`actors`, `business_objects`, `business_rules`, `capabilities`, `decision_nodes`, `decision_trees`, `domain_events`, `evidence`, `evidence_actors`, `evidence_business_objects`, `evidence_products`, `evidence_profiles`, `evidence_specifications`, `match_evidence`, `object_types`, `opportunities`, `opportunity_matches`, `platform_engines`, `products_archived`, `search_event_business_objects`, `search_event_object_types`, `search_event_products`, `search_events`, `search_keywords`, `services`, `specifications`, `trust_evaluations`, `trust_evidence`, `units`, `workflow_states`, `workflow_transitions`.
+
+**Action requise :** comparer ces tables à la nouvelle architecture et à leur utilisation dans le code. Certaines peuvent être historiques/obsolètes. Ne pas ajouter de policy permissive ni supprimer ces tables avant cette classification. La vérification suivante doit inventorier les grants, les vues/fonctions qui les utilisent et les références dans le dépôt, puis décider pour chaque table : garder et sécuriser / lecture publique contrôlée / archiver après migration.
