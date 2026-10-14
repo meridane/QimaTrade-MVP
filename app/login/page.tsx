@@ -11,10 +11,22 @@ function getSafeNextPath(value: string | null) {
   return value;
 }
 
+function getCallbackErrorMessage(errorCode: string | null) {
+  switch (errorCode) {
+    case "oauth_callback_missing_code":
+      return "Google sign-in did not return a valid authorization code. Please try again.";
+    case "oauth_callback_failed":
+      return "We could not complete your Google sign-in. Please try again.";
+    default:
+      return null;
+  }
+}
+
 export default function LoginPage() {
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const callbackError = getCallbackErrorMessage(searchParams.get("error"));
 
   async function signInWithGoogle() {
     setLoading(true);
@@ -51,13 +63,19 @@ export default function LoginPage() {
           <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-950">Sign in to continue</h1>
           <p className="mt-3 text-sm leading-6 text-slate-500">Authentication is required before creating a demand. Your account will be linked to its QimaTrade actor.</p>
 
+          {callbackError && (
+            <div role="alert" className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+              {callbackError}
+            </div>
+          )}
+
           <button onClick={signInWithGoogle} disabled={loading} className="mt-8 flex w-full items-center justify-center gap-3 rounded-xl bg-slate-950 px-5 py-3.5 text-sm font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60">
             {loading ? <Loader2 className="animate-spin" size={18} /> : <span className="flex h-5 w-5 items-center justify-center rounded bg-white text-xs font-black text-slate-950">G</span>}
             {loading ? "Connecting..." : "Continue with Google"}
             {!loading && <ArrowRight size={17} />}
           </button>
 
-          {error && <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
+          {error && <div role="alert" className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
 
           <div className="mt-6 flex items-center gap-2 text-xs text-slate-400"><ShieldCheck size={15} /> Supabase Auth · Google OAuth</div>
           <Link href="/" className="mt-6 block text-center text-sm font-semibold text-slate-500 hover:text-orange-600">Back to home</Link>
