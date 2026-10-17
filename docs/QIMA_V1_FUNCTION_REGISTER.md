@@ -164,3 +164,13 @@ Au moment de l'audit, les 31 tables suivantes ont RLS activé mais aucune policy
 - **Limites :** l'audit npm est informatif et ne bloque pas le build. Ce workflow contrôle le code présent ; il ne développe pas à lui seul de nouvelles fonctionnalités et ne remplace pas les tests de navigateur.
 - **État :** modification commitée sur une branche de travail ; attendre le résultat CI de la Pull Request avant fusion. Aucun changement Supabase ou déploiement de production n'a été effectué.
 - **Étape suivante :** ajouter Playwright pour tester les parcours réels de l'application, puis configurer un agent de codage dans un cadre limité aux branches et Pull Requests.
+
+
+## 9. Tests automatiques du navigateur — 17 octobre 2026
+
+- **AUTO-04 — Playwright :** ajout de `@playwright/test`, du script `npm run test:e2e` et du fichier `playwright.config.ts`.
+- **AUTO-05 — Parcours couverts :** affichage de la connexion Google, message d'erreur OAuth compréhensible, et retour vers la connexion lorsque le callback OAuth ne contient pas de code.
+- **AUTO-06 — CI :** le workflow installe Chromium, lance les tests contre l'application compilée et ajoute leurs résultats au rapport GitHub Actions.
+- **Sécurité :** les tests utilisent des variables Supabase factices et n'écrivent pas dans la base de production. Aucun changement de schéma ou de permissions Supabase.
+- **État :** branche `automation/playwright-smoke-tests`; validation CI requise avant fusion. Ces tests couvrent seulement des parcours d'authentification de base, pas le parcours métier complet.
+- **Prochaine étape :** corriger tout échec détecté par la CI, puis étendre les tests à la création d'offre/demande, au matching et aux conversations avec des données de test isolées.
