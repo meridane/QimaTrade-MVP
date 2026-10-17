@@ -192,3 +192,13 @@ Au moment de l'audit, les 31 tables suivantes ont RLS activé mais aucune policy
 - **SEC-02 — Correctif proposé :** mise à niveau de PostCSS et overrides ciblés pour `braces`, `fast-glob`, `micromatch`, `postcss` et `postcss-selector-parser`, sans migration majeure immédiate de Tailwind ou Next.js.
 - **SEC-03 — Validation :** la CI doit confirmer que les versions résolues sont compatibles, que l'audit passe, et que TypeScript, build et tests Playwright restent verts.
 - **État :** Pull Request #5 ouverte ; aucun changement de base de données ou de production. Ne pas fusionner avant résultat CI et vérification de l'audit.
+
+
+## 12. Migration Tailwind CSS v4 pour corriger la chaîne de dépendances — 18 octobre 2026
+
+- **SEC-04 — Cause confirmée :** le rapport npm audit du run `39044058725` identifie cinq vulnérabilités élevées dans `braces`, `chokidar`, `fast-glob`, `micromatch` et `tailwindcss`. L'avis GitHub GHSA-vfj7-8cjw-p6xm indique que `braces` jusqu'à `3.0.3` est affecté et qu'aucune version corrigée n'est publiée à la date de vérification.
+- **SEC-05 — Changement proposé :** migration de Tailwind CSS 3 vers 4.3.3, ajout de `@tailwindcss/postcss`, remplacement de la configuration PostCSS et transfert des tokens QIMA (palette orange et ombre `soft`) dans `app/globals.css`. Suppression des overrides npm qui ne pouvaient pas corriger `braces@3.0.3`.
+- **SEC-06 — Portée :** aucun changement métier, aucune migration Supabase, aucun changement d'authentification. Le design est préservé au niveau des tokens, mais doit encore être vérifié par le build et les tests de navigateur.
+- **État :** changements commités sur `security/fix-npm-audit`, PR #5. Attendre les résultats CI et l'audit npm actualisé avant fusion.
+- **Validation attendue :** audit sans vulnérabilités élevées non résolues, TypeScript, build de production et tests Playwright. Si l'audit reste élevé, inspecter le nouvel artefact au lieu de considérer le correctif comme terminé.
+- **Source advisory :** https://github.com/advisories/GHSA-vfj7-8cjw-p6xm
