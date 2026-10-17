@@ -154,3 +154,13 @@ Au moment de l'audit, les 31 tables suivantes ont RLS activé mais aucune policy
 - **SEC-RLS-03 — Risque de privilèges :** plusieurs rôles `anon` et `authenticated` ont des privilèges de table larges sur des tables sans policy, y compris `TRUNCATE`. L'inventaire est terminé, mais aucun droit n'a été modifié. Il faut préparer une migration ciblée et l'essayer sur une base de développement avant la production.
 - **Environnement DEV Supabase :** aucune branche de développement Supabase n'est actuellement enregistrée pour le projet QIMA. La création d'une branche peut entraîner des coûts selon le plan ; ne pas la créer sans confirmation du coût et de l'organisation.
 - **Prochaine action :** valider le parcours Google OAuth interactif, puis préparer l'environnement de développement et une migration de permissions limitée aux tables et rôles dont le besoin a été vérifié.
+
+
+## 8. Automatisation CI quotidienne — 14 octobre 2026
+
+- **AUTO-01 — Vérification planifiée :** le workflow `.github/workflows/ci.yml` est modifié sur la branche `automation/nightly-ci-report` pour s'exécuter chaque jour à 10:00 UTC (19:00 en Corée), à chaque push sur `main`, sur les Pull Requests vers `main` et à la demande.
+- **AUTO-02 — Contrôles :** installation des dépendances, audit npm au seuil `high`, contrôle TypeScript et build de production.
+- **AUTO-03 — Rapport :** un résumé GitHub Actions indique la date, le déclencheur, la branche, le commit et le résultat de chaque contrôle, y compris si un contrôle échoue.
+- **Limites :** l'audit npm est informatif et ne bloque pas le build. Ce workflow contrôle le code présent ; il ne développe pas à lui seul de nouvelles fonctionnalités et ne remplace pas les tests de navigateur.
+- **État :** modification commitée sur une branche de travail ; attendre le résultat CI de la Pull Request avant fusion. Aucun changement Supabase ou déploiement de production n'a été effectué.
+- **Étape suivante :** ajouter Playwright pour tester les parcours réels de l'application, puis configurer un agent de codage dans un cadre limité aux branches et Pull Requests.
