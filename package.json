@@ -28,7 +28,7 @@
     "typescript": "^5.7.2"
   },
   "overrides": {
-    "braces": "^3.0.4",
+    "braces": "^3.0.3",
     "fast-glob": "^3.3.3",
     "micromatch": "^4.0.8",
     "postcss": "^8.5.23",
