@@ -184,3 +184,11 @@ Au moment de l'audit, les 31 tables suivantes ont RLS activé mais aucune policy
 - **Sécurité :** ces tests n'envoient que des payloads invalides et doivent s'arrêter avant toute écriture en base.
 - **État :** ajout sur la branche `automation/api-validation-tests`; CI à vérifier avant fusion.
 - **Limite :** ces tests valident le rejet des entrées invalides ; ils ne prouvent pas que la création, le matching ou les conversations fonctionnent de bout en bout.
+
+
+## 11. Correctif dépendances npm — 17 octobre 2026
+
+- **SEC-01 — Diagnostic :** l'artefact npm audit du 17 octobre indiquait 6 vulnérabilités élevées et 3 modérées, principalement dans la chaîne CSS/glob.
+- **SEC-02 — Correctif proposé :** mise à niveau de PostCSS et overrides ciblés pour `braces`, `fast-glob`, `micromatch`, `postcss` et `postcss-selector-parser`, sans migration majeure immédiate de Tailwind ou Next.js.
+- **SEC-03 — Validation :** la CI doit confirmer que les versions résolues sont compatibles, que l'audit passe, et que TypeScript, build et tests Playwright restent verts.
+- **État :** Pull Request #5 ouverte ; aucun changement de base de données ou de production. Ne pas fusionner avant résultat CI et vérification de l'audit.
