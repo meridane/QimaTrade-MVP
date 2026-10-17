@@ -1,6 +1,13 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+@theme {
+  --color-qima-50: #fff7ed;
+  --color-qima-100: #ffedd5;
+  --color-qima-500: #f97316;
+  --color-qima-600: #ea580c;
+  --color-qima-700: #c2410c;
+  --shadow-soft: 0 10px 35px rgb(15 23 42 / 8%);
+}
 
 :root {
   color-scheme: light;
