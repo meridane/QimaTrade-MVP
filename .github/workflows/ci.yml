@@ -5,7 +5,6 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
-  # Vérification quotidienne à 19 h en Corée (UTC+9).
   schedule:
     - cron: "0 10 * * *"
   workflow_dispatch:
@@ -22,40 +21,56 @@ jobs:
     name: Typecheck, audit, build and browser tests
     runs-on: ubuntu-latest
     timeout-minutes: 30
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
-
       - name: Install dependencies
         id: install
         run: npm install --no-audit --no-fund
-
       - name: Dependency security audit
         id: audit
         continue-on-error: true
-        run: npm audit --audit-level=high
-
+        shell: bash
+        run: |
+          set +e
+          npm audit --audit-level=high --json > npm-audit.json
+          audit_status=$?
+          node <<'NODE'
+          const fs = require("node:fs");
+          const report = JSON.parse(fs.readFileSync("npm-audit.json", "utf8"));
+          const counts = report.metadata?.vulnerabilities ?? {};
+          const lines = [
+            "## npm audit details",
+            "",
+            "| Severity | Count |",
+            "|---|---:|",
+            "| Critical | " + (counts.critical ?? 0) + " |",
+            "| High | " + (counts.high ?? 0) + " |",
+            "| Moderate | " + (counts.moderate ?? 0) + " |",
+            "| Low | " + (counts.low ?? 0) + " |",
+            "",
+            "See the npm-audit-report artifact for the full machine-readable report."
+          ];
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, lines.join("\n") + "\n");
+          console.log(JSON.stringify(counts));
+          NODE
+          exit "$audit_status"
       - name: TypeScript check
         id: typecheck
         run: npm run typecheck
-
       - name: Production build
         id: build
         run: npm run build
         env:
           NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder-anon-key
-
       - name: Install Playwright Chromium
         id: browser_install
         run: npx playwright install --with-deps chromium
-
       - name: Run browser smoke tests
         id: e2e
         run: npm run test:e2e
@@ -64,7 +79,14 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder-anon-key
           PLAYWRIGHT_BASE_URL: http://127.0.0.1:3000
-
+      - name: Upload npm audit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-audit-report
+          path: npm-audit.json
+          if-no-files-found: ignore
+          retention-days: 14
       - name: Write automation report
         if: always()
         shell: bash
@@ -86,5 +108,5 @@ jobs:
             echo "| Installation navigateur | ${{ steps.browser_install.outcome || 'non exécuté' }} |"
             echo "| Tests navigateur | ${{ steps.e2e.outcome || 'non exécuté' }} |"
             echo
-            echo "L'audit npm reste informatif. Toute correction automatique des dépendances doit être revue avant fusion."
+            echo "L'audit npm reste informatif. Toute correction de dépendance doit être revue avant fusion."
           } >> "$GITHUB_STEP_SUMMARY"
