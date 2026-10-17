@@ -23,3 +23,36 @@ test("OAuth callback without a code returns to login with a clear error", async 
     page.getByText("Google sign-in did not return a valid authorization code. Please try again.", { exact: true }),
   ).toBeVisible();
 });
+
+test("offers API rejects an empty offer before accessing the database", async ({ request }) => {
+  const response = await request.post("/api/offers", {
+    multipart: {},
+  });
+
+  expect(response.status()).toBe(400);
+  await expect(response.json()).resolves.toMatchObject({
+    error: "Please provide a valid offer name and quantity.",
+  });
+});
+
+test("product requests API requires the mandatory fields", async ({ request }) => {
+  const response = await request.post("/api/product-requests", {
+    data: {},
+  });
+
+  expect(response.status()).toBe(400);
+  await expect(response.json()).resolves.toMatchObject({
+    error: "title, productMasterId and decisionSessionId are required",
+  });
+});
+
+test("publishing a product request requires a request ID", async ({ request }) => {
+  const response = await request.post("/api/product-requests/publish", {
+    data: {},
+  });
+
+  expect(response.status()).toBe(400);
+  await expect(response.json()).resolves.toMatchObject({
+    error: "requestId is required",
+  });
+});
