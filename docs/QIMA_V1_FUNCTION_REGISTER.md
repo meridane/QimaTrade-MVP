@@ -174,3 +174,13 @@ Au moment de l'audit, les 31 tables suivantes ont RLS activé mais aucune policy
 - **Sécurité :** les tests utilisent des variables Supabase factices et n'écrivent pas dans la base de production. Aucun changement de schéma ou de permissions Supabase.
 - **État :** branche `automation/playwright-smoke-tests`; validation CI requise avant fusion. Ces tests couvrent seulement des parcours d'authentification de base, pas le parcours métier complet.
 - **Prochaine étape :** corriger tout échec détecté par la CI, puis étendre les tests à la création d'offre/demande, au matching et aux conversations avec des données de test isolées.
+
+
+## 10. Tests de validation API — 17 octobre 2026
+
+- **AUTO-07 — API offres :** test d'une requête invalide qui doit renvoyer HTTP 400 avant tout accès à la base.
+- **AUTO-08 — API demandes produit :** test des champs obligatoires manquants, attendu HTTP 400 avant authentification et accès aux données.
+- **AUTO-09 — Publication :** test de l'absence de `requestId`, attendu HTTP 400 avant l'exécution d'une action métier.
+- **Sécurité :** ces tests n'envoient que des payloads invalides et doivent s'arrêter avant toute écriture en base.
+- **État :** ajout sur la branche `automation/api-validation-tests`; CI à vérifier avant fusion.
+- **Limite :** ces tests valident le rejet des entrées invalides ; ils ne prouvent pas que la création, le matching ou les conversations fonctionnent de bout en bout.
