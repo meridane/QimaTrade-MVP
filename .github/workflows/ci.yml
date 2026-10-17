@@ -5,7 +5,7 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
-  # Vérification automatique quotidienne, à 19 h en Corée (UTC+9).
+  # Vérification quotidienne à 19 h en Corée (UTC+9).
   schedule:
     - cron: "0 10 * * *"
   workflow_dispatch:
@@ -19,9 +19,9 @@ concurrency:
 
 jobs:
   verify:
-    name: Typecheck, audit and production build
+    name: Typecheck, audit, build and browser tests
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
 
     steps:
       - name: Checkout repository
@@ -49,9 +49,21 @@ jobs:
         id: build
         run: npm run build
         env:
-          # Build-only placeholders. Never used as real credentials.
           NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder-anon-key
+
+      - name: Install Playwright Chromium
+        id: browser_install
+        run: npx playwright install --with-deps chromium
+
+      - name: Run browser smoke tests
+        id: e2e
+        run: npm run test:e2e
+        env:
+          CI: "true"
+          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder-anon-key
+          PLAYWRIGHT_BASE_URL: http://127.0.0.1:3000
 
       - name: Write automation report
         if: always()
@@ -71,6 +83,8 @@ jobs:
             echo "| Audit dépendances (seuil élevé) | ${{ steps.audit.outcome || 'non exécuté' }} |"
             echo "| TypeScript | ${{ steps.typecheck.outcome || 'non exécuté' }} |"
             echo "| Build production | ${{ steps.build.outcome || 'non exécuté' }} |"
+            echo "| Installation navigateur | ${{ steps.browser_install.outcome || 'non exécuté' }} |"
+            echo "| Tests navigateur | ${{ steps.e2e.outcome || 'non exécuté' }} |"
             echo
-            echo "L'audit des dépendances est informatif et ne bloque pas le build. Toute correction automatique de dépendance devra être revue avant fusion."
+            echo "L'audit npm reste informatif. Toute correction automatique des dépendances doit être revue avant fusion."
           } >> "$GITHUB_STEP_SUMMARY"
