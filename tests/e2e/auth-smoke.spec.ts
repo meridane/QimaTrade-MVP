@@ -10,16 +10,16 @@ test("login page displays Google authentication", async ({ page }) => {
 test("login page explains a failed OAuth callback", async ({ page }) => {
   await page.goto("/login?error=oauth_callback_failed");
 
-  await expect(page.getByRole("alert")).toContainText(
-    "We could not complete your Google sign-in. Please try again.",
-  );
+  await expect(
+    page.getByText("We could not complete your Google sign-in. Please try again.", { exact: true }),
+  ).toBeVisible();
 });
 
 test("OAuth callback without a code returns to login with a clear error", async ({ page }) => {
   await page.goto("/auth/callback");
 
   await expect(page).toHaveURL(/\/login\?error=oauth_callback_missing_code/);
-  await expect(page.getByRole("alert")).toContainText(
-    "Google sign-in did not return a valid authorization code. Please try again.",
-  );
+  await expect(
+    page.getByText("Google sign-in did not return a valid authorization code. Please try again.", { exact: true }),
+  ).toBeVisible();
 });
