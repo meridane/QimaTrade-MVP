@@ -56,3 +56,37 @@ test("publishing a product request requires a request ID", async ({ request }) =
     error: "requestId is required",
   });
 });
+
+
+test("offers API rejects a zero quantity before authentication", async ({ request }) => {
+  const response = await request.post("/api/offers", {
+    multipart: { name: "Test offer", quantity: "0" },
+  });
+
+  expect(response.status()).toBe(400);
+  await expect(response.json()).resolves.toMatchObject({
+    error: "Please provide a valid offer name and quantity.",
+  });
+});
+
+test("offers API rejects a negative price before authentication", async ({ request }) => {
+  const response = await request.post("/api/offers", {
+    multipart: { name: "Test offer", quantity: "1", price: "-1" },
+  });
+
+  expect(response.status()).toBe(400);
+  await expect(response.json()).resolves.toMatchObject({
+    error: "Price must be a valid positive number.",
+  });
+});
+
+test("offers API rejects an unsupported currency before authentication", async ({ request }) => {
+  const response = await request.post("/api/offers", {
+    multipart: { name: "Test offer", quantity: "1", price: "10", currency: "XYZ" },
+  });
+
+  expect(response.status()).toBe(400);
+  await expect(response.json()).resolves.toMatchObject({
+    error: "Please select a valid currency.",
+  });
+});
