@@ -221,14 +221,14 @@ Au moment de l'audit, les 31 tables suivantes ont RLS activé mais aucune policy
 ## 14. Renforcement des tests d'accès — 20 octobre 2026
 
 - **TEST-AUTH-04 :** Playwright vérifie que `/demands`, `/decision-tree`, `/offers` et `/request` redirigent les visiteurs non authentifiés vers `/login` et conservent la destination dans le paramètre `next`.
-- **État :** validation CI requise avant fusion.
+- **État :** fusionnée dans `main` via la PR #9 (commit `41c957dbfc2e8c6ea72b56b7e05d34a8e0786cb4`). CI et CodeQL réussis sur le commit de la PR.
 
 ## 15. Tests de validation des offres — 20 octobre 2026
 
 - **TEST-OFFER-01 :** rejet d'une quantité nulle avant authentification.
 - **TEST-OFFER-02 :** rejet d'un prix négatif avant authentification.
 - **TEST-OFFER-03 :** rejet d'une devise non prise en charge avant authentification.
-- **État :** validation CI requise avant fusion. Aucun changement de logique métier ou de base de données.
+- **État :** fusionnée dans `main` via la PR #9 (commit `41c957dbfc2e8c6ea72b56b7e05d34a8e0786cb4`). Aucun changement de logique métier ou de base de données.
 
 
 ## 16. Suivi des mises à jour automatiques — 20 octobre 2026
@@ -236,4 +236,12 @@ Au moment de l'audit, les 31 tables suivantes ont RLS activé mais aucune policy
 - **AUTO-05 :** après fusion de la PR #6, Dependabot a ouvert plusieurs PR de dépendances et d'actions GitHub (dont Next.js 16, TypeScript 7, Supabase SSR, CodeQL Action, checkout et upload-artifact).
 - **Règle de validation :** ne pas fusionner automatiquement les mises à jour majeures. Elles doivent passer CI et faire l'objet d'une vérification de compatibilité, en particulier Next.js 16 et TypeScript 7.
 - **État :** PR Dependabot ouvertes et CI en attente au moment de l'audit ; aucune de ces mises à jour majeures n'est considérée comme intégrée.
-- **TEST-AUTH-OFFER-01 :** les tests combinés d'accès protégé et de validation des entrées d'offres sont dans la PR #9 ; la fusion dépend du résultat CI.
+- **TEST-AUTH-OFFER-01 :** les tests combinés d'accès protégé et de validation des entrées d'offres ont été fusionnés dans `main` par la PR #9. CI `39281306902` et CodeQL `39281306677` réussis sur la branche de la PR.
+
+
+## 17. Sécurisation de l'acceptation d'une offre — 20 octobre 2026
+
+- **SEC-11 — Propriété de la demande :** le correctif proposé filtre la demande par `requester_actor_id = actorId` dans l'action serveur, sans dépendre uniquement du comportement RLS.
+- **SEC-12 — Cohérence du couple demande/offre :** le correctif refuse une offre sans fournisseur lié, une offre appartenant au même acteur acheteur et une offre dont le `product_master_id` ne correspond pas au produit canonique de la demande.
+- **Portée :** changement côté serveur uniquement ; aucune migration SQL, aucune écriture ou modification de données Supabase de production.
+- **État :** branche `security/guard-demand-offer-ownership` en préparation de revue et de CI. La protection contre les doubles acceptations concurrentes reste à vérifier avec les contraintes réelles de la table `matches` avant de la déclarer résolue.
