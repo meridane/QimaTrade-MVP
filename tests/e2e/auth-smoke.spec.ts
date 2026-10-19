@@ -56,3 +56,16 @@ test("publishing a product request requires a request ID", async ({ request }) =
     error: "requestId is required",
   });
 });
+
+
+test.describe("protected routes require authentication", () => {
+  for (const protectedPath of ["/demands", "/decision-tree", "/offers", "/request"]) {
+    test(`${protectedPath} redirects unauthenticated visitors to login`, async ({ page }) => {
+      await page.goto(protectedPath);
+
+      await expect(page).toHaveURL(/\/login\?/);
+      const currentUrl = new URL(page.url());
+      expect(currentUrl.searchParams.get("next")).toBe(protectedPath);
+    });
+  }
+});
