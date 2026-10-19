@@ -206,3 +206,13 @@ Au moment de l'audit, les 31 tables suivantes ont RLS activé mais aucune policy
 
 - **SEC-07 — Résultat intermédiaire de l'audit après Tailwind v4 :** le run CI `39046566081` a réussi installation, audit, TypeScript, build et tests Playwright. L'artefact npm audit a ramené le total à **2 vulnérabilités** : 1 modérée (`next`) et 1 élevée (`postcss` imbriqué dans `next/node_modules/postcss`). L'audit n'est donc pas encore entièrement corrigé.
 - **SEC-08 — Correctif complémentaire :** ajout d'un override ciblé `next.postcss = ^8.5.23` pour remplacer la version vulnérable imbriquée sans mettre à niveau Next.js vers la version majeure 16. La nouvelle CI doit confirmer la résolution effective avant toute fusion.
+
+
+## 13. Automatisation de maintenance et sécurité — 19 octobre 2026
+
+- **SEC-09 — Audit npm actuel :** le run planifié `39132895065` sur `main` a terminé avec succès le 18 octobre 2026. Les logs montrent `npm audit` avec **0 vulnérabilité (0 critique, 0 élevée, 0 modérée, 0 faible)**. Ce résultat remplace l'état intermédiaire SEC-07/SEC-08 pour le commit testé `b204cae715fd35095fbc169ab15964d347a92fa9`.
+- **CI-02 — Vérification quotidienne :** le run `39132895065` a validé installation, audit npm, TypeScript, build de production, installation de Chromium et tests Playwright. Résultat global : SUCCESS.
+- **AUTO-04 — Dependabot proposé :** configuration pour les dépendances npm et GitHub Actions, avec regroupement des mises à jour mineures/patch, au maximum cinq Pull Requests ouvertes par écosystème et programmation le lundi à 19 h 00 (heure coréenne).
+- **SEC-10 — CodeQL proposé :** analyse JavaScript/TypeScript à chaque push/PR vers `main`, chaque lundi à 19 h 30 en Corée et à la demande.
+- **État :** les configurations Dependabot et CodeQL sont ajoutées sur la branche `automation/dependabot-codeql` et soumises à revue dans une Pull Request. Elles ne sont pas encore considérées comme activées en production tant que la PR n'est pas fusionnée et que leurs premiers runs ne sont pas réussis.
+- **Limite :** ces mécanismes automatisent la détection et les propositions de mise à jour ; ils ne constituent pas un agent autonome qui développe toutes les fonctionnalités métier de QIMA. Le développement métier automatisé reste la prochaine grande étape.
