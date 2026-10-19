@@ -245,3 +245,11 @@ Au moment de l'audit, les 31 tables suivantes ont RLS activé mais aucune policy
 - **SEC-12 — Cohérence du couple demande/offre :** le correctif refuse une offre sans fournisseur lié, une offre appartenant au même acteur acheteur et une offre dont le `product_master_id` ne correspond pas au produit canonique de la demande.
 - **Portée :** validation côté serveur et migration SQL versionnée proposée ; aucune migration n'a été appliquée à Supabase de production.
 - **État :** branche `security/guard-demand-offer-ownership` en revue et CI. L'audit en lecture seule du schéma connecté confirme que la policy `matches_insert_demand_requester` utilise `is_demand_requester(demand_id)`. Aucun index unique n'existait pour le couple accepté demande/offre ; une requête agrégée n'a trouvé aucun doublon accepté existant. Une migration versionnée propose un index unique partiel pour empêcher les doublons futurs. Elle n'est pas appliquée en production.
+
+
+## 18. Sécurité des conversations — 20 octobre 2026
+
+- **SEC-13 — Défaut constaté dans la policy RLS existante :** la fonction `is_message_participant` considérait l'identité de l'expéditeur comme une condition suffisante, même si cet acteur n'était ni l'acheteur de la demande ni le fournisseur de l'offre. Cela pouvait permettre à un utilisateur connecté d'essayer d'insérer un message pour une paire étrangère, sous réserve des autres contraintes RLS.
+- **SEC-14 — Correctif proposé :** une migration remplace la fonction par une vérification de participation fondée sur un match `accepted` pour la paire exacte demande/offre et sur l'acteur acheteur ou fournisseur.
+- **SEC-15 — Défense en profondeur :** les actions serveur de chargement et d'envoi vérifient maintenant l'existence du match accepté et l'appartenance de l'acteur à l'une des deux parties. L'identifiant de l'offre est obligatoire pour éviter de charger une conversation ambiguë.
+- **Portée et prudence :** audit de schéma en lecture seule et code/migrations proposés dans la PR #20. Aucune migration n'a été appliquée à la base de production. La validation CI et les tests réels des deux rôles restent requis avant fusion.
