@@ -206,3 +206,9 @@ Au moment de l'audit, les 31 tables suivantes ont RLS activé mais aucune policy
 
 - **SEC-07 — Résultat intermédiaire de l'audit après Tailwind v4 :** le run CI `39046566081` a réussi installation, audit, TypeScript, build et tests Playwright. L'artefact npm audit a ramené le total à **2 vulnérabilités** : 1 modérée (`next`) et 1 élevée (`postcss` imbriqué dans `next/node_modules/postcss`). L'audit n'est donc pas encore entièrement corrigé.
 - **SEC-08 — Correctif complémentaire :** ajout d'un override ciblé `next.postcss = ^8.5.23` pour remplacer la version vulnérable imbriquée sans mettre à niveau Next.js vers la version majeure 16. La nouvelle CI doit confirmer la résolution effective avant toute fusion.
+
+
+## 14. Renforcement des tests d'accès — 19 octobre 2026
+
+- **TEST-AUTH-04 :** ajout de tests Playwright pour vérifier que les routes `/demands`, `/decision-tree`, `/offers` et `/request` redirigent un visiteur non authentifié vers `/login` et conservent la destination demandée dans le paramètre `next`.
+- **État :** tests proposés sur la branche `automation/e2e-protected-routes`. Ils ne seront considérés comme validés qu'après le résultat de la CI.
