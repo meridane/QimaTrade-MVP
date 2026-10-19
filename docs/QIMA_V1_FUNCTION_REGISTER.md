@@ -214,7 +214,7 @@ Au moment de l'audit, les 31 tables suivantes ont RLS activé mais aucune policy
 - **CI-02 — Vérification quotidienne :** le run `39132895065` a validé installation, audit npm, TypeScript, build de production, installation de Chromium et tests Playwright. Résultat global : SUCCESS.
 - **AUTO-04 — Dependabot proposé :** configuration pour les dépendances npm et GitHub Actions, avec regroupement des mises à jour mineures/patch, au maximum cinq Pull Requests ouvertes par écosystème et programmation le lundi à 19 h 00 (heure coréenne).
 - **SEC-10 — CodeQL proposé :** analyse JavaScript/TypeScript à chaque push/PR vers `main`, chaque lundi à 19 h 30 en Corée et à la demande.
-- **État :** les configurations Dependabot et CodeQL sont ajoutées sur la branche `automation/dependabot-codeql` et soumises à revue dans une Pull Request. Elles ne sont pas encore considérées comme activées en production tant que la PR n'est pas fusionnée et que leurs premiers runs ne sont pas réussis.
+- **État mis à jour le 20 octobre 2026 :** la PR #6 a été fusionnée dans `main` (commit `8fdcf11bc9f815237e2b6176531cf126498df063`). Dependabot a commencé à ouvrir des PR de mise à jour et les workflows CodeQL/CI ont été déclenchés sur `main`. Les premières exécutions sur `main` sont encore en attente au moment de cette mise à jour ; surveiller les résultats avant de considérer la chaîne entièrement validée.
 - **Limite :** ces mécanismes automatisent la détection et les propositions de mise à jour ; ils ne constituent pas un agent autonome qui développe toutes les fonctionnalités métier de QIMA. Le développement métier automatisé reste la prochaine grande étape.
 
 
@@ -229,3 +229,11 @@ Au moment de l'audit, les 31 tables suivantes ont RLS activé mais aucune policy
 - **TEST-OFFER-02 :** rejet d'un prix négatif avant authentification.
 - **TEST-OFFER-03 :** rejet d'une devise non prise en charge avant authentification.
 - **État :** validation CI requise avant fusion. Aucun changement de logique métier ou de base de données.
+
+
+## 16. Suivi des mises à jour automatiques — 20 octobre 2026
+
+- **AUTO-05 :** après fusion de la PR #6, Dependabot a ouvert plusieurs PR de dépendances et d'actions GitHub (dont Next.js 16, TypeScript 7, Supabase SSR, CodeQL Action, checkout et upload-artifact).
+- **Règle de validation :** ne pas fusionner automatiquement les mises à jour majeures. Elles doivent passer CI et faire l'objet d'une vérification de compatibilité, en particulier Next.js 16 et TypeScript 7.
+- **État :** PR Dependabot ouvertes et CI en attente au moment de l'audit ; aucune de ces mises à jour majeures n'est considérée comme intégrée.
+- **TEST-AUTH-OFFER-01 :** les tests combinés d'accès protégé et de validation des entrées d'offres sont dans la PR #9 ; la fusion dépend du résultat CI.
