@@ -216,3 +216,16 @@ Au moment de l'audit, les 31 tables suivantes ont RLS activé mais aucune policy
 - **SEC-10 — CodeQL proposé :** analyse JavaScript/TypeScript à chaque push/PR vers `main`, chaque lundi à 19 h 30 en Corée et à la demande.
 - **État :** les configurations Dependabot et CodeQL sont ajoutées sur la branche `automation/dependabot-codeql` et soumises à revue dans une Pull Request. Elles ne sont pas encore considérées comme activées en production tant que la PR n'est pas fusionnée et que leurs premiers runs ne sont pas réussis.
 - **Limite :** ces mécanismes automatisent la détection et les propositions de mise à jour ; ils ne constituent pas un agent autonome qui développe toutes les fonctionnalités métier de QIMA. Le développement métier automatisé reste la prochaine grande étape.
+
+
+## 14. Renforcement des tests d'accès — 20 octobre 2026
+
+- **TEST-AUTH-04 :** Playwright vérifie que `/demands`, `/decision-tree`, `/offers` et `/request` redirigent les visiteurs non authentifiés vers `/login` et conservent la destination dans le paramètre `next`.
+- **État :** validation CI requise avant fusion.
+
+## 15. Tests de validation des offres — 20 octobre 2026
+
+- **TEST-OFFER-01 :** rejet d'une quantité nulle avant authentification.
+- **TEST-OFFER-02 :** rejet d'un prix négatif avant authentification.
+- **TEST-OFFER-03 :** rejet d'une devise non prise en charge avant authentification.
+- **État :** validation CI requise avant fusion. Aucun changement de logique métier ou de base de données.
