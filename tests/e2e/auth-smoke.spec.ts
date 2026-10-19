@@ -56,3 +56,49 @@ test("publishing a product request requires a request ID", async ({ request }) =
     error: "requestId is required",
   });
 });
+
+
+test.describe("protected routes require authentication", () => {
+  for (const protectedPath of ["/demands", "/decision-tree", "/offers", "/request"]) {
+    test(`${protectedPath} redirects unauthenticated visitors to login`, async ({ page }) => {
+      await page.goto(protectedPath);
+
+      await expect(page).toHaveURL(/\/login\?/);
+      const currentUrl = new URL(page.url());
+      expect(currentUrl.searchParams.get("next")).toBe(protectedPath);
+    });
+  }
+});
+
+test("offers API rejects a zero quantity before authentication", async ({ request }) => {
+  const response = await request.post("/api/offers", {
+    multipart: { name: "Test offer", quantity: "0" },
+  });
+
+  expect(response.status()).toBe(400);
+  await expect(response.json()).resolves.toMatchObject({
+    error: "Please provide a valid offer name and quantity.",
+  });
+});
+
+test("offers API rejects a negative price before authentication", async ({ request }) => {
+  const response = await request.post("/api/offers", {
+    multipart: { name: "Test offer", quantity: "1", price: "-1" },
+  });
+
+  expect(response.status()).toBe(400);
+  await expect(response.json()).resolves.toMatchObject({
+    error: "Price must be a valid positive number.",
+  });
+});
+
+test("offers API rejects an unsupported currency before authentication", async ({ request }) => {
+  const response = await request.post("/api/offers", {
+    multipart: { name: "Test offer", quantity: "1", price: "10", currency: "XYZ" },
+  });
+
+  expect(response.status()).toBe(400);
+  await expect(response.json()).resolves.toMatchObject({
+    error: "Please select a valid currency.",
+  });
+});
