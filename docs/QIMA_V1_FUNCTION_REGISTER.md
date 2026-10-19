@@ -206,3 +206,11 @@ Au moment de l'audit, les 31 tables suivantes ont RLS activé mais aucune policy
 
 - **SEC-07 — Résultat intermédiaire de l'audit après Tailwind v4 :** le run CI `39046566081` a réussi installation, audit, TypeScript, build et tests Playwright. L'artefact npm audit a ramené le total à **2 vulnérabilités** : 1 modérée (`next`) et 1 élevée (`postcss` imbriqué dans `next/node_modules/postcss`). L'audit n'est donc pas encore entièrement corrigé.
 - **SEC-08 — Correctif complémentaire :** ajout d'un override ciblé `next.postcss = ^8.5.23` pour remplacer la version vulnérable imbriquée sans mettre à niveau Next.js vers la version majeure 16. La nouvelle CI doit confirmer la résolution effective avant toute fusion.
+
+
+## 15. Tests de validation des offres — 20 octobre 2026
+
+- **TEST-OFFER-01 :** couverture du rejet d'une quantité nulle avant authentification.
+- **TEST-OFFER-02 :** couverture du rejet d'un prix négatif avant authentification.
+- **TEST-OFFER-03 :** couverture du rejet d'une devise non prise en charge avant authentification.
+- **État :** tests Playwright proposés sur `automation/e2e-offer-validation`. Validation finale après exécution CI. Aucun changement de logique métier ou de base de données.
