@@ -243,5 +243,5 @@ Au moment de l'audit, les 31 tables suivantes ont RLS activé mais aucune policy
 
 - **SEC-11 — Propriété de la demande :** le correctif proposé filtre la demande par `requester_actor_id = actorId` dans l'action serveur, sans dépendre uniquement du comportement RLS.
 - **SEC-12 — Cohérence du couple demande/offre :** le correctif refuse une offre sans fournisseur lié, une offre appartenant au même acteur acheteur et une offre dont le `product_master_id` ne correspond pas au produit canonique de la demande.
-- **Portée :** changement côté serveur uniquement ; aucune migration SQL, aucune écriture ou modification de données Supabase de production.
-- **État :** branche `security/guard-demand-offer-ownership` en préparation de revue et de CI. La protection contre les doubles acceptations concurrentes reste à vérifier avec les contraintes réelles de la table `matches` avant de la déclarer résolue.
+- **Portée :** validation côté serveur et migration SQL versionnée proposée ; aucune migration n'a été appliquée à Supabase de production.
+- **État :** branche `security/guard-demand-offer-ownership` en revue et CI. L'audit en lecture seule du schéma connecté confirme que la policy `matches_insert_demand_requester` utilise `is_demand_requester(demand_id)`. Aucun index unique n'existait pour le couple accepté demande/offre ; une requête agrégée n'a trouvé aucun doublon accepté existant. Une migration versionnée propose un index unique partiel pour empêcher les doublons futurs. Elle n'est pas appliquée en production.
