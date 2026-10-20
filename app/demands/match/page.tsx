@@ -1,5 +1,6 @@
 import { ArrowLeft, Check, CircleAlert, MapPin, PackageCheck, Scale, Wallet } from "lucide-react";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 type Scope = {
@@ -67,8 +68,35 @@ export default async function DemandMatchPage({ searchParams }: { searchParams: 
   const supabase = await createSupabaseServerClient();
   if (!id) return <MatchShell><EmptyState title="No demand selected" text="Open Match from a qualified demand so QimaTrade can compare compatible supplier offers." /></MatchShell>;
 
-  const { data: demand } = await supabase.from("demands").select("id, demand_id, name, quantity, currency, budget, target_market, geography, scope").eq("id", id).single();
-  if (!demand) return <MatchShell><EmptyState title="Demand not found" text="This demand is unavailable or you do not have access to it." /></MatchShell>;
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError || !user) {
+    redirect(`/login?next=${encodeURIComponent(`/demands/match?id=${id}`)}`);
+  }
+
+  const { data: profile, error: profileError } = await supabase
+    .from("profiles")
+    .select("actor_id")
+    .eq("auth_user_id", user.id)
+    .maybeSingle();
+  if (profileError) {
+    return <MatchShell><EmptyState title="Unable to verify account" text="We couldn't verify your QimaTrade profile. Please try again later." /></MatchShell>;
+  }
+  if (!profile?.actor_id) {
+    return <MatchShell><EmptyState title="QimaTrade profile required" text="Your account is not linked to a QimaTrade actor yet." /></MatchShell>;
+  }
+
+  const { data: demand, error: demandError } = await supabase
+    .from("demands")
+    .select("id, demand_id, name, quantity, currency, budget, target_market, geography, scope, requester_actor_id")
+    .eq("id", id)
+    .eq("requester_actor_id", profile.actor_id)
+    .maybeSingle();
+  if (demandError) {
+    return <MatchShell><EmptyState title="Unable to load demand" text="We couldn't verify or load this demand. Please try again later." /></MatchShell>;
+  }
+  if (!demand) {
+    return <MatchShell><EmptyState title="Demand not found" text="This demand is unavailable or you do not have access to it." /></MatchShell>;
+  }
 
   const scope = parseScope(demand.scope);
   const productMasterId = scope.product_master_id ?? null;
