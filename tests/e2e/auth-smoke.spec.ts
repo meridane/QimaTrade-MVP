@@ -121,5 +121,4 @@ test("offers API rejects a Product Master that conflicts with the selected deman
 test("conversation page route is protected for unauthenticated visitors", async ({ page }) => {
   await page.goto("/demands/conversation?demand=00000000-0000-0000-0000-000000000001&offer=00000000-0000-0000-0000-000000000002");
 
-  await expect(page).toHaveURL(/\\/login\\?/);
   await expect(page).toHaveURL(/\/login\?/);
