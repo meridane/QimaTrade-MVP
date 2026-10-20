@@ -63,8 +63,16 @@ export async function createOffer(input: CreateOfferInput): Promise<CreateOfferR
   if (price !== null && !currencies.has(currency)) return { ok: false, error: "Please select a valid currency." };
   const { supabase, profile, tenantId, user, error } = await getCurrentProfile();
   if (!profile || !tenantId || !user) return { ok: false, error: error ?? "Authentication failed." };
-  const { data: demand, error: demandError } = await supabase.from("demands").select("id, target_market, scope").eq("id", demandId).single();
-  if (demandError || !demand) return { ok: false, error: "Demand not found or unavailable." };
+  const { data: demand, error: demandError } = await supabase
+    .from("demands")
+    .select("id, target_market, scope, requester_actor_id")
+    .eq("id", demandId)
+    .eq("requester_actor_id", profile.actor_id)
+    .maybeSingle();
+  if (demandError) {
+    return { ok: false, error: "Unable to verify demand ownership. Please try again later." };
+  }
+  if (!demand) return { ok: false, error: "Demand not found or unavailable." };
   const productMasterId = getProductMasterId(demand.scope);
   if (!productMasterId) return { ok: false, error: "This demand is not linked to a canonical Product Master yet." };
 
