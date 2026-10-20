@@ -1,38 +1,13 @@
-# QIMA Autopilot — orchestrateur de développement toutes les 15 minutes
+# QIMA Autopilot — version 100 % gratuite
 
-## Objectif
+La solution retenue est l'agent local Windows décrit dans [QIMA_AUTOPILOT_FREE_LOCAL.md](QIMA_AUTOPILOT_FREE_LOCAL.md).
 
-Toutes les 15 minutes, GitHub Actions examine le résultat des exécutions précédentes, lit le registre des fonctionnalités QIMA, choisit une tâche unique, lance OpenAI Codex pour effectuer le travail, puis prépare une Pull Request contrôlable.
+Elle utilise Ollama pour exécuter un modèle de code local, Aider pour modifier le dépôt et GitHub CLI pour créer des Pull Requests. Aucune clé API OpenAI payante n'est nécessaire. Le PC doit rester allumé et connecté pour que la tâche planifiée fonctionne.
 
-## Cycle
+## Installation
 
-1. Déclenchement par cron ou lancement manuel.
-2. Vérification de la configuration et recherche d'une Pull Request créée par l'automate encore ouverte.
-3. Si une PR de l'automate est ouverte, le cycle s'arrête pour éviter les changements concurrents. Après sa fusion ou fermeture, un cycle suivant peut traiter une nouvelle tâche.
-4. Sinon, le workflow transmet à Codex le registre, les résultats des exécutions précédentes, les PR ouvertes et les dernières PR automatisées fusionnées.
-5. Codex effectue une tâche limitée et lance les vérifications disponibles.
-6. Le workflow exclut les modifications aux workflows/configurations GitHub, aux migrations Supabase et aux fichiers .env*.
-7. Les changements sont poussés sur une branche qima-autopilot/*, et une PR est ouverte vers main. Aucune fusion automatique n'est autorisée.
+Suivre le guide complet : [QIMA Autopilot local gratuit](QIMA_AUTOPILOT_FREE_LOCAL.md).
 
-## Activation requise une seule fois
+Le cycle est prévu toutes les 15 minutes, lit le registre de fonctionnalités et le résultat précédent, exécute TypeScript/build/E2E, puis ouvre une PR pour revue. Il ne fusionne pas automatiquement et ne modifie pas la base Supabase de production.
 
-1. Dans GitHub, ouvrir **Settings → Secrets and variables → Actions → New repository secret**.
-2. Créer le secret **OPENAI_API_KEY** avec une clé API OpenAI valide.
-3. Vérifier que GitHub Actions est autorisé dans **Settings → Actions → General** et que les workflows peuvent créer des Pull Requests.
-4. Ouvrir **Actions → QIMA 15-minute Autonomous Development Loop → Run workflow** pour le premier essai.
-
-La clé API doit être créée dans le compte API OpenAI et peut entraîner des frais API distincts de l'abonnement ChatGPT. Ne jamais mettre cette clé dans le code, un commit, une issue ou le chat.
-
-## Contrôles et limites
-
-- Cadence demandée : toutes les 15 minutes. GitHub peut retarder les déclenchements programmés en période de forte charge; l'exécution n'est pas garantie à la seconde près.
-- Une seule exécution à la fois.
-- Une seule PR d'automatisation ouverte à la fois.
-- Aucune fusion, aucun déploiement et aucune modification de la base Supabase de production.
-- La présence d'une PR ne prouve pas que son code est correct : il faut vérifier la CI et relire le diff avant fusion.
-- Le workflow ne démarre pas l'agent tant que OPENAI_API_KEY n'est pas configurée.
-- Le coût dépend du nombre de cycles réellement exécutés et de la consommation API; surveiller l'utilisation et définir un budget/une limite dans la plateforme API.
-
-## Fichier du workflow
-
-.github/workflows/qima-autopilot.yml
+Le modèle local peut être moins performant qu'un agent cloud et dépend de la mémoire disponible sur le PC. Avec 8 Go de RAM, le guide recommande de commencer par qwen2.5-coder:1.5b.
