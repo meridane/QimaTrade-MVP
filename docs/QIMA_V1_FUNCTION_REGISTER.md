@@ -260,3 +260,16 @@ Au moment de l'audit, les 31 tables suivantes ont RLS activé mais aucune policy
 - **MATCH-ERROR-01 — Erreurs de lecture :** `app/demands/match/page.tsx` distingue désormais une erreur de lecture des offres d'une liste réellement vide. L'interface affiche un état d'erreur au lieu de laisser croire qu'il n'existe aucune offre.
 - **MATCH-EMPTY-01 — États vides :** le message précise si aucune offre publiée n'existe pour le Product Master demandé ou si la demande n'est pas liée à un Product Master canonique.
 - **Validation :** modification commise sur la branche de la PR #23 ; attendre CI (typecheck, build, audit, tests navigateur et CodeQL). Aucun test métier Supabase réel n'a été exécuté.
+
+
+## 20. Garde-fous du parcours demande → offre → matching → conversation — 20 octobre 2026
+
+- **DEMAND-PUBLISH-01 — Statut de la demande issue du Decision Tree : CORRECTIF PROPOSÉ.** `dt_publish_product_request` marquait le `product_request` `published` mais créait la `demand` avec `demand_status = 'draft'`. La migration sur la branche de travail aligne le statut de la demande sur `published`. La migration n'est pas appliquée à une base distante et doit être validée en DEV avant mise en service.
+- **OFFER-OWNER-01 — Propriété de la demande : CORRECTIF PROPOSÉ.** Les chemins d'offre vérifient côté serveur que l'acteur courant est propriétaire de la demande avant création.
+- **OFFER-PRODUCT-01 — Cohérence canonique : CORRECTIF PROPOSÉ.** L'endpoint multipart ne permet plus de remplacer le Product Master porté par la demande avec un identifiant indépendant.
+- **MATCH-OWNER-01 — Accès au matching : CORRECTIF PROPOSÉ.** La page de matching exige une session, un profil QIMA associé à un acteur et une demande dont `requester_actor_id` correspond à l'acteur courant.
+- **CONVERSATION-AUTH-01 — Participants : CORRECTIF PROPOSÉ.** Chargement/envoi exigent une demande et une offre précises, un match `accepted` et l'acteur courant doit posséder soit la demande soit l'offre. Les tiers et les échanges où l'acteur serait des deux côtés sont refusés.
+- **CONVERSATION-UI-01 — Gestion des erreurs : CORRECTIF PROPOSÉ.** La page attrape les rejets inattendus au chargement/envoi au lieu de laisser une promesse non gérée.
+- **Automatisation vérifiée au moment de l'audit :** CI de la PR #23 réussie au commit `5bcc76bddf4c68a25eaf07497a61d3e1b244d930` (typecheck, audit, build, Playwright existants) ; CodeQL réussi. Ces runs précèdent la branche de correctifs décrite ci-dessus.
+- **Parcours métier réel : À TESTER.** Aucune session Google interactive ni scénario complet fournisseur → acheteur → acceptation → conversation n'a été exécuté. Les deux comptes de test et un environnement Supabase isolé ne sont pas disponibles dans cette exécution.
+- **RLS / privilèges : À AUDITER.** Aucune policy ni privilège RLS n'est modifié. La revue des policies existantes de `demands`, `offers`, `matches` et `messages` reste requise avant de considérer l'isolation validée.
