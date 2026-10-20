@@ -48,10 +48,18 @@ export async function POST(request: NextRequest) {
     if (demandId) {
       const { data: demand, error: demandError } = await supabase
         .from("demands")
-        .select("id, target_market, scope")
+        .select("id, target_market, scope, requester_actor_id")
         .eq("id", demandId)
-        .single();
-      if (demandError || !demand) return NextResponse.json({ error: "Demand not found or unavailable." }, { status: 400 });
+        .maybeSingle();
+      if (demandError) {
+        return NextResponse.json({ error: "Unable to verify demand ownership." }, { status: 500 });
+      }
+      if (!demand) {
+        return NextResponse.json({ error: "Demand not found or unavailable." }, { status: 400 });
+      }
+      if (demand.requester_actor_id !== profile.actor_id) {
+        return NextResponse.json({ error: "DEMAND_NOT_OWNED_BY_CURRENT_ACTOR" }, { status: 403 });
+      }
       resolvedDemandId = demand.id;
       fallbackMarket = market || demand.target_market || "";
       const scope = typeof demand.scope === "object" && demand.scope !== null
