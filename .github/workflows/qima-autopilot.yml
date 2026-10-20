@@ -32,12 +32,12 @@ jobs:
       - name: Check configuration and pending automation PR
         id: guard
         env:
-          GH_TOKEN: \${{ github.token }}
-          OPENAI_API_KEY: \${{ secrets.OPENAI_API_KEY }}
+          GH_TOKEN: ${{ github.token }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         shell: bash
         run: |
           set -euo pipefail
-          if [ -z "\${OPENAI_API_KEY:-}" ]; then
+          if [ -z "${OPENAI_API_KEY:-}" ]; then
             echo "ready=false" >> "$GITHUB_OUTPUT"
             {
               echo "## QIMA Autopilot: configuration required"
@@ -66,7 +66,7 @@ jobs:
         if: steps.guard.outputs.ready == 'true'
         id: context
         env:
-          GH_TOKEN: \${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
@@ -137,7 +137,7 @@ jobs:
         id: codex
         uses: openai/codex-action@v1
         with:
-          openai-api-key: \${{ secrets.OPENAI_API_KEY }}
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
           permission-profile: ":workspace"
           prompt-file: .qima-autopilot-prompt.md
           output-file: /tmp/qima-autopilot-result.md
@@ -182,9 +182,9 @@ jobs:
         if: steps.guard.outputs.ready == 'true'
         id: publish
         env:
-          GH_TOKEN: \${{ github.token }}
-          CODEX_FINAL_MESSAGE: \${{ steps.codex.outputs.final-message }}
-          BRANCH: \${{ steps.context.outputs.branch }}
+          GH_TOKEN: ${{ github.token }}
+          CODEX_FINAL_MESSAGE: ${{ steps.codex.outputs.final-message }}
+          BRANCH: ${{ steps.context.outputs.branch }}
         shell: bash
         run: |
           set -euo pipefail
@@ -204,7 +204,7 @@ jobs:
             {
               echo "## QIMA Autopilot: no code change"
               echo
-              printf '%s\n' "\${CODEX_FINAL_MESSAGE:-The agent did not produce a final report.}"
+              printf '%s\n' "${CODEX_FINAL_MESSAGE:-The agent did not produce a final report.}"
             } >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
@@ -223,7 +223,7 @@ jobs:
           {
             echo "## Automated task report"
             echo
-            printf '%s\n' "\${CODEX_FINAL_MESSAGE:-No final report was returned by the coding agent.}"
+            printf '%s\n' "${CODEX_FINAL_MESSAGE:-No final report was returned by the coding agent.}"
             echo
             echo "### Guardrails"
             echo "- Created on a dedicated branch; not merged automatically."
@@ -247,5 +247,5 @@ jobs:
             echo
             echo "Branch: $BRANCH"
             echo
-            printf '%s\n' "\${CODEX_FINAL_MESSAGE:-No final report was returned by the coding agent.}"
+            printf '%s\n' "${CODEX_FINAL_MESSAGE:-No final report was returned by the coding agent.}"
           } >> "$GITHUB_STEP_SUMMARY"
