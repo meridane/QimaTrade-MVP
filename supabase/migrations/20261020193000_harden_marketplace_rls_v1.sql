@@ -62,11 +62,19 @@ language plpgsql
 set search_path = public
 as $function$
 begin
+  -- Only status and updated_at may change through this decision path.
+  -- Freeze all descriptive, linkage, scoring, versioning and audit identity fields.
   if new.id is distinct from old.id
+    or new.notion_url is distinct from old.notion_url
+    or new.match_id is distinct from old.match_id
     or new.name is distinct from old.name
     or new.match_type is distinct from old.match_type
     or new.score is distinct from old.score
+    or new.reason is distinct from old.reason
+    or new.recommended_action is distinct from old.recommended_action
+    or new.detected_at is distinct from old.detected_at
     or new.expires_at is distinct from old.expires_at
+    or new.version is distinct from old.version
     or new.demand_id is distinct from old.demand_id
     or new.offer_id is distinct from old.offer_id
     or new.capability_id is distinct from old.capability_id
