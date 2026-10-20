@@ -20,7 +20,7 @@ jobs:
     name: Inspect previous result and execute one safe task
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 45
     steps:
       - name: Checkout main
         uses: actions/checkout@v4
@@ -74,7 +74,7 @@ jobs:
           last_run_id="$(printf '%s' "$previous_runs" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s)[0]?.databaseId ?? ""))')"
           last_run_conclusion="$(printf '%s' "$previous_runs" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s)[0]?.conclusion ?? ""))')"
           previous_failure_logs=""
-          if [ "$last_conclusion" = "failure" ] && [ -n "$last_run_id" ]; then
+          if [ "$last_run_conclusion" = "failure" ] && [ -n "$last_run_id" ]; then
             previous_failure_logs="$(gh run view "$last_run_id" --log-failed 2>&1 | tail -n 100 || true)"
           fi
           open_prs="$(gh pr list --state open --json number,title,headRefName,url)"
@@ -142,6 +142,42 @@ jobs:
           prompt-file: .qima-autopilot-prompt.md
           output-file: /tmp/qima-autopilot-result.md
 
+      - name: Verify typecheck, production build, and browser tests
+        if: steps.guard.outputs.ready == 'true'
+        id: verify
+        continue-on-error: true
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder-anon-key
+          CI: "true"
+          PLAYWRIGHT_BASE_URL: http://127.0.0.1:3000
+        shell: bash
+        run: |
+          set +e
+          npm run typecheck
+          typecheck_status=$?
+          npm run build
+          build_status=$?
+          npm run test:e2e
+          e2e_status=$?
+          {
+            echo "typecheck=$typecheck_status" >> "$GITHUB_OUTPUT"
+            echo "build=$build_status" >> "$GITHUB_OUTPUT"
+            echo "e2e=$e2e_status" >> "$GITHUB_OUTPUT"
+          }
+          {
+            echo "## Automated validation"
+            echo
+            echo "| Check | Exit code |"
+            echo "|---|---:|"
+            echo "| TypeScript | $typecheck_status |"
+            echo "| Production build | $build_status |"
+            echo "| Playwright E2E | $e2e_status |"
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$typecheck_status" -ne 0 ] || [ "$build_status" -ne 0 ] || [ "$e2e_status" -ne 0 ]; then
+            exit 1
+          fi
+
       - name: Validate changes and create reviewed PR
         if: steps.guard.outputs.ready == 'true'
         id: publish
@@ -195,9 +231,16 @@ jobs:
             echo "- Review the diff and CI checks before merging."
             echo
             echo "### Validation"
+            echo "- TypeScript exit code: ${TYPECHECK_STATUS:-not run}"
+            echo "- Production build exit code: ${BUILD_STATUS:-not run}"
+            echo "- Playwright E2E exit code: ${E2E_STATUS:-not run}"
             echo "- CI workflow dispatch requested for branch: $BRANCH."
           } > /tmp/qima-pr-body.md
-          gh pr create --base main --head "$BRANCH" --title "$title" --body-file /tmp/qima-pr-body.md
+          if [ "${TYPECHECK_STATUS:-1}" = "0" ] && [ "${BUILD_STATUS:-1}" = "0" ] && [ "${E2E_STATUS:-1}" = "0" ]; then
+            gh pr create --base main --head "$BRANCH" --title "$title" --body-file /tmp/qima-pr-body.md
+          else
+            gh pr create --draft --base main --head "$BRANCH" --title "$title" --body-file /tmp/qima-pr-body.md
+          fi
           echo "changed=true" >> "$GITHUB_OUTPUT"
           {
             echo "## QIMA Autopilot: pull request created"
