@@ -70,9 +70,15 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          previous_runs="$(gh run list --workflow qima-autopilot.yml --limit 4 --json databaseId,conclusion,createdAt,url,displayTitle)"
+          previous_runs="$(gh run list --workflow qima-autopilot.yml --limit 5 --json databaseId,conclusion,createdAt,url,displayTitle | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const current=Number(process.env.GITHUB_RUN_ID);const runs=JSON.parse(s).filter(r=>r.databaseId!==current);console.log(JSON.stringify(runs,null,2))})')"
+          last_run_id="$(printf '%s' "$previous_runs" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s)[0]?.databaseId ?? ""))')"
+          last_run_conclusion="$(printf '%s' "$previous_runs" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s)[0]?.conclusion ?? ""))')"
+          previous_failure_logs=""
+          if [ "$last_conclusion" = "failure" ] && [ -n "$last_run_id" ]; then
+            previous_failure_logs="$(gh run view "$last_run_id" --log-failed 2>&1 | tail -n 100 || true)"
+          fi
           open_prs="$(gh pr list --state open --json number,title,headRefName,url)"
-          merged_autopilot_prs="$(gh pr list --state merged --limit 5 --json number,title,headRefName,url,mergedAt --jq '[.[] | select(.headRefName | startswith("qima-autopilot/"))]')"
+          merged_autopilot_prs="$(gh pr list --state merged --limit 5 --json number,title,headRefName,url,mergedAt,body --jq '[.[] | select(.headRefName | startswith("qima-autopilot/"))]')"
           recent_commits="$(git log -5 --oneline)"
           branch="qima-autopilot/$(date -u +%Y%m%d-%H%M%S)"
           git switch -c "$branch"
@@ -89,8 +95,11 @@ jobs:
             echo "- Read repository instructions such as AGENTS.md if present."
             echo "- Inspect the relevant code and tests before deciding."
             echo
-            echo "## Previous automation run results (newest first)"
+            echo "## Previous automation run results (newest first; current run excluded)"
             echo "$previous_runs"
+            echo
+            echo "## Failed-step logs from the immediately previous failed run, if any"
+            echo "$previous_failure_logs"
             echo
             echo "## Open pull requests (do not duplicate or conflict with these tasks)"
             echo "$open_prs"
@@ -117,7 +126,7 @@ jobs:
 
       - name: Install project dependencies
         if: steps.guard.outputs.ready == 'true'
-        run: npm install --no-audit --no-fund
+        run: npm install --no-package-lock --no-audit --no-fund
 
       - name: Install Playwright Chromium
         if: steps.guard.outputs.ready == 'true'
