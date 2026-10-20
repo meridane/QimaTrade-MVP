@@ -283,3 +283,14 @@ Au moment de l'audit, les 31 tables suivantes ont RLS activé mais aucune policy
 - **Commit :** `ad940453ab9069c335c4947289c442f51cab2256` sur `feature/e2e-demand-conversation-guards`.
 - **Validation :** CI et CodeQL déclenchés, résultats en attente au moment de cette mise à jour. Le comportement réel avec deux comptes et les policies RLS restent à tester en environnement contrôlé.
 - **Aucune modification** appliquée à Supabase distant ; aucune fusion ou mise en production effectuée.
+
+
+## 22. Audit RLS des tables marketplace — 20 octobre 2026
+
+- **RLS-READONLY-01 — Tables vérifiées :** `demands`, `offers`, `matches`, `messages` ont RLS activé, mais `relforcerowsecurity = false`. Les politiques déclarées sont présentes ; elles doivent être évaluées avec les privilèges SQL et les fonctions auxiliaires.
+- **RLS-PRIV-01 — Privilèges trop larges constatés :** les rôles `anon` et `authenticated` avaient des privilèges directs sur les tables, dont `TRUNCATE` sur les quatre tables. RLS ne bloque pas `TRUNCATE`. Aucun privilège n'a été modifié dans la base distante pendant l'audit.
+- **RLS-MESSAGE-01 — Contrôle participant insuffisant :** l'ancienne fonction `is_message_participant` acceptait le cas où l'acteur courant correspondait simplement à `sender_actor_id`, sans vérifier la participation réelle au couple demande/offre. Le correctif proposé exige un match accepté, deux acteurs distincts et l'appartenance du compte à la demande ou à l'offre ; l'expéditeur fourni doit être l'un des deux participants.
+- **RLS-MATCH-UPDATE-01 — Action serveur et policy :** l'action `respondToOffer` met à jour un match existant. La policy RLS existante ne prévoyait pas `UPDATE` sur `matches`. La migration proposée autorise l'update par le propriétaire de la demande et utilise un trigger pour empêcher la modification de l'identité du match et le changement de statut après acceptation.
+- **Migration proposée :** `supabase/migrations/20261020193000_harden_marketplace_rls_v1.sql`, commit `f60da721aee1cd2fbd6f20bad527ac840fc253c5` sur `feature/e2e-demand-conversation-guards`.
+- **État : À VALIDER EN DEV.** Aucun SQL n'a été appliqué à Supabase distant. Le projet ne dispose pas d'un environnement DEV isolé confirmé dans cet audit ; ne pas appliquer en production avant validation syntaxique, test de régression et tests avec acheteur/fournisseur/tiers.
+- **Tests requis :** compte anonyme incapable de lire/écrire/tronquer ; acheteur et fournisseur peuvent lire les messages uniquement pour leur match accepté ; tiers ne peut ni lire ni insérer des messages ; mauvais couple demande/offre rejeté ; acheteur peut modifier la décision d'un match non accepté sans modifier son identité ; match accepté reste accepté.
