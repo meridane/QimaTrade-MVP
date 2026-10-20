@@ -9,7 +9,7 @@ async function getCurrentActor() {
   const { data: { user }, error: authError } = await supabase.auth.getUser();
 
   if (authError || !user) {
-    return { supabase, actorId: null as string | null, error: "You must be signed in." };
+    return { supabase, actorId: null as string | null };
   }
 
   const { data: profile, error: profileError } = await supabase
@@ -19,10 +19,31 @@ async function getCurrentActor() {
     .single();
 
   if (profileError || !profile?.actor_id) {
-    return { supabase, actorId: null as string | null, error: "Your account is not linked to a QimaTrade actor yet." };
+    return { supabase, actorId: null as string | null };
   }
 
-  return { supabase, actorId: profile.actor_id as string, error: null as string | null };
+  return { supabase, actorId: profile.actor_id as string };
+}
+
+function getProductMasterId(scope: unknown): string | null {
+  let value = scope;
+
+  if (typeof value === "string") {
+    try {
+      value = JSON.parse(value);
+    } catch {
+      return null;
+    }
+  }
+
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+
+  const productMasterId = (value as Record<string, unknown>).product_master_id;
+  return typeof productMasterId === "string" && productMasterId.trim()
+    ? productMasterId.trim()
+    : null;
 }
 
 export async function respondToOffer(formData: FormData) {
@@ -34,29 +55,37 @@ export async function respondToOffer(formData: FormData) {
     redirect("/demands");
   }
 
-  const { supabase, actorId, error } = await getCurrentActor();
+  const { supabase, actorId } = await getCurrentActor();
   if (!actorId) {
     redirect(`/login?next=${encodeURIComponent(`/demands/match?id=${demandId}`)}`);
   }
 
+  // Enforce ownership in the query itself; do not rely only on RLS behavior.
   const { data: demand } = await supabase
     .from("demands")
-    .select("id, demand_id")
+    .select("id, demand_id, requester_actor_id, scope")
     .eq("id", demandId)
+    .eq("requester_actor_id", actorId)
     .single();
 
-  if (!demand) {
+  if (!demand || demand.requester_actor_id !== actorId) {
     redirect("/demands");
   }
 
   const { data: offer } = await supabase
     .from("offers")
-    .select("id, name, provider_actor_id")
+    .select("id, name, provider_actor_id, product_master_id")
     .eq("id", offerId)
     .single();
 
-  if (!offer) {
-    redirect(`/demands/match?id=${encodeURIComponent(demandId)}`);
+  if (!offer || !offer.provider_actor_id || offer.provider_actor_id === actorId) {
+    redirect(`/demands/match?id=${encodeURIComponent(demandId)}&error=${encodeURIComponent("OFFER_NOT_AVAILABLE")}`);
+  }
+
+  // The selected offer must belong to the same canonical product as the demand.
+  const demandProductMasterId = getProductMasterId(demand.scope);
+  if (!demandProductMasterId || offer.product_master_id !== demandProductMasterId) {
+    redirect(`/demands/match?id=${encodeURIComponent(demandId)}&error=${encodeURIComponent("OFFER_PRODUCT_MISMATCH")}`);
   }
 
   const { data: existingMatch } = await supabase
