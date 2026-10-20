@@ -117,10 +117,10 @@ export async function respondToOffer(formData: FormData) {
   // Reuse an existing non-accepted match instead of creating duplicate rows.
   const writeResult = existingMatch
     ? await supabase.from("matches").update({
+        // Keep updates compatible with the RLS hardening trigger:
+        // only the decision status and its update timestamp may change.
         status: matchPayload.status,
-        reason: matchPayload.reason,
-        recommended_action: matchPayload.recommended_action,
-        detected_at: matchPayload.detected_at,
+        updated_at: new Date().toISOString(),
       }).eq("id", existingMatch.id)
     : await supabase.from("matches").insert(matchPayload);
 
