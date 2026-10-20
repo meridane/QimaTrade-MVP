@@ -237,3 +237,11 @@ Au moment de l'audit, les 31 tables suivantes ont RLS activé mais aucune policy
 - **Règle de validation :** ne pas fusionner automatiquement les mises à jour majeures. Elles doivent passer CI et faire l'objet d'une vérification de compatibilité, en particulier Next.js 16 et TypeScript 7.
 - **État :** PR Dependabot ouvertes et CI en attente au moment de l'audit ; aucune de ces mises à jour majeures n'est considérée comme intégrée.
 - **TEST-AUTH-OFFER-01 :** les tests combinés d'accès protégé et de validation des entrées d'offres sont dans la PR #9 ; la fusion dépend du résultat CI.
+
+
+## 17. Publication des offres et matching — 20 octobre 2026
+
+- **OFFER-PUBLISH-01 — Soumission d'offre :** les deux chemins de création d'offre (`app/offers/actions.ts` et `app/api/offers/route.ts`) définissent désormais le cycle initial à `published`, cohérent avec l'action utilisateur « Submit offer ».
+- **MATCH-PUBLISH-01 — Visibilité du matching :** `app/demands/match/page.tsx` ne récupère que les offres dont le cycle est `published` pour le Product Master demandé. Les brouillons et autres états ne sont donc pas présentés comme des offres disponibles.
+- **Sécurité et limites :** aucune policy RLS, migration de production ou donnée n'a été modifiée. La CI doit confirmer le build et les tests existants ; le parcours réel de publication/matching avec comptes acheteur et fournisseur reste à tester sur un environnement contrôlé avant de marquer la fonctionnalité VALIDÉE.
+- **État :** branche `feature/offer-publication-matching`; changements soumis à revue, aucun merge ni déploiement effectué.
