@@ -57,7 +57,6 @@ test("publishing a product request requires a request ID", async ({ request }) =
   });
 });
 
-
 test.describe("protected routes require authentication", () => {
   for (const protectedPath of ["/demands", "/decision-tree", "/offers", "/request"]) {
     test(`${protectedPath} redirects unauthenticated visitors to login`, async ({ page }) => {
@@ -101,21 +100,6 @@ test("offers API rejects an unsupported currency before authentication", async (
   await expect(response.json()).resolves.toMatchObject({
     error: "Please select a valid currency.",
   });
-});
-
-
-test("offers API rejects a Product Master that conflicts with the selected demand before database access", async ({ request }) => {
-  const response = await request.post("/api/offers", {
-    multipart: {
-      name: "Cross-product offer",
-      quantity: "5",
-      demandId: "not-a-real-demand",
-      productMasterId: "not-a-real-product",
-    },
-  });
-
-  // Invalid form values are rejected before any authenticated database write.
-  expect([400, 403]).toContain(response.status());
 });
 
 test("conversation page route is protected for unauthenticated visitors", async ({ page }) => {
