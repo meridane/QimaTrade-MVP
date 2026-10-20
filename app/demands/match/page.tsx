@@ -73,7 +73,7 @@ export default async function DemandMatchPage({ searchParams }: { searchParams: 
   const scope = parseScope(demand.scope);
   const productMasterId = scope.product_master_id ?? null;
   const { data: offers } = productMasterId
-    ? await supabase.from("offers").select("id, demand_id, product_master_id, name, quantity, price, currency, market, geography, conditions, attributes").eq("product_master_id", productMasterId).order("created_at", { ascending: false })
+    ? await supabase.from("offers").select("id, demand_id, product_master_id, name, quantity, price, currency, market, geography, conditions, attributes").eq("product_master_id", productMasterId).eq("lifecycle", "published").order("created_at", { ascending: false })
     : { data: [] as Offer[] };
 
   const requestedAttributes = (scope.qualification?.attributes ?? []).filter((item) => item.value?.trim());
