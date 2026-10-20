@@ -125,12 +125,13 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (insertError || !offer) {
-      return NextResponse.json({ error: insertError?.message ?? "Unable to create the offer." }, { status: 500 });
+      // Do not expose raw Postgres/PostgREST errors to the browser.
+      return NextResponse.json({ error: "Unable to create the offer." }, { status: 500 });
     }
 
     return NextResponse.redirect(new URL(`/offers?created=${offer.id}`, request.url), 303);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unable to create the offer.";
-    return NextResponse.json({ error: message }, { status: 500 });
+  } catch {
+    // Keep unexpected server exceptions and internal configuration details private.
+    return NextResponse.json({ error: "Unable to create the offer." }, { status: 500 });
   }
 }
