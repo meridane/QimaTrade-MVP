@@ -253,3 +253,10 @@ Au moment de l'audit, les 31 tables suivantes ont RLS activé mais aucune policy
 - **État fonctionnel : À TESTER en conditions réelles.** Étape suivante : vérifier dans un environnement contrôlé qu'un fournisseur peut publier une offre associée au Product Master actif et qu'un acheteur voit cette offre dans le matching de sa demande, sans voir les brouillons ni les offres d'un autre produit.
 - **Plan d'exécution :** checklist détaillée ajoutée dans `docs/QIMA_V1_E2E_TEST_PLAN.md` pour tester connexion, création d'offre, matching, isolation par Product Master, permissions et conversation avec deux comptes distincts.
 - **État Git :** PR #23 toujours ouverte ; aucun merge, changement Supabase ou déploiement de production effectué.
+
+
+## 19. Diagnostic du matching — 20 octobre 2026
+
+- **MATCH-ERROR-01 — Erreurs de lecture :** `app/demands/match/page.tsx` distingue désormais une erreur de lecture des offres d'une liste réellement vide. L'interface affiche un état d'erreur au lieu de laisser croire qu'il n'existe aucune offre.
+- **MATCH-EMPTY-01 — États vides :** le message précise si aucune offre publiée n'existe pour le Product Master demandé ou si la demande n'est pas liée à un Product Master canonique.
+- **Validation :** modification commise sur la branche de la PR #23 ; attendre CI (typecheck, build, audit, tests navigateur et CodeQL). Aucun test métier Supabase réel n'a été exécuté.
