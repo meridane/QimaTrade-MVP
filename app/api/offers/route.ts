@@ -54,10 +54,21 @@ export async function POST(request: NextRequest) {
       if (demandError || !demand) return NextResponse.json({ error: "Demand not found or unavailable." }, { status: 400 });
       resolvedDemandId = demand.id;
       fallbackMarket = market || demand.target_market || "";
-      if (!productMasterId) {
-        const scope = typeof demand.scope === "object" && demand.scope !== null ? demand.scope as Record<string, unknown> : {};
-        productMasterId = typeof scope.product_master_id === "string" ? scope.product_master_id : null;
+      const scope = typeof demand.scope === "object" && demand.scope !== null
+        ? demand.scope as Record<string, unknown>
+        : {};
+      const demandProductMasterId = typeof scope.product_master_id === "string"
+        ? scope.product_master_id
+        : null;
+
+      // A form must not be able to attach an unrelated Product Master to a demand.
+      if (productMasterIdFromForm && productMasterIdFromForm !== demandProductMasterId) {
+        return NextResponse.json(
+          { error: "PRODUCT_MASTER_DOES_NOT_MATCH_DEMAND" },
+          { status: 400 },
+        );
       }
+      productMasterId = demandProductMasterId;
     }
 
     if (productMasterId) {
