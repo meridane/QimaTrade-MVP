@@ -237,3 +237,26 @@ Au moment de l'audit, les 31 tables suivantes ont RLS activé mais aucune policy
 - **Règle de validation :** ne pas fusionner automatiquement les mises à jour majeures. Elles doivent passer CI et faire l'objet d'une vérification de compatibilité, en particulier Next.js 16 et TypeScript 7.
 - **État :** PR Dependabot ouvertes et CI en attente au moment de l'audit ; aucune de ces mises à jour majeures n'est considérée comme intégrée.
 - **TEST-AUTH-OFFER-01 :** les tests combinés d'accès protégé et de validation des entrées d'offres sont dans la PR #9 ; la fusion dépend du résultat CI.
+
+
+## 17. Publication des offres et matching — 20 octobre 2026
+
+- **OFFER-PUBLISH-01 — Soumission d'offre :** les deux chemins de création d'offre (`app/offers/actions.ts` et `app/api/offers/route.ts`) définissent désormais le cycle initial à `published`, cohérent avec l'action utilisateur « Submit offer ».
+- **MATCH-PUBLISH-01 — Visibilité du matching :** `app/demands/match/page.tsx` ne récupère que les offres dont le cycle est `published` pour le Product Master demandé. Les brouillons et autres états ne sont donc pas présentés comme des offres disponibles.
+- **Sécurité et limites :** aucune policy RLS, migration de production ou donnée n'a été modifiée. La CI doit confirmer le build et les tests existants ; le parcours réel de publication/matching avec comptes acheteur et fournisseur reste à tester sur un environnement contrôlé avant de marquer la fonctionnalité VALIDÉE.
+- **État :** branche `feature/offer-publication-matching`; changements soumis à revue, aucun merge ni déploiement effectué.
+
+## 18. Résultats CI de la publication/matching — 20 octobre 2026
+
+- **CI-OFFER-PUBLISH-01 : VALIDÉ au niveau automatisé.** La CI GitHub du commit `af5f404ae28b6adb080f2805742104a24c61e819` a réussi : typecheck, audit, build et tests navigateur existants. Le contrôle CodeQL a également réussi.
+- **Portée de cette validation :** ces résultats confirment que le code compile et que les tests existants passent. Ils ne valident pas encore le parcours réel avec un compte fournisseur et un compte acheteur, ni les politiques RLS de l'environnement.
+- **État fonctionnel : À TESTER en conditions réelles.** Étape suivante : vérifier dans un environnement contrôlé qu'un fournisseur peut publier une offre associée au Product Master actif et qu'un acheteur voit cette offre dans le matching de sa demande, sans voir les brouillons ni les offres d'un autre produit.
+- **Plan d'exécution :** checklist détaillée ajoutée dans `docs/QIMA_V1_E2E_TEST_PLAN.md` pour tester connexion, création d'offre, matching, isolation par Product Master, permissions et conversation avec deux comptes distincts.
+- **État Git :** PR #23 toujours ouverte ; aucun merge, changement Supabase ou déploiement de production effectué.
+
+
+## 19. Diagnostic du matching — 20 octobre 2026
+
+- **MATCH-ERROR-01 — Erreurs de lecture :** `app/demands/match/page.tsx` distingue désormais une erreur de lecture des offres d'une liste réellement vide. L'interface affiche un état d'erreur au lieu de laisser croire qu'il n'existe aucune offre.
+- **MATCH-EMPTY-01 — États vides :** le message précise si aucune offre publiée n'existe pour le Product Master demandé ou si la demande n'est pas liée à un Product Master canonique.
+- **Validation :** modification commise sur la branche de la PR #23 ; attendre CI (typecheck, build, audit, tests navigateur et CodeQL). Aucun test métier Supabase réel n'a été exécuté.

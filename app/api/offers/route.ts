@@ -98,7 +98,7 @@ export async function POST(request: NextRequest) {
         geography: geography || null,
         attributes,
         documentation_status: documentation ? "available" : "incomplete",
-        lifecycle: "draft",
+        lifecycle: "published",
         offer_type: "supplier_offer",
         pricing_model: price === null ? null : "fixed",
       })

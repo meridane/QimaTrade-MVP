@@ -90,7 +90,7 @@ export async function createOffer(input: CreateOfferInput): Promise<CreateOfferR
     geography: geography || null,
     attributes: Object.fromEntries(attributes.map((item) => [item.key, item.value])),
     documentationStatus: "incomplete",
-    lifecycle: "draft",
+    lifecycle: "published",
     offerType: "supplier_offer",
     pricingModel: price === null ? null : "fixed",
   }, await (async () => { const { data: { session } } = await supabase.auth.getSession(); return session?.access_token ?? ""; })());
