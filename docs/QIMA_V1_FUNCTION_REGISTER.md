@@ -245,3 +245,10 @@ Au moment de l'audit, les 31 tables suivantes ont RLS activé mais aucune policy
 - **MATCH-PUBLISH-01 — Visibilité du matching :** `app/demands/match/page.tsx` ne récupère que les offres dont le cycle est `published` pour le Product Master demandé. Les brouillons et autres états ne sont donc pas présentés comme des offres disponibles.
 - **Sécurité et limites :** aucune policy RLS, migration de production ou donnée n'a été modifiée. La CI doit confirmer le build et les tests existants ; le parcours réel de publication/matching avec comptes acheteur et fournisseur reste à tester sur un environnement contrôlé avant de marquer la fonctionnalité VALIDÉE.
 - **État :** branche `feature/offer-publication-matching`; changements soumis à revue, aucun merge ni déploiement effectué.
+
+## 18. Résultats CI de la publication/matching — 20 octobre 2026
+
+- **CI-OFFER-PUBLISH-01 : VALIDÉ au niveau automatisé.** La CI GitHub du commit `af5f404ae28b6adb080f2805742104a24c61e819` a réussi : typecheck, audit, build et tests navigateur existants. Le contrôle CodeQL a également réussi.
+- **Portée de cette validation :** ces résultats confirment que le code compile et que les tests existants passent. Ils ne valident pas encore le parcours réel avec un compte fournisseur et un compte acheteur, ni les politiques RLS de l'environnement.
+- **État fonctionnel : À TESTER en conditions réelles.** Étape suivante : vérifier dans un environnement contrôlé qu'un fournisseur peut publier une offre associée au Product Master actif et qu'un acheteur voit cette offre dans le matching de sa demande, sans voir les brouillons ni les offres d'un autre produit.
+- **État Git :** PR #23 toujours ouverte ; aucun merge, changement Supabase ou déploiement de production effectué.
