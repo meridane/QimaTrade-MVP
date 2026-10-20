@@ -89,3 +89,30 @@ Pour chaque étape, noter :
 - Un build réussi ou un test API de validation ne prouve pas le fonctionnement du parcours métier.
 - Tout échec doit être reproduit et attribué au fichier, à la règle RLS ou à la configuration concernée avant correction.
 - Ne pas fusionner la PR ni déployer en production uniquement sur la base de ce plan ; les résultats réels sont requis.
+
+
+## Résultats d'inspection du code — 20 octobre 2026
+
+Les résultats ci-dessous sont des constats de revue de code, pas des tests métier exécutés sur Supabase.
+
+- **FINDING-PUBLISH-DEMAND-01 — Corrigé dans la branche de travail :** la fonction SQL `dt_publish_product_request` créait une ligne `demands` avec `demand_status = 'draft'` alors que la demande source `product_requests` recevait `status = 'published'`. Le pont a été aligné pour créer la demande métier en `published`. Migration à appliquer uniquement après revue et validation en environnement de test.
+- **FINDING-OFFER-MASTER-01 — Corrigé dans la branche de travail :** l'endpoint multipart pouvait accepter un `productMasterId` différent du Product Master de la demande. Le serveur dérive maintenant l'identifiant de la demande et rejette une valeur contradictoire.
+- **FINDING-OFFER-OWNER-01 — Corrigé dans la branche de travail :** l'endpoint multipart et l'action serveur vérifient maintenant que le demandeur est le propriétaire de la demande avant de créer l'offre.
+- **FINDING-MATCH-OWNER-01 — Corrigé dans la branche de travail :** la page de matching vérifie la session, le profil QIMA et le `requester_actor_id` avant d'exposer le matching d'une demande.
+- **FINDING-CONVERSATION-PARTICIPANTS-01 — Corrigé dans la branche de travail :** les actions de conversation exigent une paire demande/offre associée à un match accepté, vérifient que l'acteur courant est le propriétaire de la demande ou du fournisseur, refusent l'accès aux tiers et refusent un échange où le même acteur serait des deux côtés.
+- **FINDING-CONVERSATION-UI-01 — Corrigé dans la branche de travail :** les rejets/erreurs inattendus du chargement et de l'envoi sont interceptés pour éviter une promesse non gérée dans l'interface.
+
+### Exécution des tests
+
+- **CI-PR23-01 — PASS :** GitHub Actions `QIMA CI`, run [39423877081](https://github.com/meridane/QimaTrade-MVP/actions/runs/39423877081), commit `5bcc76bddf4c68a25eaf07497a61d3e1b244d930`. Installation, audit, TypeScript, build et tests Playwright existants ont réussi avant ces nouveaux changements.
+- **CODEQL-PR23-01 — PASS :** run [39423877094](https://github.com/meridane/QimaTrade-MVP/actions/runs/39423877094), même tête de PR.
+- **E2E-BUSINESS-01 — BLOCKED / NOT RUN :** pas d'exécution réelle des deux comptes sur un Supabase de test ni preuve d'accès RLS. Aucun compte, aucune donnée métier et aucun jeton Supabase de production n'ont été utilisés pour cette revue.
+- **CI-BRANCH-01 — À EXÉCUTER :** les changements dans `feature/e2e-demand-conversation-guards` doivent passer par TypeScript, build, Playwright et CodeQL. Les tests Playwright ajoutés sont des tests de garde-fou HTTP/route, ils ne remplacent pas le test avec deux comptes.
+- **RLS-REVIEW-01 — À FAIRE :** examiner les politiques et privilèges existants des tables `demands`, `offers`, `matches` et `messages` avant d'affirmer que l'isolation est garantie par la base. Aucune policy RLS n'a été modifiée dans cette branche.
+
+### Limites restant à vérifier
+
+- Le workflow et les statuts exacts de la table `demands` doivent être confirmés sur une base de test pour s'assurer que `published` est une valeur admise par toutes les contraintes/triggers de la version actuellement déployée.
+- Le parcours `product_requests` → action universelle → RPC `dt_publish_product_request` → demande visible côté matching reste à exécuter avec un compte de test.
+- Le flux d'acceptation d'offre via `respondToOffer` doit être vérifié de bout en bout et protégé contre une acceptation par un acteur qui n'est pas propriétaire de la demande. La branche actuelle ne modifie pas encore cette action.
+- Le chargement des conversations doit être validé avec les policies RLS existantes. Le contrôle applicatif ajouté ne remplace pas ces policies.
