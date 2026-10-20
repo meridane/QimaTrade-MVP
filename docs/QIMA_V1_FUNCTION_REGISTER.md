@@ -298,3 +298,10 @@ Au moment de l'audit, les 31 tables suivantes ont RLS activé mais aucune policy
 - **RLS-MATCH-UPDATE-02 — Revue des colonnes :** l'inspection du schéma réel a montré que `matches` contient aussi `notion_url`, `match_id`, `reason`, `recommended_action`, `detected_at` et `version`. Le trigger proposé a été renforcé pour figer ces champs également ; seule la décision `status` (et l'horodatage `updated_at`) peut changer via ce chemin. Commit de correction : `c3801417d6a965fe391adea6bd9e3901aef985f0`.
 - **RLS-MATCH-UPDATE-03 — Schéma confirmé :** PostgreSQL distant est en version 17.6 ; les colonnes utilisées par le trigger existent dans `public.matches`. Aucun trigger utilisateur existant n'a été trouvé sur `demands`, `offers`, `matches` ou `messages` lors de cette lecture.
 - **Limite persistante :** les requêtes de métadonnées ont confirmé les types/colonnes, mais la migration n'a pas été exécutée dans une base isolée. La compatibilité transactionnelle, les privilèges effectifs après révocation et les scénarios RLS doivent encore être testés avant production.
+
+
+## 23. Compatibilité décision de match / garde-fou SQL — 20 octobre 2026
+
+- **RLS-MATCH-UPDATE-04 — Corrigé dans le code :** l'action `respondToOffer` ne modifie plus `reason`, `recommended_action` ni `detected_at` lorsqu'elle met à jour un match existant. Elle ne change que `status` et `updated_at`, conformément au trigger `guard_match_decision_update()` proposé dans `20261020193000_harden_marketplace_rls_v1.sql`.
+- **Commit :** `868251f3804dccaa1626a1add0e2fa9d89078f98` sur `feature/e2e-demand-conversation-guards`.
+- **Validation :** le fichier a été relu après commit et le correctif est présent. Aucun résultat CI associé à ce commit n'a encore été confirmé. La migration n'a pas été appliquée ; le comportement SQL reste à tester avant production.
