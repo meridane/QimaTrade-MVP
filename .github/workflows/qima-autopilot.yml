@@ -194,10 +194,17 @@ jobs:
           rm -f .qima-autopilot-prompt.md
 
           # Never allow the agent to change the orchestrator, its permissions, production migrations, or secrets.
+          # Reset the index as well as the working tree: the agent may have staged protected files.
           while IFS= read -r path; do
             case "$path" in
               .github/workflows/*|.github/*|supabase/migrations/*|.env*)
-                git checkout -- "$path" 2>/dev/null || rm -f "$path"
+                git reset -q HEAD -- "$path" 2>/dev/null || true
+                if git cat-file -e "HEAD:$path" 2>/dev/null; then
+                  git checkout HEAD -- "$path"
+                else
+                  git rm --cached -f -- "$path" 2>/dev/null || true
+                  rm -f -- "$path"
+                fi
                 ;;
             esac
           done < <(git status --porcelain | sed -E 's/^...//')
