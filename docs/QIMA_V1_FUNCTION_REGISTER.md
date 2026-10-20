@@ -273,3 +273,13 @@ Au moment de l'audit, les 31 tables suivantes ont RLS activé mais aucune policy
 - **Automatisation vérifiée au moment de l'audit :** CI de la PR #23 réussie au commit `5bcc76bddf4c68a25eaf07497a61d3e1b244d930` (typecheck, audit, build, Playwright existants) ; CodeQL réussi. Ces runs précèdent la branche de correctifs décrite ci-dessus.
 - **Parcours métier réel : À TESTER.** Aucune session Google interactive ni scénario complet fournisseur → acheteur → acceptation → conversation n'a été exécuté. Les deux comptes de test et un environnement Supabase isolé ne sont pas disponibles dans cette exécution.
 - **RLS / privilèges : À AUDITER.** Aucune policy ni privilège RLS n'est modifié. La revue des policies existantes de `demands`, `offers`, `matches` et `messages` reste requise avant de considérer l'isolation validée.
+
+
+## 21. Sécurisation de la décision sur une offre — 20 octobre 2026
+
+- **OFFER-DECISION-OWNER-01 — Correctif proposé :** `app/demands/match/actions.ts` vérifie désormais que l'acteur connecté est le propriétaire de la demande avant d'accepter ou de refuser une offre.
+- **OFFER-DECISION-PRODUCT-01 — Cohérence produit :** l'action refuse les offres non publiées, celles qui ne correspondent pas au Product Master canonique de la demande, ainsi que l'auto-acceptation par le fournisseur.
+- **OFFER-DECISION-MATCH-01 — Écritures :** une correspondance existante non acceptée est mise à jour plutôt que de créer une ligne supplémentaire ; les erreurs de lecture/écriture sont renvoyées vers un état d'erreur générique.
+- **Commit :** `ad940453ab9069c335c4947289c442f51cab2256` sur `feature/e2e-demand-conversation-guards`.
+- **Validation :** CI et CodeQL déclenchés, résultats en attente au moment de cette mise à jour. Le comportement réel avec deux comptes et les policies RLS restent à tester en environnement contrôlé.
+- **Aucune modification** appliquée à Supabase distant ; aucune fusion ou mise en production effectuée.
