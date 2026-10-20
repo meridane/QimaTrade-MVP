@@ -42,7 +42,7 @@ async function authorizeConversation(
 
   const demandResult = await current.supabase
     .from("demands")
-    .select("id, requester_actor_id")
+    .select("id, requester_actor_id, demand_status")
     .eq("id", demandId)
     .maybeSingle();
 
@@ -77,6 +77,9 @@ async function authorizeConversation(
   const isOfferOwner = offerActorId === current.actorId;
   if (!isDemandOwner && !isOfferOwner) {
     return { ...current, offerId: null as string | null, error: "You are not a participant in this commercial exchange." };
+  }
+  if (isDemandOwner && isOfferOwner) {
+    return { ...current, offerId: null as string | null, error: "A commercial conversation requires two distinct participants." };
   }
 
   const matchResult = await current.supabase
