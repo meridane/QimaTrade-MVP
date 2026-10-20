@@ -305,3 +305,10 @@ Au moment de l'audit, les 31 tables suivantes ont RLS activé mais aucune policy
 - **RLS-MATCH-UPDATE-04 — Corrigé dans le code :** l'action `respondToOffer` ne modifie plus `reason`, `recommended_action` ni `detected_at` lorsqu'elle met à jour un match existant. Elle ne change que `status` et `updated_at`, conformément au trigger `guard_match_decision_update()` proposé dans `20261020193000_harden_marketplace_rls_v1.sql`.
 - **Commit :** `868251f3804dccaa1626a1add0e2fa9d89078f98` sur `feature/e2e-demand-conversation-guards`.
 - **Validation :** le fichier a été relu après commit et le correctif est présent. Aucun résultat CI associé à ce commit n'a encore été confirmé. La migration n'a pas été appliquée ; le comportement SQL reste à tester avant production.
+
+
+## 24. Masquage des erreurs internes de l'API offres — 20 octobre 2026
+
+- **API-OFFER-ERROR-01 — Corrigé dans le code :** `app/api/offers/route.ts` ne renvoie plus le message brut de Postgres/PostgREST ni le texte d'une exception inattendue au navigateur. Les erreurs d'écriture et exceptions renvoient désormais un message générique.
+- **Commit :** `09c507acd80000923510fc7dcacd1b91d4c9b0c8` sur `feature/e2e-demand-conversation-guards`.
+- **Validation :** le changement est enregistré sur GitHub. Les vérifications CI/CodeQL de ce commit restent à confirmer ; aucun test réel d'écriture Supabase n'a été exécuté.
