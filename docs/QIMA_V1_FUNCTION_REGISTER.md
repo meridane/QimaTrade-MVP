@@ -312,3 +312,13 @@ Au moment de l'audit, les 31 tables suivantes ont RLS activé mais aucune policy
 - **API-OFFER-ERROR-01 — Corrigé dans le code :** `app/api/offers/route.ts` ne renvoie plus le message brut de Postgres/PostgREST ni le texte d'une exception inattendue au navigateur. Les erreurs d'écriture et exceptions renvoient désormais un message générique.
 - **Commit :** `09c507acd80000923510fc7dcacd1b91d4c9b0c8` sur `feature/e2e-demand-conversation-guards`.
 - **Validation :** le changement est enregistré sur GitHub. Les vérifications CI/CodeQL de ce commit restent à confirmer ; aucun test réel d'écriture Supabase n'a été exécuté.
+
+
+## 25. Vérification CI/CodeQL des garde-fous marketplace — 21 octobre 2026
+
+- **CI-PR24-01 — PASS :** pour le commit `9a1049f8d00a7a86442a741f5d58b85274f9ba18`, le contrôle GitHub Actions « Typecheck, audit, build and browser tests » est terminé avec succès. Cela valide le typecheck, l'audit npm, le build et les tests Playwright présents dans la branche.
+- **CODEQL-PR24-01 — PASS :** CodeQL est terminé avec succès sur le même commit, sans nouvelle alerte dans le code modifié.
+- **VERCEL-PREVIEW-01 — PASS :** le contrôle Vercel est réussi pour le commit vérifié.
+- **Limite importante :** ces contrôles automatisés ne valident pas encore le parcours métier réel avec deux comptes (fournisseur/acheteur), ni l'application de la migration RLS dans une base isolée. Le test E2E métier reste **BLOCKED / NOT RUN** tant qu'un environnement de test sans risque n'est pas disponible.
+- **État Git :** PR #24 reste ouverte, branche `feature/e2e-demand-conversation-guards`. Aucun merge, aucune modification de production et aucune migration Supabase distante n'ont été exécutés.
+- **Prochaine étape :** préparer des tests ciblés supplémentaires pour les règles d'autorisation et clarifier le scénario métier « offre indépendante » versus « réponse à une demande » avant de modifier la logique de propriété des demandes.
