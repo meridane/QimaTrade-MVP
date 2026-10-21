@@ -45,6 +45,9 @@ export default function ConversationPage() {
         mine: item.senderActorId === result.actorId,
       })));
       setLoading(false);
+    }).catch(() => {
+      setError("An unexpected error occurred while loading this conversation.");
+      setLoading(false);
     });
   }, []);
 
@@ -55,21 +58,26 @@ export default function ConversationPage() {
 
     setSending(true);
     setError("");
-    const result = await sendConversationMessage({ demandId, offerId, body: text });
+    try {
+      const result = await sendConversationMessage({ demandId, offerId, body: text });
 
-    if (!result.ok) {
-      setError(result.error);
+      if (!result.ok) {
+        setError(result.error);
+        setSending(false);
+        return;
+      }
+
+      setMessages((current) => [...current, {
+        id: result.message.id,
+        text: result.message.body,
+        mine: result.message.senderActorId === actorId,
+      }]);
+      setMessage("");
+    } catch {
+      setError("An unexpected error occurred while sending this message.");
+    } finally {
       setSending(false);
-      return;
     }
-
-    setMessages((current) => [...current, {
-      id: result.message.id,
-      text: result.message.body,
-      mine: result.message.senderActorId === actorId,
-    }]);
-    setMessage("");
-    setSending(false);
   }
 
   return (

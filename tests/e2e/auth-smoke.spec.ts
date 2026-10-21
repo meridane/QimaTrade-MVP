@@ -57,7 +57,6 @@ test("publishing a product request requires a request ID", async ({ request }) =
   });
 });
 
-
 test.describe("protected routes require authentication", () => {
   for (const protectedPath of ["/demands", "/decision-tree", "/offers", "/request"]) {
     test(`${protectedPath} redirects unauthenticated visitors to login`, async ({ page }) => {
@@ -101,4 +100,10 @@ test("offers API rejects an unsupported currency before authentication", async (
   await expect(response.json()).resolves.toMatchObject({
     error: "Please select a valid currency.",
   });
+});
+
+test("conversation page route is protected for unauthenticated visitors", async ({ page }) => {
+  await page.goto("/demands/conversation?demand=00000000-0000-0000-0000-000000000001&offer=00000000-0000-0000-0000-000000000002");
+
+  await expect(page).toHaveURL(/\/login\?/);
 });

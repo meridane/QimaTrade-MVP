@@ -237,3 +237,88 @@ Au moment de l'audit, les 31 tables suivantes ont RLS activé mais aucune policy
 - **Règle de validation :** ne pas fusionner automatiquement les mises à jour majeures. Elles doivent passer CI et faire l'objet d'une vérification de compatibilité, en particulier Next.js 16 et TypeScript 7.
 - **État :** PR Dependabot ouvertes et CI en attente au moment de l'audit ; aucune de ces mises à jour majeures n'est considérée comme intégrée.
 - **TEST-AUTH-OFFER-01 :** les tests combinés d'accès protégé et de validation des entrées d'offres sont dans la PR #9 ; la fusion dépend du résultat CI.
+
+
+## 17. Publication des offres et matching — 20 octobre 2026
+
+- **OFFER-PUBLISH-01 — Soumission d'offre :** les deux chemins de création d'offre (`app/offers/actions.ts` et `app/api/offers/route.ts`) définissent désormais le cycle initial à `published`, cohérent avec l'action utilisateur « Submit offer ».
+- **MATCH-PUBLISH-01 — Visibilité du matching :** `app/demands/match/page.tsx` ne récupère que les offres dont le cycle est `published` pour le Product Master demandé. Les brouillons et autres états ne sont donc pas présentés comme des offres disponibles.
+- **Sécurité et limites :** aucune policy RLS, migration de production ou donnée n'a été modifiée. La CI doit confirmer le build et les tests existants ; le parcours réel de publication/matching avec comptes acheteur et fournisseur reste à tester sur un environnement contrôlé avant de marquer la fonctionnalité VALIDÉE.
+- **État :** branche `feature/offer-publication-matching`; changements soumis à revue, aucun merge ni déploiement effectué.
+
+## 18. Résultats CI de la publication/matching — 20 octobre 2026
+
+- **CI-OFFER-PUBLISH-01 : VALIDÉ au niveau automatisé.** La CI GitHub du commit `af5f404ae28b6adb080f2805742104a24c61e819` a réussi : typecheck, audit, build et tests navigateur existants. Le contrôle CodeQL a également réussi.
+- **Portée de cette validation :** ces résultats confirment que le code compile et que les tests existants passent. Ils ne valident pas encore le parcours réel avec un compte fournisseur et un compte acheteur, ni les politiques RLS de l'environnement.
+- **État fonctionnel : À TESTER en conditions réelles.** Étape suivante : vérifier dans un environnement contrôlé qu'un fournisseur peut publier une offre associée au Product Master actif et qu'un acheteur voit cette offre dans le matching de sa demande, sans voir les brouillons ni les offres d'un autre produit.
+- **Plan d'exécution :** checklist détaillée ajoutée dans `docs/QIMA_V1_E2E_TEST_PLAN.md` pour tester connexion, création d'offre, matching, isolation par Product Master, permissions et conversation avec deux comptes distincts.
+- **État Git :** PR #23 toujours ouverte ; aucun merge, changement Supabase ou déploiement de production effectué.
+
+
+## 19. Diagnostic du matching — 20 octobre 2026
+
+- **MATCH-ERROR-01 — Erreurs de lecture :** `app/demands/match/page.tsx` distingue désormais une erreur de lecture des offres d'une liste réellement vide. L'interface affiche un état d'erreur au lieu de laisser croire qu'il n'existe aucune offre.
+- **MATCH-EMPTY-01 — États vides :** le message précise si aucune offre publiée n'existe pour le Product Master demandé ou si la demande n'est pas liée à un Product Master canonique.
+- **Validation :** modification commise sur la branche de la PR #23 ; attendre CI (typecheck, build, audit, tests navigateur et CodeQL). Aucun test métier Supabase réel n'a été exécuté.
+
+
+## 20. Garde-fous du parcours demande → offre → matching → conversation — 20 octobre 2026
+
+- **DEMAND-PUBLISH-01 — Statut de la demande issue du Decision Tree : CORRECTIF PROPOSÉ.** `dt_publish_product_request` marquait le `product_request` `published` mais créait la `demand` avec `demand_status = 'draft'`. La migration sur la branche de travail aligne le statut de la demande sur `published`. La migration n'est pas appliquée à une base distante et doit être validée en DEV avant mise en service.
+- **OFFER-OWNER-01 — Propriété de la demande : CORRECTIF PROPOSÉ.** Les chemins d'offre vérifient côté serveur que l'acteur courant est propriétaire de la demande avant création.
+- **OFFER-PRODUCT-01 — Cohérence canonique : CORRECTIF PROPOSÉ.** L'endpoint multipart ne permet plus de remplacer le Product Master porté par la demande avec un identifiant indépendant.
+- **MATCH-OWNER-01 — Accès au matching : CORRECTIF PROPOSÉ.** La page de matching exige une session, un profil QIMA associé à un acteur et une demande dont `requester_actor_id` correspond à l'acteur courant.
+- **CONVERSATION-AUTH-01 — Participants : CORRECTIF PROPOSÉ.** Chargement/envoi exigent une demande et une offre précises, un match `accepted` et l'acteur courant doit posséder soit la demande soit l'offre. Les tiers et les échanges où l'acteur serait des deux côtés sont refusés.
+- **CONVERSATION-UI-01 — Gestion des erreurs : CORRECTIF PROPOSÉ.** La page attrape les rejets inattendus au chargement/envoi au lieu de laisser une promesse non gérée.
+- **Automatisation vérifiée au moment de l'audit :** CI de la PR #23 réussie au commit `5bcc76bddf4c68a25eaf07497a61d3e1b244d930` (typecheck, audit, build, Playwright existants) ; CodeQL réussi. Ces runs précèdent la branche de correctifs décrite ci-dessus.
+- **Parcours métier réel : À TESTER.** Aucune session Google interactive ni scénario complet fournisseur → acheteur → acceptation → conversation n'a été exécuté. Les deux comptes de test et un environnement Supabase isolé ne sont pas disponibles dans cette exécution.
+- **RLS / privilèges : À AUDITER.** Aucune policy ni privilège RLS n'est modifié. La revue des policies existantes de `demands`, `offers`, `matches` et `messages` reste requise avant de considérer l'isolation validée.
+
+
+## 21. Sécurisation de la décision sur une offre — 20 octobre 2026
+
+- **OFFER-DECISION-OWNER-01 — Correctif proposé :** `app/demands/match/actions.ts` vérifie désormais que l'acteur connecté est le propriétaire de la demande avant d'accepter ou de refuser une offre.
+- **OFFER-DECISION-PRODUCT-01 — Cohérence produit :** l'action refuse les offres non publiées, celles qui ne correspondent pas au Product Master canonique de la demande, ainsi que l'auto-acceptation par le fournisseur.
+- **OFFER-DECISION-MATCH-01 — Écritures :** une correspondance existante non acceptée est mise à jour plutôt que de créer une ligne supplémentaire ; les erreurs de lecture/écriture sont renvoyées vers un état d'erreur générique.
+- **Commit :** `ad940453ab9069c335c4947289c442f51cab2256` sur `feature/e2e-demand-conversation-guards`.
+- **Validation :** CI et CodeQL déclenchés, résultats en attente au moment de cette mise à jour. Le comportement réel avec deux comptes et les policies RLS restent à tester en environnement contrôlé.
+- **Aucune modification** appliquée à Supabase distant ; aucune fusion ou mise en production effectuée.
+
+
+## 22. Audit RLS des tables marketplace — 20 octobre 2026
+
+- **RLS-READONLY-01 — Tables vérifiées :** `demands`, `offers`, `matches`, `messages` ont RLS activé, mais `relforcerowsecurity = false`. Les politiques déclarées sont présentes ; elles doivent être évaluées avec les privilèges SQL et les fonctions auxiliaires.
+- **RLS-PRIV-01 — Privilèges trop larges constatés :** les rôles `anon` et `authenticated` avaient des privilèges directs sur les tables, dont `TRUNCATE` sur les quatre tables. RLS ne bloque pas `TRUNCATE`. Aucun privilège n'a été modifié dans la base distante pendant l'audit.
+- **RLS-MESSAGE-01 — Contrôle participant insuffisant :** l'ancienne fonction `is_message_participant` acceptait le cas où l'acteur courant correspondait simplement à `sender_actor_id`, sans vérifier la participation réelle au couple demande/offre. Le correctif proposé exige un match accepté, deux acteurs distincts et l'appartenance du compte à la demande ou à l'offre ; l'expéditeur fourni doit être l'un des deux participants.
+- **RLS-MATCH-UPDATE-01 — Action serveur et policy :** l'action `respondToOffer` met à jour un match existant. La policy RLS existante ne prévoyait pas `UPDATE` sur `matches`. La migration proposée autorise l'update par le propriétaire de la demande et utilise un trigger pour empêcher la modification de l'identité du match et le changement de statut après acceptation.
+- **Migration proposée :** `supabase/migrations/20261020193000_harden_marketplace_rls_v1.sql`, commit `f60da721aee1cd2fbd6f20bad527ac840fc253c5` sur `feature/e2e-demand-conversation-guards`.
+- **État : À VALIDER EN DEV.** Aucun SQL n'a été appliqué à Supabase distant. Le projet ne dispose pas d'un environnement DEV isolé confirmé dans cet audit ; ne pas appliquer en production avant validation syntaxique, test de régression et tests avec acheteur/fournisseur/tiers.
+- **Tests requis :** compte anonyme incapable de lire/écrire/tronquer ; acheteur et fournisseur peuvent lire les messages uniquement pour leur match accepté ; tiers ne peut ni lire ni insérer des messages ; mauvais couple demande/offre rejeté ; acheteur peut modifier la décision d'un match non accepté sans modifier son identité ; match accepté reste accepté.
+
+- **RLS-MATCH-UPDATE-02 — Revue des colonnes :** l'inspection du schéma réel a montré que `matches` contient aussi `notion_url`, `match_id`, `reason`, `recommended_action`, `detected_at` et `version`. Le trigger proposé a été renforcé pour figer ces champs également ; seule la décision `status` (et l'horodatage `updated_at`) peut changer via ce chemin. Commit de correction : `c3801417d6a965fe391adea6bd9e3901aef985f0`.
+- **RLS-MATCH-UPDATE-03 — Schéma confirmé :** PostgreSQL distant est en version 17.6 ; les colonnes utilisées par le trigger existent dans `public.matches`. Aucun trigger utilisateur existant n'a été trouvé sur `demands`, `offers`, `matches` ou `messages` lors de cette lecture.
+- **Limite persistante :** les requêtes de métadonnées ont confirmé les types/colonnes, mais la migration n'a pas été exécutée dans une base isolée. La compatibilité transactionnelle, les privilèges effectifs après révocation et les scénarios RLS doivent encore être testés avant production.
+
+
+## 23. Compatibilité décision de match / garde-fou SQL — 20 octobre 2026
+
+- **RLS-MATCH-UPDATE-04 — Corrigé dans le code :** l'action `respondToOffer` ne modifie plus `reason`, `recommended_action` ni `detected_at` lorsqu'elle met à jour un match existant. Elle ne change que `status` et `updated_at`, conformément au trigger `guard_match_decision_update()` proposé dans `20261020193000_harden_marketplace_rls_v1.sql`.
+- **Commit :** `868251f3804dccaa1626a1add0e2fa9d89078f98` sur `feature/e2e-demand-conversation-guards`.
+- **Validation :** le fichier a été relu après commit et le correctif est présent. Aucun résultat CI associé à ce commit n'a encore été confirmé. La migration n'a pas été appliquée ; le comportement SQL reste à tester avant production.
+
+
+## 24. Masquage des erreurs internes de l'API offres — 20 octobre 2026
+
+- **API-OFFER-ERROR-01 — Corrigé dans le code :** `app/api/offers/route.ts` ne renvoie plus le message brut de Postgres/PostgREST ni le texte d'une exception inattendue au navigateur. Les erreurs d'écriture et exceptions renvoient désormais un message générique.
+- **Commit :** `09c507acd80000923510fc7dcacd1b91d4c9b0c8` sur `feature/e2e-demand-conversation-guards`.
+- **Validation :** le changement est enregistré sur GitHub. Les vérifications CI/CodeQL de ce commit restent à confirmer ; aucun test réel d'écriture Supabase n'a été exécuté.
+
+
+## 25. Vérification CI/CodeQL des garde-fous marketplace — 21 octobre 2026
+
+- **CI-PR24-01 — PASS :** pour le commit `9a1049f8d00a7a86442a741f5d58b85274f9ba18`, le contrôle GitHub Actions « Typecheck, audit, build and browser tests » est terminé avec succès. Cela valide le typecheck, l'audit npm, le build et les tests Playwright présents dans la branche.
+- **CODEQL-PR24-01 — PASS :** CodeQL est terminé avec succès sur le même commit, sans nouvelle alerte dans le code modifié.
+- **VERCEL-PREVIEW-01 — PASS :** le contrôle Vercel est réussi pour le commit vérifié.
+- **Limite importante :** ces contrôles automatisés ne valident pas encore le parcours métier réel avec deux comptes (fournisseur/acheteur), ni l'application de la migration RLS dans une base isolée. Le test E2E métier reste **BLOCKED / NOT RUN** tant qu'un environnement de test sans risque n'est pas disponible.
+- **État Git :** PR #24 reste ouverte, branche `feature/e2e-demand-conversation-guards`. Aucun merge, aucune modification de production et aucune migration Supabase distante n'ont été exécutés.
+- **Prochaine étape :** préparer des tests ciblés supplémentaires pour les règles d'autorisation et clarifier le scénario métier « offre indépendante » versus « réponse à une demande » avant de modifier la logique de propriété des demandes.

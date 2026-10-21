@@ -61,7 +61,7 @@ begin
     requester_actor_id
   ) values (
     v_request.title,
-    'draft',
+    'published',
     'incomplete',
     v_request.quantity,
     v_scope,

@@ -48,16 +48,35 @@ export async function POST(request: NextRequest) {
     if (demandId) {
       const { data: demand, error: demandError } = await supabase
         .from("demands")
-        .select("id, target_market, scope")
+        .select("id, target_market, scope, requester_actor_id")
         .eq("id", demandId)
-        .single();
-      if (demandError || !demand) return NextResponse.json({ error: "Demand not found or unavailable." }, { status: 400 });
+        .maybeSingle();
+      if (demandError) {
+        return NextResponse.json({ error: "Unable to verify demand ownership." }, { status: 500 });
+      }
+      if (!demand) {
+        return NextResponse.json({ error: "Demand not found or unavailable." }, { status: 400 });
+      }
+      if (demand.requester_actor_id !== profile.actor_id) {
+        return NextResponse.json({ error: "DEMAND_NOT_OWNED_BY_CURRENT_ACTOR" }, { status: 403 });
+      }
       resolvedDemandId = demand.id;
       fallbackMarket = market || demand.target_market || "";
-      if (!productMasterId) {
-        const scope = typeof demand.scope === "object" && demand.scope !== null ? demand.scope as Record<string, unknown> : {};
-        productMasterId = typeof scope.product_master_id === "string" ? scope.product_master_id : null;
+      const scope = typeof demand.scope === "object" && demand.scope !== null
+        ? demand.scope as Record<string, unknown>
+        : {};
+      const demandProductMasterId = typeof scope.product_master_id === "string"
+        ? scope.product_master_id
+        : null;
+
+      // A form must not be able to attach an unrelated Product Master to a demand.
+      if (productMasterIdFromForm && productMasterIdFromForm !== demandProductMasterId) {
+        return NextResponse.json(
+          { error: "PRODUCT_MASTER_DOES_NOT_MATCH_DEMAND" },
+          { status: 400 },
+        );
       }
+      productMasterId = demandProductMasterId;
     }
 
     if (productMasterId) {
@@ -98,7 +117,7 @@ export async function POST(request: NextRequest) {
         geography: geography || null,
         attributes,
         documentation_status: documentation ? "available" : "incomplete",
-        lifecycle: "draft",
+        lifecycle: "published",
         offer_type: "supplier_offer",
         pricing_model: price === null ? null : "fixed",
       })
@@ -106,12 +125,13 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (insertError || !offer) {
-      return NextResponse.json({ error: insertError?.message ?? "Unable to create the offer." }, { status: 500 });
+      // Do not expose raw Postgres/PostgREST errors to the browser.
+      return NextResponse.json({ error: "Unable to create the offer." }, { status: 500 });
     }
 
     return NextResponse.redirect(new URL(`/offers?created=${offer.id}`, request.url), 303);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unable to create the offer.";
-    return NextResponse.json({ error: message }, { status: 500 });
+  } catch {
+    // Keep unexpected server exceptions and internal configuration details private.
+    return NextResponse.json({ error: "Unable to create the offer." }, { status: 500 });
   }
 }
