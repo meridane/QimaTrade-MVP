@@ -21,7 +21,7 @@ Coût de la branche Supabase distante: **0**. L'exécution locale nécessite une
 ## Important : limites connues
 
 1. Le dépôt a un workflow CI avec TypeScript, audit npm, build Next.js et Playwright, mais le `package.json` observé ne contient pas de lockfile dans la revue précédente. L'installation utilise actuellement `npm install`; pour une reproductibilité complète, générer et revoir un lockfile avant de passer à `npm ci`.
-2. **Blocage constaté dans l'inventaire GitHub du 22/10/2026 :** le dépôt ne contient actuellement que 17 fichiers sous `supabase/migrations/`, alors que le projet Supabase distant indique 157 migrations appliquées. La base locale ne peut donc pas encore être considérée comme une copie fidèle du schéma distant. Il faut retrouver/réconcilier les migrations manquantes avant de prétendre exécuter les tests d'intégration sur un schéma complet.
+2. **Blocage constaté dans l'inventaire GitHub du 22/10/2026 :** le dépôt ne contient actuellement que 15 fichiers sous `supabase/migrations/`, alors que le projet Supabase distant indique 157 migrations appliquées. La base locale ne peut donc pas encore être considérée comme une copie fidèle du schéma distant. Il faut retrouver/réconcilier les migrations manquantes avant de prétendre exécuter les tests d'intégration sur un schéma complet.
 3. **Ne pas lancer le reset pour prétendre tester le schéma complet à ce stade.** D'abord inventorier les migrations présentes, comparer les versions au registre Supabase et récupérer les migrations manquantes depuis la source de vérité du projet. Si elles ne peuvent pas être récupérées, créer une fixture SQL locale minimale explicitement limitée aux tests de sécurité et ne pas la présenter comme équivalente à la production. Ne pas réparer en important ou en modifiant la production.
 4. La CI existante ne prouve pas l'isolation entre tenants. Les tests de sécurité ci-dessous sont à écrire/exécuter sur la base locale avant toute demande de fusion.
 5. Une base locale n'est représentative que des migrations réellement appliquées et des rôles simulés. La confirmation finale doit être faite sur un environnement de test isolé si disponible, jamais par des tentatives d'écriture sur la production.
@@ -70,7 +70,7 @@ Arrêter et signaler le problème si :
 ## État de préparation au 22/10/2026
 
 - Supabase CLI + Docker local est la voie gratuite privilégiée; aucune branche Supabase distante n'a été créée.
-- Le dépôt contient 17 migrations sous `supabase/migrations/`, alors que l'inventaire du projet distant retourne 157 migrations. L'écart est un **bloqueur** pour reproduire fidèlement le schéma complet.
+- Le dépôt contient 15 fichiers de migration sous `supabase/migrations/`, aucun `supabase/config.toml` n'a été trouvé dans l'arbre GitHub inspecté, alors que l'inventaire du projet distant retourne 157 migrations. L'absence de configuration locale et l'écart de migrations sont des **bloqueurs** pour reproduire fidèlement le schéma complet.
 - Le prochain travail doit réconcilier ces migrations ou préparer une fixture locale ciblée, clairement étiquetée comme non équivalente au schéma complet.
 - Le script SQL compagnon `2026-10-22-qima-readonly-catalog-checks.sql` permet d'inspecter en lecture seule RLS, policies, grants et fonctions sensibles; il ne teste pas les accès runtime.
 
