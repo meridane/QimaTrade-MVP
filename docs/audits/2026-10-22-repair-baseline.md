@@ -66,3 +66,14 @@ This is a fail-closed safety measure, not the final multi-tenant UX. A user with
 ### Validation still pending
 
 No typecheck, build, automated test, Supabase integration test, or two-organization isolation test has been executed against these changes yet. Do not merge this branch or call the Security Gate passed until those checks run against the exact branch commit.
+
+
+## CI results for repair branch commit `f420b1250f8838ee84ca4c85a8a79b9534f48c87`
+
+- QIMA CodeQL Security: **success**.
+- QIMA CI: **success**. Dependency installation, dependency security audit, TypeScript check, production build, Playwright Chromium installation, and browser smoke tests all completed successfully.
+- These checks validate this branch commit only. They do not prove tenant isolation, production Supabase policy correctness, or historical immutability. Dedicated integration tests against two distinct test tenants remain necessary.
+
+## Additional SQL finding — direct DML grants
+
+The migration `20260829102000_grant_authenticated_v1_decision_tree_access.sql` grants authenticated users `INSERT, UPDATE, DELETE` on `dt_sessions`, `dt_observations`, `dt_transitions`, and `product_requests`. The Decision Tree design also has server-side RPCs for some mutations. We must map every direct write in application code and test the RLS behavior before deciding which grants to revoke. Do not apply a blanket revoke without that usage inventory, because it could break legitimate flows.
