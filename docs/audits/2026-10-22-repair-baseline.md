@@ -140,3 +140,10 @@ Build a test-only SQL/RPC verification pack before modifying permissions. In a d
 6. Product request UPDATE/DELETE attempts fail unless a specifically authorized lifecycle operation permits them.
 
 No SQL was executed against Supabase. No migration was applied. The deployed catalog and runtime outcomes remain unverified.
+
+
+## Staging verification plan added
+
+Created `docs/audits/2026-10-22-rls-test-matrix.md` with a test matrix for cross-tenant access, direct session mutation, answer idempotency, append-only observations/transitions, product selection, product-request writes, and SECURITY DEFINER function validation. It includes staging preconditions, evidence requirements, and explicit acceptance criteria.
+
+This is a test plan only. No staging credentials or live Supabase catalog were available through the repository review, so none of these integration tests have been executed. Existing Playwright smoke tests currently cover login, unauthenticated route protection, and request validation; they do not establish multi-tenant isolation.
