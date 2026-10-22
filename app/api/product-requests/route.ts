@@ -22,20 +22,27 @@ export async function POST(request: NextRequest) {
     const { data: authData, error: authError } = await supabase.auth.getUser();
     if (authError || !authData.user) return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
 
-    const { data: membership, error: membershipError } = await supabase
+    const { data: memberships, error: membershipError } = await supabase
       .from("dt_memberships")
       .select("tenant_id")
-      .eq("user_id", authData.user.id)
-      .limit(1)
-      .maybeSingle();
-    if (membershipError) throw membershipError;
-    if (!membership) return NextResponse.json({ error: "TENANT_MEMBERSHIP_REQUIRED" }, { status: 403 });
+      .eq("user_id", authData.user.id);
+    if (membershipError) {
+      return NextResponse.json({ error: "TENANT_MEMBERSHIP_LOOKUP_FAILED" }, { status: 500 });
+    }
+    if (!memberships?.length) {
+      return NextResponse.json({ error: "TENANT_MEMBERSHIP_REQUIRED" }, { status: 403 });
+    }
+    if (memberships.length > 1) {
+      // Fail closed until tenant selection is explicit and server-authorized.
+      return NextResponse.json({ error: "TENANT_SELECTION_REQUIRED" }, { status: 409 });
+    }
+    const tenantId = memberships[0].tenant_id;
 
     const { data: session, error: sessionError } = await supabase
       .from("dt_sessions")
       .select("id")
       .eq("id", decisionSessionId)
-      .eq("tenant_id", membership.tenant_id)
+      .eq("tenant_id", tenantId)
       .eq("user_id", authData.user.id)
       .single();
     if (sessionError || !session) return NextResponse.json({ error: "INVALID_DECISION_SESSION" }, { status: 400 });
@@ -51,7 +58,7 @@ export async function POST(request: NextRequest) {
     const { data, error } = await supabase
       .from("product_requests")
       .insert({
-        tenant_id: membership.tenant_id,
+        tenant_id: tenantId,
         user_id: authData.user.id,
         decision_session_id: decisionSessionId,
         product_master_id: productMasterId,
