@@ -147,3 +147,7 @@ No SQL was executed against Supabase. No migration was applied. The deployed cat
 Created `docs/audits/2026-10-22-rls-test-matrix.md` with a test matrix for cross-tenant access, direct session mutation, answer idempotency, append-only observations/transitions, product selection, product-request writes, and SECURITY DEFINER function validation. It includes staging preconditions, evidence requirements, and explicit acceptance criteria.
 
 This is a test plan only. No staging credentials or live Supabase catalog were available through the repository review, so none of these integration tests have been executed. Existing Playwright smoke tests currently cover login, unauthenticated route protection, and request validation; they do not establish multi-tenant isolation.
+
+## Live Supabase snapshot — read-only
+
+A read-only inspection of the connected QIMA Supabase project was recorded in [2026-10-22-live-supabase-security-snapshot.md](./2026-10-22-live-supabase-security-snapshot.md). It captures current Security Advisor counts, selected catalog observations and migration inventory. No production data or schema was changed. In particular, the live catalog reports `dt_sessions` has broad authenticated table grants and two attribute reference tables have RLS disabled; confirm intended behavior and reproduce tests only in disposable staging before proposing changes.
