@@ -111,3 +111,32 @@ The migration `20260829102000_grant_authenticated_v1_decision_tree_access.sql` g
 ## Audit status
 
 Static code and migration review only. No live Supabase catalog was queried; no migration was applied; no authenticated multi-tenant integration tests were run. Therefore the exact deployed grants/policies and actual cross-tenant behavior remain **unverified**.
+
+
+## Correction after reading the complete Security Gate migration
+
+The earlier statement that the Security Gate migration did not remove direct DML grants on observations/transitions was incomplete. Reading the full `20260901090000_security_gate_dt_v1.sql` confirms it explicitly revokes `INSERT, UPDATE, DELETE` on both `dt_observations` and `dt_transitions` from `authenticated`, and removes the observations' broad `FOR ALL` policy. This is a positive existing control and should not be reimplemented blindly.
+
+The migration revokes those grants, but it does **not** revoke the direct `INSERT, UPDATE, DELETE` grants on `dt_sessions` that were added by the earlier grant migration. The original `dt_sessions_all` policy is also not replaced by the Security Gate migration. Thus an authenticated owner of a session may retain direct row-level write capability, subject to the actual deployed grants and RLS. This is a priority to test and tighten.
+
+## Revised permission findings
+
+| Table | Migration evidence | Status |
+|---|---|---|
+| `dt_observations` | Security Gate removes broad policy and revokes authenticated INSERT/UPDATE/DELETE. | Positive control in migration history; confirm deployed schema. |
+| `dt_transitions` | Security Gate revokes authenticated INSERT/UPDATE/DELETE. | Positive grant control in migration history; inspect all policies and deployed schema. |
+| `dt_sessions` | Earlier migration grants authenticated INSERT/UPDATE/DELETE; Security Gate does not revoke those rights or replace `dt_sessions_all`. | **Priority finding:** verify whether direct session mutation can bypass revision/status invariants. |
+| `product_requests` | Earlier migration grants authenticated INSERT/UPDATE/DELETE, but the reviewed table migration only defines SELECT and INSERT policies. | Direct UPDATE/DELETE may be blocked by RLS despite the grants; confirm policy set and deployed schema. |
+| `dt_select_product_master` | Defined as `SECURITY INVOKER`; updates the caller's session when RLS/grants permit it. | Direct session UPDATE rights are needed for this invoker function as currently written; prefer a narrow validated RPC plus revoke rather than blanket revocation. |
+
+## Proposed next change (not applied)
+
+Build a test-only SQL/RPC verification pack before modifying permissions. In a disposable staging database with two tenants and users, assert:
+1. A user cannot directly alter `current_node_id`, `revision`, `status`, `tenant_id`, or `user_id` on a session in a way that bypasses the state machine.
+2. The supported answer RPC advances a session exactly once and preserves idempotency.
+3. Product selection still works after session write privileges are narrowed.
+4. Users cannot access or mutate another user's session, including across tenant boundaries.
+5. Observation and transition direct INSERT/UPDATE/DELETE fail for authenticated users while the supported RPCs still record history.
+6. Product request UPDATE/DELETE attempts fail unless a specifically authorized lifecycle operation permits them.
+
+No SQL was executed against Supabase. No migration was applied. The deployed catalog and runtime outcomes remain unverified.
