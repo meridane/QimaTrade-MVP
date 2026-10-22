@@ -151,3 +151,11 @@ This is a test plan only. No staging credentials or live Supabase catalog were a
 ## Live Supabase snapshot — read-only
 
 A read-only inspection of the connected QIMA Supabase project was recorded in [2026-10-22-live-supabase-security-snapshot.md](./2026-10-22-live-supabase-security-snapshot.md). It captures current Security Advisor counts, selected catalog observations and migration inventory. No production data or schema was changed. In particular, the live catalog reports `dt_sessions` has broad authenticated table grants and two attribute reference tables have RLS disabled; confirm intended behavior and reproduce tests only in disposable staging before proposing changes.
+
+## Solution de test gratuite préparée
+
+Les documents de préparation sont disponibles :
+- [Plan de test local gratuit](../testing/2026-10-22-free-local-security-testing.md)
+- [Diagnostics SQL du catalogue en lecture seule](../testing/2026-10-22-qima-readonly-catalog-checks.sql)
+
+Aucune branche Supabase distante payante n'a été créée. L'inventaire GitHub montre 17 fichiers de migration dans le dépôt, contre 157 migrations appliquées sur le projet distant. Cet écart bloque la reproduction fidèle du schéma complet en local; il doit être réconcilié avant les tests d'intégration. Aucun test d'écriture ou d'attaque n'a été lancé sur la production.
