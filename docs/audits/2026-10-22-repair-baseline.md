@@ -47,3 +47,22 @@ The route validates session ownership and revision before calling `dt_submit_ans
 ## Approval boundary
 
 Do not apply migrations to production, delete legacy data/tables, weaken RLS, merge to `main`, or deploy production without explicit approval.
+
+
+## Repair progress — tenant resolution
+
+Changes staged on `chore/qima-free-autopilot-review` after the initial baseline:
+
+- `lib/decision-tree/server.ts`: `getTenantForUser` now loads memberships and returns a tenant only when exactly one exists. It fails closed with `TENANT_SELECTION_REQUIRED` when multiple memberships exist instead of choosing an arbitrary row.
+- `app/api/actions/create-offer/route.ts`: rejects missing or ambiguous memberships before executing `CREATE_OFFER`.
+- `app/api/product-requests/route.ts`: rejects missing or ambiguous memberships before associating a request with a tenant.
+- Decision Tree session endpoints now translate ambiguous membership into HTTP 409 and a stable public code.
+- `app/api/decision-tree/answer/route.ts`: returns stable public error codes rather than raw exception messages.
+
+### Known limitation
+
+This is a fail-closed safety measure, not the final multi-tenant UX. A user with memberships in multiple organizations will need an explicit tenant-selection flow that validates the selected organization server-side. Until that exists, these endpoints intentionally reject ambiguous membership rather than guessing.
+
+### Validation still pending
+
+No typecheck, build, automated test, Supabase integration test, or two-organization isolation test has been executed against these changes yet. Do not merge this branch or call the Security Gate passed until those checks run against the exact branch commit.
