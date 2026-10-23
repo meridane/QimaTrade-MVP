@@ -36,7 +36,7 @@ Prérequis : Node.js 20, npm, Git, Docker Desktop/Engine, Supabase CLI.
 4. Lancer `supabase start` uniquement après cette vérification.
 5. Lancer `supabase migration list` et `supabase db reset` uniquement sur la base locale. Ne jamais utiliser une commande `db push` vers le projet distant.
 6. Si le reset échoue, enregistrer le premier échec et arrêter; ne pas supprimer de données distantes pour contourner l'erreur.
-7. Exécuter `npm run typecheck`, `npm run build` avec variables locales factices, puis `npm run test:e2e`.
+7. Avant toute suite de sécurité ciblée, lancer `npm run test:local-env` avec `SUPABASE_URL=http://127.0.0.1:54321`. Ce garde-fou refuse explicitement les URLs distantes. Ensuite exécuter `npm run typecheck`, `npm run build` avec variables locales factices, puis `npm run test:e2e`.
 8. Ajouter ensuite les tests d'intégration de sécurité et les lancer contre l'URL locale Supabase.
 
 ## Fixtures synthétiques
@@ -72,7 +72,7 @@ Arrêter et signaler le problème si :
 - Supabase CLI + Docker local est la voie gratuite privilégiée; aucune branche Supabase distante n'a été créée.
 - Le dépôt contient 15 fichiers de migration sous `supabase/migrations/`, aucun `supabase/config.toml` n'a été trouvé dans l'arbre GitHub inspecté, alors que l'inventaire du projet distant retourne 157 migrations. L'absence de configuration locale et l'écart de migrations sont des **bloqueurs** pour reproduire fidèlement le schéma complet.
 - Le prochain travail doit réconcilier ces migrations ou préparer une fixture locale ciblée, clairement étiquetée comme non équivalente au schéma complet.
-- Le script SQL compagnon `2026-10-22-qima-readonly-catalog-checks.sql` permet d'inspecter en lecture seule RLS, policies, grants et fonctions sensibles; il ne teste pas les accès runtime.
+- Le script `scripts/assert-local-supabase.mjs` (commande `npm run test:local-env`) bloque les URLs Supabase distantes avant les tests dédiés. Le script SQL compagnon `2026-10-22-qima-readonly-catalog-checks.sql` permet d'inspecter en lecture seule RLS, policies, grants et fonctions sensibles; il ne teste pas les accès runtime.
 
 ## Résultat attendu
 
