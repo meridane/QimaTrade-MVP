@@ -21,7 +21,7 @@ Documents consultés :
 - Le registre fonctionnel existe, mais sa date de dernière vérification affichée est le 12 octobre 2026. Il doit être actualisé après vérification fonctionnelle ciblée.
 - Le rapport de sécurité du 23 octobre maintient le Security Gate à `NOT PASS` : l'isolation multi-tenant réelle n'est pas démontrée.
 - Les sources consultées indiquent 157 migrations enregistrées sur Supabase distant contre 15 fichiers de migration présents dans le dépôt examiné. La source canonique complète n'a pas été retrouvée lors des recherches documentées.
-- La fixture PostgreSQL synthétique A/B et ses assertions sont préparées. Il faut vérifier le résultat du job dédié sur le HEAD courant avant de déclarer cette fixture réussie. Même si elle passe, elle ne prouve pas la sécurité du schéma réel Supabase.
+- La fixture PostgreSQL synthétique A/B et ses assertions ont été exécutées par le job dédié de QIMA CI sur le commit `db37c2d39aca68fdfa46a8c88282cac4fe85da60` : le job `Run isolated PostgreSQL security-contract fixture` est indiqué `success`. Cette preuve valide le contrat synthétique exécuté par ce harnais, pas la sécurité du schéma réel Supabase.
 - Les RPC réels du Decision Tree ne sont pas validés sur une base canonique.
 - La PR #25 est ouverte, en brouillon et non fusionnée. Ne pas fusionner, déployer ou modifier la production dans le cadre de cette revue.
 - Un run du workflow « QIMA 15-minute Autonomous Development Loop » sur `main` a terminé avec succès le 23 octobre à 05:35 UTC. Le succès du workflow ne prouve pas à lui seul qu'une tâche de documentation ou de code a été réalisée; le détail des étapes et artefacts doit être inspecté avant toute conclusion.
@@ -79,7 +79,7 @@ Les détails manquants doivent être marqués « décision requise » et non inv
 
 ## 5. Contrôles GitHub observés pendant la revue
 
-- QIMA CI — run `39896047987`, commit `db37c2d39aca68fdfa46a8c88282cac4fe85da60`, conclusion `success`.
+- QIMA CI — run `39896047987`, commit `db37c2d39aca68fdfa46a8c88282cac4fe85da60`, conclusion `success`. Les étapes TypeScript, audit dépendances, build production, Playwright smoke et fixture PostgreSQL isolée sont toutes indiquées `success`.
 - QIMA CodeQL — run `39896048110`, même commit, conclusion `success`.
 - Ces résultats ne prouvent pas l'isolation multi-tenant réelle et ne remplacent pas les tests SQL sur le schéma canonique.
 - Le run du workflow autonome sur `main` (`39906596740`) s'est terminé avec succès, mais son résultat doit être lu comme un résultat de workflow, pas comme preuve de qualité du code produit.
@@ -96,7 +96,7 @@ Pour chaque travail futur :
 
 ## 7. Prochaine séquence de travail
 
-1. Vérifier le détail du dernier run CI sur le HEAD de la PR #25 et confirmer le résultat du harnais PostgreSQL.
+1. Résultat confirmé pour le run CI `39896047987` : toutes les étapes, dont le harnais PostgreSQL isolé, sont indiquées `success`. Conserver la limite de portée : ce n'est pas une preuve de sécurité du schéma Supabase réel.
 2. Examiner les spécifications de référence dans Notion et les comparer au registre, sans corriger silencieusement les contradictions.
 3. Compléter les liens « fonctionnalité → implémentation → test → preuve » dans le registre.
 4. Créer une liste explicite des décisions métier encore requises.
