@@ -33,7 +33,7 @@ Référence : https://app.notion.com/p/3c6595ef63608182adb9f9345817ed86
 | TEST 36 | Metals & Raw Materials: Dimension-Based Product Model | https://app.notion.com/p/3c6595ef636081018243e976c981ed8c | Architecture/validation de modèle ; exécution runtime à prouver |
 | TEST 37 | Qima Trade Domains: Full Domain Validation | https://app.notion.com/p/3c6595ef63608188970dfccab0109420 | Architecture/taxonomie ; rejouer les données et contraintes |
 | TEST 39 | Qima Object Type Architecture | https://app.notion.com/p/3c6595ef636081169db8fff76158a19e | Architecture ; ne pas compter comme test runtime sans preuve |
-| TEST 41 | Human-Friendly Visual Decision Navigation | https://app.notion.com/p/3c6595ef636081e3b2b6e91c03bf050c | Décision UX ; navigation réelle à tester |
+| TEST 41 | Human-Friendly Visual Decision Navigation | https://app.notion.com/p/3c6595ef636081e3b2b6e91c03ad0126 | Décision UX ; navigation réelle à tester |
 | TEST 42 | Industry & Infrastructure Product Master Framework | https://app.notion.com/p/3c6595ef6360815d9428eec6a0568cfc | Framework ; mapping et données à tester |
 | TEST 43 | Mobility & Transport Product Master Framework | https://app.notion.com/p/3c6595ef636081ce9b3fd00c793cf04f | Framework ; mapping et données à tester |
 | TEST 44 | Technology & Life Sciences Product Master Framework | https://app.notion.com/p/3c6595ef636081908a62d67cb06d9464 | Framework ; mapping et données à tester |
