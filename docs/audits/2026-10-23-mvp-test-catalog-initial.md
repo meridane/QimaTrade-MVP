@@ -21,13 +21,13 @@ Référence : https://app.notion.com/p/3c6595ef63608182adb9f9345817ed86
 | TEST 10 | Shipment Creation & Workflow | https://app.notion.com/p/3c6595ef63608193a561fbc63f6f2806 | Preuve historique ; annulation, transitions invalides et droits à retester |
 | TEST 12 | Demand Qualification | https://app.notion.com/p/3c6595ef63608198a061f3e4f1090779 | Ancien MVP VALIDÉ ; rejouer sauvegarde, reload, ownership et édition |
 | TEST 13 | Explainable Match | https://app.notion.com/p/3c6595ef636081c0a172ed67c0bf50b8 | Ancien MVP VALIDÉ ; rejouer score, explication, attributs et isolation |
-| TEST 14 | Controlled Conversation | https://app.notion.com/p/3c6595ef6360813ab377cbcb7c19b878 | Fiche conversation retrouvée ; rejouer participants, persistance, ordre et isolation |
+| TEST 14 | Controlled Conversation | https://app.notion.com/p/3c6595ef6360813ab377cbcb7c19b878 | Statut Notion « Validated » daté du 25 août ; fiche sans contenu de corps, règle attendue : recharger et envoyer 3+ messages liés aux mêmes Demand/Offer IDs. À rejouer |
 | TEST 15 | MVP End-to-End | https://app.notion.com/p/3c6595ef636081e2a003c46133bf050c | Ancien MVP VALIDÉ ; parcours complet à rejouer sur le SHA courant |
 | TEST 17 | Unauthorized Write Protection | https://app.notion.com/p/3c6595ef6360818f95a1ccded1e4f660 | PASS historique sur un scénario de non-participant ; pas une preuve RLS actuelle |
 | TEST 18 | Double Submission / Idempotence | https://app.notion.com/p/3c6595ef636081539b22f030fcc8127e | PASS historique côté UI ; serveur et retries à retester |
 | TEST 19 | Quantity invalide | https://app.notion.com/p/3c6595ef636081a69926f4dad7388b5c | Cas de validation négative à rejouer |
-| TEST 20 | Quantity extrêmement grande | https://app.notion.com/p/3c6595ef6360815dbb80ffd02c1d4536 | Limites numériques et overflow à rejouer |
-| TEST 21 | Quantité décimale et minimale | https://app.notion.com/p/3c6595ef6360811691dbe1844eb56fd0 | Précision et seuil minimal à rejouer |
+| TEST 20 | Quantity extrêmement grande | https://app.notion.com/p/3c6595ef6360815dbb80ffd02c1d4536 | Résultat historique : demande sauvegardée malgré une quantité extrême ; limite métier maximale explicitement NON définie. Décision requise et validation serveur/UI à tester |
+| TEST 21 | Quantité décimale et minimale | https://app.notion.com/p/3c6595ef6360811691dbe1844eb56fd0 | Résultat historique : 10.5 et 0.000001 acceptés ; rejouer et décider si le seuil dépend de l'unité/du produit |
 | TEST 27 | Important Requirements optionnels | https://app.notion.com/p/3c6595ef636081c9b123cee4e3947920 | Cas de champs optionnels à rejouer |
 | TEST 28 | Qualification Persistence & Link Integrity | https://app.notion.com/p/3c6595ef6360811da2aff06ac1df1841 | Explicitement à exécuter avant V1 |
 | TEST 29 | Demand Workflow Reload / No Data Loss | https://app.notion.com/p/3c6595ef636081a6bf27f5abfd76bbaa | Explicitement à exécuter avant V1 |
@@ -75,3 +75,13 @@ Ces remarques historiques ne décrivent pas automatiquement l'état du code au 2
 ## 5. Prochaine action
 
 Continuer l'inventaire des fiches manquantes, surtout TEST 11, TEST 14, TEST 16, TEST 20–26, TEST 31–33, TEST 35, TEST 38 et TEST 40 ; ensuite construire la matrice complète entre chaque fiche Notion, les fonctions du registre, les fichiers du dépôt, les tests automatiques et les preuves requises.
+
+
+## 6. Détails importants issus de la lecture des fiches
+
+- **TEST 14 — Controlled Conversation** : la ligne du registre Notion indique « Validated » au 25 août 2026, mais la page elle-même n'a pas de corps de contenu. La règle de régression dans ses propriétés exige une conversation liée à un Demand ID et un Offer ID, puis le rechargement et l'envoi d'au moins trois messages, tous conservés avec la même paire d'IDs. C'est un test historique à rejouer, pas une preuve actuelle.
+- **TEST 20 — Quantity extrêmement grande** : la fiche conclut que la création de demande est acceptée même avec une quantité extrêmement grande. Elle note explicitement que le blocage n'a pas fonctionné et que la limite métier maximale reste à définir. À traiter comme décision métier ouverte + test négatif serveur/UI ; ne pas inventer une limite numérique.
+- **TEST 21 — Quantité décimale et minimale** : la fiche historique indique que 10.5 et 0.000001 sont acceptés. Rejouer sur le code courant et clarifier la règle d'unité/précision avant de considérer le comportement correct.
+- **TEST 31 — Supplier Offer: Dual Entry Model** : décision validée : une offre peut être indépendante ou répondre directement à une demande ; une offre ne doit pas être obligatoirement rattachée à une seule demande via un `offer.demand_id` requis.
+- **TEST 32 — Supplier Offer Reservation & Inventory Independence** : décision validée : réservation et offre sont des objets métier distincts ; les quantités réservées ne doivent pas rester disponibles pour des réservations incompatibles, mais le modèle de disponibilité doit être décidé.
+- **TEST 33 — Offer as Supply Capability** : décision validée : la Supplier Offer représente d'abord une capacité de fourniture, pas forcément du stock physique. Stock, capacité, quantité réservée, disponibilité restante, annulation et expiration restent à spécifier avant implémentation.
