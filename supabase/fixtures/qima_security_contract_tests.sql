@@ -1,5 +1,5 @@
 -- QIMA local fixture assertions
--- Run ONLY after supabase/fixtures/qima_security_contract.sql on a disposable local Supabase DB.
+-- Run ONLY after supabase/fixtures/qima_security_contract.sql on the disposable local database.
 -- This file is a test script, not a production migration. It rolls back all changes.
 begin;
 
@@ -10,6 +10,15 @@ begin
   end if;
   if (select count(*) from qima_security_fixture.memberships) < 2 then
     raise exception 'Expected synthetic tenant memberships A/B';
+  end if;
+  if has_schema_privilege('anon', 'qima_security_fixture', 'USAGE') then
+    raise exception 'Anonymous role unexpectedly has fixture schema access';
+  end if;
+  if has_table_privilege('anon', 'qima_security_fixture.sessions', 'SELECT')
+     or has_table_privilege('anon', 'qima_security_fixture.observations', 'SELECT')
+     or has_table_privilege('anon', 'qima_security_fixture.transitions', 'SELECT')
+     or has_table_privilege('anon', 'qima_security_fixture.product_requests', 'SELECT') then
+    raise exception 'Anonymous role unexpectedly has fixture table read privileges';
   end if;
   if has_table_privilege('authenticated', 'qima_security_fixture.sessions', 'INSERT')
      or has_table_privilege('authenticated', 'qima_security_fixture.sessions', 'UPDATE')
@@ -33,7 +42,7 @@ begin
   end if;
 end $$;
 
--- Test RLS visibility as User A. SET LOCAL ROLE makes policies execute as authenticated.
+-- Test RLS visibility as User A.
 set local role authenticated;
 select set_config('request.jwt.claim.sub', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', true);
 select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","role":"authenticated"}', true);
