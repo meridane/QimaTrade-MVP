@@ -21,17 +21,25 @@ Référence : https://app.notion.com/p/3c6595ef63608182adb9f9345817ed86
 | TEST 10 | Shipment Creation & Workflow | https://app.notion.com/p/3c6595ef63608193a561fbc63f6f2806 | Preuve historique ; annulation, transitions invalides et droits à retester |
 | TEST 12 | Demand Qualification | https://app.notion.com/p/3c6595ef63608198a061f3e4f1090779 | Ancien MVP VALIDÉ ; rejouer sauvegarde, reload, ownership et édition |
 | TEST 13 | Explainable Match | https://app.notion.com/p/3c6595ef636081c0a172ed67c0bf50b8 | Ancien MVP VALIDÉ ; rejouer score, explication, attributs et isolation |
+| TEST 14 | Controlled Conversation | https://app.notion.com/p/3c6595ef6360813ab377cbcb7c19b878 | Fiche conversation retrouvée ; rejouer participants, persistance, ordre et isolation |
 | TEST 15 | MVP End-to-End | https://app.notion.com/p/3c6595ef636081e2a003c46133bf050c | Ancien MVP VALIDÉ ; parcours complet à rejouer sur le SHA courant |
 | TEST 17 | Unauthorized Write Protection | https://app.notion.com/p/3c6595ef6360818f95a1ccded1e4f660 | PASS historique sur un scénario de non-participant ; pas une preuve RLS actuelle |
 | TEST 18 | Double Submission / Idempotence | https://app.notion.com/p/3c6595ef636081539b22f030fcc8127e | PASS historique côté UI ; serveur et retries à retester |
 | TEST 19 | Quantity invalide | https://app.notion.com/p/3c6595ef636081a69926f4dad7388b5c | Cas de validation négative à rejouer |
+| TEST 20 | Quantity extrêmement grande | https://app.notion.com/p/3c6595ef6360815dbb80ffd02c1d4536 | Limites numériques et overflow à rejouer |
+| TEST 21 | Quantité décimale et minimale | https://app.notion.com/p/3c6595ef6360811691dbe1844eb56fd0 | Précision et seuil minimal à rejouer |
 | TEST 27 | Important Requirements optionnels | https://app.notion.com/p/3c6595ef636081c9b123cee4e3947920 | Cas de champs optionnels à rejouer |
 | TEST 28 | Qualification Persistence & Link Integrity | https://app.notion.com/p/3c6595ef6360811da2aff06ac1df1841 | Explicitement à exécuter avant V1 |
 | TEST 29 | Demand Workflow Reload / No Data Loss | https://app.notion.com/p/3c6595ef636081a6bf27f5abfd76bbaa | Explicitement à exécuter avant V1 |
 | TEST 30 | Partial Update Must Not Erase Data | https://app.notion.com/p/3c6595ef6360811293fbd2ad532e107f | Explicitement à exécuter avant V1 |
+| TEST 31 | Supplier Offer: Dual Entry Model | https://app.notion.com/p/3c6595ef63608139bcc4c83227d9025f | Décision d'architecture ; comportement runtime à prouver |
+| TEST 32 | Supplier Offer Reservation & Inventory Independence | https://app.notion.com/p/3c6595ef636081969914df0a31238a1b | Décision d'architecture ; réservation/inventaire à tester |
+| TEST 33 | Offer as Supply Capability | https://app.notion.com/p/3c6595ef636081448480d34cc02a33de | Décision d'architecture ; modèle offre à tester |
 | TEST 34 | Category Engine: Qima 0 Decision-First Architecture | https://app.notion.com/p/3c6595ef636081e0955bd64c14ba4bec | Décision d'architecture marquée VALIDÉE, pas une preuve runtime |
+| TEST 35 | Qima Trade Domains: 7-Domain Taxonomy | https://app.notion.com/p/3c6595ef6360815dbb03c83ee372dc90 | Taxonomie approuvée ; données/relations runtime à vérifier |
 | TEST 36 | Metals & Raw Materials: Dimension-Based Product Model | https://app.notion.com/p/3c6595ef636081018243e976c981ed8c | Architecture/validation de modèle ; exécution runtime à prouver |
 | TEST 37 | Qima Trade Domains: Full Domain Validation | https://app.notion.com/p/3c6595ef63608188970dfccab0109420 | Architecture/taxonomie ; rejouer les données et contraintes |
+| TEST 38 | Qima Trade Taxonomy: Full Category & Subcategory Framework | https://app.notion.com/p/3c6595ef6360818fae14ff1de6ac2834 | Architecture taxonomique ; parcours et intégrité à tester |
 | TEST 39 | Qima Object Type Architecture | https://app.notion.com/p/3c6595ef636081169db8fff76158a19e | Architecture ; ne pas compter comme test runtime sans preuve |
 | TEST 41 | Human-Friendly Visual Decision Navigation | https://app.notion.com/p/3c6595ef636081e3b2b6e91c03ad0126 | Décision UX ; navigation réelle à tester |
 | TEST 42 | Industry & Infrastructure Product Master Framework | https://app.notion.com/p/3c6595ef6360815d9428eec6a0568cfc | Framework ; mapping et données à tester |
@@ -44,8 +52,8 @@ Référence : https://app.notion.com/p/3c6595ef63608182adb9f9345817ed86
 
 ## 2. Lacunes d'inventaire — ne pas supposer qu'elles n'existent pas
 
-- TEST 11 et TEST 14 n'ont pas été identifiés avec certitude lors des recherches effectuées. Cela ne prouve pas leur absence de Notion ; il faut poursuivre la recherche. En particulier, le Blueprint décrit les exigences Conversation, mais la fiche de test conversation autonome reste à retrouver ou à créer.
-- Les tests 16, 20–26 et 31–33, 35, 38, 40 ne sont pas encore tous résolus par cette recherche ciblée. La liste ci-dessus est un inventaire partiel, pas le catalogue complet.
+- TEST 14 a maintenant été retrouvé : « Controlled Conversation ». TEST 11 n'a pas encore été identifié avec certitude ; cela ne prouve pas son absence de Notion. Il faut lire la fiche TEST 14 et vérifier si le contenu couvre tous les invariants Conversation V1.
+- Les tests 20, 21, 31–33, 35 et 38 ont été retrouvés et ajoutés à la table. Les tests 16, 22–26 et 40 ne sont pas encore résolus par cette recherche ciblée. La liste ci-dessus reste un inventaire partiel, pas le catalogue complet.
 - La recherche Notion a aussi retourné l'index « QimaTrade — MVP TESTS », le registre « QimaTrade — MVP Engineering Test Registry » et l'« Audit 07 — Tous les MVP tests QimaTrade — 25 août 2026 ». Ces sources doivent être parcourues intégralement pour ne laisser aucune fiche de côté.
 
 ## 3. Conclusions provenant de l'Audit 07 Notion
