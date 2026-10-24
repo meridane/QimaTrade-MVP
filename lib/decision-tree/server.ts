@@ -18,9 +18,21 @@ export async function getCurrentUser() {
 
 export async function getTenantForUser(userId: string) {
   const supabase = await getClient();
-  const { data, error } = await supabase.from("dt_memberships").select("tenant_id, role").eq("user_id", userId).limit(1).maybeSingle();
+  const { data, error } = await supabase
+    .from("dt_memberships")
+    .select("tenant_id, role")
+    .eq("user_id", userId);
+
   if (error) throw error;
-  return data as { tenant_id: string; role: string } | null;
+
+  const memberships = (data ?? []) as Array<{ tenant_id: string; role: string }>;
+  if (memberships.length === 0) return null;
+  if (memberships.length > 1) {
+    // Fail closed until an explicit, verified tenant-selection flow exists.
+    throw new Error("TENANT_SELECTION_REQUIRED");
+  }
+
+  return memberships[0];
 }
 
 export async function loadPublishedTree(treeKey = "product-classification", context?: DecisionContext) {

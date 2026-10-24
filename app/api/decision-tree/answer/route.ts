@@ -6,6 +6,34 @@ function badRequest(message: string) {
   return NextResponse.json({ error: message }, { status: 400 });
 }
 
+function mapPublicError(error: unknown): { code: string; status: number } {
+  const message = error instanceof Error ? error.message : "";
+
+  switch (message) {
+    case "UNAUTHENTICATED":
+      return { code: "UNAUTHENTICATED", status: 401 };
+    case "TENANT_MEMBERSHIP_REQUIRED":
+      return { code: "TENANT_MEMBERSHIP_REQUIRED", status: 403 };
+    case "SESSION_NOT_FOUND":
+      return { code: "SESSION_NOT_FOUND", status: 404 };
+    case "CONCURRENCY_CONFLICT":
+      return { code: "CONCURRENCY_CONFLICT", status: 409 };
+    case "CURRENT_NODE_CONFLICT":
+      return { code: "CURRENT_NODE_CONFLICT", status: 409 };
+    case "SESSION_NOT_ACTIVE":
+      return { code: "SESSION_NOT_ACTIVE", status: 409 };
+    case "NO_VALID_TRANSITION":
+    case "INVALID_FIELD":
+    case "INVALID_VALUE":
+    case "NODE_VERSION_MISMATCH":
+    case "TARGET_NODE_VERSION_MISMATCH":
+    case "TREE_TENANT_MISMATCH":
+      return { code: "INVALID_ANSWER_TRANSITION", status: 400 };
+    default:
+      return { code: "INTERNAL_ERROR", status: 500 };
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -17,12 +45,11 @@ export async function POST(request: NextRequest) {
     const clientCommandId = typeof body.clientCommandId === "string" ? body.clientCommandId : "";
 
     if (!sessionId || !nodeId || !field || !value || expectedRevision < 0 || !clientCommandId) {
-      return badRequest("Invalid answer command");
+      return badRequest("INVALID_ANSWER_COMMAND");
     }
 
-    // IMPORTANT: resolve the exact tree/version from the session. The previous
-    // implementation always loaded product-classification, which made the
-    // second tree unable to resolve its next node.
+    // Resolve the exact tree/version from the session; never silently fall back
+    // to another tree when processing an answer.
     const session = await loadSession(sessionId);
     const { tree } = await loadTreeForSession(sessionId);
 
@@ -50,13 +77,8 @@ export async function POST(request: NextRequest) {
       productMasters,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unable to submit answer";
-    const status = message === "UNAUTHENTICATED" ? 401
-      : message === "TENANT_MEMBERSHIP_REQUIRED" ? 403
-      : message === "CONCURRENCY_CONFLICT" ? 409
-      : message === "CURRENT_NODE_CONFLICT" ? 409
-      : message === "NO_VALID_TRANSITION" ? 400
-      : 500;
-    return NextResponse.json({ error: message }, { status });
+    const mapped = mapPublicError(error);
+    // Do not expose raw database/implementation exception messages to clients.
+    return NextResponse.json({ error: mapped.code }, { status: mapped.status });
   }
 }

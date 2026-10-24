@@ -12,8 +12,15 @@ export async function POST() {
     const session = await createDecisionSession(treeVersionId, tree.entryNodeId, { userId: user.id, tenantId: membership.tenant_id });
     return NextResponse.json({ tree, session });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unable to create decision session";
-    const status = message === "UNAUTHENTICATED" ? 401 : message === "TENANT_MEMBERSHIP_REQUIRED" ? 403 : 500;
-    return NextResponse.json({ error: message }, { status });
+    const message = error instanceof Error ? error.message : "";
+    const status = message === "UNAUTHENTICATED" ? 401
+      : message === "TENANT_MEMBERSHIP_REQUIRED" ? 403
+      : message === "TENANT_SELECTION_REQUIRED" ? 409
+      : 500;
+    const code = status === 401 ? "UNAUTHENTICATED"
+      : status === 403 ? "TENANT_MEMBERSHIP_REQUIRED"
+      : status === 409 ? "TENANT_SELECTION_REQUIRED"
+      : "INTERNAL_ERROR";
+    return NextResponse.json({ error: code }, { status });
   }
 }
