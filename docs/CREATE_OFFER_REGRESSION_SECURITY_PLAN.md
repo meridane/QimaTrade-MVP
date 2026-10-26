@@ -94,3 +94,22 @@ Decision taken: serialize CREATE_OFFER attempts using a transaction-scoped Postg
 - Remaining verification: confirm advisory-lock behavior with concurrent integration tests in a disposable database, and inspect the actual unique constraint scope on `idempotency_keys`.
 - This does not resolve demand-to-tenant authorization, optional draft offer compatibility, or direct inserts in `app/api/offers/route.ts`.
 - Security Gate remains NOT PASS until runtime tests pass.
+
+
+## Live schema verification — 2026-10-27 (read-only)
+
+The following facts were confirmed by read-only queries against the configured Supabase project. No SQL writes or migrations were executed.
+
+- `idempotency_keys_tenant_key_uidx` is a unique index on `(tenant_id, key)`. The advisory lock's tenant/key scope therefore matches the current uniqueness scope.
+- `action_executions.status` permits `PENDING`, `RUNNING`, `COMPLETED`, `FAILED`, `BLOCKED`; `idempotency_keys.status` permits `IN_PROGRESS`, `COMPLETED`, `FAILED`. The migration's inserted/intermediate values align with these checks.
+- `profiles.auth_user_id` has a unique constraint/index. The prior concern that a single auth user could have multiple profile rows is not supported by the live schema. Keep the check for missing `actor_id`, but don't treat `LIMIT 1` by itself as evidence of duplicate profiles.
+- `dt_memberships` is keyed by `(tenant_id, user_id)`; a user can still belong to more than one tenant. The app-level ambiguity guard remains necessary until an explicit active-tenant context exists.
+- `demands` has no `tenant_id`. The linked `product_requests` table does have `tenant_id` and `user_id`, but the demand bridge stores only `requester_actor_id` and scope on the demand.
+- The live `is_demand_participant(uuid)` helper considers the demand requester and users who already have a match-linked offer. It does not establish general marketplace visibility for a new provider. Therefore, simply requiring `is_demand_participant(p_demand_id)` would block a new supplier's first offer; comparing the demand's tenant to the supplier tenant would also be the wrong rule for a cross-tenant marketplace.
+- Existing RLS policies for `demands` expose a demand to its requester or a participant. The create-offer SQL's existence-only check is not enough to prove that a provider is allowed to respond to a demand. A canonical published/visible-to-suppliers rule must be designed before tightening the SQL guard.
+
+### Updated decision
+
+Do not invent a demand ownership check from `tenant_id` (which does not exist on `demands`) and do not reuse `is_demand_participant` as a first-offer authorization check. The next implementation should first define a narrow, auditable predicate for a supplier's right to respond to a demand, then test requester, unrelated supplier, already-matched supplier, and cross-tenant supplier cases in an isolated database.
+
+The offer form compatibility decision remains: draft offers may currently omit demand, Product Master, and price. The current universal SQL action requires all three (and an active Product Master), so route unification must wait until the action contract deliberately supports drafts or the product flow is deliberately changed. No production mutation was performed. Security Gate remains NOT PASS.
