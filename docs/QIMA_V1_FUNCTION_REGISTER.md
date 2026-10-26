@@ -265,3 +265,15 @@ Au moment de l'audit, les 31 tables suivantes ont RLS activé mais aucune policy
 - **Limite :** le projet ne possède pas encore ici de sélecteur de tenant confirmé ; les comptes multi-tenant sont donc bloqués sur ces chemins jusqu'à l'implémentation d'un contexte de tenant explicite. C'est volontairement plus sûr qu'une sélection arbitraire, mais cela doit être intégré à l'UX.
 - **Validation :** vérification statique des deux fichiers distants après écriture. Aucun test TypeScript, build ou Playwright local n'a été exécuté par cette session. Les workflows GitHub doivent être consultés pour la validation automatisée.
 - **Non résolu :** `app/api/offers/route.ts` continue à écrire directement dans `offers`; l'unification avec le Universal Action Runtime reste une tâche distincte. Le contrôle SQL du lien demande/tenant et les tests d'idempotence/concurrence restent requis.
+
+
+## 19. Audit complémentaire — compatibilité du parcours de création d'offre — 27 octobre 2026
+
+- **Fichier examiné :** `app/api/offers/route.ts`.
+- **Constat confirmé :** cette route multipart écrit directement dans `offers` sans passer par le Universal Action Runtime, donc sans sa clé d'idempotence, son suivi `action_executions` ni son événement `ACTION_SUCCEEDED`.
+- **Contrat actuel de ce formulaire :** demande facultative, Product Master facultatif, prix facultatif (prix/devise peuvent être nuls pour un brouillon).
+- **Contrat SQL de la migration PR #26 :** la fonction refuse un prix nul et exige une demande ainsi qu'un Product Master actif. Un remplacement direct casserait donc des cas que la route actuelle accepte.
+- **Autorisation tenant-demande :** le pont `product_requests → demands` examiné crée les demandes avec `requester_actor_id` et un champ `scope` JSON, sans établir de `tenant_id` sur la demande. Il ne faut pas inventer la relation d'autorisation.
+- **Décision sûre :** ne pas modifier le SQL de garde et ne pas unifier la route avant validation de la règle métier sur les brouillons, l'obligation d'une demande/Product Master et le propriétaire autorisé d'une demande.
+- **Prochaine étape :** formaliser ce contrat, puis écrire des tests PostgreSQL isolés couvrant statuts, idempotence, concurrence, et accès cross-tenant. Aucun test SQL runtime n'a été exécuté dans cette session.
+- **État sécurité : NOT PASS.** Aucun déploiement, aucune migration de production et aucune création d'offre en production.
