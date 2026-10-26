@@ -289,3 +289,16 @@ Au moment de l'audit, les 31 tables suivantes ont RLS activé mais aucune policy
 - **Tests requis :** appels concurrents dans une base jetable, vérification de la portée de l'unicité réelle, absence de doublons et résultat stable lors d'un retry.
 - **Toujours bloquant :** règle métier explicite pour la propriété/autorisation d'une demande, compatibilité des offres brouillon sans prix/demande/Product Master, migration de la route `app/api/offers/route.ts` vers le moteur universel.
 - **Security Gate : NOT PASS** jusqu'à réussite des tests réels.
+
+
+## 21. Vérification en lecture seule du schéma Supabase — 27 octobre 2026
+
+- **Aucune écriture exécutée :** vérification limitée à des requêtes SELECT sur le schéma et les fonctions existantes.
+- **Idempotence :** l'index unique réel `idempotency_keys_tenant_key_uidx` porte sur `(tenant_id, key)`. La portée du verrou consultatif ajoutée à la PR correspond à cette portée.
+- **Contrats de statut :** `action_executions.status` autorise `PENDING/RUNNING/COMPLETED/FAILED/BLOCKED`; `idempotency_keys.status` autorise `IN_PROGRESS/COMPLETED/FAILED`. Les valeurs intermédiaires proposées sont compatibles avec ces CHECK constraints.
+- **Profil/acteur :** `profiles.auth_user_id` est unique dans le schéma réel. Le risque de plusieurs lignes de profil pour un même utilisateur n'est donc pas confirmé ; garder le rejet si aucun acteur n'est lié, mais ne pas qualifier `LIMIT 1` de choix arbitraire sans autre preuve.
+- **Tenant :** la clé primaire de `dt_memberships` est `(tenant_id, user_id)`, mais un utilisateur peut avoir plusieurs memberships. Le garde-fou applicatif qui refuse un tenant ambigu reste justifié tant qu'un tenant actif explicite n'est pas disponible.
+- **Accès à une demande :** `demands` ne possède pas de colonne `tenant_id`. `product_requests` possède `tenant_id` et `user_id`, mais le pont crée la demande avec `requester_actor_id` et le scope. La fonction SQL `is_demand_participant` ne couvre que le demandeur et les personnes déjà reliées par une offre/match ; elle ne suffit pas pour autoriser la première offre d'un fournisseur.
+- **Règle métier à concevoir :** il faut une règle explicite et testable de visibilité d'une demande auprès des fournisseurs. Ne pas imposer que le tenant fournisseur égale le tenant demandeur (ce qui bloquerait le marketplace inter-tenant) et ne pas utiliser la seule existence de la demande comme preuve d'autorisation.
+- **Toujours bloquant :** compatibilité des brouillons sans demande/Product Master/prix et migration de `app/api/offers/route.ts` vers le moteur universel. Le contrat SQL actuel exige une demande, un Product Master actif et un prix.
+- **État sécurité : NOT PASS.** Aucune migration appliquée, aucune offre créée, aucun déploiement ni fusion. Tests PostgreSQL isolés toujours requis.
