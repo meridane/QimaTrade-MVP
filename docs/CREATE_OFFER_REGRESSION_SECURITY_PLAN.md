@@ -82,3 +82,15 @@ Run only against a disposable local PostgreSQL/Supabase environment with the exa
 
 ### Security decision
 Do not alter the SQL tenant guard or replace the legacy offer route until the business ownership contract is explicit. This is a real design dependency, not a CI failure. Security Gate remains NOT PASS; no production database or offers were touched.
+
+
+## Implementation decision — idempotency first-insert race (2026-10-27)
+
+Decision taken: serialize CREATE_OFFER attempts using a transaction-scoped PostgreSQL advisory lock keyed by tenant ID plus idempotency key, before looking up the idempotency row. This addresses the specific gap where `SELECT ... FOR UPDATE` cannot lock a not-yet-existing row.
+
+- Code: `supabase/migrations/20261027090000_fix_create_offer_action_status_contract.sql`.
+- Intended behavior: requests using the same tenant/key are processed sequentially; an identical retry sees the completed result, while a changed payload is rejected by the request-hash check.
+- Scope: this is a proposed migration change on the PR branch only. It has not been run against PostgreSQL or production.
+- Remaining verification: confirm advisory-lock behavior with concurrent integration tests in a disposable database, and inspect the actual unique constraint scope on `idempotency_keys`.
+- This does not resolve demand-to-tenant authorization, optional draft offer compatibility, or direct inserts in `app/api/offers/route.ts`.
+- Security Gate remains NOT PASS until runtime tests pass.
