@@ -33,18 +33,16 @@ export async function POST() {
 
     return NextResponse.json({ tree, session });
   } catch (error) {
-    const message =
-      error instanceof Error
-        ? error.message
-        : "Unable to create service provider decision session";
+    const message = error instanceof Error ? error.message : "";
+    const status = message === "UNAUTHENTICATED" ? 401
+      : message === "TENANT_MEMBERSHIP_REQUIRED" ? 403
+      : message === "TENANT_SELECTION_REQUIRED" ? 409
+      : 500;
+    const code = status === 401 ? "UNAUTHENTICATED"
+      : status === 403 ? "TENANT_MEMBERSHIP_REQUIRED"
+      : status === 409 ? "TENANT_SELECTION_REQUIRED"
+      : "INTERNAL_ERROR";
 
-    const status =
-      message === "UNAUTHENTICATED"
-        ? 401
-        : message === "TENANT_MEMBERSHIP_REQUIRED"
-          ? 403
-          : 500;
-
-    return NextResponse.json({ error: message }, { status });
+    return NextResponse.json({ error: code }, { status });
   }
 }
