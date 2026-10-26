@@ -100,6 +100,12 @@ BEGIN
     'pricingModel', p_pricing_model
   )::text);
 
+  -- Serialize all attempts for the same tenant/key, including the first insert.
+  -- SELECT ... FOR UPDATE alone cannot lock a row that does not exist yet.
+  PERFORM pg_advisory_xact_lock(
+    hashtextextended(p_tenant_id::text || ':' || p_idempotency_key, 0)
+  );
+
   SELECT * INTO v_existing
   FROM public.idempotency_keys
   WHERE tenant_id = p_tenant_id AND key = p_idempotency_key
