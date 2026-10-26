@@ -26,8 +26,24 @@ export async function POST(request: Request) {
     const { data: profile, error: profileError } = await supabase.from("profiles").select("actor_id").eq("auth_user_id", user.id).maybeSingle();
     if (profileError || !profile?.actor_id) return NextResponse.json({ error: "PROFILE_ACTOR_NOT_FOUND" }, { status: 403 });
 
-    const { data: membership, error: membershipError } = await supabase.from("dt_memberships").select("tenant_id").eq("user_id", user.id).limit(1).maybeSingle();
-    if (membershipError || !membership?.tenant_id) return NextResponse.json({ error: "TENANT_MEMBERSHIP_REQUIRED" }, { status: 403 });
+    const { data: memberships, error: membershipError } = await supabase
+      .from("dt_memberships")
+      .select("tenant_id")
+      .eq("user_id", user.id);
+
+    if (membershipError || !memberships?.length) {
+      return NextResponse.json({ error: "TENANT_MEMBERSHIP_REQUIRED" }, { status: 403 });
+    }
+
+    // Never pick a tenant arbitrarily for users with multiple memberships.
+    const tenantIds = [...new Set(memberships.map((membership) => membership.tenant_id).filter(Boolean))];
+    if (tenantIds.length !== 1) {
+      return NextResponse.json(
+        { error: "TENANT_SELECTION_REQUIRED", message: "Select an active tenant before creating an offer." },
+        { status: 409 },
+      );
+    }
+    const tenantId = tenantIds[0];
 
     const input = {
       name: String(body.name ?? "Offer"),
@@ -49,7 +65,7 @@ export async function POST(request: Request) {
 
     const result = await executeUniversalAction({
       userId: user.id,
-      tenantId: membership.tenant_id,
+      tenantId,
       actionKey: "CREATE_OFFER",
       actionVersion: 1,
       objectType: "Demand",
