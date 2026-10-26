@@ -22,9 +22,28 @@ async function getCurrentProfile() {
   if (authError || !user) return { supabase, user: null, profile: null, tenantId: null, error: "You must be signed in." };
   const { data: profile, error: profileError } = await supabase.from("profiles").select("actor_id").eq("auth_user_id", user.id).single();
   if (profileError || !profile?.actor_id) return { supabase, user, profile: null, tenantId: null, error: "Your account is not linked to a QimaTrade actor yet." };
-  const { data: membership, error: membershipError } = await supabase.from("dt_memberships").select("tenant_id").eq("user_id", user.id).limit(1).maybeSingle();
-  if (membershipError || !membership?.tenant_id) return { supabase, user, profile, tenantId: null, error: "Your account is not linked to a QimaTrade tenant yet." };
-  return { supabase, user, profile, tenantId: membership.tenant_id as string, error: null };
+  const { data: memberships, error: membershipError } = await supabase
+    .from("dt_memberships")
+    .select("tenant_id")
+    .eq("user_id", user.id);
+
+  if (membershipError || !memberships?.length) {
+    return { supabase, user, profile, tenantId: null, error: "Your account is not linked to a QimaTrade tenant yet." };
+  }
+
+  // Do not silently select an arbitrary tenant when an account has multiple memberships.
+  const tenantIds = [...new Set(memberships.map((membership) => membership.tenant_id).filter(Boolean))];
+  if (tenantIds.length !== 1) {
+    return {
+      supabase,
+      user,
+      profile,
+      tenantId: null,
+      error: "Your account belongs to multiple QimaTrade tenants. Select an active tenant before creating an offer.",
+    };
+  }
+
+  return { supabase, user, profile, tenantId: tenantIds[0], error: null };
 }
 
 export async function getOfferContext(demandId: string): Promise<{ ok: true; data: OfferContext } | { ok: false; error: string }> {
