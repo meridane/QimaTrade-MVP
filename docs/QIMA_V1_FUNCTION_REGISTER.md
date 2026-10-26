@@ -302,3 +302,14 @@ Au moment de l'audit, les 31 tables suivantes ont RLS activé mais aucune policy
 - **Règle métier à concevoir :** il faut une règle explicite et testable de visibilité d'une demande auprès des fournisseurs. Ne pas imposer que le tenant fournisseur égale le tenant demandeur (ce qui bloquerait le marketplace inter-tenant) et ne pas utiliser la seule existence de la demande comme preuve d'autorisation.
 - **Toujours bloquant :** compatibilité des brouillons sans demande/Product Master/prix et migration de `app/api/offers/route.ts` vers le moteur universel. Le contrat SQL actuel exige une demande, un Product Master actif et un prix.
 - **État sécurité : NOT PASS.** Aucune migration appliquée, aucune offre créée, aucun déploiement ni fusion. Tests PostgreSQL isolés toujours requis.
+
+
+## 22. Contrôle d'accès RPC — fonction basse couche CREATE_OFFER — 27 octobre 2026
+
+- **Constat live (lecture seule) :** les rôles `authenticated` et `postgres` disposent de `EXECUTE` sur `create_offer_v1(...)` et `execute_create_offer_v1(...)`.
+- **Risque :** `create_offer_v1` écrit directement dans `offers`, sans journal `action_executions`, sans clé d'idempotence et sans événement `ACTION_SUCCEEDED`. Un appel RPC direct peut contourner le chemin universel.
+- **Correction proposée sur la branche :** migration additive `supabase/migrations/20261027100000_restrict_direct_create_offer_rpc.sql`, qui retire l'accès `PUBLIC` et `authenticated` à la fonction basse couche et conserve explicitement l'accès authentifié à `execute_create_offer_v1`.
+- **Non appliquée :** aucune migration n'a été exécutée sur Supabase. La fonction basse couche doit rester appelable par la fonction enveloppe `SECURITY DEFINER` via son propriétaire.
+- **Tests avant application :** refus de l'appel direct authentifié ; réussite du chemin universel ; retry avec la même clé sans doublon ; rollback des lignes d'exécution/idempotence si la création échoue.
+- **Limite :** `app/api/offers/route.ts` insère directement dans `offers` sous RLS et n'appelle pas cette RPC. La migration ne l'unifie pas encore avec le runtime.
+- **État sécurité : NOT PASS** jusqu'à exécution des tests d'intégration sur une base jetable.
