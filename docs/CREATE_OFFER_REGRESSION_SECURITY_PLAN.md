@@ -63,3 +63,22 @@ Run only against a disposable local PostgreSQL/Supabase environment with the exa
 - Documentation update commit 1a157198db4c4e67275150c1b1073b771f51bda4 triggered new runs: QIMA CI 40359312354 was pending and CodeQL 40359312595 was in progress at the latest read.
 - Successful CI/CodeQL do not prove execute_create_offer_v1 was executed against PostgreSQL.
 - No production migration was applied and no production offer was created during this review.
+
+
+## Follow-up audit — route contract compatibility (2026-10-27)
+
+### Confirmed from current code
+- `app/api/offers/route.ts` is a separate multipart/form-data path. It accepts a missing demand ID, missing Product Master ID, and an optional price; when price is omitted it writes a null price/currency and still creates an offer.
+- The route inserts directly into `public.offers`, so it bypasses the Universal Action Runtime, idempotency keys, action execution status transitions, and `ACTION_SUCCEEDED` event creation.
+- `app/api/actions/create-offer/route.ts` instead requires the Universal Action Runtime input contract, including a demand and Product Master ID, and normalizes price to a number. It is not a drop-in replacement for the multipart route without a deliberate product/business decision.
+- The inspected migration's `execute_create_offer_v1` rejects a null price and requires a demand and active Product Master. Therefore, simply replacing the direct insert with the action call would change existing accepted form behavior and could break valid draft offers.
+- The available demand-creation migration builds `demands` with `requester_actor_id` and JSON scope; it does not add a `tenant_id` to demands. A demand-to-tenant authorization check cannot safely be guessed from the current evidence.
+
+### Safe next implementation step
+1. Define whether every offer must be attached to a demand and an active Product Master, and whether draft offers may have no price.
+2. Define the canonical relationship from tenant membership/actor to a demand (for example, ownership by requester actor, if that is the approved business rule).
+3. Add isolated PostgreSQL integration tests against a disposable schema with the real function dependencies.
+4. Only then design a compatibility-preserving migration of `app/api/offers/route.ts` to the Universal Action Runtime. Preserve multipart parsing, validation error codes, and the 303 redirect if the product contract requires them.
+
+### Security decision
+Do not alter the SQL tenant guard or replace the legacy offer route until the business ownership contract is explicit. This is a real design dependency, not a CI failure. Security Gate remains NOT PASS; no production database or offers were touched.
