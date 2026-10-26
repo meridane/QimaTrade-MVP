@@ -205,3 +205,39 @@ The GitHub recursive tree was read from main at commit `0d35c13db81019867fe99294
 
 ### Immediate implication
 The coding agent must not start by implementing a new feature. First create a complete traceability matrix across these 23 pages, 11 APIs, 12 server-action files, 14 engine modules, the 15 migration files, all database objects and the existing test ledger. Review the code in each route/action to split it into individual business functions and acceptance criteria. File counts are an inventory aid, not a count of complete features.
+
+
+## 13. First code-level architecture trace — read-only (2026-10-26)
+
+Files reviewed on `main`:
+- `lib/actions/runtime.ts`, `lib/actions/engine.ts`, `lib/actions/types.ts`, `lib/actions/create-offer.ts`
+- `lib/decision-tree/engine.ts`, `evaluator.ts`, `server.ts`, `types.ts`
+- `app/api/actions/create-offer/route.ts`, `app/api/decision-tree/answer/route.ts`, `app/api/product-requests/publish/route.ts`, `app/demands/actions.ts`
+
+### Confirmed from code inspection
+- The Action runtime dispatches by `actionKey`, reads `action_key/version/status` through RPC `get_action_definition_v1`, and currently contains two handlers: `CREATE_OFFER` and `PUBLISH_PRODUCT_REQUEST`.
+- The Action engine checks that a definition exists and is `published`, then calls the handler. The inspected engine itself does not load/validate canonical Action Parameters, resolve Attributes, invoke a Decision Tree, or write execution/event records.
+- `ActionContext` includes userId, tenantId, action key/version, object type/id, correlationId and idempotencyKey. `ActionResult` includes executionId/status/objectId/result.
+- The universal DT code has both a small category/subcategory evaluator and a broader rule evaluator with operators `equals`, `not_equals`, `contains`, `in`, `not_in`, `gt`, `gte`, `lt`, `lte`, `exists`. The presence of both code paths requires an explicit contract: which engine is canonical for each use case, and how rules/unknown values are handled.
+- The DT server loads a published tree version for a tenant, loads nodes/rules, creates sessions, loads session observations, submits answers through `dt_submit_answer`, and selects a Product Master through `dt_select_product_master`.
+- The answer API validates basic input, checks session revision/current node, then submits the answer via RPC. The code comment notes that the exact tree/version must be loaded from the session.
+- Product Request publication is routed through `executeUniversalAction` and the `PUBLISH_PRODUCT_REQUEST` handler, which calls `dt_publish_product_request`.
+
+### Potential gaps to verify (not yet reproduced as bugs)
+1. **Runtime scope:** no Action Parameters/Attributes/DT orchestration or execution/event persistence is visible in the inspected `executeAction` implementation. The target universal runtime is therefore NOT demonstrated by these files.
+2. **Tenant selection:** routes obtain the first `dt_memberships` row with `limit(1)` and no explicit ordering or tenant selection. If a user can belong to multiple tenants, the chosen tenant may be ambiguous. Verify product requirements and schema before changing behavior.
+3. **Offer authorization:** the route derives provider actor from the authenticated profile, but tenant membership and Demand ownership/response authorization must be proven end-to-end in the RPC and data model.
+4. **Idempotency:** route handlers generate a random UUID when a key is omitted. This makes repeated client submissions distinct unless the caller supplies a stable key. Confirm intended API contract and retry behavior.
+5. **Error contract:** observed routes map errors differently (some known codes to HTTP statuses, others broadly to 400/500). Define stable error-to-status mappings and avoid exposing internal database messages.
+6. **Decision Tree type drift:** some TS types describe `DecisionTree.version` as string while DB rows use numeric version in the server type; clarify canonical version identifiers (human version vs UUID tree_version_id) before broad integration.
+7. **Attribute wiring:** the inspected Action runtime does not consume Attribute definitions or `action_attributes`; the prior audit also reported that `action_attributes` had zero rows. Trace whether a different path exists before treating this as a definitive absence.
+8. **Execution/event tracking:** the type `ActionExecution` exists, but the inspected runtime returns the handler result directly and does not visibly persist an execution or emit an event. Confirm whether persistence is handled elsewhere; otherwise this is a missing vertical-slice requirement.
+
+### Required next code audit
+- Trace database functions `get_action_definition_v1`, `execute_create_offer_v1`, `dt_publish_product_request`, `dt_submit_answer`, `dt_select_product_master` to the canonical B4 contract.
+- Inspect all 12 server-action files and every API route for authorization, tenant selection, validation, idempotency and stable errors.
+- Inspect the complete UI paths for Demand, Offer, DT, Product Request and Service Provider.
+- Map each of the above findings to the canonical Notion contract and an acceptance test.
+- Do not change production or refactor the runtime until the contracts and test boundary are understood.
+
+**Status:** static code review only. No code changes to runtime were made; no runtime tests were executed in this audit. These are architectural observations and hypotheses requiring contract/test confirmation.
