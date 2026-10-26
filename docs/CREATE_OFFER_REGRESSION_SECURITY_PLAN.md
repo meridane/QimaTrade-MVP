@@ -113,3 +113,20 @@ The following facts were confirmed by read-only queries against the configured S
 Do not invent a demand ownership check from `tenant_id` (which does not exist on `demands`) and do not reuse `is_demand_participant` as a first-offer authorization check. The next implementation should first define a narrow, auditable predicate for a supplier's right to respond to a demand, then test requester, unrelated supplier, already-matched supplier, and cross-tenant supplier cases in an isolated database.
 
 The offer form compatibility decision remains: draft offers may currently omit demand, Product Master, and price. The current universal SQL action requires all three (and an active Product Master), so route unification must wait until the action contract deliberately supports drafts or the product flow is deliberately changed. No production mutation was performed. Security Gate remains NOT PASS.
+
+
+## Additional security finding — direct RPC bypass (2026-10-27)
+
+Read-only inspection of live PostgreSQL routine grants found that both `create_offer_v1(...)` and `execute_create_offer_v1(...)` are executable by the `authenticated` role. The first function inserts into `offers` directly and does not itself write an `action_executions` row, idempotency record, or `ACTION_SUCCEEDED` event. This means an authenticated client that can call the RPC directly could bypass the Universal Action Runtime's audit/idempotency path.
+
+### Branch-only mitigation proposed
+
+Added `supabase/migrations/20261027100000_restrict_direct_create_offer_rpc.sql` to revoke `PUBLIC` and `authenticated` execution on the low-level `create_offer_v1` function, while explicitly retaining authenticated execution on `execute_create_offer_v1`.
+
+- This is an additive migration file on the PR branch only.
+- It has **not** been applied to Supabase.
+- Before production application, verify the migration against a disposable database and confirm that `execute_create_offer_v1` can still call `create_offer_v1` under its SECURITY DEFINER owner.
+- Regression tests must prove authenticated direct RPC is denied, the supported runtime path still creates a single offer, same-key retries do not duplicate, and failure rolls back the execution/idempotency rows.
+- The legacy `app/api/offers/route.ts` writes directly to `offers` under RLS and is not calling the low-level RPC; this mitigation does not yet unify that route.
+
+Security Gate remains NOT PASS until these checks pass.
