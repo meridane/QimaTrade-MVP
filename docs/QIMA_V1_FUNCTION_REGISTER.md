@@ -255,3 +255,13 @@ Au moment de l'audit, les 31 tables suivantes ont RLS activé mais aucune policy
 - **Security Gate : NOT PASS.** Ne pas fusionner et ne pas appliquer en production avant exécution réelle des tests SQL/runtime, des tests négatifs multi-tenant et des tests concurrents dans un environnement isolé.
 - **Actions de sûreté réalisées pendant cette reprise :** aucune migration appliquée en production, aucune offre créée en production, aucune PR fusionnée.
 - **Dernière mise à jour documentaire :** voir `docs/CREATE_OFFER_REGRESSION_SECURITY_PLAN.md` pour les derniers résultats des workflows déclenchés par les commits de documentation. Vérifier les exécutions à nouveau avant toute décision.
+
+
+## 18. Correction tenant ambigu — 27 octobre 2026
+
+- **Code modifié :** `app/offers/actions.ts` et `app/api/actions/create-offer/route.ts`.
+- **Changement :** les deux chemins récupèrent les appartenances du compte et refusent maintenant de choisir arbitrairement un tenant si plusieurs tenants distincts sont présents.
+- **Réponse attendue :** l'action serveur renvoie une erreur explicite demandant de sélectionner un tenant ; l'API renvoie HTTP 409 avec `TENANT_SELECTION_REQUIRED`.
+- **Limite :** le projet ne possède pas encore ici de sélecteur de tenant confirmé ; les comptes multi-tenant sont donc bloqués sur ces chemins jusqu'à l'implémentation d'un contexte de tenant explicite. C'est volontairement plus sûr qu'une sélection arbitraire, mais cela doit être intégré à l'UX.
+- **Validation :** vérification statique des deux fichiers distants après écriture. Aucun test TypeScript, build ou Playwright local n'a été exécuté par cette session. Les workflows GitHub doivent être consultés pour la validation automatisée.
+- **Non résolu :** `app/api/offers/route.ts` continue à écrire directement dans `offers`; l'unification avec le Universal Action Runtime reste une tâche distincte. Le contrôle SQL du lien demande/tenant et les tests d'idempotence/concurrence restent requis.
