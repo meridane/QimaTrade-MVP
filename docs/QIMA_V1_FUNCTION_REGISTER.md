@@ -277,3 +277,15 @@ Au moment de l'audit, les 31 tables suivantes ont RLS activé mais aucune policy
 - **Décision sûre :** ne pas modifier le SQL de garde et ne pas unifier la route avant validation de la règle métier sur les brouillons, l'obligation d'une demande/Product Master et le propriétaire autorisé d'une demande.
 - **Prochaine étape :** formaliser ce contrat, puis écrire des tests PostgreSQL isolés couvrant statuts, idempotence, concurrence, et accès cross-tenant. Aucun test SQL runtime n'a été exécuté dans cette session.
 - **État sécurité : NOT PASS.** Aucun déploiement, aucune migration de production et aucune création d'offre en production.
+
+
+## 20. Correction de concurrence d'idempotence — 27 octobre 2026
+
+- **Décision prise :** sérialiser les appels `CREATE_OFFER` ayant le même tenant et la même clé d'idempotence avec un verrou transactionnel consultatif PostgreSQL, avant la lecture de `idempotency_keys`.
+- **Pourquoi :** `SELECT ... FOR UPDATE` ne verrouille aucune ligne si la clé n'existe pas encore. Deux premiers appels simultanés pouvaient donc franchir la lecture avant l'insertion.
+- **Fichier modifié :** `supabase/migrations/20261027090000_fix_create_offer_action_status_contract.sql`.
+- **Comportement attendu :** les appels avec même tenant/clé sont sérialisés ; la seconde requête peut relire le résultat terminé ou rejeter une réutilisation de clé avec paramètres différents.
+- **État :** modification proposée dans la branche de PR uniquement. Pas exécutée contre PostgreSQL et pas appliquée en production.
+- **Tests requis :** appels concurrents dans une base jetable, vérification de la portée de l'unicité réelle, absence de doublons et résultat stable lors d'un retry.
+- **Toujours bloquant :** règle métier explicite pour la propriété/autorisation d'une demande, compatibilité des offres brouillon sans prix/demande/Product Master, migration de la route `app/api/offers/route.ts` vers le moteur universel.
+- **Security Gate : NOT PASS** jusqu'à réussite des tests réels.
