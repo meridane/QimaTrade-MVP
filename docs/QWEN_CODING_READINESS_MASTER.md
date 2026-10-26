@@ -141,3 +141,67 @@ E. Only then allow a queue of bounded coding tasks with diff review and explicit
 
 **Current readiness: IN PROGRESS — NOT CERTIFIED COMPLETE.**
 **Next task:** recursively inventory all routes, API endpoints, server actions, engine modules, SQL functions/tables and tests; then cross-reference each with canonical Notion requirements.
+
+## 12. Recursive repository inventory — verified on main (2026-10-26)
+
+The GitHub recursive tree was read from main at commit `0d35c13db81019867fe9929420b0a6916285fbf6`. GitHub returned `truncated=false`, with 102 files in the tree.
+
+### File counts
+- TypeScript `.ts`: 45
+- React/TSX `.tsx`: 30
+- SQL migrations: 15
+- YAML workflows/config: 4
+- Markdown: 3
+- JSON: 2
+- CSS: 1
+- MJS: 1
+- gitignore: 1
+
+### UI pages found (23)
+- `app/page.tsx`, `app/login/page.tsx`
+- `app/decision-tree/page.tsx`, `app/decision-tree/service-provider/page.tsx`
+- `app/demands/page.tsx`, `app/demands/list/page.tsx`, `app/demands/qualification/page.tsx`, `app/demands/match/page.tsx`, `app/demands/conversation/page.tsx`
+- `app/offers/page.tsx`, `app/offers/new/page.tsx`, `app/offers/test/page.tsx`
+- `app/request/new/page.tsx`
+- `app/service-provider/page.tsx`, `app/service-provider/capabilities/page.tsx`
+- Test workspace: `app/projects/test/page.tsx`, `app/projects/test/[id]/page.tsx`, and child pages for documents, inspections, orders, payment-requests, payments and shipments.
+
+### API route handlers found (11)
+- `app/api/actions/create-offer/route.ts`
+- `app/api/decision-tree/answer/route.ts`
+- `app/api/decision-tree/products/route.ts`
+- `app/api/decision-tree/select-product/route.ts`
+- `app/api/decision-tree/service-provider/session/route.ts`
+- `app/api/decision-tree/session/route.ts`
+- `app/api/offers/route.ts`
+- `app/api/product-requests/publish/route.ts`
+- `app/api/product-requests/route.ts`
+- `app/api/service-provider/capabilities/route.ts`
+- `app/api/service-provider/me/route.ts`
+
+### Server-action files found (12)
+- `app/demands/actions.ts`
+- `app/demands/conversation/actions.ts`
+- `app/demands/match/actions.ts`
+- `app/demands/qualification/actions.ts`
+- `app/offers/actions.ts`
+- `app/projects/test/[id]/actions.ts`
+- `app/projects/test/[id]/documents/actions.ts`
+- `app/projects/test/[id]/inspections/actions.ts`
+- `app/projects/test/[id]/orders/actions.ts`
+- `app/projects/test/[id]/payment-requests/actions.ts`
+- `app/projects/test/[id]/payments/actions.ts`
+- `app/projects/test/[id]/shipments/actions.ts`
+
+### Engine modules found (14)
+**Action:** `lib/actions/create-offer.ts`, `engine.ts`, `index.ts`, `runtime.ts`, `types.ts`.
+**Decision Tree:** `lib/decision-tree/db-adapter.ts`, `engine.ts`, `evaluator.ts`, `resolver.ts`, `seed.ts`, `server.ts`, `session-tree.ts`, `types.ts`, `version-resolver.ts`.
+
+### Tests and instructions
+- Only one test file appeared under `tests/` in the recursive tree: `tests/e2e/auth-smoke.spec.ts`. This does not prove there are no tests elsewhere, but coverage of the listed business flows is not demonstrated by this file inventory.
+- No `AGENTS.md`, `CLAUDE.md` or Qwen-specific instruction file was found in the recursive tree.
+- Workflows found: `.github/workflows/ci.yml`, `codeql.yml`, `qima-autopilot.yml` plus one additional YAML configuration in `.github/`.
+- The repository has a small README (44 bytes according to the tree) and needs a proper developer handover guide before unattended work.
+
+### Immediate implication
+The coding agent must not start by implementing a new feature. First create a complete traceability matrix across these 23 pages, 11 APIs, 12 server-action files, 14 engine modules, the 15 migration files, all database objects and the existing test ledger. Review the code in each route/action to split it into individual business functions and acceptance criteria. File counts are an inventory aid, not a count of complete features.
