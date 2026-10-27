@@ -409,3 +409,19 @@ Au moment de l'audit, les 31 tables suivantes ont RLS activé mais aucune policy
 
 ### Action suivante recommandée
 Priorité : intégrer le `package-lock.json` généré par CI sur la branche de travail, puis vérifier qu'un `npm ci` propre fonctionne sans régénération. Ensuite, ajouter des tests négatifs avec une fixture dont les contraintes/policies sont explicitement comparées au catalogue live en lecture seule. Le contrat d'autorisation tenant-demande doit rester un blocage documenté jusqu'à décision métier.
+
+
+## 11. Garde de cohérence demande/offre dans la messagerie — 28 octobre 2026
+
+- **Commit code :** `e14c3d64ff86ab96f1e22a931a3620da7b1ae78a` — `fix: reject mismatched demand and offer in conversations`.
+- **Fichier modifié :** `app/demands/conversation/actions.ts`.
+- **Changement :** `loadConversation` vérifie désormais que l'offre choisie appartient à la demande demandée. `sendConversationMessage` vérifie la même relation avant d'insérer un message et refuse une offre absente ou associée à une autre demande.
+- **Portée exacte :** défense en profondeur contre les paires demande/offre incohérentes ; cette garde ne prouve pas l'autorisation de l'utilisateur sur une paire étrangère cohérente. La RLS reste l'autorité d'accès et le candidat d'injection de messages n'est pas déclaré corrigé tant que les politiques live n'ont pas été testées.
+- **Documentation associée :** `docs/QIMA_SENSITIVE_ROUTES_REVIEW_2026-10-28.md` mise à jour avec les limites du correctif.
+- **Validation : EN ATTENTE pour le commit de code** — il faut vérifier les checks GitHub Actions et la preview correspondant au dernier commit, pas seulement ceux du commit précédent.
+- **Pas de changement de production :** aucune migration ni écriture Supabase, aucune fusion, aucun déploiement de production.
+
+### Suite immédiate
+1. Vérifier CI, CodeQL et Vercel sur le dernier commit de la branche.
+2. Si les contrôles passent, conserver ce changement limité et ajouter un test de régression ciblé pour l'action serveur si un harnais de test approprié est disponible ; ne pas prétendre que le test SQL synthétique teste directement cette action TypeScript.
+3. Continuer de traiter l'autorisation utilisateur/demande et tenant/demande comme des contrats métier séparés à clarifier.
