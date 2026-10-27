@@ -103,6 +103,38 @@ BEGIN
     IF SQLERRM NOT LIKE '%TENANT_ACCESS_DENIED%' THEN RAISE; END IF;
   END;
 
+  BEGIN
+    PERFORM public.execute_create_offer_v1(
+      '10000000-0000-4000-8000-000000000001',
+      'fixture-rollback',
+      '{"case":"rollback"}'::jsonb,
+      'Fixture rollback failure',
+      '50000000-0000-4000-8000-000000000001',
+      '40000000-0000-4000-8000-000000000001',
+      '30000000-0000-4000-8000-000000000001',
+      1,
+      10,
+      'USD'
+    );
+    RAISE EXCEPTION 'Expected fixture constraint to force transaction rollback';
+  EXCEPTION WHEN check_violation THEN
+    NULL;
+  END;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE idempotency_key = 'fixture-rollback';
+  IF v_count <> 0 THEN RAISE EXCEPTION 'Rollback left an orphan action execution'; END IF;
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE key = 'fixture-rollback';
+  IF v_count <> 0 THEN RAISE EXCEPTION 'Rollback left an orphan idempotency row'; END IF;
+  SELECT count(*) INTO v_count
+  FROM public.action_events
+  WHERE payload->>'objectId' IS NOT NULL
+    AND payload->>'objectId' = 'fixture-rollback';
+  IF v_count <> 0 THEN RAISE EXCEPTION 'Rollback left an orphan event'; END IF;
+
   IF has_function_privilege(
     'authenticated',
     'public.create_offer_v1(text,uuid,uuid,uuid,numeric,numeric,text,text,text,text,jsonb,text,text,text,text)',
