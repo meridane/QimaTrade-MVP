@@ -102,3 +102,40 @@ test("offers API rejects an unsupported currency before authentication", async (
     error: "Please select a valid currency.",
   });
 });
+
+test("offers API rejects a non-numeric quantity before authentication", async ({ request }) => {
+  const response = await request.post("/api/offers", {
+    multipart: { name: "Test offer", quantity: "not-a-number" },
+  });
+
+  expect(response.status()).toBe(400);
+  await expect(response.json()).resolves.toMatchObject({
+    error: "Please provide a valid offer name and quantity.",
+  });
+});
+
+test("offers API rejects a non-numeric price before authentication", async ({ request }) => {
+  const response = await request.post("/api/offers", {
+    multipart: { name: "Test offer", quantity: "1", price: "not-a-number" },
+  });
+
+  expect(response.status()).toBe(400);
+  await expect(response.json()).resolves.toMatchObject({
+    error: "Price must be a valid positive number.",
+  });
+});
+
+test("offers API rejects malformed attributes before authentication", async ({ request }) => {
+  const response = await request.post("/api/offers", {
+    multipart: {
+      name: "Test offer",
+      quantity: "1",
+      attributes: "{not-json",
+    },
+  });
+
+  expect(response.status()).toBe(400);
+  await expect(response.json()).resolves.toMatchObject({
+    error: "Invalid offer attributes.",
+  });
+});
