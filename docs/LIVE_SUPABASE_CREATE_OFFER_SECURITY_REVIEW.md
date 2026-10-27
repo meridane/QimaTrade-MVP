@@ -102,3 +102,20 @@ This follows the existing safety behavior in the CREATE_OFFER route. It does not
 ## Publication contract finding
 
 The existing `dt_publish_product_request` database function creates a demand with `demand_status = 'draft'` and `documentation_status = 'incomplete'`, then marks the product request `published`. The word “published” currently refers to the product request workflow result, not necessarily a supplier-visible demand. Therefore, the eligibility rule for suppliers cannot safely be inferred from the `product_requests.status` alone. A separate, explicit demand publication/visibility state or documented semantic mapping is required before tightening `execute_create_offer_v1`.
+
+
+## Follow-up implementation — defensive request identifiers (2026-10-27)
+
+In `app/api/actions/create-offer/route.ts`, optional `correlationId` and `idempotencyKey` previously used `.trim()` without first confirming the JSON values were strings. Malformed JSON such as an object/number in either field could throw a TypeError and return the generic 400 action error.
+
+Branch-only fix committed as `73ea68d550a00a0839ced24c75a4bf38012fa9a6`:
+- Use the supplied identifier only when it is a non-empty string after trimming.
+- Generate a UUID otherwise.
+- Preserve normal request behavior for valid strings.
+- This is defensive parsing only; the database runtime still validates idempotency semantics.
+
+Validation evidence as of this note:
+- On the preceding route-fix commit, the isolated PostgreSQL CREATE_OFFER integration/concurrency job passed.
+- CodeQL passed.
+- TypeScript, dependency audit and production build passed; Playwright Chromium installation/browser smoke tests were still running when checked.
+- These results do not yet validate the newest commit. Wait for its own CI and CodeQL runs before treating it as verified.
