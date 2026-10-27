@@ -354,3 +354,14 @@ Au moment de l'audit, les 31 tables suivantes ont RLS activé mais aucune policy
 - **État fonctionnel :** le parcours de création d'offre historique `app/api/offers/route.ts` insère toujours directement dans `offers`. Il conserve les brouillons sans demande, Product Master ou prix. La route doit être migrée uniquement après définition du contrat brouillon, afin de ne pas casser le comportement existant.
 - **Sécurité globale : NOT PASS.** La validation CI du commit de code précédent ne remplace pas les résultats attendus sur le commit actuel et ne prouve pas la parité du schéma de test avec Supabase production.
 - **Mesures de sûreté :** aucun changement de base de production, aucune migration appliquée, aucune offre créée, aucune fusion de PR ni déploiement de production.
+
+
+## 27. Résultats de validation confirmés — 27 octobre 2026
+
+- **Commit testé :** `857c5f66d84a112d05e186f4c1c91a079007d549`.
+- **QIMA CI : VALIDÉ pour ce commit** — run [40518018097](https://github.com/meridane/QimaTrade-MVP/actions/runs/40518018097). Les deux jobs ont réussi : TypeScript, audit npm, build de production, tests Playwright et tests PostgreSQL isolés d'idempotence/concurrence CREATE_OFFER.
+- **CodeQL : VALIDÉ pour ce commit** — run [40518017925](https://github.com/meridane/QimaTrade-MVP/actions/runs/40518017925).
+- **Vercel Preview : SUCCESS** — https://vercel.com/bmk1/qimatrade-mvp/JDbEPveSVKb4SbTi4G11KTCB3tay
+- **Lockfile : récupéré mais non commité.** L'artefact du run CI contient un `package-lock.json` de 62 981 octets, SHA-256 `8d90037589e58bc2d0408a0d652b29ea5fcfa414cd98af60b155846cc321837f`. L'intégration dans la branche reste à faire.
+- **Garde de sécurité globale : NOT PASS.** Les tests PostgreSQL sont isolés sur une fixture synthétique et ne prouvent pas la parité totale avec Supabase. Restent bloquants : contrat d'autorisation fournisseur/demande, compatibilité des brouillons, réconciliation des migrations, lockfile commité et revue complète des privilèges.
+- **Aucune opération de production :** aucune migration ni modification de privilèges appliquée, aucune offre créée, aucune fusion ni déploiement de production.
