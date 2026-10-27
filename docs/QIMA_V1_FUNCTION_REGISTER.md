@@ -342,3 +342,15 @@ Au moment de l'audit, les 31 tables suivantes ont RLS activé mais aucune policy
 - **Attention :** ces résultats valident le commit `73ea68d...`; ils ne valident pas automatiquement les mises à jour documentaires ultérieures et ne prouvent pas la parité complète avec le schéma Supabase de production.
 - **Limites encore ouvertes :** le formulaire historique `app/api/offers/route.ts` effectue toujours un INSERT direct et accepte les brouillons sans demande/Product Master/prix. La règle de visibilité des demandes fournisseurs n'est pas encore définie. Le sélecteur de tenant actif n'existe pas encore : les comptes multi-tenant sont refusés par ces chemins plutôt que traités dans un contexte arbitraire.
 - **État de sécurité global : NOT PASS** tant que l'autorisation demande/fournisseur, le parcours brouillon, la parité migrations et le lockfile commité ne sont pas résolus. Aucune migration de production, écriture métier ou fusion n'a été effectuée.
+
+
+## 26. Suivi après actualisation documentaire — 27 octobre 2026
+
+- **Dernier commit de la branche :** `3e05418339f404798dbedb6643e785a8b4a8bdde` (`docs: record latest preview status and lockfile checksum`).
+- **Vercel Preview : SUCCESS** pour ce commit : https://vercel.com/bmk1/qimatrade-mvp/HcD6Vv8jJpbRvFptgYtPQHT234qZ
+- **CI QIMA : EN ATTENTE** — run [40517774298](https://github.com/meridane/QimaTrade-MVP/actions/runs/40517774298). Les deux jobs, vérification complète et intégration PostgreSQL CREATE_OFFER, étaient encore en file d'attente au dernier contrôle.
+- **CodeQL : EN ATTENTE** — run [40517774315](https://github.com/meridane/QimaTrade-MVP/actions/runs/40517774315).
+- **Lockfile : NON INTÉGRÉ.** L'artefact généré a été récupéré et contrôlé, mais `package-lock.json` n'est toujours pas commité ; le workflow continue à le générer à chaque exécution. Ne pas considérer la reproductibilité des dépendances comme validée.
+- **État fonctionnel :** le parcours de création d'offre historique `app/api/offers/route.ts` insère toujours directement dans `offers`. Il conserve les brouillons sans demande, Product Master ou prix. La route doit être migrée uniquement après définition du contrat brouillon, afin de ne pas casser le comportement existant.
+- **Sécurité globale : NOT PASS.** La validation CI du commit de code précédent ne remplace pas les résultats attendus sur le commit actuel et ne prouve pas la parité du schéma de test avec Supabase production.
+- **Mesures de sûreté :** aucun changement de base de production, aucune migration appliquée, aucune offre créée, aucune fusion de PR ni déploiement de production.
