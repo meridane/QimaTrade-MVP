@@ -183,6 +183,8 @@ GRANT USAGE ON SCHEMA public, auth TO authenticated;
 GRANT EXECUTE ON FUNCTION auth.uid() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.create_offer_v1(text,uuid,uuid,uuid,numeric,numeric,text,text,text,text,jsonb,text,text,text,text) TO authenticated;
 
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO authenticated;
+
 INSERT INTO public.dt_tenants(id,name) VALUES
  ('10000000-0000-4000-8000-000000000001','Fixture Tenant A'),
  ('10000000-0000-4000-8000-000000000002','Fixture Tenant B');
