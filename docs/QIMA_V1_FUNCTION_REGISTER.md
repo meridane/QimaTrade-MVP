@@ -365,3 +365,15 @@ Au moment de l'audit, les 31 tables suivantes ont RLS activé mais aucune policy
 - **Lockfile : récupéré mais non commité.** L'artefact du run CI contient un `package-lock.json` de 62 981 octets, SHA-256 `8d90037589e58bc2d0408a0d652b29ea5fcfa414cd98af60b155846cc321837f`. L'intégration dans la branche reste à faire.
 - **Garde de sécurité globale : NOT PASS.** Les tests PostgreSQL sont isolés sur une fixture synthétique et ne prouvent pas la parité totale avec Supabase. Restent bloquants : contrat d'autorisation fournisseur/demande, compatibilité des brouillons, réconciliation des migrations, lockfile commité et revue complète des privilèges.
 - **Aucune opération de production :** aucune migration ni modification de privilèges appliquée, aucune offre créée, aucune fusion ni déploiement de production.
+
+
+## 28. Audit RLS de la messagerie historique — 28 octobre 2026
+
+- **Fichier examiné :** `app/demands/conversation/actions.ts`. Le parcours chat MVP utilise `public.demands`, `public.offers` et `public.messages`, et non les tables plus récentes `core.conversations` / `core.conversation_participants`.
+- **Constat du catalogue Supabase en lecture seule :** RLS est activé sur `public.messages`; le rôle `authenticated` dispose des privilèges SELECT et INSERT.
+- **Fonction examinée :** `public.is_message_participant(demand_id, offer_id, sender_actor_id)`. Elle retourne true dès que l'acteur du profil authentifié est égal au `sender_actor_id` fourni, sans vérifier d'abord l'appartenance à la demande ou à l'offre ciblée.
+- **Politique INSERT observée :** `messages_insert_participants` exige cette fonction et que `sender_actor_id` corresponde au profil authentifié. L'action serveur fournit bien l'acteur du profil, mais transmet les identifiants demande/offre fournis par l'appelant. Cela forme un candidat d'injection de messages dans une demande/offre étrangère.
+- **Classification :** candidat de sécurité prioritaire, non confirmé par test d'exploitation authentifié. Aucune ligne de message n'a été insérée et aucune écriture de production n'a été tentée.
+- **Plan de test :** `docs/LEGACY_MESSAGES_RLS_REVIEW_2026-10-28.md` définit les tests négatifs d'injection, de couple demande/offre incohérent, de spoofing d'acteur, et les tests positifs demandeur/fournisseur.
+- **Autre risque séparé :** `docs/PARTICIPANT_SELF_ENROLLMENT_REGRESSION_PLAN.md` suit les politiques des tables `core.conversation_participants` et `core.transaction_parties`. Les deux parcours doivent être testés indépendamment.
+- **État sécurité : NOT PASS.** CI et CodeQL verts sur le commit précédent ne testent pas cette politique live. Aucun changement de schéma, de privilèges ou de données en production; aucune migration appliquée; PR #26 toujours ouverte et en brouillon.
