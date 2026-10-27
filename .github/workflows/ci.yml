@@ -79,6 +79,17 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder-anon-key
           PLAYWRIGHT_BASE_URL: http://127.0.0.1:3000
+      - name: Enforce dependency audit result
+        if: always()
+        env:
+          AUDIT_OUTCOME: ${{ steps.audit.outcome }}
+        shell: bash
+        run: |
+          if [ "${AUDIT_OUTCOME}" != "success" ]; then
+            echo "::error::Dependency audit did not complete successfully. Review the npm-audit-report artifact."
+            exit 1
+          fi
+
       - name: Upload npm audit report
         if: always()
         uses: actions/upload-artifact@v4
