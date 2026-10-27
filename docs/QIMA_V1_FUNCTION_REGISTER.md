@@ -418,10 +418,29 @@ Priorité : intégrer le `package-lock.json` généré par CI sur la branche de 
 - **Changement :** `loadConversation` vérifie désormais que l'offre choisie appartient à la demande demandée. `sendConversationMessage` vérifie la même relation avant d'insérer un message et refuse une offre absente ou associée à une autre demande.
 - **Portée exacte :** défense en profondeur contre les paires demande/offre incohérentes ; cette garde ne prouve pas l'autorisation de l'utilisateur sur une paire étrangère cohérente. La RLS reste l'autorité d'accès et le candidat d'injection de messages n'est pas déclaré corrigé tant que les politiques live n'ont pas été testées.
 - **Documentation associée :** `docs/QIMA_SENSITIVE_ROUTES_REVIEW_2026-10-28.md` mise à jour avec les limites du correctif.
-- **Validation : EN ATTENTE pour le commit de code** — il faut vérifier les checks GitHub Actions et la preview correspondant au dernier commit, pas seulement ceux du commit précédent.
+- **Validation mise à jour le 28 octobre 2026, 08:41 KST : SUCCESS sur le commit de documentation `ee4ef34db13359a612b6380217d156dd1d42ec60`**, qui inclut le correctif de code `e14c3d64ff86ab96f1e22a931a3620da7b1ae78a`. Les runs exacts et la portée sont consignés dans la section 12 ci-dessous.
 - **Pas de changement de production :** aucune migration ni écriture Supabase, aucune fusion, aucun déploiement de production.
 
 ### Suite immédiate
 1. Vérifier CI, CodeQL et Vercel sur le dernier commit de la branche.
 2. Si les contrôles passent, conserver ce changement limité et ajouter un test de régression ciblé pour l'action serveur si un harnais de test approprié est disponible ; ne pas prétendre que le test SQL synthétique teste directement cette action TypeScript.
 3. Continuer de traiter l'autorisation utilisateur/demande et tenant/demande comme des contrats métier séparés à clarifier.
+
+
+## 12. Résultats de validation du commit courant — 28 octobre 2026, 08:41 KST
+
+- **Commit contrôlé :** `ee4ef34db13359a612b6380217d156dd1d42ec60` (`docs: record conversation consistency guard and validation status`).
+- **QIMA CI : SUCCESS** — run [40596892081](https://github.com/meridane/QimaTrade-MVP/actions/runs/40596892081). Les deux jobs ont réussi :
+  - `Typecheck, audit, build and browser tests` : génération du lockfile, installation depuis ce lockfile généré, audit des dépendances, TypeScript, build de production, installation Chromium et tests Playwright smoke.
+  - `CREATE_OFFER PostgreSQL integration tests` : tests PostgreSQL isolés CREATE_OFFER/intégration-concurrence, régression RLS des messages historiques et auto-inscription des participants.
+- **CodeQL : SUCCESS** — run [40596891989](https://github.com/meridane/QimaTrade-MVP/actions/runs/40596891989), job JavaScript/TypeScript terminé avec succès.
+- **Vercel Preview : READY** pour ce commit : [ouvrir la prévisualisation](https://qimatrade-l2s1q5arb-bmk1.vercel.app) — [détails du déploiement](https://vercel.com/bmk1/qimatrade-mvp/CY5scRE2ZXd1itun8uTgYtbFQ8Cq). Il s'agit d'une preview, pas d'un déploiement de production.
+- **Lockfile : toujours non commité.** L'artefact CI `generated-package-lock` (run `40596892081`, artefact `12776342387`) contient un `package-lock.json` de 62 981 octets, SHA-256 `8d90037589e58bc2d0408a0d652b29ea5fcfa414cd98af60b155846cc321837f`. L'installation CI depuis le lockfile généré a réussi, mais ce résultat ne prouve pas que `npm ci` fonctionne à partir d'un lockfile suivi dans Git. Le lockfile doit encore être intégré et revalidé sur un commit ultérieur.
+- **Limites de sécurité inchangées :** les tests RLS utilisent une base isolée/fixtures synthétiques. Ils ne constituent pas une exploitation authentifiée de Supabase production et ne confirment ni l'exploitabilité ni la correction des politiques live. Les contrats d'autorisation utilisateur/demande et tenant/demande restent ouverts.
+- **Sûreté des opérations :** aucune donnée ni migration Supabase production modifiée ; aucune fusion de PR, aucun déploiement de production et aucune modification des règles de protection.
+
+### Prochaine tâche prioritaire
+
+1. Intégrer de façon fiable le lockfile généré dans la branche de travail, après vérification de sa cohérence avec `package.json`.
+2. Exécuter une installation propre `npm ci` à partir du lockfile commité et vérifier que le fichier ne change pas.
+3. Ensuite, continuer les tests négatifs demande/offre et tenant/demande dans un environnement isolé dont les contraintes et policies sont comparées au catalogue live en lecture seule. Ne pas changer le contrat métier sans décision explicite.
