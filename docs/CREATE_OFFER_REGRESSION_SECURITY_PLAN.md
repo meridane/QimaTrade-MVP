@@ -130,3 +130,9 @@ Added `supabase/migrations/20261027100000_restrict_direct_create_offer_rpc.sql` 
 - The legacy `app/api/offers/route.ts` writes directly to `offers` under RLS and is not calling the low-level RPC; this mitigation does not yet unify that route.
 
 Security Gate remains NOT PASS until these checks pass.
+
+## HTTP validation regressions added — 2026-10-27
+
+Added Playwright cases in `tests/e2e/auth-smoke.spec.ts` for malformed quantity, malformed price, and malformed JSON attributes on the legacy multipart offer endpoint. These assert HTTP 400 responses before authentication/database access.
+
+This is a narrow regression improvement only. It does not establish that authenticated offer creation is authorized, idempotent, concurrency-safe, or routed through the Universal Action Runtime. It also does not exercise PostgreSQL routine grants or SECURITY DEFINER behavior. The PR's security gate remains NOT PASS pending isolated PostgreSQL integration tests and a deliberate compatibility/security contract for draft offers and demand visibility.
