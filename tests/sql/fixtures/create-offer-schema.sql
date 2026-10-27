@@ -199,7 +199,8 @@ INSERT INTO public.profiles(id,name,actor_id,auth_user_id) VALUES
  ('30000000-0000-4000-8000-000000000001','Fixture Provider A','30000000-0000-4000-8000-000000000001','20000000-0000-4000-8000-000000000001'),
  ('30000000-0000-4000-8000-000000000002','Fixture Provider B','30000000-0000-4000-8000-000000000002','20000000-0000-4000-8000-000000000002');
 INSERT INTO public.product_masters(id,code,name,canonical_name,status) VALUES
- ('40000000-0000-4000-8000-000000000001','FIXTURE-1','Fixture Product','Fixture Product','active');
+ ('40000000-0000-4000-8000-000000000001','FIXTURE-1','Fixture Product','Fixture Product','active'),
+ ('40000000-0000-4000-8000-000000000099','INACTIVE-1','Inactive Fixture','Inactive Fixture','draft');
 INSERT INTO public.demands(id,name,demand_status,requester_actor_id) VALUES
  ('50000000-0000-4000-8000-000000000001','Fixture Demand','published','30000000-0000-4000-8000-000000000002');
 INSERT INTO public.action_definitions(id,action_key,name,version,status,object_type,actor_type,context_type) VALUES
