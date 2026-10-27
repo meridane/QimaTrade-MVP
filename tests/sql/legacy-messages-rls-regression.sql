@@ -217,8 +217,7 @@ VALUES ('dddddddd-dddd-4ddd-8ddd-dddddddddddd',
         'legitimate-provider');
 RESET ROLE;
 
-DO $
-BEGIN
+DO $$BEGIN
   IF (SELECT count(*) FROM qima_legacy_test.messages) <> 2 THEN
     RAISE EXCEPTION 'Expected two legitimate messages after safe predicate';
   END IF;
