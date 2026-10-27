@@ -172,6 +172,8 @@ BEGIN
   IF nullif(trim(p_currency), '') IS NULL THEN RAISE EXCEPTION 'INVALID_CURRENCY'; END IF;
   IF NOT EXISTS (SELECT 1 FROM public.product_masters WHERE id=p_product_master_id) THEN RAISE EXCEPTION 'PRODUCT_MASTER_NOT_FOUND'; END IF;
   IF NOT EXISTS (SELECT 1 FROM public.demands WHERE id=p_demand_id) THEN RAISE EXCEPTION 'DEMAND_NOT_FOUND'; END IF;
+  -- Test-only delay widens the overlap window for the concurrent first-insert test.
+  PERFORM pg_sleep(0.5);
   INSERT INTO public.offers(name,demand_id,product_master_id,provider_actor_id,quantity,price,currency,conditions,market,geography,attributes,documentation_status,lifecycle,offer_type,pricing_model)
   VALUES(p_name,p_demand_id,p_product_master_id,v_actor_id,p_quantity,p_price,p_currency,p_conditions,p_market,p_geography,coalesce(p_attributes,'{}'::jsonb),p_documentation_status,p_lifecycle,p_offer_type,p_pricing_model)
   RETURNING id INTO v_id;
