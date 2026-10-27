@@ -322,3 +322,12 @@ Au moment de l'audit, les 31 tables suivantes ont RLS activé mais aucune policy
 - **Limite :** ces tests ne valident pas l'insertion d'offre authentifiée, les politiques RLS, les RPC SQL, l'idempotence ni les courses concurrentes. Ils ne prouvent donc pas la sécurité du parcours complet.
 - **Validation :** les tests viennent d'être ajoutés à la branche PR #26. La CI déclenchée par le commit doit être vérifiée avant de déclarer ces tests réussis.
 - **État sécurité : NOT PASS** jusqu'aux tests d'intégration PostgreSQL isolés et à la résolution des contrats demande/brouillon/route historique.
+
+
+## 24. Ajustement du test HTTP — ordre de validation — 27 octobre 2026
+
+- La CI a révélé que le test des attributs JSON mal formés attendait HTTP 400 avant authentification, alors que la route analyse les attributs après authentification et contrôles des références.
+- Le test a été retiré plutôt que de changer le contrat de la route uniquement pour satisfaire le test. Les tests de quantité et de prix non numériques restent en place.
+- CI sur le commit précédent : TypeScript et build réussis, 15 tests Playwright réussis et 1 échec lié à cette attente incorrecte ; CodeQL réussi.
+- Un nouveau commit corrige le test. Résultat CI de ce nouveau commit en attente de vérification.
+- Aucun changement de production ni migration SQL exécutée.
