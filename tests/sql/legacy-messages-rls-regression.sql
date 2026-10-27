@@ -217,15 +217,17 @@ VALUES ('dddddddd-dddd-4ddd-8ddd-dddddddddddd',
         'legitimate-provider');
 RESET ROLE;
 
-DO $$
+DO $
 BEGIN
   IF (SELECT count(*) FROM qima_legacy_test.messages) <> 2 THEN
     RAISE EXCEPTION 'Expected two legitimate messages after safe predicate';
   END IF;
+  -- Use user A, who is neither requester nor provider on demand B / offer B.
+  PERFORM set_config('qima_legacy_test.uid', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', true);
   IF qima_legacy_test.is_message_participant(
     'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
     '99999999-9999-4999-8999-999999999999',
-    '22222222-2222-4222-8222-222222222222'
+    '11111111-1111-4111-8111-111111111111'
   ) THEN
     RAISE EXCEPTION 'Foreign provider incorrectly authorized';
   END IF;
