@@ -223,3 +223,33 @@ No database grants, branch settings, production schema, or production data were 
 ## Gate status
 
 **NOT PASS** — CI and CodeQL are green for the current commit, but CI success is not equivalent to completion of the security audit. Open gates: commit/reuse the lockfile, migration reconciliation, demand authorization contract, draft compatibility, attribute/price validation contract, function-by-function privilege review, and branch/Auth settings.
+
+
+## Latest validation and next implementation boundary — 2026-10-27
+
+### Verified automated results
+- Commit `73ea68d550a00a0839ced24c75a4bf38012fa9a6`:
+  - QIMA CI run [40514820339](https://github.com/meridane/QimaTrade-MVP/actions/runs/40514820339): **SUCCESS**.
+  - CREATE_OFFER PostgreSQL isolated integration/concurrency job: **SUCCESS**.
+  - npm audit, TypeScript, production build and Playwright browser smoke tests: **SUCCESS**.
+  - CodeQL run [40514820258](https://github.com/meridane/QimaTrade-MVP/actions/runs/40514820258): **SUCCESS**.
+- The latest documentation-only commit `84b0b2d0333ad85987e5380d0992de4aefc41812` must have its own checks confirmed before the branch is considered fully green.
+- The PostgreSQL tests run against a disposable synthetic fixture, not the full live Supabase schema or its complete RLS/policy set.
+
+### Legacy draft offer compatibility matrix
+
+| Existing form behavior | Universal CREATE_OFFER contract | Safe disposition before business approval |
+|---|---|---|
+| Demand ID absent | Demand required | Preserve draft path; do not silently reject or fabricate a demand |
+| Product Master absent | Active Product Master required | Preserve draft path or add an explicitly defined draft action |
+| Price absent/null | Numeric price required | Preserve null price semantics until the product contract decides otherwise |
+| Multipart request and 303 redirect | JSON/runtime result | Keep multipart parsing and redirect as an adapter if/when the backend contract supports drafts |
+| Direct insert has no action log/idempotency/event | Runtime provides execution/idempotency/event contract | Add a draft-capable transactional server action/RPC before switching this route |
+
+Recommended technical direction, not yet implemented: introduce a separate explicit `CREATE_OFFER_DRAFT` action (or a documented draft mode of the existing action) that supports nullable demand/Product Master/price while enforcing authenticated actor ownership, tenant context, idempotency, and event logging in one transaction. Keep `CREATE_OFFER` as the strict priced offer linked to an active Product Master and demand. Do not implement this until the product owner confirms that nullable drafts remain supported and defines the allowed transition from draft to a complete offer.
+
+### Security decision still required
+The marketplace must define which demands are answerable by a supplier. Neither a `demands.tenant_id` check (column does not exist) nor `is_demand_participant` (does not authorize a first offer by a new supplier) is a valid inferred replacement. Define and test a published/visible-to-suppliers predicate that supports legitimate cross-tenant marketplace responses while preventing drafts/private demands from being answered.
+
+### Status
+CI/CodeQL are green for the code commit listed above, but overall Security Gate remains **NOT PASS**. The draft-compatible runtime route, supplier visibility predicate, migration-source reconciliation, committed lockfile, and complete target-commit checks remain outstanding. No production migration, privilege change, offer creation, or merge was performed.
