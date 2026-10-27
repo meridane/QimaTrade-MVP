@@ -144,36 +144,57 @@ SET search_path = qima_legacy_test, pg_temp AS $$
 $$;
 GRANT EXECUTE ON FUNCTION qima_legacy_test.is_message_participant(uuid, uuid, uuid) TO qima_test_authenticated;
 
--- Helper asserts an attempted INSERT is denied and leaves no row behind.
-CREATE OR REPLACE FUNCTION qima_legacy_test.assert_denied(
-  p_uid uuid, p_demand uuid, p_offer uuid, p_sender uuid, p_label text
-) RETURNS void LANGUAGE plpgsql AS $$
-BEGIN
-  PERFORM set_config('qima_legacy_test.uid', p_uid::text, true);
-  BEGIN
-    INSERT INTO qima_legacy_test.messages(demand_id, offer_id, sender_actor_id, body)
-    VALUES (p_demand, p_offer, p_sender, p_label);
-    RAISE EXCEPTION 'SECURITY REGRESSION: % unexpectedly inserted', p_label;
-  EXCEPTION WHEN insufficient_privilege THEN
-    NULL;
-  END;
-  IF EXISTS (SELECT 1 FROM qima_legacy_test.messages WHERE body = p_label) THEN
-    RAISE EXCEPTION 'SECURITY REGRESSION: denied row persisted for %', p_label;
-  END IF;
-END $$;
+-- Negative cases are executed in a DO block while SET ROLE is active. Each
+-- expected RLS violation is caught in a subtransaction, then row absence is
+-- checked after returning to the table owner.
 
--- Run denied cases as the restricted role inside a DO block; SECURITY DEFINER
--- test helper is used only to keep each failed INSERT isolated by a subtransaction.
-RESET ROLE;
+SET qima_legacy_test.uid = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+SET ROLE qima_test_authenticated;
 DO $$
 BEGIN
-  PERFORM qima_legacy_test.assert_denied(
-    'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
-    'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
-    'ffffffff-ffff-4fff-8fff-ffffffffffff',
-    '22222222-2222-4222-8222-222222222222',
-    'foreign-demand'
-  );
+  BEGIN
+    INSERT INTO qima_legacy_test.messages(demand_id, offer_id, sender_actor_id, body)
+    VALUES ('dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+            'ffffffff-ffff-4fff-8fff-ffffffffffff',
+            '22222222-2222-4222-8222-222222222222',
+            'foreign-demand');
+    RAISE EXCEPTION 'SECURITY REGRESSION: foreign-demand unexpectedly inserted';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+END $$;
+RESET ROLE;
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM qima_legacy_test.messages WHERE body = 'foreign-demand')
+  THEN RAISE EXCEPTION 'Denied foreign-demand row persisted'; END IF;
+END $$;
+
+SET qima_legacy_test.uid = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+SET ROLE qima_test_authenticated;
+DO $$
+BEGIN
+  BEGIN
+    INSERT INTO qima_legacy_test.messages(demand_id, offer_id, sender_actor_id, body)
+    VALUES ('dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+            '99999999-9999-4999-8999-999999999999',
+            '11111111-1111-4111-8111-111111111111',
+            'mismatched-pair');
+    RAISE EXCEPTION 'SECURITY REGRESSION: mismatched-pair unexpectedly inserted';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+  BEGIN
+    INSERT INTO qima_legacy_test.messages(demand_id, offer_id, sender_actor_id, body)
+    VALUES ('dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+            'ffffffff-ffff-4fff-8fff-ffffffffffff',
+            '22222222-2222-4222-8222-222222222222',
+            'sender-spoof');
+    RAISE EXCEPTION 'SECURITY REGRESSION: sender-spoof unexpectedly inserted';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+END $$;
+RESET ROLE;
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM qima_legacy_test.messages WHERE body IN ('mismatched-pair','sender-spoof'))
+  THEN RAISE EXCEPTION 'Denied mismatched/spoof row persisted'; END IF;
 END $$;
 
 -- Positive paths and additional negative paths are asserted directly under the
