@@ -136,3 +136,8 @@ Security Gate remains NOT PASS until these checks pass.
 Added Playwright cases in `tests/e2e/auth-smoke.spec.ts` for malformed quantity, malformed price, and malformed JSON attributes on the legacy multipart offer endpoint. These assert HTTP 400 responses before authentication/database access.
 
 This is a narrow regression improvement only. It does not establish that authenticated offer creation is authorized, idempotent, concurrency-safe, or routed through the Universal Action Runtime. It also does not exercise PostgreSQL routine grants or SECURITY DEFINER behavior. The PR's security gate remains NOT PASS pending isolated PostgreSQL integration tests and a deliberate compatibility/security contract for draft offers and demand visibility.
+
+
+## CI feedback — 2026-10-27
+
+The latest run before this correction passed dependency audit, TypeScript, production build and CodeQL. Playwright reported 15 passed and one failed: the malformed-attributes test expected HTTP 400 before authentication, but the current route parses attributes only after authentication and reference validation. The test asserted an order the implementation does not promise, so it was removed instead of changing the endpoint's behavior just to satisfy the test. The replacement commit's CI must be checked before considering the regression set green. No production database changes were made.
