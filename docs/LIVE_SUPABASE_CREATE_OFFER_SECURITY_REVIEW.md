@@ -84,3 +84,21 @@ This is a small current dataset, not proof of all future workflow states. Howeve
 The current legacy route's optional-price capability is confirmed by code, but the present three live offers do not demonstrate any existing null-price draft. Preserve route compatibility until the product contract is explicitly decided; do not infer that null-price drafts are or are not needed from this small sample.
 
 No rows were modified.
+
+
+## Follow-up implementation — explicit tenant selection on product-request publish route
+
+Repository review found a second route-level arbitrary-tenant selection in `app/api/product-requests/publish/route.ts`: it queried `dt_memberships` with `.limit(1).maybeSingle()` and used that tenant for `PUBLISH_PRODUCT_REQUEST`. A user with multiple tenant memberships could therefore publish under an arbitrary tenant context.
+
+Branch-only fix in commit `1c3d2ab5069c7ac7276708f50fa1a4c6f4149ac0`:
+- Fetch all memberships for the authenticated user.
+- Return `TENANT_MEMBERSHIP_REQUIRED` when none exist or the membership query fails.
+- Deduplicate tenant IDs and return HTTP 409 `TENANT_SELECTION_REQUIRED` when there is not exactly one tenant.
+- Preserve the Universal Action Runtime call and successful response contract.
+- Treat a missing/non-string idempotency key safely rather than calling `.trim()` on an arbitrary JSON value.
+
+This follows the existing safety behavior in the CREATE_OFFER route. It does not implement active-tenant selection; multi-tenant users must currently select/use a single-membership account flow before this action can proceed. No production code or database was changed.
+
+## Publication contract finding
+
+The existing `dt_publish_product_request` database function creates a demand with `demand_status = 'draft'` and `documentation_status = 'incomplete'`, then marks the product request `published`. The word “published” currently refers to the product request workflow result, not necessarily a supplier-visible demand. Therefore, the eligibility rule for suppliers cannot safely be inferred from the `product_requests.status` alone. A separate, explicit demand publication/visibility state or documented semantic mapping is required before tightening `execute_create_offer_v1`.
