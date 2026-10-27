@@ -130,10 +130,14 @@ BEGIN
   WHERE key = 'fixture-rollback';
   IF v_count <> 0 THEN RAISE EXCEPTION 'Rollback left an orphan idempotency row'; END IF;
   SELECT count(*) INTO v_count
-  FROM public.action_events
-  WHERE payload->>'objectId' IS NOT NULL
-    AND payload->>'objectId' = 'fixture-rollback';
+  FROM public.action_events e
+  JOIN public.action_executions x ON x.id = e.execution_id
+  WHERE x.idempotency_key = 'fixture-rollback';
   IF v_count <> 0 THEN RAISE EXCEPTION 'Rollback left an orphan event'; END IF;
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE name = 'Fixture rollback failure';
+  IF v_count <> 0 THEN RAISE EXCEPTION 'Rollback left an offer row'; END IF;
 
   IF has_function_privilege(
     'authenticated',
