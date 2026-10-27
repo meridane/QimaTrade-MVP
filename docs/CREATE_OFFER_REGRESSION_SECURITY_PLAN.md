@@ -172,3 +172,12 @@ The latest run before this correction passed dependency audit, TypeScript, produ
 ### Current status
 
 The SQL integration tests validate the proposed functions against an isolated synthetic fixture, not full live-schema/RLS parity. PR #26 remains open and draft. No production migration, privilege change, real offer creation, or merge occurred. Security Gate remains **NOT PASS** pending demand authorization, draft-route compatibility, complete migration parity, targeted Supabase security review, lockfile/reproducibility, and branch protection verification.
+
+
+## Migration inventory parity — 2026-10-27 (read-only)
+
+- Supabase migration history contains **161** applied migration records; the repository branch currently contains **17** SQL files under `supabase/migrations/`.
+- The remote history's latest entry is `20261026034925 enable_rls_on_unexposed_reference_tables`; the branch's two new CREATE_OFFER migration files are proposals dated 2026-10-27 and are not in the remote migration history.
+- This is a substantial migration-history/repository parity gap. It does not by itself prove that every absent historical file is required to recreate production, but it means the current repository cannot be assumed to reproduce the live database from scratch.
+- Do not run `supabase db reset`, `db push`, or bulk-replay the local migration directory against production to "fix" this gap. Next safe step is to export/read the full remote schema and migration inventory into a separate reconciliation artifact, map each remote migration to a source file or explicit baseline/exception, and test a clean disposable database before proposing any migration strategy.
+- No migration applied and no production changes made.
