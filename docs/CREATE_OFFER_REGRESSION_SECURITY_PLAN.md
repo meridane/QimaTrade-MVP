@@ -181,3 +181,21 @@ The SQL integration tests validate the proposed functions against an isolated sy
 - This is a substantial migration-history/repository parity gap. It does not by itself prove that every absent historical file is required to recreate production, but it means the current repository cannot be assumed to reproduce the live database from scratch.
 - Do not run `supabase db reset`, `db push`, or bulk-replay the local migration directory against production to "fix" this gap. Next safe step is to export/read the full remote schema and migration inventory into a separate reconciliation artifact, map each remote migration to a source file or explicit baseline/exception, and test a clean disposable database before proposing any migration strategy.
 - No migration applied and no production changes made.
+
+
+## Supabase SECURITY DEFINER inventory and GitHub branch controls — 2026-10-27 (read-only)
+
+### Supabase routine inventory
+
+A live read-only catalog query returned 19 functions in schema `public` marked `SECURITY DEFINER`. All 19 declare `search_path=public`; none is executable by role `anon`. The catalog reports authenticated execution for the application-facing helpers and RPCs, including `create_offer_v1`, `execute_create_offer_v1`, `dt_submit_answer`, `dt_publish_product_request`, and participant/access helpers. Service-role-only entries include auth-related routines; other routines have no direct authenticated/anon execution.
+
+This is an inventory, not proof that every routine is vulnerable. Each callable routine needs review of caller assumptions, row authorization, fully qualified object references, and whether a fixed `search_path` is safe for its body. In particular, the live database still grants authenticated execution on low-level `create_offer_v1`; the branch-only revoke migration has not been applied. Do not revoke all SECURITY DEFINER functions indiscriminately because RLS helpers/triggers may require their current grants.
+
+### GitHub controls
+
+- Read-only GitHub branch metadata reports `main.protected=false` and `fix/create-offer-status-contract.protected=false` with required status checks disabled.
+- Repository rulesets endpoint returned an empty list.
+- The direct branch-protection endpoint returned HTTP 403 for this integration, so required reviews/other settings could not be exhaustively inspected. The metadata nevertheless indicates that classic branch protection is not enabled on main or this feature branch.
+- Do not change repository settings without explicit approval. Recommended target: protect `main`, require PR reviews and the CI/CodeQL checks, block force-push/deletion, and ensure the rules are configured with the checks' exact context names.
+
+No database grants, branch settings, production schema, or production data were changed. Security Gate remains **NOT PASS**.
