@@ -395,3 +395,17 @@ Au moment de l'audit, les 31 tables suivantes ont RLS activé mais aucune policy
 2. Ajouter des tests négatifs explicites sur la relation demande/offre et tenant/demande dans un environnement isolé.
 3. Revoir les politiques et contraintes live en lecture seule pour s'assurer que les fixtures reflètent le schéma déployé.
 4. Réconcilier l'historique des migrations et compléter le registre après validation.
+
+
+## 10. Résultats CI et Preview — 28 octobre 2026, 07:41 KST
+
+- **Commit contrôlé :** `0b0a9ba95a57a77de46e6444cec960528b059dce` (`docs: update QIMA function register with re-audit progress`).
+- **QIMA CI : SUCCESS** — run [40596253372](https://github.com/meridane/QimaTrade-MVP/actions/runs/40596253372). Les deux jobs sont verts : TypeScript, audit npm au seuil high, build de production, installation Chromium, Playwright smoke tests, CREATE_OFFER PostgreSQL/intégration-concurrence, tests RLS synthétiques messages et auto-inscription.
+- **CodeQL : SUCCESS** — run [40596253383](https://github.com/meridane/QimaTrade-MVP/actions/runs/40596253383). Ce statut indique que l'analyse s'est terminée sans échec de workflow ; il ne remplace pas une revue d'autorisation métier ou des tests contre les politiques live.
+- **Vercel Preview : READY** pour le même commit : [ouvrir la prévisualisation](https://qimatrade-dooyuc8s8-bmk1.vercel.app) — [détails du déploiement](https://vercel.com/bmk1/qimatrade-mvp/5E7rCBMYsTt79dewNQKyJVcf3hBz). C'est une prévisualisation, pas un déploiement de production.
+- **Lockfile CI : artefact récupéré et vérifié**, mais pas encore commité. L'archive du run contient `package-lock.json` de 62 981 octets ; SHA-256 du fichier extrait : `8d90037589e58bc2d0408a0d652b29ea5fcfa414cd98af60b155846cc321837f`. Le fichier doit être ajouté au dépôt via un transfert de contenu fiable avant de considérer les installations reproductibles comme validées. Le digest SHA-256 de l'archive de l'artefact GitHub est distinct : `0994c21e2ffa5f8f2fc89fb5dc4ac705db87ecb11e551da9e27fdfcd833883cc`.
+- **Blocages métier inchangés :** contrat demande/tenant fournisseur, contrat de brouillon de la route historique et parité des tests synthétiques avec le schéma Supabase live restent à traiter. Ne pas déduire de ces tests que le risque de messagerie est exploitable en production, ni qu'il est corrigé en production.
+- **Sécurité / opérations :** aucune écriture ni migration de production, aucune fusion de PR, aucun déploiement de production.
+
+### Action suivante recommandée
+Priorité : intégrer le `package-lock.json` généré par CI sur la branche de travail, puis vérifier qu'un `npm ci` propre fonctionne sans régénération. Ensuite, ajouter des tests négatifs avec une fixture dont les contraintes/policies sont explicitement comparées au catalogue live en lecture seule. Le contrat d'autorisation tenant-demande doit rester un blocage documenté jusqu'à décision métier.
