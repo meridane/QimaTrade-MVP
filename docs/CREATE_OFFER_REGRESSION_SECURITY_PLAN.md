@@ -150,3 +150,25 @@ The latest run before this correction passed dependency audit, TypeScript, produ
 - This change is committed to the PR branch, but has not yet been exercised against PostgreSQL. CI verifies the application pipeline, not this SQL branch.
 - Required isolated SQL tests: call the wrapper with each special numeric value for both quantity and price; assert rejection and no offer, action execution, idempotency key, or success event is committed.
 - Production remains untouched. Security Gate remains NOT PASS until the isolated PostgreSQL tests and the demand-visibility authorization contract are satisfied.
+
+
+## CI hard gate and live demand-link coverage — 2026-10-27
+
+### Verified CI for the audit-gate change
+
+- Commit `7437f53f03dcd3492dfe700eea54a19e79aa583d`.
+- QIMA CI run [40502419667](https://github.com/meridane/QimaTrade-MVP/actions/runs/40502419667): **SUCCESS**. PostgreSQL integration/concurrency tests, TypeScript, npm audit, production build and Playwright browser smoke tests all completed successfully.
+- CodeQL run [40502419705](https://github.com/meridane/QimaTrade-MVP/actions/runs/40502419705): **SUCCESS**.
+- Vercel Preview check: **SUCCESS**. This is not a production deployment.
+- The npm audit artifact for this run was downloaded and inspected: 0 total vulnerabilities across 112 dependency entries (30 production, 45 development, 61 optional; categories do not necessarily sum to unique installed packages).
+- CI workflow now has an `Enforce dependency audit result` step that fails the verification job if the audit step did not complete successfully. The audit itself is still run with `--audit-level=high`; low/moderate findings are reported but do not independently fail the audit command. Current report has none.
+
+### Read-only data relationship check
+
+- Live schema has `product_requests.tenant_id` and nullable `product_requests.demand_id`, but no `tenant_id` column on `demands`.
+- Read-only aggregate query returned 23 demands: 10 have at least one linked `product_requests` row; 13 have no linked product request. Thus, using `product_requests` as the sole authorization bridge would leave 13 existing demands without a tenant mapping and could not safely be treated as the universal rule.
+- This evidence reinforces the decision not to infer a tenant-ownership guard or use `is_demand_participant` as the new-provider authorization rule. A documented public-marketplace eligibility predicate is still required.
+
+### Current status
+
+The SQL integration tests validate the proposed functions against an isolated synthetic fixture, not full live-schema/RLS parity. PR #26 remains open and draft. No production migration, privilege change, real offer creation, or merge occurred. Security Gate remains **NOT PASS** pending demand authorization, draft-route compatibility, complete migration parity, targeted Supabase security review, lockfile/reproducibility, and branch protection verification.
