@@ -166,3 +166,6 @@ jobs:
 
       - name: Run isolated legacy messages RLS regression tests
         run: bash tests/sql/run-legacy-messages-rls-regression.sh
+
+      - name: Run isolated participant self-enrollment RLS regression tests
+        run: bash tests/sql/run-participant-self-enrollment-regression.sh
