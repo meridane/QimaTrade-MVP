@@ -110,3 +110,34 @@ jobs:
             echo
             echo "L'audit npm reste informatif. Toute correction de dépendance doit être revue avant fusion."
           } >> "$GITHUB_STEP_SUMMARY"
+
+
+  postgres-integration:
+    name: CREATE_OFFER PostgreSQL integration tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: qima_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d qima_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/qima_test
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+      - name: Run isolated CREATE_OFFER integration and concurrency tests
+        run: bash tests/sql/run-create-offer-integration.sh
