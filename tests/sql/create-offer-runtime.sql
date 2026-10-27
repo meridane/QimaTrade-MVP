@@ -103,6 +103,51 @@ BEGIN
     IF SQLERRM NOT LIKE '%TENANT_ACCESS_DENIED%' THEN RAISE; END IF;
   END;
 
+
+  BEGIN
+    PERFORM public.execute_create_offer_v1(
+      '10000000-0000-4000-8000-000000000001',
+      'fixture-provider-spoof',
+      '{"case":"provider-spoof"}'::jsonb,
+      'Spoofed Provider Offer',
+      '50000000-0000-4000-8000-000000000001',
+      '40000000-0000-4000-8000-000000000001',
+      '30000000-0000-4000-8000-000000000002',
+      1,
+      10,
+      'USD'
+    );
+    RAISE EXCEPTION 'Expected spoofed provider actor to be rejected';
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM NOT LIKE '%INVALID_PROVIDER_ACTOR%' THEN RAISE; END IF;
+  END;
+
+  -- A missing JWT subject must not be accepted by the SECURITY DEFINER wrapper.
+  PERFORM set_config('request.jwt.claim.sub', '', true);
+  BEGIN
+    PERFORM public.execute_create_offer_v1(
+      '10000000-0000-4000-8000-000000000001',
+      'fixture-unauthenticated',
+      '{"case":"unauthenticated"}'::jsonb,
+      'Unauthenticated Offer',
+      '50000000-0000-4000-8000-000000000001',
+      '40000000-0000-4000-8000-000000000001',
+      '30000000-0000-4000-8000-000000000001',
+      1,
+      10,
+      'USD'
+    );
+    RAISE EXCEPTION 'Expected unauthenticated caller to be rejected';
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM NOT LIKE '%UNAUTHENTICATED%' THEN RAISE; END IF;
+  END;
+  PERFORM set_config('request.jwt.claim.sub', '20000000-0000-4000-8000-000000000001', true);
+
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE name IN ('Spoofed Provider Offer', 'Unauthenticated Offer');
+  IF v_count <> 0 THEN RAISE EXCEPTION 'Rejected calls unexpectedly created offers'; END IF;
+
   BEGIN
     PERFORM public.execute_create_offer_v1(
       '10000000-0000-4000-8000-000000000001',
