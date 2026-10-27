@@ -377,3 +377,21 @@ Au moment de l'audit, les 31 tables suivantes ont RLS activé mais aucune policy
 - **Plan de test :** `docs/LEGACY_MESSAGES_RLS_REVIEW_2026-10-28.md` définit les tests négatifs d'injection, de couple demande/offre incohérent, de spoofing d'acteur, et les tests positifs demandeur/fournisseur.
 - **Autre risque séparé :** `docs/PARTICIPANT_SELF_ENROLLMENT_REGRESSION_PLAN.md` suit les politiques des tables `core.conversation_participants` et `core.transaction_parties`. Les deux parcours doivent être testés indépendamment.
 - **État sécurité : NOT PASS.** CI et CodeQL verts sur le commit précédent ne testent pas cette politique live. Aucun changement de schéma, de privilèges ou de données en production; aucune migration appliquée; PR #26 toujours ouverte et en brouillon.
+
+
+## 9. Suivi du ré-audit — 28 octobre 2026
+
+- **CI PostgreSQL : tests isolés VALIDÉS** pour le commit de suivi `6247486bde609565109900d5eda3b8f3f9a4592f` : CREATE_OFFER integration/concurrency, legacy messages RLS et participant self-enrollment RLS ont tous réussi.
+- **TypeScript : VALIDÉ** sur ce même run.
+- **Build de production : EN COURS** au moment du relevé ; les tests Playwright et l'audit CodeQL sont également en cours.
+- **Prévisualisation Vercel :** le commit suivant a un statut de déploiement en attente au moment du relevé. Ne pas confondre une preview READY précédente avec le dernier commit.
+- **SEC-CHAT-01 :** le code de `app/demands/conversation/actions.ts` insère le message à partir de `demandId` et `offerId` fournis, sans vérifier explicitement côté action que l'offre appartient à la demande. Le contrôle dépend donc des contraintes et politiques RLS. À valider avec des tests négatifs reproduisant les politiques réelles ; aucun exploit de production n'a été tenté.
+- **OFFER-02 :** `app/api/offers/route.ts` crée des brouillons directement dans `offers`, tandis que `app/api/actions/create-offer/route.ts` passe par `executeUniversalAction`. Il faut définir le contrat métier des brouillons avant toute suppression ou redirection de l'ancienne route.
+- **CREATE_OFFER tenant ↔ demande :** la fonction SQL proposée vérifie l'appartenance du membre au tenant, le profil acteur, le Product Master actif et l'existence de la demande, mais ne vérifie pas explicitement que la demande est éligible pour ce tenant fournisseur. Contrat métier et tests négatifs encore requis.
+- **Aucune migration n'a été appliquée en production.** Les changements restent sur la branche de travail et la PR #26 reste en brouillon.
+
+### Prochaines étapes
+1. Attendre la fin du build, de Playwright et de CodeQL.
+2. Ajouter des tests négatifs explicites sur la relation demande/offre et tenant/demande dans un environnement isolé.
+3. Revoir les politiques et contraintes live en lecture seule pour s'assurer que les fixtures reflètent le schéma déployé.
+4. Réconcilier l'historique des migrations et compléter le registre après validation.
