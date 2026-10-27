@@ -141,3 +141,12 @@ This is a narrow regression improvement only. It does not establish that authent
 ## CI feedback — 2026-10-27
 
 The latest run before this correction passed dependency audit, TypeScript, production build and CodeQL. Playwright reported 15 passed and one failed: the malformed-attributes test expected HTTP 400 before authentication, but the current route parses attributes only after authentication and reference validation. The test asserted an order the implementation does not promise, so it was removed instead of changing the endpoint's behavior just to satisfy the test. The replacement commit's CI must be checked before considering the regression set green. No production database changes were made.
+
+
+## SQL numeric boundary regression — 2026-10-27
+
+- Follow-up review found that PostgreSQL `numeric` supports special values such as `NaN` and `Infinity`; comparisons like `quantity <= 0` or `price < 0` do not reliably reject all such values.
+- Branch-only fix: `execute_create_offer_v1` now rejects `NaN`, `Infinity`, and `-Infinity` for quantity and price before creating execution/idempotency rows.
+- This change is committed to the PR branch, but has not yet been exercised against PostgreSQL. CI verifies the application pipeline, not this SQL branch.
+- Required isolated SQL tests: call the wrapper with each special numeric value for both quantity and price; assert rejection and no offer, action execution, idempotency key, or success event is committed.
+- Production remains untouched. Security Gate remains NOT PASS until the isolated PostgreSQL tests and the demand-visibility authorization contract are satisfied.
