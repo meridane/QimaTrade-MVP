@@ -72,3 +72,26 @@ Reviewed QIMA functions generally pin their search paths. Platform-managed funct
 ## Overall gate
 
 **Security gate: NOT PASS.** The prior code commit has green CI, CodeQL, and preview results, but these do not prove live Supabase authorization correctness. Open items include the participant self-enrollment candidate, demand-to-supplier visibility, legacy draft-offer compatibility, migration reconciliation, committed npm lockfile, and function-level privilege review. No production migration, data mutation, PR merge, or production deployment was performed.
+
+
+## 7. Additional finding: legacy message INSERT policy may allow cross-demand injection
+
+Read-only inspection of the live catalog and the current app server action identified a separate issue from the newer `core` participant policies.
+
+- `app/demands/conversation/actions.ts` writes to legacy `public.messages`.
+- RLS is enabled on `public.messages`; authenticated has INSERT and SELECT table privileges.
+- `messages_insert_participants` calls `public.is_message_participant(demand_id, offer_id, sender_actor_id)` and checks that `sender_actor_id` belongs to the authenticated profile.
+- The SECURITY DEFINER helper returns true when the current user's actor matches the supplied sender actor, without validating that the actor is authorized for the target demand/offer. The server action correctly derives sender actor from the user's profile but accepts demand/offer IDs as action input.
+
+**Assessment: high-priority cross-object message-injection candidate, not yet confirmed by an authenticated exploit test.** No production insert or read attempt was made. The function's behavior is confirmed from the live definition; exploitability still depends on the complete schema constraints and RLS evaluation in the authenticated API path.
+
+Required isolated tests and fix constraints are documented in `docs/LEGACY_MESSAGES_RLS_REVIEW_2026-10-28.md`. The newer `core.conversation_participants` / `core.transaction_parties` candidate remains separate and is tracked in `docs/PARTICIPANT_SELF_ENROLLMENT_REGRESSION_PLAN.md`.
+
+## Latest validation after documentation updates
+
+- Commits `f7ebb281fb5b206530153b9c95220d982dd90e78` and subsequent documentation commits do not modify application runtime or the database.
+- QIMA CI run `40531582247`: SUCCESS for `f7ebb28...`.
+- CodeQL run `40531582636`: SUCCESS for `f7ebb28...`.
+- Vercel Preview for `f7ebb28...`: READY.
+- These results do not validate the new live RLS findings; no authenticated exploit regression test has run.
+- No production data/schema/privilege changes, no migration application, no PR merge, and no production deployment.
