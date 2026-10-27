@@ -1,13 +1,13 @@
 -- PROPOSAL ONLY — NOT A SUPABASE MIGRATION.
 -- Review: docs/LEGACY_MESSAGES_RLS_REVIEW_2026-10-28.md
--- Do not run against production. First copy to a disposable database and run
--- the regression matrix in the review document.
+-- Do not run against production. First apply only to a disposable database,
+-- with synthetic users, and run all cases in the review document.
 --
--- This keeps the current function signature so existing policies continue to
--- call it, but sender identity alone is no longer treated as membership.
--- Access is established only by being the requester of the exact demand or
--- the provider of an offer whose demand_id matches the message's demand_id.
--- The INSERT policy separately checks that sender_actor_id belongs to auth.uid().
+-- The predicate validates that the caller is the requester for this exact
+-- demand, or the provider for an offer belonging to this exact demand.
+-- Sender identity is deliberately not used as proof of access; the existing
+-- INSERT policy separately requires sender_actor_id to match the caller.
+-- The demand/offer pair is validated before either participant path.
 
 CREATE OR REPLACE FUNCTION public.is_message_participant(
   p_message_demand_id uuid,
@@ -23,27 +23,36 @@ AS $function$
   SELECT EXISTS (
     SELECT 1
     FROM public.profiles p
+    JOIN public.demands d ON d.id = p_message_demand_id
     WHERE p.auth_user_id = auth.uid()
       AND (
+        -- Demand-only message is supported only when no offer is supplied.
+        (p_message_offer_id IS NULL AND d.requester_actor_id = p.actor_id)
+        OR
+        -- If an offer is supplied, it must belong to this demand. The
+        -- requester can read/respond to that demand's offer conversation.
         EXISTS (
           SELECT 1
-          FROM public.demands d
-          WHERE d.id = p_message_demand_id
+          FROM public.offers o
+          WHERE o.id = p_message_offer_id
+            AND o.demand_id = d.id
             AND d.requester_actor_id = p.actor_id
         )
-        OR EXISTS (
+        OR
+        -- Provider may access only their own offer and its matching demand.
+        EXISTS (
           SELECT 1
           FROM public.offers o
-          JOIN public.demands d ON d.id = o.demand_id
           WHERE o.id = p_message_offer_id
-            AND d.id = p_message_demand_id
+            AND o.demand_id = d.id
             AND o.provider_actor_id = p.actor_id
         )
       )
   );
 $function$;
 
--- Intentionally do not alter grants or policies here. Validate existing
--- EXECUTE grants, RLS behavior, and all positive/negative cases in isolation.
--- If legitimate chat access currently depends on another workflow, update
--- this predicate only after documenting and testing that business rule.
+-- Intentionally do not alter grants or policies here. Validate current
+-- EXECUTE grants, RLS evaluation, and all positive/negative cases in isolation.
+-- If product rules require demand-only messages from providers or accepted
+-- matches without a direct offer, document and test that rule before changing
+-- this predicate. Existing messages remain stored; this changes access checks.
