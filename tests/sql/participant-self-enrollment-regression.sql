@@ -178,11 +178,6 @@ CREATE POLICY cp_insert_safe ON qima_participant_test.conversation_participants
       JOIN qima_participant_test.requests r ON r.id = c.request_id
       WHERE c.id = conversation_id AND r.owner_user_id = qima_participant_test.current_uid()
     )
-    OR EXISTS (
-      SELECT 1 FROM qima_participant_test.conversation_participants existing
-      WHERE existing.conversation_id = conversation_id
-        AND existing.user_id = qima_participant_test.current_uid()
-    )
   );
 CREATE POLICY tp_insert_safe ON qima_participant_test.transaction_parties
   FOR INSERT TO qima_participant_authenticated
