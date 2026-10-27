@@ -39,3 +39,15 @@ Fichier : `app/api/actions/create-offer/route.ts`.
 
 ## Limite
 Cette revue est basée sur le code source de la branche. Elle ne prouve pas à elle seule un exploit en production et ne remplace pas les tests avec les rôles/JWT et le schéma réel. Aucune migration ou modification de données de production n'a été effectuée.
+
+## Mise à jour — garde de cohérence demande/offre ajoutée
+
+Le commit `e14c3d64ff86ab96f1e22a931a3620da7b1ae78a` ajoute une vérification applicative de cohérence dans `app/demands/conversation/actions.ts` :
+
+- `loadConversation` refuse désormais une offre dont `demand_id` ne correspond pas au `demandId` demandé.
+- `sendConversationMessage` vérifie avant l'INSERT que l'offre existe et correspond à la demande fournie ; une paire incohérente est refusée.
+- Cette garde est une défense en profondeur pour l'intégrité du couple demande/offre. Elle ne remplace pas RLS et **ne règle pas à elle seule** l'autorisation d'un utilisateur étranger qui fournit une demande et une offre étrangères mais cohérentes entre elles.
+- Les erreurs de vérification ne retournent pas les détails bruts de la requête d'offre.
+
+### Validation
+Le changement a été poussé sur la branche de la PR #26. Typecheck, build, Playwright et tests SQL doivent être revalidés sur le nouveau commit avant de considérer le correctif vérifié. Aucun test authentifié contre la base de production n'a été lancé ; aucune migration, écriture de données ou opération de production n'a eu lieu.
