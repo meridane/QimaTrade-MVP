@@ -124,3 +124,26 @@ test("offers API rejects a non-numeric price before authentication", async ({ re
     error: "Price must be a valid positive number.",
   });
 });
+
+
+test("offers API rejects an infinite quantity before authentication", async ({ request }) => {
+  const response = await request.post("/api/offers", {
+    multipart: { name: "Test offer", quantity: "Infinity" },
+  });
+
+  expect(response.status()).toBe(400);
+  await expect(response.json()).resolves.toMatchObject({
+    error: "Please provide a valid offer name and quantity.",
+  });
+});
+
+test("offers API rejects an infinite price before authentication", async ({ request }) => {
+  const response = await request.post("/api/offers", {
+    multipart: { name: "Test offer", quantity: "1", price: "Infinity" },
+  });
+
+  expect(response.status()).toBe(400);
+  await expect(response.json()).resolves.toMatchObject({
+    error: "Price must be a valid positive number.",
+  });
+});
