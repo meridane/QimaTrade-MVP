@@ -92,6 +92,8 @@ CREATE TABLE public.offers (
   product_master_id uuid REFERENCES public.product_masters(id),
   attributes jsonb NOT NULL DEFAULT '{}'::jsonb
 );
+ALTER TABLE public.offers ADD CONSTRAINT fixture_force_rollback CHECK (name <> 'Fixture rollback failure');
+
 CREATE TABLE public.action_definitions (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   action_key text NOT NULL,
