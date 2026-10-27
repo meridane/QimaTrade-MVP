@@ -70,8 +70,14 @@ export async function POST(request: Request) {
       actionVersion: 1,
       objectType: "Demand",
       objectId: input.demandId,
-      correlationId: body.correlationId?.trim() || randomUUID(),
-      idempotencyKey: body.idempotencyKey?.trim() || randomUUID(),
+      correlationId:
+        typeof body.correlationId === "string" && body.correlationId.trim()
+          ? body.correlationId.trim()
+          : randomUUID(),
+      idempotencyKey:
+        typeof body.idempotencyKey === "string" && body.idempotencyKey.trim()
+          ? body.idempotencyKey.trim()
+          : randomUUID(),
     }, input, token);
 
     return NextResponse.json(result, { status: result.status === "succeeded" ? 200 : 409 });
