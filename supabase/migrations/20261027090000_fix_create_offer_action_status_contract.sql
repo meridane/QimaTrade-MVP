@@ -57,8 +57,13 @@ BEGIN
 
   IF v_actor_id IS NULL THEN RAISE EXCEPTION 'PROFILE_ACTOR_NOT_FOUND'; END IF;
   IF p_provider_actor_id IS DISTINCT FROM v_actor_id THEN RAISE EXCEPTION 'INVALID_PROVIDER_ACTOR'; END IF;
-  IF p_quantity IS NULL OR p_quantity <= 0 THEN RAISE EXCEPTION 'INVALID_QUANTITY'; END IF;
-  IF p_price IS NULL OR p_price < 0 THEN RAISE EXCEPTION 'INVALID_PRICE'; END IF;
+  -- PostgreSQL numeric can represent NaN and Infinity; ordinary <= / < checks do not reject all of them.
+  IF p_quantity IS NULL OR p_quantity::text IN ('NaN', 'Infinity', '-Infinity') OR p_quantity <= 0 THEN
+    RAISE EXCEPTION 'INVALID_QUANTITY';
+  END IF;
+  IF p_price IS NULL OR p_price::text IN ('NaN', 'Infinity', '-Infinity') OR p_price < 0 THEN
+    RAISE EXCEPTION 'INVALID_PRICE';
+  END IF;
   IF nullif(trim(p_currency), '') IS NULL THEN RAISE EXCEPTION 'INVALID_CURRENCY'; END IF;
 
   IF NOT EXISTS (
