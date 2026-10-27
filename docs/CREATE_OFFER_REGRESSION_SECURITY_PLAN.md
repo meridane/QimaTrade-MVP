@@ -262,3 +262,14 @@ CI/CodeQL are green for the code commit listed above, but overall Security Gate 
 - Its own QIMA CI run [40517483076](https://github.com/meridane/QimaTrade-MVP/actions/runs/40517483076) and CodeQL run [40517482934](https://github.com/meridane/QimaTrade-MVP/actions/runs/40517482934) were queued at the time of this check. The prior code commit's green results must not be represented as checks on this latest documentation commit.
 - The generated lockfile artifact from run `40514820339` was downloaded and inspected in the working environment: it contains `package-lock.json` (62,981 bytes), SHA-256 `8d90037589e58bc2d0408a0d652b29ea5fcfa414cd98af60b155846cc321837f`. The lockfile is still an artifact and is **not committed** in the branch. CI continues to regenerate it each run, so reproducible dependency resolution is not complete.
 - No production Supabase writes, migrations, grants changes, offer creation, PR merge, or production deployment were performed.
+
+
+## Latest verified commit — 2026-10-27
+
+- **Commit tested:** `857c5f66d84a112d05e186f4c1c91a079007d549`.
+- **QIMA CI:** SUCCESS, run [40518018097](https://github.com/meridane/QimaTrade-MVP/actions/runs/40518018097). Both jobs passed: the complete typecheck/npm audit/production build/Playwright workflow and the isolated PostgreSQL CREATE_OFFER integration/concurrency suite.
+- **CodeQL:** SUCCESS, run [40518017925](https://github.com/meridane/QimaTrade-MVP/actions/runs/40518017925).
+- **Vercel Preview:** SUCCESS for this commit: https://vercel.com/bmk1/qimatrade-mvp/JDbEPveSVKb4SbTi4G11KTCB3tay
+- **Generated lockfile artifact:** run `40518018097`, artifact `generated-package-lock` (artifact ID `12740417377`). The downloaded archive contains `package-lock.json`, 62,981 bytes, SHA-256 `8d90037589e58bc2d0408a0d652b29ea5fcfa414cd98af60b155846cc321837f`. This matches the previously inspected lockfile checksum, but the file is still not committed.
+- **Important limitation:** PostgreSQL tests use an isolated synthetic fixture; they do not establish full schema/RLS parity with the live Supabase project. Green CI and CodeQL do not close the outstanding authorization, draft compatibility, migration reconciliation, lockfile, function privilege review, or branch protection gates.
+- **Safety status:** Security Gate remains **NOT PASS**. No production migration, grant change, offer creation, PR merge, or production deployment was performed.
