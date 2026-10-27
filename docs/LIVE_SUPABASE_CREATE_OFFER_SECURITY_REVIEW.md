@@ -32,13 +32,13 @@ The live wrapper verifies membership in `p_tenant_id` and existence of `p_demand
 
 **Next step:** define the canonical eligibility rule from the actual business model and add negative integration tests. Do not invent a column or guess the rule in SQL.
 
-### F-04 — Actor lookup uses arbitrary `LIMIT 1`
+### F-04 — Actor lookup uses `LIMIT 1`, but a uniqueness invariant exists
 
-The live `execute_create_offer_v1`, `create_offer_v1`, `current_actor_id()`, and `current_profile_actor_id()` implementations select an actor from `profiles` with `LIMIT 1` and no ordering.
+The live `execute_create_offer_v1`, `create_offer_v1`, `current_actor_id()`, and `current_profile_actor_id()` implementations select an actor from `profiles` with `LIMIT 1` and no ordering. The follow-up catalog query found a UNIQUE constraint and unique index on `profiles.auth_user_id`, so at most one profile row can match the authenticated user under the current schema.
 
-**Impact:** if multiple eligible profile rows are possible, actor selection is nondeterministic.
+**Assessment:** this is not currently confirmed as an exploitable nondeterminism for lookups filtered by `auth_user_id`. The duplicated unique constraints/indexes may be redundant, but should not be removed without checking migration history and dependencies.
 
-**Next step:** inspect uniqueness constraints and real data invariants for `profiles.auth_user_id` before changing the lookup.
+**Next step:** retain the one-user/one-profile invariant and verify it in disposable tests; do not change this lookup solely because it uses `LIMIT 1`.
 
 ### F-05 — Product request publication also uses arbitrary profile selection
 
