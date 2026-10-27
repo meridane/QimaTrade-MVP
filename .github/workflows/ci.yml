@@ -163,3 +163,6 @@ jobs:
           sudo apt-get install -y postgresql-client
       - name: Run isolated CREATE_OFFER integration and concurrency tests
         run: bash tests/sql/run-create-offer-integration.sh
+
+      - name: Run isolated legacy messages RLS regression tests
+        run: bash tests/sql/run-legacy-messages-rls-regression.sh
