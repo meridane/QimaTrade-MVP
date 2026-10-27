@@ -217,7 +217,7 @@ VALUES ('dddddddd-dddd-4ddd-8ddd-dddddddddddd',
         'legitimate-provider');
 RESET ROLE;
 
-DO $
+DO $final$
 BEGIN
   IF (SELECT count(*) FROM qima_legacy_test.messages) <> 2 THEN
     RAISE EXCEPTION 'Expected two legitimate messages after safe predicate';
@@ -238,6 +238,6 @@ BEGIN
   ) THEN
     RAISE EXCEPTION 'Mismatched demand/offer pair incorrectly authorized';
   END IF;
-END $$;
+END $final$;
 
 SELECT 'Legacy messages synthetic RLS regression tests passed' AS result;
