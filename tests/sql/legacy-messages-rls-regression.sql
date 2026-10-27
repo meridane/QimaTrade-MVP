@@ -51,7 +51,7 @@ INSERT INTO qima_legacy_test.demands VALUES
  ('eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee','22222222-2222-4222-8222-222222222222');
 
 INSERT INTO qima_legacy_test.offers VALUES
- ('ffffffff-ffff-4fff-8fff-ffffffffffff','dddddddd-dddd-4ddd-8ddd-dddddddddddd','22222222-2222-4222-8222-222222222222'),
+ ('ffffffff-ffff-4fff-8fff-ffffffffffff','dddddddd-dddd-4ddd-8ddd-dddddddddddd','33333333-3333-4333-8333-333333333333'),
  ('99999999-9999-4999-8999-999999999999','eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee','33333333-3333-4333-8333-333333333333');
 
 -- Baseline reproduces the unsafe "sender actor is enough" shortcut.
@@ -208,12 +208,12 @@ VALUES ('dddddddd-dddd-4ddd-8ddd-dddddddddddd',
         'legitimate-requester');
 RESET ROLE;
 
-SET qima_legacy_test.uid = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+SET qima_legacy_test.uid = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
 SET ROLE qima_test_authenticated;
 INSERT INTO qima_legacy_test.messages(demand_id, offer_id, sender_actor_id, body)
 VALUES ('dddddddd-dddd-4ddd-8ddd-dddddddddddd',
         'ffffffff-ffff-4fff-8fff-ffffffffffff',
-        '22222222-2222-4222-8222-222222222222',
+        '33333333-3333-4333-8333-333333333333',
         'legitimate-provider');
 RESET ROLE;
 
