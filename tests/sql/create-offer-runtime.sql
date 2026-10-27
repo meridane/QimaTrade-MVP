@@ -148,6 +148,144 @@ BEGIN
   WHERE name IN ('Spoofed Provider Offer', 'Unauthenticated Offer');
   IF v_count <> 0 THEN RAISE EXCEPTION 'Rejected calls unexpectedly created offers'; END IF;
 
+
+  BEGIN
+    PERFORM public.execute_create_offer_v1(
+      '10000000-0000-4000-8000-000000000001',
+      'fixture-infinity-quantity',
+      '{"case":"infinity-quantity"}'::jsonb,
+      'Infinity Quantity Offer',
+      '50000000-0000-4000-8000-000000000001',
+      '40000000-0000-4000-8000-000000000001',
+      '30000000-0000-4000-8000-000000000001',
+      'Infinity'::numeric,
+      10,
+      'USD'
+    );
+    RAISE EXCEPTION 'Expected Infinity quantity to be rejected';
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM NOT LIKE '%INVALID_QUANTITY%' THEN RAISE; END IF;
+  END;
+
+  BEGIN
+    PERFORM public.execute_create_offer_v1(
+      '10000000-0000-4000-8000-000000000001',
+      'fixture-infinity-price',
+      '{"case":"infinity-price"}'::jsonb,
+      'Infinity Price Offer',
+      '50000000-0000-4000-8000-000000000001',
+      '40000000-0000-4000-8000-000000000001',
+      '30000000-0000-4000-8000-000000000001',
+      1,
+      'Infinity'::numeric,
+      'USD'
+    );
+    RAISE EXCEPTION 'Expected Infinity price to be rejected';
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM NOT LIKE '%INVALID_PRICE%' THEN RAISE; END IF;
+  END;
+
+  BEGIN
+    PERFORM public.execute_create_offer_v1(
+      '10000000-0000-4000-8000-000000000001',
+      'fixture-negative-price',
+      '{"case":"negative-price"}'::jsonb,
+      'Negative Price Offer',
+      '50000000-0000-4000-8000-000000000001',
+      '40000000-0000-4000-8000-000000000001',
+      '30000000-0000-4000-8000-000000000001',
+      1,
+      -1,
+      'USD'
+    );
+    RAISE EXCEPTION 'Expected negative price to be rejected';
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM NOT LIKE '%INVALID_PRICE%' THEN RAISE; END IF;
+  END;
+
+  BEGIN
+    PERFORM public.execute_create_offer_v1(
+      '10000000-0000-4000-8000-000000000001',
+      '   ',
+      '{"case":"blank-key"}'::jsonb,
+      'Blank Key Offer',
+      '50000000-0000-4000-8000-000000000001',
+      '40000000-0000-4000-8000-000000000001',
+      '30000000-0000-4000-8000-000000000001',
+      1,
+      10,
+      'USD'
+    );
+    RAISE EXCEPTION 'Expected blank idempotency key to be rejected';
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM NOT LIKE '%IDEMPOTENCY_KEY_REQUIRED%' THEN RAISE; END IF;
+  END;
+
+  BEGIN
+    PERFORM public.execute_create_offer_v1(
+      '10000000-0000-4000-8000-000000000001',
+      'fixture-null-input',
+      NULL,
+      'Null Input Offer',
+      '50000000-0000-4000-8000-000000000001',
+      '40000000-0000-4000-8000-000000000001',
+      '30000000-0000-4000-8000-000000000001',
+      1,
+      10,
+      'USD'
+    );
+    RAISE EXCEPTION 'Expected null action input to be rejected';
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM NOT LIKE '%ACTION_INPUT_REQUIRED%' THEN RAISE; END IF;
+  END;
+
+  BEGIN
+    PERFORM public.execute_create_offer_v1(
+      '10000000-0000-4000-8000-000000000001',
+      'fixture-missing-demand',
+      '{"case":"missing-demand"}'::jsonb,
+      'Missing Demand Offer',
+      '50000000-0000-4000-8000-000000000099',
+      '40000000-0000-4000-8000-000000000001',
+      '30000000-0000-4000-8000-000000000001',
+      1,
+      10,
+      'USD'
+    );
+    RAISE EXCEPTION 'Expected missing demand to be rejected';
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM NOT LIKE '%DEMAND_NOT_FOUND%' THEN RAISE; END IF;
+  END;
+
+  INSERT INTO public.product_masters(id,code,name,canonical_name,status)
+  VALUES ('40000000-0000-4000-8000-000000000099','INACTIVE-1','Inactive Fixture','Inactive Fixture','draft');
+
+  BEGIN
+    PERFORM public.execute_create_offer_v1(
+      '10000000-0000-4000-8000-000000000001',
+      'fixture-inactive-product',
+      '{"case":"inactive-product"}'::jsonb,
+      'Inactive Product Offer',
+      '50000000-0000-4000-8000-000000000001',
+      '40000000-0000-4000-8000-000000000099',
+      '30000000-0000-4000-8000-000000000001',
+      1,
+      10,
+      'USD'
+    );
+    RAISE EXCEPTION 'Expected inactive Product Master to be rejected';
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM NOT LIKE '%PRODUCT_MASTER_NOT_FOUND%' THEN RAISE; END IF;
+  END;
+
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE name IN (
+    'Infinity Quantity Offer', 'Infinity Price Offer', 'Negative Price Offer',
+    'Blank Key Offer', 'Null Input Offer', 'Missing Demand Offer', 'Inactive Product Offer'
+  );
+  IF v_count <> 0 THEN RAISE EXCEPTION 'Rejected validation cases created % offers', v_count; END IF;
+
   BEGIN
     PERFORM public.execute_create_offer_v1(
       '10000000-0000-4000-8000-000000000001',
