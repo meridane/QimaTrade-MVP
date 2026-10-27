@@ -257,9 +257,6 @@ BEGIN
     IF SQLERRM NOT LIKE '%DEMAND_NOT_FOUND%' THEN RAISE; END IF;
   END;
 
-  INSERT INTO public.product_masters(id,code,name,canonical_name,status)
-  VALUES ('40000000-0000-4000-8000-000000000099','INACTIVE-1','Inactive Fixture','Inactive Fixture','draft');
-
   BEGIN
     PERFORM public.execute_create_offer_v1(
       '10000000-0000-4000-8000-000000000001',
