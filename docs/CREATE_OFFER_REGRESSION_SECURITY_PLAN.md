@@ -253,3 +253,12 @@ The marketplace must define which demands are answerable by a supplier. Neither 
 
 ### Status
 CI/CodeQL are green for the code commit listed above, but overall Security Gate remains **NOT PASS**. The draft-compatible runtime route, supplier visibility predicate, migration-source reconciliation, committed lockfile, and complete target-commit checks remain outstanding. No production migration, privilege change, offer creation, or merge was performed.
+
+
+## Re-check after latest documentation commits — 2026-10-27
+
+- The code-validation commit `73ea68d550a00a0839ced24c75a4bf38012fa9a6` remains confirmed green: QIMA CI run [40514820339](https://github.com/meridane/QimaTrade-MVP/actions/runs/40514820339) and CodeQL run [40514820258](https://github.com/meridane/QimaTrade-MVP/actions/runs/40514820258) both succeeded.
+- The latest documentation commit `dc2451f7c1cb3a9c50a3c75cc8efcec2a6acaed8` has Vercel Preview status **SUCCESS**: https://vercel.com/bmk1/qimatrade-mvp/FwtzenFM6beRVseVWurtRdJBaLDf
+- Its own QIMA CI run [40517483076](https://github.com/meridane/QimaTrade-MVP/actions/runs/40517483076) and CodeQL run [40517482934](https://github.com/meridane/QimaTrade-MVP/actions/runs/40517482934) were queued at the time of this check. The prior code commit's green results must not be represented as checks on this latest documentation commit.
+- The generated lockfile artifact from run `40514820339` was downloaded and inspected in the working environment: it contains `package-lock.json` (62,981 bytes), SHA-256 `8d90037589e58bc2d0408a0d652b29ea5fcfa414cd98af60b155846cc321837f`. The lockfile is still an artifact and is **not committed** in the branch. CI continues to regenerate it each run, so reproducible dependency resolution is not complete.
+- No production Supabase writes, migrations, grants changes, offer creation, PR merge, or production deployment were performed.
