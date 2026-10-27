@@ -71,3 +71,16 @@ This is not a blanket recommendation to revoke execution. Review each function's
 ## Evidence boundary
 
 These findings reflect live catalog/function-definition query results at review time. They do not establish every effective grant, every RLS policy, or a complete mapping of 161 remote migration-history records to repository source. Continue read-only investigation and isolated testing; do not reset or blindly replay production migrations.
+
+
+## Live demand/offer lifecycle data check — 2026-10-27 (read-only)
+
+A follow-up aggregate query against the live tables returned:
+- `demands`: 23 rows with `demand_status = 'draft'`; all 23 also have `documentation_status = 'incomplete'`.
+- `offers`: 3 rows with `lifecycle = 'draft'`; all 3 currently have nonzero prices.
+
+This is a small current dataset, not proof of all future workflow states. However, it makes the supplier-eligibility gap concrete: the current live demands are all drafts, so there is no observed published-demand state to use as an authorization predicate yet. A safe response-eligibility rule must be coordinated with the demand publication workflow (including whether incomplete drafts are visible to providers). Do not make drafts publicly answerable merely to unblock offer creation.
+
+The current legacy route's optional-price capability is confirmed by code, but the present three live offers do not demonstrate any existing null-price draft. Preserve route compatibility until the product contract is explicitly decided; do not infer that null-price drafts are or are not needed from this small sample.
+
+No rows were modified.
