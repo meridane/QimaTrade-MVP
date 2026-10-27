@@ -313,3 +313,12 @@ Au moment de l'audit, les 31 tables suivantes ont RLS activé mais aucune policy
 - **Tests avant application :** refus de l'appel direct authentifié ; réussite du chemin universel ; retry avec la même clé sans doublon ; rollback des lignes d'exécution/idempotence si la création échoue.
 - **Limite :** `app/api/offers/route.ts` insère directement dans `offers` sous RLS et n'appelle pas cette RPC. La migration ne l'unifie pas encore avec le runtime.
 - **État sécurité : NOT PASS** jusqu'à exécution des tests d'intégration sur une base jetable.
+
+## 23. Régressions de validation HTTP — 27 octobre 2026
+
+- **Fichier de tests modifié :** `tests/e2e/auth-smoke.spec.ts`.
+- **Ajouts :** tests Playwright qui vérifient que `POST /api/offers` renvoie HTTP 400 avant authentification pour une quantité non numérique, un prix non numérique et des attributs JSON mal formés.
+- **But :** verrouiller les validations d'entrée existantes et éviter qu'une régression transmette des valeurs invalides aux opérations Supabase.
+- **Limite :** ces tests ne valident pas l'insertion d'offre authentifiée, les politiques RLS, les RPC SQL, l'idempotence ni les courses concurrentes. Ils ne prouvent donc pas la sécurité du parcours complet.
+- **Validation :** les tests viennent d'être ajoutés à la branche PR #26. La CI déclenchée par le commit doit être vérifiée avant de déclarer ces tests réussis.
+- **État sécurité : NOT PASS** jusqu'aux tests d'intégration PostgreSQL isolés et à la résolution des contrats demande/brouillon/route historique.
