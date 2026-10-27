@@ -331,3 +331,14 @@ Au moment de l'audit, les 31 tables suivantes ont RLS activé mais aucune policy
 - CI sur le commit précédent : TypeScript et build réussis, 15 tests Playwright réussis et 1 échec lié à cette attente incorrecte ; CodeQL réussi.
 - Un nouveau commit corrige le test. Résultat CI de ce nouveau commit en attente de vérification.
 - Aucun changement de production ni migration SQL exécutée.
+
+
+## 25. Sélection de tenant et parsing défensif — 27 octobre 2026
+
+- **PUBLISH-01 :** `app/api/product-requests/publish/route.ts` ne choisit plus le premier tenant arbitrairement. La route charge les memberships, déduplique les tenants et renvoie HTTP 409 `TENANT_SELECTION_REQUIRED` si le compte appartient à plusieurs tenants distincts.
+- **OFFER-API-01 :** `app/api/actions/create-offer/route.ts` traite maintenant `correlationId` et `idempotencyKey` comme des chaînes optionnelles : une valeur absente, vide ou non-string entraîne la génération d'une UUID au lieu d'un appel à `.trim()` qui échouerait.
+- **Fichiers de suivi :** `docs/LIVE_SUPABASE_CREATE_OFFER_SECURITY_REVIEW.md` et `docs/CREATE_OFFER_REGRESSION_SECURITY_PLAN.md`.
+- **Validation automatisée du commit `73ea68d550a00a0839ced24c75a4bf38012fa9a6` :** QIMA CI run [40514820339](https://github.com/meridane/QimaTrade-MVP/actions/runs/40514820339) SUCCESS, incluant tests PostgreSQL isolés de CREATE_OFFER/concurrence, audit npm, TypeScript, build de production et Playwright smoke tests. CodeQL run [40514820258](https://github.com/meridane/QimaTrade-MVP/actions/runs/40514820258) SUCCESS.
+- **Attention :** ces résultats valident le commit `73ea68d...`; ils ne valident pas automatiquement les mises à jour documentaires ultérieures et ne prouvent pas la parité complète avec le schéma Supabase de production.
+- **Limites encore ouvertes :** le formulaire historique `app/api/offers/route.ts` effectue toujours un INSERT direct et accepte les brouillons sans demande/Product Master/prix. La règle de visibilité des demandes fournisseurs n'est pas encore définie. Le sélecteur de tenant actif n'existe pas encore : les comptes multi-tenant sont refusés par ces chemins plutôt que traités dans un contexte arbitraire.
+- **État de sécurité global : NOT PASS** tant que l'autorisation demande/fournisseur, le parcours brouillon, la parité migrations et le lockfile commité ne sont pas résolus. Aucune migration de production, écriture métier ou fusion n'a été effectuée.
