@@ -57,7 +57,6 @@ test("publishing a product request requires a request ID", async ({ request }) =
   });
 });
 
-
 test.describe("protected routes require authentication", () => {
   for (const protectedPath of ["/demands", "/decision-tree", "/offers", "/request"]) {
     test(`${protectedPath} redirects unauthenticated visitors to login`, async ({ page }) => {
@@ -125,7 +124,6 @@ test("offers API rejects a non-numeric price before authentication", async ({ re
   });
 });
 
-
 test("offers API rejects an infinite quantity before authentication", async ({ request }) => {
   const response = await request.post("/api/offers", {
     multipart: { name: "Test offer", quantity: "Infinity" },
@@ -140,6 +138,28 @@ test("offers API rejects an infinite quantity before authentication", async ({ r
 test("offers API rejects an infinite price before authentication", async ({ request }) => {
   const response = await request.post("/api/offers", {
     multipart: { name: "Test offer", quantity: "1", price: "Infinity" },
+  });
+
+  expect(response.status()).toBe(400);
+  await expect(response.json()).resolves.toMatchObject({
+    error: "Price must be a valid positive number.",
+  });
+});
+
+test("offers API rejects NaN quantity before authentication", async ({ request }) => {
+  const response = await request.post("/api/offers", {
+    multipart: { name: "Test offer", quantity: "NaN" },
+  });
+
+  expect(response.status()).toBe(400);
+  await expect(response.json()).resolves.toMatchObject({
+    error: "Please provide a valid offer name and quantity.",
+  });
+});
+
+test("offers API rejects NaN price before authentication", async ({ request }) => {
+  const response = await request.post("/api/offers", {
+    multipart: { name: "Test offer", quantity: "1", price: "NaN" },
   });
 
   expect(response.status()).toBe(400);
