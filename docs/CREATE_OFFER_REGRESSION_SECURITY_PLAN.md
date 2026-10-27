@@ -199,3 +199,27 @@ This is an inventory, not proof that every routine is vulnerable. Each callable 
 - Do not change repository settings without explicit approval. Recommended target: protect `main`, require PR reviews and the CI/CodeQL checks, block force-push/deletion, and ensure the rules are configured with the checks' exact context names.
 
 No database grants, branch settings, production schema, or production data were changed. Security Gate remains **NOT PASS**.
+
+
+## CI result and lockfile artifact — 2026-10-27
+
+- Commit `3ef0a6edc77c7c168d52e915984b80ff54fda15e` passed QIMA CI run [40505094643](https://github.com/meridane/QimaTrade-MVP/actions/runs/40505094643): generated lockfile, `npm ci`, dependency audit, TypeScript, production build, Playwright Chromium install, browser smoke tests, audit enforcement and disposable PostgreSQL integration/concurrency tests all succeeded.
+- CodeQL run [40505094565](https://github.com/meridane/QimaTrade-MVP/actions/runs/40505094565) succeeded.
+- Vercel Preview deployment is Ready: https://qimatrade-mvp-git-fix-create-offer-status-contract-bmk1.vercel.app
+- CI generated a `package-lock.json` artifact (artifact ID `12734786467`, SHA-256 `96c72a29068f53ff100c3213cefcef8174bd708cba69e1b9b4210f27422dca8a`). It is currently an artifact, not a committed repository file. Do not claim dependency reproducibility is complete until this exact lockfile is reviewed, committed, and CI consumes the committed file rather than regenerating it.
+- The integration test uses a synthetic disposable schema that intentionally models only the tested columns/constraints. Passing it does not prove full production schema parity or prove tenant-to-demand authorization.
+- Remote Supabase migration history lists 161 applied versions, latest `20261026034925 enable_rls_on_unexposed_reference_tables`; repository currently has only 17 local SQL migration files. This is a migration-source/parity gap, not proof that each remote migration is simply missing. Build a complete version-to-source reconciliation table before any reset or replay.
+- Security Advisor at 2026-10-27 still reports 45 RLS-enabled tables without policies (INFO; inspect table grants and whether each table is intentionally closed), 17 authenticated-executable SECURITY DEFINER functions (WARN), and `pg_trgm` in `public` (WARN). Do not bulk-revoke function grants or move the extension without checking dependencies and intended API contracts. Password protection status must be verified in Auth settings separately.
+- GitHub metadata previously showed classic protection disabled for `main` and no rulesets; the connected GitHub integration cannot change/read all admin-only settings. Repository owner must enable branch protection manually unless administrative access is explicitly granted.
+- No production migration was applied, no production rows were written, no offer was created, and PR #26 remains open/draft/unmerged.
+
+## Decision gates that cannot safely be inferred
+
+1. Demand eligibility: document the authorized rule connecting a supplier actor/tenant to a demand. `demands` has no `tenant_id`; 13 of 23 demands had no linked `product_requests` in the previous read. Until ownership/publication semantics are defined, do not add a guessed tenant guard.
+2. Draft offers: current multipart `app/api/offers/route.ts` accepts missing demand/Product Master and missing price, and directly inserts offers. Runtime `CREATE_OFFER` requires demand, active Product Master, and price. The safe design is a separate explicit draft action/status or a compatibility adapter, but choosing between those changes business semantics and requires a documented product rule.
+3. Zero/null price and currency: confirm whether zero is a valid price and whether currency is required for a draft without a price. Attribute validation should use the canonical Attribute Engine contract and be tested server-side.
+4. Admin-only controls: branch protection and Supabase Auth breached-password protection need owner/admin action if connector permissions do not allow them.
+
+## Gate status
+
+**NOT PASS** — CI and CodeQL are green for the current commit, but CI success is not equivalent to completion of the security audit. Open gates: commit/reuse the lockfile, migration reconciliation, demand authorization contract, draft compatibility, attribute/price validation contract, function-by-function privilege review, and branch/Auth settings.
