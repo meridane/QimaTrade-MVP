@@ -721,3 +721,33 @@ Policies SQL observées sur l'environnement Supabase cible :
 - **Validation :** le test est ajouté à la suite PostgreSQL jetable CI. Les checks du nouveau commit doivent être vérifiés après push ; aucun succès n'est présumé avant leur résultat.
 - **Limites :** ce changement ne définit pas l'éligibilité fournisseur/tenant/demande, ne change pas les statuts métier, et ne constitue pas un test sur Supabase production.
 - **Garde-fous :** migration uniquement dans la branche GitHub ; elle n'a pas été appliquée à Supabase. Aucune donnée, policy ou configuration de production n'a été modifiée. Aucun merge ni déploiement de production.
+
+
+## OFFER-QA-03 — résultats finaux et contrôle du schéma déployé (28 octobre 2026, 14:56 KST)
+
+### Résultats du commit de code/test `ccf7067e4f1a987d418c556a6549fcf90aeec6f6`
+
+- **QIMA CI run [40640681546](https://github.com/meridane/QimaTrade-MVP/actions/runs/40640681546) : SUCCESS.**
+  - `npm ci` depuis le lockfile commité : SUCCESS.
+  - Audit npm : SUCCESS.
+  - TypeScript : SUCCESS.
+  - Build de production : SUCCESS.
+  - Tests Playwright : SUCCESS.
+  - Tests PostgreSQL isolés CREATE_OFFER et concurrence : SUCCESS, y compris le cas `XYZ` qui attend `INVALID_CURRENCY`.
+  - Régressions synthétiques messages-RLS et auto-inscription participants : SUCCESS.
+  - Artefact lockfile commité : téléversé avec succès.
+- **CodeQL run [40640681573](https://github.com/meridane/QimaTrade-MVP/actions/runs/40640681573) : SUCCESS.**
+- **Vercel Preview : SUCCESS** ([détails](https://vercel.com/bmk1/qimatrade-mvp/61GfrcXhFU9GgVicdvPTJvSD6Pb7)). Prévisualisation uniquement.
+- Ces résultats concernent ce SHA de code/test. Le commit documentaire qui ajoute cette entrée déclenchera ses propres contrôles et devra être vérifié séparément.
+
+### Inspection Supabase réelle — SELECT seulement
+
+- Aucune contrainte CHECK sur la devise n'a été trouvée parmi les contraintes de `public.offers` interrogées.
+- `has_function_privilege` indique que le rôle `authenticated` possède actuellement `EXECUTE` sur `public.create_offer_v1(...)` et `public.execute_create_offer_v1(...)` ; `anon` ne possède pas ce privilège.
+- Cela confirme que, dans le schéma actuellement déployé et avant application des migrations de la branche, le RPC bas niveau reste exécutable par un utilisateur authentifié. L'inspection ne prouve pas qu'un appel abusif a été effectué ; aucune requête de création d'offre n'a été exécutée.
+- La migration de branche `20261027100000_restrict_direct_create_offer_rpc.sql` prévoit de retirer l'exécution directe, tandis que la migration `20261027090000_fix_create_offer_action_status_contract.sql` valide la devise sur le wrapper. **Aucune de ces migrations n'a été appliquée à la production.**
+- **Décision opérationnelle :** garder ce point visible comme écart de configuration à traiter via le processus normal de revue et de déploiement approuvé. Ne pas le présenter comme un exploit confirmé. Avant toute mise en production, vérifier l'ordre et les ACL effectives après application des migrations, puis effectuer des tests négatifs dans un environnement de staging isolé.
+
+### Garde-fous
+
+Aucune donnée, migration, policy ou configuration Supabase production n'a été modifiée. Aucun merge, déploiement de production ou changement de protection de branche n'a été effectué.
