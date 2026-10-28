@@ -217,3 +217,18 @@ test("CREATE_OFFER route rejects JSON primitive values as invalid request bodies
     ).toBe(false);
   }
 });
+
+test("CREATE_OFFER route normalizes non-object attributes and preserves optional defaults", async () => {
+  const result = await postCreateOffer("USD", { attributes: ["not", "an object"] });
+
+  expect(result.status, JSON.stringify({ body: result.body, requests: result.requests })).toBe(200);
+  const executionCall = result.requests.find(
+    (request) => request.path === "/rest/v1/rpc/execute_create_offer_v1",
+  );
+  expect(executionCall?.body).toMatchObject({
+    p_attributes: {},
+    p_pricing_model: "fixed",
+    p_lifecycle: "draft",
+    p_offer_type: "supplier_offer",
+  });
+});
