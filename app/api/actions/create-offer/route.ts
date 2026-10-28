@@ -34,11 +34,19 @@ export async function POST(request: Request) {
 
     const name = typeof body.name === "string" ? body.name.trim() : "";
     const demandId = typeof body.demandId === "string" ? body.demandId.trim() : "";
-    const quantity = typeof body.quantity === "number" ? body.quantity : Number(body.quantity);
+    const quantity =
+      typeof body.quantity === "number"
+        ? body.quantity
+        : typeof body.quantity === "string" && body.quantity.trim()
+          ? Number(body.quantity)
+          : Number.NaN;
     const rawPrice = body.price;
-    const price = rawPrice === null || rawPrice === undefined || (typeof rawPrice === "string" && !rawPrice.trim())
-      ? Number.NaN
-      : typeof rawPrice === "number" ? rawPrice : Number(rawPrice);
+    const price =
+      typeof rawPrice === "number"
+        ? rawPrice
+        : typeof rawPrice === "string" && rawPrice.trim()
+          ? Number(rawPrice)
+          : Number.NaN;
     const currency = typeof body.currency === "string" ? body.currency.trim() : "";
 
     if (!name || !demandId) return NextResponse.json({ error: "NAME_AND_DEMAND_REQUIRED" }, { status: 400 });

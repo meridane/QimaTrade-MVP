@@ -136,8 +136,12 @@ test("CREATE_OFFER route rejects invalid quantity and price before database acce
   const invalidCases = [
     { label: "zero quantity", overrides: { quantity: 0 }, expectedError: "INVALID_QUANTITY" },
     { label: "nonnumeric quantity", overrides: { quantity: "not-a-number" }, expectedError: "INVALID_QUANTITY" },
+    { label: "boolean quantity", overrides: { quantity: true }, expectedError: "INVALID_QUANTITY" },
+    { label: "array quantity", overrides: { quantity: [2] }, expectedError: "INVALID_QUANTITY" },
     { label: "negative price", overrides: { price: -1 }, expectedError: "INVALID_PRICE" },
     { label: "blank price", overrides: { price: "   " }, expectedError: "INVALID_PRICE" },
+    { label: "boolean price", overrides: { price: true }, expectedError: "INVALID_PRICE" },
+    { label: "array price", overrides: { price: [] }, expectedError: "INVALID_PRICE" },
   ];
 
   for (const invalidCase of invalidCases) {
