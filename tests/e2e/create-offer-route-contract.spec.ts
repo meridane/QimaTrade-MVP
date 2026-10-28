@@ -107,6 +107,16 @@ test('CREATE_OFFER route trims whitespace around a supported currency before the
   expect(executionCall?.body).toMatchObject({ p_currency: "USD" });
 });
 
+test("CREATE_OFFER route preserves numeric-string quantity and price inputs", async () => {
+  const result = await postCreateOffer("USD", { quantity: "2", price: "12.5" });
+
+  expect(result.status, JSON.stringify({ body: result.body, requests: result.requests })).toBe(200);
+  const executionCall = result.requests.find(
+    (request) => request.path === "/rest/v1/rpc/execute_create_offer_v1",
+  );
+  expect(executionCall?.body).toMatchObject({ p_quantity: 2, p_price: 12.5 });
+});
+
 test("CREATE_OFFER route rejects lowercase currency without calling database RPCs", async () => {
   const result = await postCreateOffer("usd");
 
