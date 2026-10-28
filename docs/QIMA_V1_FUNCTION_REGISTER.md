@@ -562,3 +562,25 @@ Les tests SQL de messages RLS et d'auto-inscription exécutés dans CI utilisent
 3. Poursuivre la revue isolée des autorisations de conversation et du lien fournisseur/demande, sans supposer une règle métier non documentée.
 
 Aucune migration, donnée ou policy de Supabase production n'a été modifiée. Aucun merge, déploiement de production ni changement de protection de branche n'a été effectué pendant ce point de contrôle.
+
+
+## Point de contrôle — lockfile npm intégré et CI durcie (28 octobre 2026, 11:51 KST)
+
+### Changements vérifiés sur la branche
+
+- PR #26 toujours ouverte, en brouillon et non fusionnée.
+- Commit `55e3ae9858160eb574e57e7afde2f1d1c0f8bad5` : ajout de `package-lock.json`, récupéré depuis l'artefact CI existant.
+- Le fichier versionné fait **62 981 octets**, utilise `lockfileVersion: 3`, et son SHA-256 a été recalculé depuis le contenu relu sur GitHub : `8d90037589e58bc2d0408a0d652b29ea5fcfa414cd98af60b155846cc321837f`. Il correspond exactement à l'artefact précédemment vérifié.
+- Commit `4178092e529ca7d40fae4c26607515b3363e860c` : `.github/workflows/ci.yml` installe maintenant avec `npm ci` directement depuis le lockfile versionné ; l'étape qui régénérait le lockfile a été supprimée. La CI téléverse désormais l'artefact `committed-package-lock` après installation pour faciliter les vérifications.
+
+### Checks observés
+
+- Sur le commit précédent `cab5e34d2e8d676ee39234286ff79c68285efd80` : QIMA CI run [40616647201](https://github.com/meridane/QimaTrade-MVP/actions/runs/40616647201) **SUCCESS**, CodeQL [40616647192](https://github.com/meridane/QimaTrade-MVP/actions/runs/40616647192) **SUCCESS**, Vercel Preview **SUCCESS**.
+- Sur le commit workflow `4178092e529ca7d40fae4c26607515b3363e860c` : QIMA CI run [40623603142](https://github.com/meridane/QimaTrade-MVP/actions/runs/40623603142) était **PENDING** au dernier contrôle ; CodeQL [40623603153](https://github.com/meridane/QimaTrade-MVP/actions/runs/40623603153) était **IN PROGRESS** ; Vercel Preview était **PENDING**. Aucun résultat final n'est affirmé pour ce commit à ce stade.
+- L'absence de lockfile dans le dépôt est résolue sur cette branche ; la reproductibilité complète n'est pas déclarée validée avant le succès de `npm ci` sur le lockfile commité.
+
+### Sécurité et prochaine étape
+
+Les tests synthétiques messages-RLS et auto-inscription restent des fixtures de régression, pas une preuve d'exploitation ou d'absence de vulnérabilité sur le schéma Supabase réellement déployé. Security Gate demeure **NOT PASS**. Après les checks du commit courant, continuer la revue isolée des autorisations de conversation et du lien fournisseur/demande ; toute règle métier inconnue reste bloquante et doit être documentée, pas supposée.
+
+Aucune donnée, policy ni migration de Supabase production n'a été modifiée. Aucun merge, déploiement production ni changement de protection de branche n'a été effectué.
