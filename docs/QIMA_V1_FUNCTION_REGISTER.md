@@ -958,3 +958,13 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **Résultat après correction :** CI/CodeQL/Preview du nouveau HEAD à vérifier ; aucun résultat n'est déclaré réussi avant la fin des contrôles.
 - **Portée et limites :** ce mock est destiné uniquement au test de route qui n'utilise pas Realtime. Il ne valide pas l'usage de Realtime sous Node 20 en production.
 - **Garde-fous :** aucune écriture Supabase, migration, fusion, mise en production ou modification des protections de branche.
+
+## OFFER-QA-13 — valeurs de devise non textuelles et validation CI (28 octobre 2026, 23:56 KST)
+
+- **État relu avant cette entrée :** PR #26 ouverte, en brouillon et non fusionnée ; branche `fix/create-offer-status-contract`, HEAD `169875c1ae4146c876c7d3172f2ef218db7613c1`.
+- **Régression ajoutée :** commit `169875c1ae4146c876c7d3172f2ef218db7613c1`, fichier `tests/e2e/create-offer-route-contract.spec.ts`. Le helper de test accepte désormais une valeur inconnue et le test vérifie que `currency: null` et `currency: 123` retournent HTTP 400 avec `INVALID_CURRENCY`, sans requête REST/RPC. Aucun code métier n'a été modifié.
+- **QIMA CI** [run 40711039137](https://github.com/meridane/QimaTrade-MVP/actions/runs/40711039137) : **SUCCESS**. Installation, audit des dépendances au seuil configuré, TypeScript, build de production et tests navigateur réussis ; **24 tests Playwright passés**, dont les quatre cas du contrat devise de la route. Le job PostgreSQL jetable a aussi réussi les assertions CREATE_OFFER, concurrence/idempotence et les deux suites RLS synthétiques.
+- **CodeQL** [run 40711039345](https://github.com/meridane/QimaTrade-MVP/actions/runs/40711039345) : **SUCCESS**. Statut Vercel **SUCCESS** sur une prévisualisation uniquement : [Preview](https://qimatrade-mvp-git-fix-create-offer-status-contract-bmk1.vercel.app).
+- **Limites d'interprétation :** les fixtures PostgreSQL et tests RLS sont synthétiques et isolés ; ils ne prouvent ni ne réfutent à eux seuls une vulnérabilité dans Supabase production. Le succès des contrôles ne vaut pas approbation métier ni validation complète de bout en bout.
+- **Prochaine priorité / blocage métier :** documenter le modèle d'appartenance qui relie une demande (`demandId`) au tenant sélectionné avant de renforcer l'autorisation et d'ajouter les tests négatifs correspondants. La règle ne doit pas être inventée : le modèle métier/ownership doit être décidé et validé. En attendant, poursuivre uniquement les tests et revues non bloquants.
+- **Garde-fous :** aucune donnée, migration, policy ou configuration Supabase production modifiée ; aucune fusion, mise en production ou modification des protections de branche.
