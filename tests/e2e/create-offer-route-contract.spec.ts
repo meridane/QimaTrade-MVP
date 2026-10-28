@@ -142,6 +142,26 @@ test("CREATE_OFFER route rejects non-string currency values without calling data
   }
 });
 
+test("CREATE_OFFER route rejects blank or non-string name/demandId before database access", async () => {
+  const invalidCases = [
+    { label: "blank name", overrides: { name: "   " } },
+    { label: "non-string name", overrides: { name: { value: "offer" } } },
+    { label: "blank demandId", overrides: { demandId: "   " } },
+    { label: "non-string demandId", overrides: { demandId: 42 } },
+  ];
+
+  for (const invalidCase of invalidCases) {
+    const result = await postCreateOffer("USD", invalidCase.overrides);
+
+    expect(result.status, invalidCase.label).toBe(400);
+    expect(result.body, invalidCase.label).toMatchObject({ error: "NAME_AND_DEMAND_REQUIRED" });
+    expect(
+      result.requests.some((request) => request.path.startsWith("/rest/v1/")),
+      invalidCase.label,
+    ).toBe(false);
+  }
+});
+
 test("CREATE_OFFER route rejects invalid quantity and price before database access", async () => {
   const invalidCases = [
     { label: "zero quantity", overrides: { quantity: 0 }, expectedError: "INVALID_QUANTITY" },
