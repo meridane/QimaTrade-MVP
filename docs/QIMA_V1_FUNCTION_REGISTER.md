@@ -603,3 +603,19 @@ La lecture des métadonnées du schéma Supabase confirme que plusieurs objets g
 **État :** inventaire initial des métadonnées seulement ; aucun test de sécurité n'est impliqué par la présence de RLS activé. Aucune donnée, policy, table ou migration de production n'a été modifiée.
 
 **Prochaine étape MKT-0.2 :** lire les définitions SQL/policies/grants des objets candidats, puis construire le mapping champ marketplace → objet/colonne existant → écart → décision. Ne pas créer de migration avant cette réconciliation.
+
+
+## MKT-0.2 — RLS audit initial des objets de publication (read-only, 28 octobre 2026)
+
+Policies SQL observées sur l'environnement Supabase cible :
+
+- `core.publications` : insertion/édition contrôlées par auteur ou admin ; suppression auteur seulement en `DRAFT` ou admin ; lecture par auteur, admin ou publication `ACTIVE/REOPENED`.
+- `core.publication_media` et `core.publication_attributes` : écriture rattachée à une publication dont l'auteur est l'utilisateur ou admin ; lecture via `core.can_access_publication` ou admin.
+- `core.media_assets` : insertion propriétaire/admin ; lecture propriétaire/admin ou média relié à publication active/réouverte/vitrine publiée. Les policies Storage et l'accès effectif aux objets doivent encore être inspectés séparément.
+- `core.product_items` : accès propriétaire/organisation/admin, plus lecture si lié à une publication active/réouverte.
+- `core.orders` : accès basé sur `core.can_access_transaction(transaction_id)` ou admin ; compatibilité marketplace non prouvée.
+- `core.organization_memberships` a une policy `qima_membership_self_insert` autorisant `user_id = auth.uid()` avec `role_id IS NULL`. Point à auditer pour confirmer qu'il s'agit uniquement d'une demande sans privilège et qu'aucune auto-adhésion effective/escalade n'est possible ; la policy seule ne prouve pas une exploitation.
+
+**Point de sécurité marketplace :** les policies visibles ne démontrent pas qu'un auteur ne peut pas passer directement une publication à `ACTIVE` sans modération. Il faut examiner enums, triggers, contraintes et actions serveur. La lecture actuelle est liée au rôle `authenticated`; l'accès anonyme au catalogue reste une décision non résolue. RLS des tables média ne remplace pas l'audit des policies Storage.
+
+**Statut :** lecture de métadonnées/policies seulement, aucun test exploit, aucune migration ou écriture de production. Prochaine étape : inspecter enums `publication_status/kind`, fonctions `can_access_publication`, transitions/actions et policies Storage ; ensuite créer les tests isolés de contournement de modération.
