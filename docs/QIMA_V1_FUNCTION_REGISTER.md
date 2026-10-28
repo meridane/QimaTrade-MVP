@@ -474,3 +474,10 @@ Priorité : intégrer le `package-lock.json` généré par CI sur la branche de 
 - **OFFER-SEC-02 — voie historique** : `app/api/offers/route.ts` insère directement une offre en brouillon ; elle ne passe pas par le runtime universel. Il faut confirmer le contrat de brouillon et son modèle d'autorisation avant de rediriger cette route vers `CREATE_OFFER`.
 - **Aucune migration Supabase production, écriture de données, fusion ou déploiement de production n'a été effectué.**
 - **Prochaine action** : définir les preuves d'autorisation disponibles dans les schémas et fonctions existants ; ajouter des tests négatifs contre un environnement isolé fidèle au schéma avant de préparer une modification métier.
+
+## 14. Inspection Supabase en lecture seule — fonction CREATE_OFFER
+
+- Le code de la fonction `public.execute_create_offer_v1` dans la base réelle reste l'ancienne définition : statuts internes minuscules, hash limité à `p_input`, et pas de verrou consultatif visible pour sérialiser la première création concurrente. La migration corrective existe sur la branche, mais **n'est pas appliquée en production**.
+- Les relations vérifiées indiquent `demands.requester_actor_id → actors.id`, tandis que `dt_memberships.tenant_id → dt_tenants.id` et `dt_memberships.user_id → auth.users.id`. Aucune relation directe tenant-demande n'a été observée dans les colonnes/FK examinées.
+- **Décision de sécurité :** ne pas appliquer la migration ni inventer un lien d'autorisation. Il faut déterminer si la règle métier est basée sur le propriétaire de la demande, une publication ouverte à plusieurs fournisseurs, un rattachement business-object, ou une autre règle déjà définie dans QIMA.
+- Aucune modification de la base Supabase production n'a été faite ; toutes les requêtes exécutées étaient des SELECT en lecture seule.
