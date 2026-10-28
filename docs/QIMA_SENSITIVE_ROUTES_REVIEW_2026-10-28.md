@@ -61,3 +61,11 @@ Le changement a été poussé sur la branche de la PR #26. Typecheck, build, Pla
 - Ces résultats valident les contrôles automatisés du dépôt et les fixtures SQL synthétiques. Ils ne constituent pas une preuve d'autorisation correcte contre les rôles/JWT et données réels de Supabase.
 - **Security Gate : NOT PASS** tant que les tests négatifs contre un environnement isolé fidèle au schéma réel, la règle tenant↔demande et la voie historique de création d'offre ne sont pas résolus.
 - Aucune migration, écriture de données ou modification de configuration de Supabase production ; aucune fusion de la PR.
+
+### Inspection Supabase en lecture seule — 28 octobre 2026, après la CI
+
+- Le code de `public.execute_create_offer_v1` lu dans la base réelle est encore l'ancienne version : statuts `running/succeeded` en minuscules, hash d'idempotence calculé uniquement à partir de `p_input`, et absence de verrou consultatif visible avant la première insertion.
+- La migration de branche `20261027090000_fix_create_offer_action_status_contract.sql` n'est donc pas appliquée à la base inspectée. C'est cohérent avec la règle de non-modification de la production.
+- La table `demands` relie `requester_actor_id` à `actors.id`. `dt_memberships` relie un utilisateur à `dt_tenants`, mais aucun lien direct `tenant_id` ↔ `demands` n'a été observé dans les colonnes/FK inspectées.
+- Par conséquent, le contrat métier d'autorisation d'une offre sur une demande ne peut pas être inféré sûrement à partir des seules relations observées. Ne pas inventer une condition tenant-demande ni appliquer la migration en production.
+- L'inspection était en lecture seule : aucune donnée, fonction, permission ou migration de production n'a été modifiée.
