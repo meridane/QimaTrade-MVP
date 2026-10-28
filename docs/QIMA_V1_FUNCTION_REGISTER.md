@@ -677,3 +677,15 @@ Policies SQL observées sur l'environnement Supabase cible :
 - Prochaine tâche non bloquante : ajouter une couverture de régression ciblée pour le contrat demande/offre dans un environnement isolé, sans coder une règle d'éligibilité fournisseur non approuvée. Si le test exige de décider quels statuts autorisent une réponse ou quels fournisseurs sont éligibles, conserver ce point comme blocage métier.
 - Aucune donnée ni migration, policy ou configuration Supabase production n'a été modifiée. Aucun merge, déploiement de production ni changement de protection de branche n'a été effectué.
 
+
+
+## QA-02 — régression d'authentification CREATE_OFFER (28 octobre 2026, 13:07 KST)
+
+- **Fichier ajouté/modifié :** `tests/e2e/auth-smoke.spec.ts`.
+- **Commit :** `c8e2e012ab6f6858b1b9c518cc2b9310d05b6d9f`.
+- **Cas ajouté :** un POST sur `/api/actions/create-offer` sans en-tête Bearer doit renvoyer HTTP 401 et `{ error: "UNAUTHENTICATED" }`. Ce test s'arrête sur la garde d'authentification et n'utilise aucun compte, secret ou accès à la base.
+- **Contrôles du HEAD de test au moment du relevé :** QIMA CI run [40630587310](https://github.com/meridane/QimaTrade-MVP/actions/runs/40630587310) **PENDING** ; CodeQL run [40630587316](https://github.com/meridane/QimaTrade-MVP/actions/runs/40630587316) **IN PROGRESS** ; Vercel Preview **PENDING**. Aucun résultat final n'est revendiqué pour ce commit.
+- **Dernier HEAD avec validation complète :** `0c26fc8d09cc46f0c02ee5d997f6910a814259fe` — QIMA CI run [40629634655](https://github.com/meridane/QimaTrade-MVP/actions/runs/40629634655), CodeQL run [40629634650](https://github.com/meridane/QimaTrade-MVP/actions/runs/40629634650) et Vercel Preview ont tous réussi. Ce HEAD confirme aussi que `npm ci` fonctionne depuis le lockfile commité.
+- **Limite :** le test valide le refus d'une requête sans jeton ; il ne teste pas la validité d'un jeton expiré ni les autorisations tenant/demande.
+- Aucun changement Supabase, migration, fusion ou déploiement de production.
+
