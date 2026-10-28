@@ -63,3 +63,15 @@ Dans `app/api/product-requests/route.ts`, la route lit les memberships et utilis
 5. Exécuter CI, tests PostgreSQL et CodeQL ; revue avant toute fusion.
 
 **Statut final : audit initial utile terminé ; corrections production non appliquées.**
+
+
+## Correctif SEC-P0-01 préparé sur la branche — 28 octobre 2026
+
+- Migration ajoutée : `supabase/migrations/20261028180000_fix_message_participant_authorization.sql`.
+- Le prédicat de participation ne s'appuie plus sur la seule égalité avec l'acteur expéditeur : il relie l'utilisateur authentifié au propriétaire de la demande ou au fournisseur de l'offre, et impose que l'offre référencée appartienne à la demande référencée.
+- L'EXECUTE de la fonction est limité à `authenticated` et au propriétaire PostgreSQL via les privilèges par défaut du propriétaire ; le grant explicite PUBLIC est révoqué.
+- Test de régression isolé mis à jour : `tests/sql/legacy-messages-rls-regression.sql` vérifie également que l'utilisateur étranger ne peut pas lire les messages d'une conversation qui ne lui appartient pas.
+- Commits : migration `69c20a5dbc4e4f15c694932deed88269b8d5ee88`, test `a59288626d0cadc93e4636c3b14f7bd32c383377`.
+- **Validation en attente :** aucun résultat CI n'a encore été constaté pour ces changements. Le test synthétique n'est pas une preuve de validation sur Supabase réel.
+- **Non appliqué en production.** Aucune écriture, migration ou modification de policy Supabase réelle, aucune fusion ni aucun déploiement.
+
