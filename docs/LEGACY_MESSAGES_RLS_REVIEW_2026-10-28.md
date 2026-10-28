@@ -64,3 +64,9 @@ Keep read access limited to actual participants. Review both the `USING` policy 
 The latest branch commit before this finding, `f7ebb281fb5b206530153b9c95220d982dd90e78`, passed QIMA CI and CodeQL; Vercel Preview is READY. Those checks do not test the live legacy message RLS policy.
 
 No production rows, policies, grants, or schema were changed. No migration was applied. PR #26 remains open and draft. Security gate remains **NOT PASS** pending isolated regression tests and review.
+
+## Clarification sur la couverture des tests CI — 28 octobre 2026
+
+La suite `tests/sql/legacy-messages-rls-regression.sql` reproduit le raccourci de politique dans un schéma `qima_legacy_test` isolé, puis teste un prédicat proposé. Elle ne charge pas automatiquement le schéma, la fonction et les politiques exacts depuis Supabase live, et elle ne teste pas encore la proposition `supabase/proposals/20261028_fix_legacy_message_participant_rls.sql` telle quelle.
+
+Par conséquent, le résultat CI vert confirme la régression du modèle synthétique et les assertions définies dans cette suite ; il ne confirme pas que le correctif proposé est compatible avec toutes les politiques/grants de la base réelle. Avant une migration, créer un test de migration isolé qui applique la proposition exacte, teste les cas MSG-01 à MSG-09 avec le rôle authentifié/JWT simulé, et vérifie les chemins métier légitimes. Aucune écriture de production n'est autorisée par cette étape.
