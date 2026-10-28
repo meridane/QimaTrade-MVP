@@ -30,3 +30,13 @@ Branche : fix/create-offer-status-contract
 
 ## Limites de sécurité
 Aucun test offensif ne doit être exécuté contre la production et aucune migration/grant de production ne doit être modifié dans le cadre de cet audit sans autorisation explicite. Les fixtures SQL sont synthétiques et ne prouvent pas à elles seules le comportement complet du schéma déployé.
+
+## Suivi après revalidation — 28 octobre 2026
+
+- HEAD contrôlé : `fac4c83853350bab61ce97a0a0881bcc9470f332`.
+- QIMA CI : **SUCCESS** (typecheck, audit npm, build, Playwright et trois suites PostgreSQL isolées).
+- CodeQL : **SUCCESS**.
+- Vercel Preview : **SUCCESS** sur ce HEAD.
+- **Qualification importante :** les suites legacy-messages et participant-self-enrollment sont des reproductions synthétiques du motif de politique observé. Elles ne chargent pas les politiques live exactes, et la proposition SQL de correction RLS n'est pas appliquée à la production. Le résultat vert valide le test du modèle, pas la correction du schéma live.
+- La revue du registre de migration reste incomplète : 161 versions distantes rapportées contre 17 fichiers suivis dans la branche. Ce décalage de comptage n'est pas en soi une preuve de migration manquante.
+- Prochaine priorité : construire un environnement de test jetable reproduisant les politiques/fonctions pertinentes et appliquer la proposition RLS uniquement à cet environnement ; établir la règle de visibilité d'une demande avant de modifier CREATE_OFFER.
