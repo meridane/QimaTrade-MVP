@@ -462,3 +462,15 @@ Priorité : intégrer le `package-lock.json` généré par CI sur la branche de 
 1. Intégrer le lockfile CI vérifié dans la branche de manière fiable.
 2. Exécuter npm ci depuis ce fichier commité, vérifier que le lockfile reste inchangé, puis relancer CI et CodeQL sur le nouveau SHA.
 3. Continuer les tests négatifs demande/offre et tenant/demande dans un environnement jetable aligné sur les contraintes et politiques observées en lecture seule. Le contrat tenant-demande reste bloqué tant que la règle métier n'est pas définie.
+
+## 13. Vérification de suivi — 28 octobre 2026, 09:30 KST
+
+- **HEAD vérifié** : `8cab480bf08592e6796e2fd2334b6c4060558fd9`, branche `fix/create-offer-status-contract`, PR #26 toujours ouverte en brouillon.
+- **CI QIMA** : succès sur ce commit : audit npm, TypeScript, build de production, Playwright smoke tests et tests PostgreSQL isolés pour CREATE_OFFER/concurrence, messages historiques et auto-inscription aux participants.
+- **CodeQL** : succès sur ce commit.
+- **Preview Vercel** : état READY pour le commit contrôlé.
+- **Limite de validation** : les tests SQL RLS sont des fixtures synthétiques, pas des tests d'autorisation avec les rôles/JWT et les politiques exactes de la base réelle. Ne pas déclarer la sécurité de production validée.
+- **OFFER-SEC-01 — association tenant/demande** : toujours BLOQUANT avant fusion ; `execute_create_offer_v1` vérifie l'appartenance au tenant et l'existence de la demande, mais le contrat qui autorise ce tenant à proposer sur cette demande n'est pas encore établi par le code inspecté.
+- **OFFER-SEC-02 — voie historique** : `app/api/offers/route.ts` insère directement une offre en brouillon ; elle ne passe pas par le runtime universel. Il faut confirmer le contrat de brouillon et son modèle d'autorisation avant de rediriger cette route vers `CREATE_OFFER`.
+- **Aucune migration Supabase production, écriture de données, fusion ou déploiement de production n'a été effectué.**
+- **Prochaine action** : définir les preuves d'autorisation disponibles dans les schémas et fonctions existants ; ajouter des tests négatifs contre un environnement isolé fidèle au schéma avant de préparer une modification métier.
