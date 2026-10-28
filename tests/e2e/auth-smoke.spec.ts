@@ -167,3 +167,21 @@ test("offers API rejects NaN price before authentication", async ({ request }) =
     error: "Price must be a valid positive number.",
   });
 });
+
+
+test("CREATE_OFFER action API rejects requests without a bearer token", async ({ request }) => {
+  const response = await request.post("/api/actions/create-offer", {
+    data: {
+      name: "Unauthenticated fixture offer",
+      demandId: "50000000-0000-4000-8000-000000000001",
+      quantity: 1,
+      price: 10,
+      currency: "USD",
+    },
+  });
+
+  expect(response.status()).toBe(401);
+  await expect(response.json()).resolves.toMatchObject({
+    error: "UNAUTHENTICATED",
+  });
+});
