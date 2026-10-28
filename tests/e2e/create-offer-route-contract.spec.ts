@@ -10,8 +10,15 @@ async function postCreateOffer(currency: string) {
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??= "ci-placeholder-anon-key";
 
   const originalFetch = globalThis.fetch;
+  const originalWebSocket = globalThis.WebSocket;
   const requests: MockRequest[] = [];
   const demandId = "50000000-0000-4000-8000-000000000001";
+
+  // Supabase creates a Realtime client even though this route only uses Auth and REST.
+  // Node 20 in CI has no native WebSocket; provide a harmless constructor for this isolated test.
+  if (typeof globalThis.WebSocket === "undefined") {
+    globalThis.WebSocket = class MockWebSocket {} as unknown as typeof WebSocket;
+  }
 
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const urlString =
@@ -84,6 +91,7 @@ async function postCreateOffer(currency: string) {
     };
   } finally {
     globalThis.fetch = originalFetch;
+    globalThis.WebSocket = originalWebSocket;
   }
 }
 
