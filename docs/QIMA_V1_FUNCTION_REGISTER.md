@@ -689,3 +689,22 @@ Policies SQL observées sur l'environnement Supabase cible :
 - **Limite :** le test valide le refus d'une requête sans jeton ; il ne teste pas la validité d'un jeton expiré ni les autorisations tenant/demande.
 - Aucun changement Supabase, migration, fusion ou déploiement de production.
 
+
+
+## QA-02 — résultat final des contrôles (28 octobre 2026, 13:39 KST)
+
+- **État PR relu avant cette mise à jour :** #26 ouverte, en brouillon, non fusionnée ; HEAD `018b1e82a7d5d4ddb8cb99ffae82a7972354bbc8`.
+- **QIMA CI run [40630627764](https://github.com/meridane/QimaTrade-MVP/actions/runs/40630627764) : SUCCESS.** Les deux jobs ont réussi :
+  - Installation depuis `package-lock.json` commité avec `npm ci) : SUCCESS.
+  - Audit npm au seuil high : SUCCESS.
+  - TypeScript : SUCCESS.
+  - Build de production : SUCCESS.
+  - Installation Chromium et suite Playwright : SUCCESS, y compris le test de refus HTTP 401 sans Bearer pour `/api/actions/create-offer`.
+  - Tests PostgreSQL isolés CREATE_OFFER/concurrence : SUCCESS.
+  - Tests synthétiques de régression messages-RLS et auto-inscription des participants : SUCCESS.
+  - Artefact `committed-package-lock` : téléversé avec succès.
+- **CodeQL run [40630627586](https://github.com/meridane/QimaTrade-MVP/actions/runs/40630627586) : SUCCESS.**
+- **Statut Vercel : SUCCESS**, preview uniquement ([détails](https://vercel.com/bmk1/qimatrade-mvp/778LyZKyeDLPaxiZCMhSq5qjNXuy)).
+- **Interprétation :** ces résultats valident les contrôles exécutés sur ce SHA. Les tests RLS sont synthétiques et ne démontrent pas, à eux seuls, une vulnérabilité ni son absence sur Supabase production.
+- **Blocages métier inchangés :** règle d'éligibilité fournisseur/tenant/demande et contrat de la route historique de création de brouillon. Security Gate reste **NOT PASS** jusqu'à définition et validation de ces règles.
+- **Aucune écriture ni migration Supabase production, aucune fusion, aucun déploiement de production, aucun changement de protection de branche.** Cette entrée est documentaire ; les checks du commit documentaire qui en résulte doivent être vérifiés séparément.
