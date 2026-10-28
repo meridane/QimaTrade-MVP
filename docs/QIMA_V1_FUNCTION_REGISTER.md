@@ -859,3 +859,16 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **Garde-fous :** aucune donnée, migration, policy ou configuration Supabase production modifiée ; aucun merge, déploiement de production ou changement des règles de protection.
 - **Prochaine tâche non bloquante :** examiner les validations de format des paramètres CREATE_OFFER déjà couvertes par le contrat existant et ajouter un test de régression isolé uniquement si un écart concret est constaté. Ne pas décider implicitement de l'éligibilité fournisseur.
 
+
+
+## Audit sécurité immédiat — 28 octobre 2026
+
+- **Security Gate : NOT PASS.**
+- **SEC-P0-01 — Messages :** la fonction déployée `public.is_message_participant` contient une branche qui considère l'utilisateur participant dès que son propre acteur correspond à `sender_actor_id`, sans relier cette branche à la demande/offre ciblée. Risque logique d'insertion de message hors conversation ; confirmé par lecture de la fonction réelle, aucun exploit ni écriture de production exécuté.
+- **SEC-P0-02 — Grants :** des privilèges de table larges, dont `TRUNCATE`, apparaissent dans les grants de rôles `anon` et/ou `authenticated` sur plusieurs tables. Il faut inventorier les besoins puis préparer des révocations minimales testées ; un grant seul ne prouve pas que l'API REST expose chaque opération.
+- **SEC-P1-03 — CREATE_OFFER :** lien d'autorisation tenant/demande/fournisseur non établi ; règle métier à définir.
+- **SEC-P1-04 — Offres historiques :** `app/api/offers/route.ts` écrit directement dans la table et reste un contrat séparé.
+- **SEC-P1-05 — Demandes produit :** `app/api/product-requests/route.ts` choisit le premier membership sans gérer plusieurs tenants, contrairement à la route de publication.
+- **Rapport complet :** `docs/SECURITY_AUDIT_2026-10-28.md`.
+- **Portée :** lecture de sources et SELECT Supabase uniquement. Aucune donnée, policy ou migration de production modifiée ; aucune fusion ni mise en production.
+
