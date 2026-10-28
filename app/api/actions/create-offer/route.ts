@@ -21,8 +21,14 @@ export async function POST(request: Request) {
     const { data: { user }, error: userError } = await supabase.auth.getUser(token);
     if (userError || !user) return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
 
-    const body = await request.json();
-    if (!body || typeof body !== "object" || Array.isArray(body)) {
+    let body: Record<string, unknown>;
+    try {
+      const parsedBody: unknown = await request.json();
+      if (!parsedBody || typeof parsedBody !== "object" || Array.isArray(parsedBody)) {
+        return NextResponse.json({ error: "INVALID_REQUEST_BODY" }, { status: 400 });
+      }
+      body = parsedBody as Record<string, unknown>;
+    } catch {
       return NextResponse.json({ error: "INVALID_REQUEST_BODY" }, { status: 400 });
     }
 
