@@ -883,3 +883,23 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - Statut : **IMPLÉMENTÉ SUR BRANCHE / TESTS CI EN ATTENTE**. Le correctif n'est pas appliqué en production.
 - Prochaine étape : CI/CodeQL, inspection des tests et vérification des grants avant de proposer la migration à un environnement isolé.
 
+
+
+## SEC-P0-01 — résultats CI du correctif de participation aux messages (28 octobre 2026, 18:43 KST)
+
+- **État vérifié :** PR #26 toujours ouverte, en brouillon et non fusionnée ; HEAD vérifié 93e20ebcf6968c52d497dfb795d9f578ae2b96e3.
+- **QIMA CI** [run 40662397733](https://github.com/meridane/QimaTrade-MVP/actions/runs/40662397733) : **SUCCESS**. Les jobs TypeScript/audit/build/Playwright et tests PostgreSQL isolés ont terminé avec succès. Le job PostgreSQL a exécuté les tests CREATE_OFFER/concurrence, la régression synthétique RLS des messages et la régression synthétique d'auto-inscription des participants.
+- **CodeQL** [run 40662397677](https://github.com/meridane/QimaTrade-MVP/actions/runs/40662397677) : **SUCCESS**.
+- **Vercel Preview : SUCCESS** ([prévisualisation](https://vercel.com/bmk1/qimatrade-mvp/HK2ytxBVwQz4zThCakZJ7juX6Xge)), sans déploiement de production.
+- **Portée :** les tests PostgreSQL s'exécutent dans une base jetable et les assertions RLS sont synthétiques. Ces résultats valident les scénarios testés, pas la fonction déployée dans Supabase ni l'absence de vulnérabilité en production.
+- **Statut :** correctif SEC-P0-01 présent uniquement sur la branche ; vérification dans un environnement non-production avec schéma représentatif et revue restent nécessaires. Le Security Gate reste **NOT PASS**.
+- **Garde-fous :** aucune donnée, migration, policy ou configuration Supabase de production modifiée ; aucune fusion ni mise en production.
+
+## SEC-P0-02 — relevé en lecture seule des privilèges SQL (28 octobre 2026, 18:43 KST)
+
+- **Méthode :** requêtes SELECT uniquement sur les métadonnées PostgreSQL du projet Supabase QIMA, sans exécuter de modification ni de requête destructive.
+- **Résultat de has_table_privilege sur les 102 tables du schéma public :** anon dispose effectivement du privilège SQL TRUNCATE sur 98 tables et authenticated sur 100 tables ; DELETE est effectif pour anon sur 34 tables et pour authenticated sur 37 tables.
+- **Échantillon vérifié :** pour demands, offers, profiles, messages, dt_sessions et product_requests, le privilège TRUNCATE est effectif pour les deux rôles. Le privilège DELETE de anon est effectif sur demands, offers et profiles dans cet échantillon ; authenticated possède DELETE sur les six tables listées.
+- **Interprétation et limites :** cela confirme l'état des privilèges SQL rapportés par PostgreSQL, pas qu'une opération est exposée par chaque chemin HTTP/PostgREST, ni qu'une suppression a eu lieu. RLS ne remplace pas les privilèges de table et ne filtre pas TRUNCATE ; l'usage applicatif de chaque privilège doit être vérifié avant toute révocation.
+- **Prochaine tâche non bloquante :** inventorier les usages applicatifs et les grants/migrations qui les accordent, puis préparer une réduction minimale des privilèges et des tests sur une base isolée. Ne pas exécuter de REVOKE en production ni créer une migration corrective sans validation en environnement non-production.
+- **Garde-fous :** inspection en lecture seule uniquement ; aucune donnée, migration, policy ou configuration Supabase de production modifiée.
