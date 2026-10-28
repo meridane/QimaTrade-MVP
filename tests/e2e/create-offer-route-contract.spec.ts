@@ -5,7 +5,7 @@ type MockRequest = { path: string; body?: Record<string, unknown> };
 
 test.describe.configure({ mode: "serial" });
 
-async function postCreateOffer(currency: unknown) {
+async function postCreateOffer(currency: unknown, overrides: Record<string, unknown> = {}) {
   process.env.NEXT_PUBLIC_SUPABASE_URL ??= "https://example.supabase.co";
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??= "ci-placeholder-anon-key";
 
@@ -80,6 +80,7 @@ async function postCreateOffer(currency: unknown) {
           quantity: 1,
           price: 10,
           currency,
+          ...overrides,
         }),
       }),
     );
@@ -128,5 +129,25 @@ test("CREATE_OFFER route rejects non-string currency values without calling data
     expect(result.status).toBe(400);
     expect(result.body).toMatchObject({ error: "INVALID_CURRENCY" });
     expect(result.requests.some((request) => request.path.startsWith("/rest/v1/"))).toBe(false);
+  }
+});
+
+test("CREATE_OFFER route rejects invalid quantity and price before database access", async () => {
+  const invalidCases = [
+    { label: "zero quantity", overrides: { quantity: 0 }, expectedError: "INVALID_QUANTITY" },
+    { label: "nonnumeric quantity", overrides: { quantity: "not-a-number" }, expectedError: "INVALID_QUANTITY" },
+    { label: "negative price", overrides: { price: -1 }, expectedError: "INVALID_PRICE" },
+    { label: "blank price", overrides: { price: "   " }, expectedError: "INVALID_PRICE" },
+  ];
+
+  for (const invalidCase of invalidCases) {
+    const result = await postCreateOffer("USD", invalidCase.overrides);
+
+    expect(result.status, invalidCase.label).toBe(400);
+    expect(result.body, invalidCase.label).toMatchObject({ error: invalidCase.expectedError });
+    expect(
+      result.requests.some((request) => request.path.startsWith("/rest/v1/")),
+      invalidCase.label,
+    ).toBe(false);
   }
 });
