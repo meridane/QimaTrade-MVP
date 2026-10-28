@@ -619,3 +619,16 @@ Policies SQL observées sur l'environnement Supabase cible :
 **Point de sécurité marketplace :** les policies visibles ne démontrent pas qu'un auteur ne peut pas passer directement une publication à `ACTIVE` sans modération. Il faut examiner enums, triggers, contraintes et actions serveur. La lecture actuelle est liée au rôle `authenticated`; l'accès anonyme au catalogue reste une décision non résolue. RLS des tables média ne remplace pas l'audit des policies Storage.
 
 **Statut :** lecture de métadonnées/policies seulement, aucun test exploit, aucune migration ou écriture de production. Prochaine étape : inspecter enums `publication_status/kind`, fonctions `can_access_publication`, transitions/actions et policies Storage ; ensuite créer les tests isolés de contournement de modération.
+
+
+## MKT-0.3 — Enums, access helper et Storage (read-only, 28 octobre 2026)
+
+- `core.publication_kind` = `OFFER, REQUEST` uniquement : aucun type explicite de listing automobile.
+- `core.publication_status` = `DRAFT, ACTIVE, PAUSED, CLOSED, REOPENED, ARCHIVED` : pas de `PENDING_REVIEW` ni `REJECTED` dans l'enum actuel.
+- `core.can_access_publication(uuid)` est `SECURITY DEFINER`, avec `search_path` fixé ; sa logique donne accès à l'auteur ou aux publications `ACTIVE/REOPENED`, sans vérifier une approbation de modération.
+- Dans le périmètre Storage interrogé, les policies vues concernent le bucket `project-documents`. Le contrat d'accès aux photos marketplace reste inconnu ; inventaire complet des buckets et policies requis.
+- Les policies de table ne suffisent pas à prouver que l'auteur peut ou ne peut pas forcer `ACTIVE` : il faut vérifier triggers, RPC et actions applicatives.
+
+**Conclusion provisoire :** ne pas réutiliser `OFFER` ou `REQUEST` par approximation pour une annonce de pièce. Comparer deux options : (A) spécialiser le modèle de publication générique avec type marketplace et modération côté serveur ; (B) contexte/tables marketplace dédiés avec réutilisation contrôlée des services communs. Aucune option n'est approuvée avant l'audit des dépendances.
+
+**Prochaine étape MKT-0.4 :** inventaire complet des buckets Storage/policies ; triggers et fonctions qui changent `core.publications.status` ; contraintes/grants ; mapping des actions/UI ; comparaison A/B et plan de tests isolés. Aucun changement production.
