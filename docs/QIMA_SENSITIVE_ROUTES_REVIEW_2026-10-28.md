@@ -51,3 +51,13 @@ Le commit `e14c3d64ff86ab96f1e22a931a3620da7b1ae78a` ajoute une vérification ap
 
 ### Validation
 Le changement a été poussé sur la branche de la PR #26. Typecheck, build, Playwright et tests SQL doivent être revalidés sur le nouveau commit avant de considérer le correctif vérifié. Aucun test authentifié contre la base de production n'a été lancé ; aucune migration, écriture de données ou opération de production n'a eu lieu.
+
+### Revalidation du commit courant — 28 octobre 2026
+
+- HEAD vérifié de la PR #26 : `ea7da0b01d4d3d0f600e4f939550ad73b00276cf`.
+- CI GitHub : succès — typecheck, audit npm, build de production, tests Playwright, tests PostgreSQL isolés de CREATE_OFFER/concurrence, régression RLS des messages historiques et régression d'auto-inscription aux participants.
+- CodeQL : succès.
+- Preview Vercel associée au commit courant : déploiement `READY`.
+- Ces résultats valident les contrôles automatisés du dépôt et les fixtures SQL synthétiques. Ils ne constituent pas une preuve d'autorisation correcte contre les rôles/JWT et données réels de Supabase.
+- **Security Gate : NOT PASS** tant que les tests négatifs contre un environnement isolé fidèle au schéma réel, la règle tenant↔demande et la voie historique de création d'offre ne sont pas résolus.
+- Aucune migration, écriture de données ou modification de configuration de Supabase production ; aucune fusion de la PR.
