@@ -5,7 +5,7 @@ type MockRequest = { path: string; body?: Record<string, unknown> };
 
 test.describe.configure({ mode: "serial" });
 
-async function postCreateOffer(currency: string) {
+async function postCreateOffer(currency: unknown) {
   process.env.NEXT_PUBLIC_SUPABASE_URL ??= "https://example.supabase.co";
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??= "ci-placeholder-anon-key";
 
@@ -120,4 +120,13 @@ test("CREATE_OFFER route rejects an unsupported uppercase currency without calli
   expect(result.status).toBe(400);
   expect(result.body).toMatchObject({ error: "INVALID_CURRENCY" });
   expect(result.requests.some((request) => request.path.startsWith("/rest/v1/"))).toBe(false);
+});
+test("CREATE_OFFER route rejects non-string currency values without calling database RPCs", async () => {
+  for (const currency of [null, 123]) {
+    const result = await postCreateOffer(currency);
+
+    expect(result.status).toBe(400);
+    expect(result.body).toMatchObject({ error: "INVALID_CURRENCY" });
+    expect(result.requests.some((request) => request.path.startsWith("/rest/v1/"))).toBe(false);
+  }
 });
