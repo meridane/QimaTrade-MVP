@@ -232,3 +232,26 @@ test("CREATE_OFFER route normalizes non-object attributes and preserves optional
     p_offer_type: "supplier_offer",
   });
 });
+
+test("CREATE_OFFER route trims an explicit idempotency key before the RPC", async () => {
+  const result = await postCreateOffer("USD", { idempotencyKey: "  client-key-123  " });
+
+  expect(result.status, JSON.stringify({ body: result.body, requests: result.requests })).toBe(200);
+  const executionCall = result.requests.find(
+    (request) => request.path === "/rest/v1/rpc/execute_create_offer_v1",
+  );
+  expect(executionCall?.body).toMatchObject({ p_idempotency_key: "client-key-123" });
+});
+
+test("CREATE_OFFER route generates an idempotency UUID when the supplied key is blank", async () => {
+  const result = await postCreateOffer("USD", { idempotencyKey: "   " });
+
+  expect(result.status, JSON.stringify({ body: result.body, requests: result.requests })).toBe(200);
+  const executionCall = result.requests.find(
+    (request) => request.path === "/rest/v1/rpc/execute_create_offer_v1",
+  );
+  expect(executionCall?.body?.p_idempotency_key).toMatch(
+    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+  );
+});
+
