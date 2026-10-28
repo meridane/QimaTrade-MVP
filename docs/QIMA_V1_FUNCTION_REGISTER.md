@@ -948,3 +948,13 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **Résultat de la nouvelle version :** CI/CodeQL à vérifier après le commit de diagnostic ; aucun résultat n'est présumé à ce stade.
 - **Garde-fous :** aucun changement de logique métier ou de migration ; aucune lecture/écriture de données, migration, policy ou configuration Supabase production ; aucun merge, déploiement de production ou changement des protections de branche.
 
+
+
+## OFFER-QA-12 — correction du mock WebSocket dans le test de route (28 octobre 2026, 23:17 KST)
+
+- **État relu :** PR #26 ouverte, en brouillon, non fusionnée ; le HEAD précédent était `6d465206a36e1b4b7c5df8808f8a92920440aaaa`.
+- **Diagnostic établi depuis les logs GitHub Actions** [QIMA CI run 40696121255](https://github.com/meridane/QimaTrade-MVP/actions/runs/40696121255) : le test de route échouait avant tout appel REST, avec `Node.js 20 detected without native WebSocket support`. Le problème provenait de l'initialisation Realtime du client Supabase dans l'environnement de test, et non de la validation de devise.
+- **Correction de test :** commit `b8cee2c5aeea35867dbab8c00eea97d878312e46`, fichier `tests/e2e/create-offer-route-contract.spec.ts`. Le test isolé fournit temporairement un constructeur WebSocket factice si Node n'en fournit pas, puis restaure la valeur d'origine. Aucun code métier, migration SQL ou configuration de production n'a été modifié.
+- **Résultat après correction :** CI/CodeQL/Preview du nouveau HEAD à vérifier ; aucun résultat n'est déclaré réussi avant la fin des contrôles.
+- **Portée et limites :** ce mock est destiné uniquement au test de route qui n'utilise pas Realtime. Il ne valide pas l'usage de Realtime sous Node 20 en production.
+- **Garde-fous :** aucune écriture Supabase, migration, fusion, mise en production ou modification des protections de branche.
