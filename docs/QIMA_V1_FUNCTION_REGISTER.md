@@ -903,3 +903,15 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **Interprétation et limites :** cela confirme l'état des privilèges SQL rapportés par PostgreSQL, pas qu'une opération est exposée par chaque chemin HTTP/PostgREST, ni qu'une suppression a eu lieu. RLS ne remplace pas les privilèges de table et ne filtre pas TRUNCATE ; l'usage applicatif de chaque privilège doit être vérifié avant toute révocation.
 - **Prochaine tâche non bloquante :** inventorier les usages applicatifs et les grants/migrations qui les accordent, puis préparer une réduction minimale des privilèges et des tests sur une base isolée. Ne pas exécuter de REVOKE en production ni créer une migration corrective sans validation en environnement non-production.
 - **Garde-fous :** inspection en lecture seule uniquement ; aucune donnée, migration, policy ou configuration Supabase de production modifiée.
+
+## OFFER-QA-08 — devise en minuscules rejetée par le contrat RPC (28 octobre 2026, 19:49 KST)
+
+- **État de départ relu :** PR #26 ouverte, en brouillon, non fusionnée ; branche `fix/create-offer-status-contract`, HEAD précédent `77fa70560728deaca27fd6386d1f7e0a5eaee7ff`. Le registre et les checks du HEAD précédent ont été consultés avant modification.
+- **Modification de test :** commit `98bae5465952250057b5b96403d53df758814d9a`, fichier `tests/sql/create-offer-runtime.sql`.
+  - Ajout du cas `fixture-lowercase-currency` avec `p_currency = 'usd'`, qui attend `INVALID_CURRENCY` puisque le contrat SQL exige un code canonique.
+  - Ajout de `Lowercase Currency Offer` à l'assertion finale qui garantit qu'aucune offre rejetée n'a été créée.
+  - Aucun code applicatif, migration ou environnement Supabase n'a été modifié.
+- **Contrôles après le commit de test :** interrogation GitHub Actions pour le SHA `98bae5465952250057b5b96403d53df758814d9a` : aucun workflow PR n'était retourné à cet instant ; le statut combiné ne retournait aucun check. **CI non encore vérifiable / en attente**, et non « réussi ». Le connecteur disponible ne fournit pas d'action de dispatch manuel de workflow ; aucune réussite n'est supposée.
+- **Prochaine étape :** vérifier si GitHub Actions démarre pour ce commit, puis contrôler PostgreSQL isolé, TypeScript/build/Playwright, audit dépendances et CodeQL avant de qualifier le test comme validé. Si aucun run ne démarre, déclencher le workflow via l'interface GitHub ou un mécanisme autorisé, puis mettre à jour ce registre avec les liens et résultats réels.
+- **Portée et limites :** test strict du RPC dans PostgreSQL jetable ; ne démontre pas que la route HTTP refuse `usd` de la même façon, car celle-ci peut normaliser la saisie en amont. Aucun constat de vulnérabilité ne découle de ce test isolé.
+- **Garde-fous :** aucune donnée, migration, policy ou configuration Supabase production modifiée ; aucune fusion, mise en production ou modification des protections de branche.
