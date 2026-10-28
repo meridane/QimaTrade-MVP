@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { randomUUID } from "crypto";
-import { executeUniversalAction } from "@/lib/actions/runtime";
+import { executeUniversalAction } from "../../../../lib/actions/runtime";
 
 export const dynamic = "force-dynamic";
 const currencies = new Set(["USD", "EUR", "KRW", "MAD", "CNY"]);
