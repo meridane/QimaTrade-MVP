@@ -481,3 +481,52 @@ Priorité : intégrer le `package-lock.json` généré par CI sur la branche de 
 - Les relations vérifiées indiquent `demands.requester_actor_id → actors.id`, tandis que `dt_memberships.tenant_id → dt_tenants.id` et `dt_memberships.user_id → auth.users.id`. Aucune relation directe tenant-demande n'a été observée dans les colonnes/FK examinées.
 - **Décision de sécurité :** ne pas appliquer la migration ni inventer un lien d'autorisation. Il faut déterminer si la règle métier est basée sur le propriétaire de la demande, une publication ouverte à plusieurs fournisseurs, un rattachement business-object, ou une autre règle déjà définie dans QIMA.
 - Aucune modification de la base Supabase production n'a été faite ; toutes les requêtes exécutées étaient des SELECT en lecture seule.
+
+
+## Nouveau module proposé — QIMA Auto Parts Market (28 octobre 2026)
+
+**Statut : PROPOSED — conception à réconcilier avec B4 avant tout code ou migration.** Module séparé du commerce international Core.
+
+- **Objectif :** marketplace de pièces automobiles neuves et d'occasion, pour particuliers et professionnels.
+- **Lancement :** Corée du Sud, conception extensible à l'international.
+- **Parcours :** recherche simple/avancée par pièce, marque, modèle, année, catégorie et référence OEM ; fiche annonce avec photos réelles, état, défauts, prix/devise, quantité, localisation, options de remise/livraison et compatibilité avec niveau de vérification.
+- **Publication :** modération préalable au lancement.
+- **Transaction :** contact direct et commande en ligne sont deux parcours envisagés ; paiement intégré bloqué jusqu'à validation du contrat de commande, remboursements, prestataire et obligations applicables.
+- **Monétisation :** gratuit au lancement ; commission, annonces sponsorisées et abonnements restent des options futures.
+
+### Actions proposées
+
+`CREATE_AUTO_PART_LISTING`, `UPDATE_AUTO_PART_LISTING`, `SUBMIT_AUTO_PART_LISTING_FOR_REVIEW`, `APPROVE_AUTO_PART_LISTING`, `REJECT_AUTO_PART_LISTING`, `PUBLISH_AUTO_PART_LISTING`, `WITHDRAW_AUTO_PART_LISTING`, `SEARCH_AUTO_PARTS`, `CREATE_AUTO_PART_INQUIRY`, `RESERVE_AUTO_PART_LISTING`, `REPORT_AUTO_PART_LISTING`. `CREATE_AUTO_PART_ORDER` reste conditionnel à la décision sur le paiement.
+
+### Modèle conceptuel à réconcilier (noms non validés)
+
+- `auto_part_listings` : vendeur, titre/description, condition, prix/devise, quantité, statut, localisation, catégorie.
+- `auto_part_listing_media` : photos et métadonnées.
+- `vehicle_fitments` : compatibilité déclarée/vérifiée (marque, modèle, génération, années, motorisation, position).
+- `auto_part_identifiers` : références OEM/fabricant avec provenance.
+- `auto_part_categories` : taxonomie dédiée aux pièces, à comparer aux référentiels existants.
+- `auto_part_inquiries` : demandes de contact.
+- `auto_part_orders` et `auto_part_order_events` : uniquement après validation du contrat de commande.
+- `auto_part_reports` et, éventuellement, `auto_part_reviews` : modération et avis liés à une transaction vérifiable.
+
+**Ne pas créer ces tables avant l'audit** des tables, fonctions, catégories, profils/tenants, storage, messages et audit existants. Ce sont des entités conceptuelles, pas des tables confirmées.
+
+### États et sécurité
+
+Cycle proposé : `draft → pending_review → published → reserved → sold`, alternatives `rejected`, `expired`, `withdrawn`. Transitions vérifiées côté serveur, historique conservé. RLS/API/storage doivent empêcher la modification d'annonces d'autrui, empêcher la publication sans approbation et protéger les médias. La réservation/vente doit être atomique pour éviter la double vente. Les défauts d'une pièce d'occasion doivent être décrits avant publication. Une compatibilité non vérifiée doit être affichée comme telle.
+
+### UI et tests d'acceptation
+
+Écrans : accueil marketplace, résultats/filtres, détail annonce, création/édition, mes annonces, file de modération, demandes de contact et éventuellement commandes. Tests : persistance après rechargement, propriétaire/permissions, annonces non approuvées invisibles, défauts obligatoires pour occasion, filtres, compatibilité non vérifiée, concurrence de réservation, idempotence, RLS/storage multi-vendeur et régression Demand/Offer/Action Runtime.
+
+### Ordre recommandé
+
+1. `MKT-0` inventaire read-only du schéma B4/Supabase, migrations, policies, storage et UI.
+2. `MKT-1` contrat de domaine, états et frontière avec Demand/Offer.
+3. `MKT-2` mapping conceptuel → objets existants → écarts B4.
+4. `MKT-3` première tranche sans paiement : créer, modérer, publier et rechercher.
+5. `MKT-4` tests de sécurité et de régression.
+6. `MKT-5` contact/réservation après validation des autorisations de conversation.
+7. `MKT-6` commande/paiement seulement après décision métier et juridique.
+
+**Garde-fous :** aucune migration production, aucun merge ni déploiement n'est autorisé par cette proposition. Le module n'est pas encore implémenté. Le travail de réconciliation des migrations et les risques de sécurité déjà prioritaires restent devant toute extension du périmètre.
