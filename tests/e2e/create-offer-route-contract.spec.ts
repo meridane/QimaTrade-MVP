@@ -204,3 +204,16 @@ test("CREATE_OFFER route rejects a JSON array as an invalid request body", async
   expect(result.body).toMatchObject({ error: "INVALID_REQUEST_BODY" });
   expect(result.requests.some((request) => request.path.startsWith("/rest/v1/"))).toBe(false);
 });
+
+test("CREATE_OFFER route rejects JSON primitive values as invalid request bodies", async () => {
+  for (const rawBody of ["null", '"plain text"', "42", "true"]) {
+    const result = await postCreateOffer("USD", {}, rawBody);
+
+    expect(result.status, rawBody).toBe(400);
+    expect(result.body, rawBody).toMatchObject({ error: "INVALID_REQUEST_BODY" });
+    expect(
+      result.requests.some((request) => request.path.startsWith("/rest/v1/")),
+      rawBody,
+    ).toBe(false);
+  }
+});
