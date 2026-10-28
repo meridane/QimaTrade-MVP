@@ -4,13 +4,12 @@ import { randomUUID } from "crypto";
 import { executeUniversalAction } from "@/lib/actions/runtime";
 
 export const dynamic = "force-dynamic";
+const currencies = new Set(["USD", "EUR", "KRW", "MAD", "CNY"]);
 
 export async function POST(request: Request) {
   try {
     const authHeader = request.headers.get("authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
-    }
+    if (!authHeader?.startsWith("Bearer ")) return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
 
     const token = authHeader.slice("Bearer ".length);
     const supabase = createClient(
@@ -23,44 +22,52 @@ export async function POST(request: Request) {
     if (userError || !user) return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
 
     const body = await request.json();
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
+      return NextResponse.json({ error: "INVALID_REQUEST_BODY" }, { status: 400 });
+    }
+
+    const name = typeof body.name === "string" ? body.name.trim() : "";
+    const demandId = typeof body.demandId === "string" ? body.demandId.trim() : "";
+    const quantity = typeof body.quantity === "number" ? body.quantity : Number(body.quantity);
+    const rawPrice = body.price;
+    const price = rawPrice === null || rawPrice === undefined || (typeof rawPrice === "string" && !rawPrice.trim())
+      ? Number.NaN
+      : typeof rawPrice === "number" ? rawPrice : Number(rawPrice);
+    const currency = typeof body.currency === "string" ? body.currency.trim() : "";
+
+    if (!name || !demandId) return NextResponse.json({ error: "NAME_AND_DEMAND_REQUIRED" }, { status: 400 });
+    if (!Number.isFinite(quantity) || quantity <= 0) return NextResponse.json({ error: "INVALID_QUANTITY" }, { status: 400 });
+    if (!Number.isFinite(price) || price < 0) return NextResponse.json({ error: "INVALID_PRICE" }, { status: 400 });
+    if (!currencies.has(currency)) return NextResponse.json({ error: "INVALID_CURRENCY" }, { status: 400 });
+
     const { data: profile, error: profileError } = await supabase.from("profiles").select("actor_id").eq("auth_user_id", user.id).maybeSingle();
     if (profileError || !profile?.actor_id) return NextResponse.json({ error: "PROFILE_ACTOR_NOT_FOUND" }, { status: 403 });
 
-    const { data: memberships, error: membershipError } = await supabase
-      .from("dt_memberships")
-      .select("tenant_id")
-      .eq("user_id", user.id);
+    const { data: memberships, error: membershipError } = await supabase.from("dt_memberships").select("tenant_id").eq("user_id", user.id);
+    if (membershipError || !memberships?.length) return NextResponse.json({ error: "TENANT_MEMBERSHIP_REQUIRED" }, { status: 403 });
 
-    if (membershipError || !memberships?.length) {
-      return NextResponse.json({ error: "TENANT_MEMBERSHIP_REQUIRED" }, { status: 403 });
-    }
-
-    // Never pick a tenant arbitrarily for users with multiple memberships.
     const tenantIds = [...new Set(memberships.map((membership) => membership.tenant_id).filter(Boolean))];
     if (tenantIds.length !== 1) {
-      return NextResponse.json(
-        { error: "TENANT_SELECTION_REQUIRED", message: "Select an active tenant before creating an offer." },
-        { status: 409 },
-      );
+      return NextResponse.json({ error: "TENANT_SELECTION_REQUIRED", message: "Select an active tenant before creating an offer." }, { status: 409 });
     }
     const tenantId = tenantIds[0];
 
     const input = {
-      name: String(body.name ?? "Offer"),
-      demandId: String(body.demandId ?? ""),
-      productMasterId: String(body.productMasterId ?? ""),
+      name,
+      demandId,
+      productMasterId: typeof body.productMasterId === "string" ? body.productMasterId.trim() : "",
       providerActorId: profile.actor_id,
-      quantity: Number(body.quantity),
-      price: Number(body.price),
-      currency: String(body.currency ?? ""),
-      pricingModel: body.pricingModel == null ? null : String(body.pricingModel),
+      quantity,
+      price,
+      currency,
+      pricingModel: body.pricingModel == null ? "fixed" : String(body.pricingModel),
       conditions: body.conditions == null ? null : String(body.conditions),
       market: body.market == null ? null : String(body.market),
       geography: body.geography == null ? null : String(body.geography),
-      attributes: body.attributes ?? {},
+      attributes: body.attributes && typeof body.attributes === "object" && !Array.isArray(body.attributes) ? body.attributes : {},
       documentationStatus: body.documentationStatus == null ? null : String(body.documentationStatus),
-      lifecycle: body.lifecycle == null ? null : String(body.lifecycle),
-      offerType: body.offerType == null ? null : String(body.offerType),
+      lifecycle: body.lifecycle == null ? "draft" : String(body.lifecycle),
+      offerType: body.offerType == null ? "supplier_offer" : String(body.offerType),
     };
 
     const result = await executeUniversalAction({
@@ -70,14 +77,8 @@ export async function POST(request: Request) {
       actionVersion: 1,
       objectType: "Demand",
       objectId: input.demandId,
-      correlationId:
-        typeof body.correlationId === "string" && body.correlationId.trim()
-          ? body.correlationId.trim()
-          : randomUUID(),
-      idempotencyKey:
-        typeof body.idempotencyKey === "string" && body.idempotencyKey.trim()
-          ? body.idempotencyKey.trim()
-          : randomUUID(),
+      correlationId: typeof body.correlationId === "string" && body.correlationId.trim() ? body.correlationId.trim() : randomUUID(),
+      idempotencyKey: typeof body.idempotencyKey === "string" && body.idempotencyKey.trim() ? body.idempotencyKey.trim() : randomUUID(),
     }, input, token);
 
     return NextResponse.json(result, { status: result.status === "succeeded" ? 200 : 409 });
