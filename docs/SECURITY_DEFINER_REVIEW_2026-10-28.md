@@ -95,3 +95,9 @@ Required isolated tests and fix constraints are documented in `docs/LEGACY_MESSA
 - Vercel Preview for `f7ebb28...`: READY.
 - These results do not validate the new live RLS findings; no authenticated exploit regression test has run.
 - No production data/schema/privilege changes, no migration application, no PR merge, and no production deployment.
+
+## Revalidation de branche — 28 octobre 2026
+
+HEAD `fac4c83853350bab61ce97a0a0881bcc9470f332` : QIMA CI **SUCCESS**, CodeQL **SUCCESS**, Vercel Preview **SUCCESS**. La CI inclut les tests PostgreSQL isolés CREATE_OFFER, legacy messages et auto-inscription aux participants.
+
+Limite de preuve : les deux suites RLS supplémentaires reproduisent des politiques simplifiées dans des schémas de test dédiés. Elles ne constituent pas un replay des politiques exactes de Supabase live et ne valident pas l'application des propositions RLS à la base de production. Le Security Gate demeure **NOT PASS**. La règle tenant↔demande, le chemin historique de brouillon, la revue des permissions RPC et la réconciliation des migrations restent ouverts. Aucune écriture ou migration production n'a été exécutée.
