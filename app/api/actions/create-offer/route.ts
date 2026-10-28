@@ -70,7 +70,7 @@ export async function POST(request: Request) {
       conditions: body.conditions == null ? null : String(body.conditions),
       market: body.market == null ? null : String(body.market),
       geography: body.geography == null ? null : String(body.geography),
-      attributes: body.attributes && typeof body.attributes === "object" && !Array.isArray(body.attributes) ? body.attributes : {},
+      attributes: body.attributes && typeof body.attributes === "object" && !Array.isArray(body.attributes) ? body.attributes as Record<string, unknown> : {},
       documentationStatus: body.documentationStatus == null ? null : String(body.documentationStatus),
       lifecycle: body.lifecycle == null ? "draft" : String(body.lifecycle),
       offerType: body.offerType == null ? "supplier_offer" : String(body.offerType),
