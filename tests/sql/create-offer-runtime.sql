@@ -315,7 +315,7 @@ BEGIN
   FROM public.offers
   WHERE name IN (
     'Infinity Quantity Offer', 'Infinity Price Offer', 'Negative Price Offer',
-    'Unsupported Currency Offer', 'Blank Key Offer', 'Null Input Offer', 'Missing Demand Offer', 'Inactive Product Offer'
+    'Unsupported Currency Offer', 'Null Currency Offer', 'Blank Key Offer', 'Null Input Offer', 'Missing Demand Offer', 'Inactive Product Offer'
   );
   IF v_count <> 0 THEN RAISE EXCEPTION 'Rejected validation cases created % offers', v_count; END IF;
 
