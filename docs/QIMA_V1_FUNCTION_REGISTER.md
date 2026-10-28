@@ -757,9 +757,9 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **PR #26 / branche :** `fix/create-offer-status-contract`, PR toujours ouverte en brouillon et non fusionnée.
 - **État de départ consulté :** HEAD avant modification `7d24b16c25446ce9bd65142292ce6b7355d9c37e`. La CI QIMA et CodeQL étaient terminées avec succès sur ce SHA ; le statut Vercel Preview était SUCCESS. Ces résultats ne valident pas les changements ci-dessous.
 - **Modification :** commit `c7a40e581db908599c100e47712520cf5363246a`, fichier `tests/sql/create-offer-runtime.sql`. Ajout d'un cas négatif qui transmet `NULL` comme devise à `execute_create_offer_v1` et attend `INVALID_CURRENCY`. Le cas couvre explicitement une valeur nulle, distincte de la devise non prise en charge `XYZ`.
-- **Validation après modification :** statut combiné du nouveau SHA consulté ; Vercel Preview est `pending`. Aucun run GitHub Actions n'était encore associé au SHA lors de la vérification (liste de runs PR vide à cet instant). Le nouveau test n'est donc **pas encore déclaré réussi**.
-- **Limites :** test prévu pour la base PostgreSQL isolée de la CI ; il ne s'agit pas d'un appel à Supabase production et il ne démontre pas à lui seul la sécurité du RPC déployé.
-- **Prochaine action :** attendre et inspecter les checks du SHA `c7a40e581db908599c100e47712520cf5363246a`. Après obtention des résultats, mettre à jour cette entrée avec les statuts exacts ; si le cas échoue, corriger le test ou la fonction dans la branche et relancer les contrôles.
+- **État de validation au relevé initial (15:03 KST) :** les checks du commit de test n'étaient pas encore disponibles ; aucun succès n'était alors présumé.
+- **Résultat final :** voir la section immédiatement suivante « OFFER-QA-04 — résultats des contrôles du test devise NULL », qui consigne les résultats obtenus sur le HEAD `59310e61d33ec48b018b5a4a5cfc6e109aaf5651` : QIMA CI, CodeQL et Vercel Preview tous SUCCESS.
+- **Limites :** test exécuté dans la base PostgreSQL isolée de CI, pas dans Supabase production.
 - **Garde-fous :** aucune donnée ni migration Supabase production modifiée ; aucune fusion, aucun déploiement de production et aucune modification des règles de protection.
 
 ## OFFER-QA-04 — résultats des contrôles du test devise NULL (28 octobre 2026, 15:32 KST)
