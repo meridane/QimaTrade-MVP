@@ -206,6 +206,24 @@ BEGIN
   BEGIN
     PERFORM public.execute_create_offer_v1(
       '10000000-0000-4000-8000-000000000001',
+      'fixture-invalid-currency',
+      '{"case":"unsupported-currency"}'::jsonb,
+      'Unsupported Currency Offer',
+      '50000000-0000-4000-8000-000000000001',
+      '40000000-0000-4000-8000-000000000001',
+      '30000000-0000-4000-8000-000000000001',
+      1,
+      10,
+      'XYZ'
+    );
+    RAISE EXCEPTION 'Expected unsupported currency to be rejected';
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM NOT LIKE '%INVALID_CURRENCY%' THEN RAISE; END IF;
+  END;
+
+  BEGIN
+    PERFORM public.execute_create_offer_v1(
+      '10000000-0000-4000-8000-000000000001',
       '   ',
       '{"case":"blank-key"}'::jsonb,
       'Blank Key Offer',
@@ -279,7 +297,7 @@ BEGIN
   FROM public.offers
   WHERE name IN (
     'Infinity Quantity Offer', 'Infinity Price Offer', 'Negative Price Offer',
-    'Blank Key Offer', 'Null Input Offer', 'Missing Demand Offer', 'Inactive Product Offer'
+    'Unsupported Currency Offer', 'Blank Key Offer', 'Null Input Offer', 'Missing Demand Offer', 'Inactive Product Offer'
   );
   IF v_count <> 0 THEN RAISE EXCEPTION 'Rejected validation cases created % offers', v_count; END IF;
 

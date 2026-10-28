@@ -64,7 +64,9 @@ BEGIN
   IF p_price IS NULL OR p_price::text IN ('NaN', 'Infinity', '-Infinity') OR p_price < 0 THEN
     RAISE EXCEPTION 'INVALID_PRICE';
   END IF;
-  IF nullif(trim(p_currency), '') IS NULL THEN RAISE EXCEPTION 'INVALID_CURRENCY'; END IF;
+  IF nullif(trim(p_currency), '') IS NULL OR p_currency NOT IN ('USD', 'EUR', 'KRW', 'MAD', 'CNY') THEN
+    RAISE EXCEPTION 'INVALID_CURRENCY';
+  END IF;
 
   IF NOT EXISTS (
     SELECT 1 FROM public.product_masters

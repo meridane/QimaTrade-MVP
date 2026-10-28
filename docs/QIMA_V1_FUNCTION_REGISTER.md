@@ -708,3 +708,16 @@ Policies SQL observées sur l'environnement Supabase cible :
 - **Interprétation :** ces résultats valident les contrôles exécutés sur ce SHA. Les tests RLS sont synthétiques et ne démontrent pas, à eux seuls, une vulnérabilité ni son absence sur Supabase production.
 - **Blocages métier inchangés :** règle d'éligibilité fournisseur/tenant/demande et contrat de la route historique de création de brouillon. Security Gate reste **NOT PASS** jusqu'à définition et validation de ces règles.
 - **Aucune écriture ni migration Supabase production, aucune fusion, aucun déploiement de production, aucun changement de protection de branche.** Cette entrée est documentaire ; les checks du commit documentaire qui en résulte doivent être vérifiés séparément.
+
+
+## OFFER-QA-03 — validation devise cohérente entre API et RPC (28 octobre 2026)
+
+- **État de départ relu :** PR #26 ouverte, en brouillon, non fusionnée ; HEAD `a49310acd0c0a30d283bb253dc2fbb7851a3a997`. QIMA CI run [40633646593](https://github.com/meridane/QimaTrade-MVP/actions/runs/40633646593) et CodeQL run [40633646551](https://github.com/meridane/QimaTrade-MVP/actions/runs/40633646551) ont réussi sur ce HEAD ; Vercel Preview était Ready.
+- **Constat de contrat :** les routes applicatives limitent la devise à `USD`, `EUR`, `KRW`, `MAD`, `CNY`, alors que le corps branch-only de `execute_create_offer_v1` vérifiait uniquement que la devise n'était pas vide. Cela établit une incohérence de validation entre couches, pas une preuve qu'un abus a eu lieu ou qu'il est exploitable sur la base de production.
+- **Fichiers modifiés dans le commit de travail :**
+  - `supabase/migrations/20261027090000_fix_create_offer_action_status_contract.sql` — la fonction RPC rejette maintenant les devises hors de la liste déjà utilisée par les API.
+  - `tests/sql/create-offer-runtime.sql` — cas négatif isolé `XYZ`, attendu `INVALID_CURRENCY`, avec assertion qu'aucune offre n'est créée.
+  - `docs/QIMA_V1_FUNCTION_REGISTER.md` — consignation de l'écart, du correctif branch-only et des limites de validation.
+- **Validation :** le test est ajouté à la suite PostgreSQL jetable CI. Les checks du nouveau commit doivent être vérifiés après push ; aucun succès n'est présumé avant leur résultat.
+- **Limites :** ce changement ne définit pas l'éligibilité fournisseur/tenant/demande, ne change pas les statuts métier, et ne constitue pas un test sur Supabase production.
+- **Garde-fous :** migration uniquement dans la branche GitHub ; elle n'a pas été appliquée à Supabase. Aucune donnée, policy ou configuration de production n'a été modifiée. Aucun merge ni déploiement de production.
