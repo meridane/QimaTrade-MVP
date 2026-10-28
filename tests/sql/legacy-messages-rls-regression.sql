@@ -217,6 +217,21 @@ VALUES ('dddddddd-dddd-4ddd-8ddd-dddddddddddd',
         'legitimate-provider');
 RESET ROLE;
 
+
+-- SELECT regression: unrelated user B must not see demand A's conversation.
+SET qima_legacy_test.uid = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+SET ROLE qima_test_authenticated;
+DO $select_guard$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM qima_legacy_test.messages
+    WHERE demand_id = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd'
+  ) THEN
+    RAISE EXCEPTION 'SECURITY REGRESSION: unrelated user can read foreign conversation';
+  END IF;
+END $select_guard$;
+RESET ROLE;
+
 DO $final$
 BEGIN
   IF (SELECT count(*) FROM qima_legacy_test.messages) <> 2 THEN
