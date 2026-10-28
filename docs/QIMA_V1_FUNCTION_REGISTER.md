@@ -695,7 +695,7 @@ Policies SQL observées sur l'environnement Supabase cible :
 
 - **État PR relu avant cette mise à jour :** #26 ouverte, en brouillon, non fusionnée ; HEAD `018b1e82a7d5d4ddb8cb99ffae82a7972354bbc8`.
 - **QIMA CI run [40630627764](https://github.com/meridane/QimaTrade-MVP/actions/runs/40630627764) : SUCCESS.** Les deux jobs ont réussi :
-  - Installation depuis `package-lock.json` commité avec `npm ci) : SUCCESS.
+  - Installation depuis `package-lock.json` commité avec `npm ci` : SUCCESS.
   - Audit npm au seuil high : SUCCESS.
   - TypeScript : SUCCESS.
   - Build de production : SUCCESS.
