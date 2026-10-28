@@ -113,3 +113,11 @@ test("CREATE_OFFER route rejects lowercase currency without calling database RPC
   expect(result.body).toMatchObject({ error: "INVALID_CURRENCY" });
   expect(result.requests.some((request) => request.path.startsWith("/rest/v1/"))).toBe(false);
 });
+
+test("CREATE_OFFER route rejects an unsupported uppercase currency without calling database RPCs", async () => {
+  const result = await postCreateOffer("GBP");
+
+  expect(result.status).toBe(400);
+  expect(result.body).toMatchObject({ error: "INVALID_CURRENCY" });
+  expect(result.requests.some((request) => request.path.startsWith("/rest/v1/"))).toBe(false);
+});
