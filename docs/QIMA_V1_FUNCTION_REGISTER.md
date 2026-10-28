@@ -786,3 +786,15 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **Security Gate reste NOT PASS** : l'accès direct du rôle `authenticated` à la RPC bas niveau observé lors de l'inspection précédente et la règle métier fournisseur/tenant/demande restent à traiter via revue et validation dans un environnement isolé. Aucun abus n'est affirmé comme ayant eu lieu.
 - PR #26 reste ouverte, en brouillon et non fusionnée. Aucune écriture de données, migration, policy ou configuration Supabase production ; aucun déploiement de production ; aucune modification des règles de protection.
 
+## OFFER-QA-05 — vérifier l'absence d'offre après devise NULL (28 octobre 2026, 15:34 KST)
+
+- **Écart de couverture constaté :** le test `fixture-null-currency` attendait bien l'erreur `INVALID_CURRENCY`, mais le contrôle final qui vérifie l'absence de lignes `offers` pour les appels rejetés n'incluait pas le nom `Null Currency Offer`.
+- **Modification de test :** commit `59d7d15dd729e03348fca721e8afdd476d267124`, fichier `tests/sql/create-offer-runtime.sql`. Le contrôle final inclut désormais `Null Currency Offer` dans la liste des offres interdites après échec ; aucune logique applicative ou migration n'a été modifiée.
+- **Contrôles observés au relevé (15:34 KST) sur le commit de test :**
+  - QIMA CI run [40644605579](https://github.com/meridane/QimaTrade-MVP/actions/runs/40644605579) : **PENDING** ; aucun job n'était encore renvoyé par l'API.
+  - CodeQL run [40644605511](https://github.com/meridane/QimaTrade-MVP/actions/runs/40644605511) : **IN PROGRESS**, analyse CodeQL en cours.
+  - Vercel Preview : **PENDING**.
+  - Aucun succès n'est revendiqué pour ce changement tant que les contrôles ne sont pas terminés.
+- **Référence de comparaison :** sur le HEAD précédent `59310e61d33ec48b018b5a4a5cfc6e109aaf5651`, QIMA CI run [40641639220](https://github.com/meridane/QimaTrade-MVP/actions/runs/40641639220), CodeQL run [40641639125](https://github.com/meridane/QimaTrade-MVP/actions/runs/40641639125) et Vercel Preview étaient SUCCESS. Cette réussite ne valide pas encore l'assertion ajoutée au commit `59d7d15`.
+- **Garde-fous :** test destiné à PostgreSQL isolé CI. Aucune donnée, migration, policy ou configuration Supabase production modifiée ; aucun merge, déploiement de production ou changement de protection de branche.
+
