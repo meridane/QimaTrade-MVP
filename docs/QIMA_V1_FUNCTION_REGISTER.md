@@ -790,11 +790,18 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 
 - **Écart de couverture constaté :** le test `fixture-null-currency` attendait bien l'erreur `INVALID_CURRENCY`, mais le contrôle final qui vérifie l'absence de lignes `offers` pour les appels rejetés n'incluait pas le nom `Null Currency Offer`.
 - **Modification de test :** commit `59d7d15dd729e03348fca721e8afdd476d267124`, fichier `tests/sql/create-offer-runtime.sql`. Le contrôle final inclut désormais `Null Currency Offer` dans la liste des offres interdites après échec ; aucune logique applicative ou migration n'a été modifiée.
-- **Contrôles observés au relevé (15:34 KST) sur le commit de test :**
-  - QIMA CI run [40644605579](https://github.com/meridane/QimaTrade-MVP/actions/runs/40644605579) : **PENDING** ; aucun job n'était encore renvoyé par l'API.
-  - CodeQL run [40644605511](https://github.com/meridane/QimaTrade-MVP/actions/runs/40644605511) : **IN PROGRESS**, analyse CodeQL en cours.
-  - Vercel Preview : **PENDING**.
-  - Aucun succès n'est revendiqué pour ce changement tant que les contrôles ne sont pas terminés.
-- **Référence de comparaison :** sur le HEAD précédent `59310e61d33ec48b018b5a4a5cfc6e109aaf5651`, QIMA CI run [40641639220](https://github.com/meridane/QimaTrade-MVP/actions/runs/40641639220), CodeQL run [40641639125](https://github.com/meridane/QimaTrade-MVP/actions/runs/40641639125) et Vercel Preview étaient SUCCESS. Cette réussite ne valide pas encore l'assertion ajoutée au commit `59d7d15`.
+- **Résultats finaux vérifiés sur le HEAD `e97cd93d24447b46557045d59ce28725338185a7` (15:36 KST) :**
+  - QIMA CI run [40644687050](https://github.com/meridane/QimaTrade-MVP/actions/runs/40644687050) : **SUCCESS** ; les deux jobs ont terminé avec succès.
+  - Installation `npm ci` depuis le lockfile commité : SUCCESS.
+  - Audit des dépendances au seuil `high` : SUCCESS.
+  - TypeScript : SUCCESS.
+  - Build de production : SUCCESS.
+  - Installation Chromium et tests Playwright : SUCCESS.
+  - Tests PostgreSQL isolés CREATE_OFFER/concurrence : SUCCESS, y compris l'assertion ajoutée pour vérifier que `Null Currency Offer` n'est pas créé après le rejet de la devise `NULL`.
+  - Régressions synthétiques messages-RLS et auto-inscription participants : SUCCESS.
+  - Artefacts `committed-package-lock` et `npm-audit-report` téléversés : SUCCESS.
+  - CodeQL run [40644687021](https://github.com/meridane/QimaTrade-MVP/actions/runs/40644687021) : **SUCCESS**.
+  - Vercel Preview : **SUCCESS** ([détails](https://vercel.com/bmk1/qimatrade-mvp/cGcG51K8kn8CBiyBTDntnDiGF993)), preview uniquement.
+- **Note sur les runs intermédiaires :** le run QIMA CI [40644605579](https://github.com/meridane/QimaTrade-MVP/actions/runs/40644605579) sur le commit de test `59d7d15` a été annulé par la concurrence après que les étapes de test et de build aient réussi. Le run complet [40644687050](https://github.com/meridane/QimaTrade-MVP/actions/runs/40644687050) sur le HEAD qui inclut ce test est le résultat de référence.
 - **Garde-fous :** test destiné à PostgreSQL isolé CI. Aucune donnée, migration, policy ou configuration Supabase production modifiée ; aucun merge, déploiement de production ou changement de protection de branche.
 
