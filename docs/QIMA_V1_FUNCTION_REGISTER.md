@@ -645,3 +645,35 @@ Policies SQL observées sur l'environnement Supabase cible :
 - **Rapport complet :** `docs/MKT-1.1_CREATE_OFFER_AUTHORIZATION_AUDIT.md`.
 - **Aucune écriture, migration, modification de policy Supabase, fusion ni mise en production** n'a été effectuée.
 
+
+
+## Point de contrôle — lockfile et CI confirmés sur HEAD (28 octobre 2026, 13:06 KST)
+
+### État GitHub relu avant cette mise à jour
+
+- PR #26 : ouverte, en brouillon, non fusionnée ; base `main`, branche `fix/create-offer-status-contract`.
+- HEAD avant le présent commit documentaire : `0c26fc8d09cc46f0c02ee5d997f6910a814259fe`.
+- Le `package-lock.json` est bien présent sur la branche : 62 981 octets, `lockfileVersion: 3`. Son SHA-256 précédemment vérifié reste `8d90037589e58bc2d0408a0d652b29ea5fcfa414cd98af60b155846cc321837f`.
+
+### Résultats observés pour ce HEAD
+
+- QIMA CI run [40629634655](https://github.com/meridane/QimaTrade-MVP/actions/runs/40629634655) : **SUCCESS**.
+  - `npm ci --no-audit --no-fund` depuis le lockfile commité : SUCCESS.
+  - `npm audit --audit-level=high` : SUCCESS.
+  - TypeScript : SUCCESS.
+  - Build de production : SUCCESS.
+  - Installation Chromium et Playwright smoke tests : SUCCESS.
+  - Tests PostgreSQL isolés CREATE_OFFER/concurrence : SUCCESS.
+  - Tests de régression synthétiques messages RLS et auto-inscription des participants : SUCCESS.
+  - Artefact `committed-package-lock` téléversé : SUCCESS.
+- QIMA CodeQL run [40629634650](https://github.com/meridane/QimaTrade-MVP/actions/runs/40629634650) : **SUCCESS**.
+- Statut Vercel du HEAD : **SUCCESS**, preview uniquement ([détails](https://vercel.com/bmk1/qimatrade-mvp/4namRs6GZf3AreK3tRCFUgZVbaCv)).
+
+### Interprétation et garde-fous
+
+- **Le blocage du lockfile est levé pour ce HEAD** : la CI a exécuté `npm ci` avec le fichier versionné et a téléversé l'artefact correspondant. Toute modification ultérieure des dépendances doit conserver cette vérification.
+- Les tests RLS utilisent des fixtures PostgreSQL isolées. Leur succès valide les scénarios simulés uniquement ; il ne prouve ni l'exploitabilité ni l'absence d'une vulnérabilité dans la base Supabase réelle.
+- **Security Gate reste NOT PASS** : l'autorisation fournisseur/tenant/demande et le contrat de la route historique de création de brouillon nécessitent encore une règle métier documentée.
+- Prochaine tâche non bloquante : ajouter une couverture de régression ciblée pour le contrat demande/offre dans un environnement isolé, sans coder une règle d'éligibilité fournisseur non approuvée. Si le test exige de décider quels statuts autorisent une réponse ou quels fournisseurs sont éligibles, conserver ce point comme blocage métier.
+- Aucune donnée ni migration, policy ou configuration Supabase production n'a été modifiée. Aucun merge, déploiement de production ni changement de protection de branche n'a été effectué.
+
