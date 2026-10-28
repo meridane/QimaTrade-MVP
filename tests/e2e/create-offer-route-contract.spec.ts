@@ -5,7 +5,7 @@ type MockRequest = { path: string; body?: Record<string, unknown> };
 
 test.describe.configure({ mode: "serial" });
 
-async function postCreateOffer(currency: unknown, overrides: Record<string, unknown> = {}) {
+async function postCreateOffer(currency: unknown, overrides: Record<string, unknown> = {}, rawBody?: string) {
   process.env.NEXT_PUBLIC_SUPABASE_URL ??= "https://example.supabase.co";
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??= "ci-placeholder-anon-key";
 
@@ -73,7 +73,7 @@ async function postCreateOffer(currency: unknown, overrides: Record<string, unkn
           authorization: "Bearer qima-route-test-token",
           "content-type": "application/json",
         },
-        body: JSON.stringify({
+        body: rawBody ?? JSON.stringify({
           name: "Currency contract fixture",
           demandId,
           productMasterId: "60000000-0000-4000-8000-000000000001",
@@ -150,4 +150,21 @@ test("CREATE_OFFER route rejects invalid quantity and price before database acce
       invalidCase.label,
     ).toBe(false);
   }
+});
+
+
+test("CREATE_OFFER route rejects malformed JSON with a stable error before database access", async () => {
+  const result = await postCreateOffer("USD", {}, '{"name":');
+
+  expect(result.status).toBe(400);
+  expect(result.body).toMatchObject({ error: "INVALID_REQUEST_BODY" });
+  expect(result.requests.some((request) => request.path.startsWith("/rest/v1/"))).toBe(false);
+});
+
+test("CREATE_OFFER route rejects a JSON array as an invalid request body", async () => {
+  const result = await postCreateOffer("USD", {}, JSON.stringify([{ name: "not an object" }]));
+
+  expect(result.status).toBe(400);
+  expect(result.body).toMatchObject({ error: "INVALID_REQUEST_BODY" });
+  expect(result.requests.some((request) => request.path.startsWith("/rest/v1/"))).toBe(false);
 });
