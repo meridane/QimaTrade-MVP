@@ -938,3 +938,13 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **Prochaine étape :** relire les conclusions CI, en particulier TypeScript et le test Playwright `CREATE_OFFER route currency`. Corriger tout échec, puis consigner les résultats finaux. Si les runs restent absents ou en attente, ne pas supposer la réussite.
 - **Portée et limites :** le test utilise des réponses Supabase simulées ; il vérifie la validation et le contrat d'appel de la route, pas le comportement d'une instance Supabase réelle. Aucun constat de vulnérabilité n'est déduit de ce test synthétique.
 - **Garde-fous :** aucun accès aux données, migrations, policies ou configuration Supabase production ; aucun merge, déploiement de production ou changement des protections de branche.
+
+## OFFER-QA-11 — diagnostic du premier échec du test de contrat HTTP (28 octobre 2026, 21:22 KST)
+
+- **État relu avant intervention :** PR #26 ouverte, en brouillon et non fusionnée ; branche `fix/create-offer-status-contract`, HEAD `4057d1ab237cb5746a896d69795ea34688579f7a`.
+- **Contrôles du HEAD avant cette modification :** QIMA CI [run 40688322328](https://github.com/meridane/QimaTrade-MVP/actions/runs/40688322328) : **FAILURE**. `npm ci`, audit npm, TypeScript et build production ont réussi. Playwright : 20 tests réussis ; le test `CREATE_OFFER route trims whitespace around a supported currency before the RPC` a échoué (attendu HTTP 200, reçu HTTP 400) ; le test suivant a été ignoré après l'échec en mode sériel. Le job PostgreSQL isolé CREATE_OFFER/concurrence et les deux régressions synthétiques RLS ont réussi.
+- **CodeQL** [run 40688322383](https://github.com/meridane/QimaTrade-MVP/actions/runs/40688322383) : **SUCCESS**. Le statut Vercel est SUCCESS sur une prévisualisation uniquement.
+- **Modification suivante :** améliorer le message d'assertion du test `tests/e2e/create-offer-route-contract.spec.ts` afin que le prochain échec affiche la réponse HTTP et les chemins REST/RPC observés. Cette instrumentation n'altère pas le comportement métier et vise à distinguer un problème du mock de l'API d'un problème de contrat.
+- **Résultat de la nouvelle version :** CI/CodeQL à vérifier après le commit de diagnostic ; aucun résultat n'est présumé à ce stade.
+- **Garde-fous :** aucun changement de logique métier ou de migration ; aucune lecture/écriture de données, migration, policy ou configuration Supabase production ; aucun merge, déploiement de production ou changement des protections de branche.
+

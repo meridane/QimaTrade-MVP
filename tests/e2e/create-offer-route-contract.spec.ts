@@ -90,7 +90,7 @@ async function postCreateOffer(currency: string) {
 test('CREATE_OFFER route trims whitespace around a supported currency before the RPC', async () => {
   const result = await postCreateOffer(" USD ");
 
-  expect(result.status).toBe(200);
+  expect(result.status, JSON.stringify({ body: result.body, requests: result.requests })).toBe(200);
   expect(result.body).toMatchObject({ status: "succeeded" });
   const executionCall = result.requests.find(
     (request) => request.path === "/rest/v1/rpc/execute_create_offer_v1",
