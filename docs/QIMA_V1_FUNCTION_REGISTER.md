@@ -632,3 +632,16 @@ Policies SQL observées sur l'environnement Supabase cible :
 **Conclusion provisoire :** ne pas réutiliser `OFFER` ou `REQUEST` par approximation pour une annonce de pièce. Comparer deux options : (A) spécialiser le modèle de publication générique avec type marketplace et modération côté serveur ; (B) contexte/tables marketplace dédiés avec réutilisation contrôlée des services communs. Aucune option n'est approuvée avant l'audit des dépendances.
 
 **Prochaine étape MKT-0.4 :** inventaire complet des buckets Storage/policies ; triggers et fonctions qui changent `core.publications.status` ; contraintes/grants ; mapping des actions/UI ; comparaison A/B et plan de tests isolés. Aucun changement production.
+
+
+## MKT-1.1 — CREATE_OFFER authorization contract audit (28 octobre 2026)
+
+- **CI du code précédent :** QIMA CI run 238 et CodeQL run 201 ont réussi pour le SHA `195dab9bcb2026c6a80f7a0b876a590bbcaf2da5`. Ces checks ne prouvent pas la règle métier d'autorisation qui reste à définir.
+- **Schéma réel relu en SELECT :** `public.demands` contient `requester_actor_id` et `demand_status`, mais aucune colonne `tenant_id` dans les colonnes inspectées. `public.dt_memberships` relie le tenant à l'utilisateur Auth ; `public.profiles` relie l'utilisateur à l'acteur.
+- **Données observées :** 23 demandes avaient le statut `draft` au moment de la requête. Ce snapshot ne définit pas à lui seul le vocabulaire complet des statuts ni la règle de publication.
+- **Écart confirmé :** le runtime vérifie l'appartenance au tenant, l'identité du fournisseur et l'existence de la demande, mais ne vérifie ni l'état de réponse autorisé de la demande, ni l'éligibilité de ce tenant à répondre à cette demande.
+- **Décision : BLOQUANT / règle métier à préciser.** Ne pas inventer un statut `published` ou un lien tenant-demande qui n'est pas confirmé. Définir si toute demande publiée est ouverte à tous les fournisseurs ou si une politique d'audience/organisation restreint les réponses.
+- **Route historique :** `app/api/offers/route.ts` insère encore directement les offres brouillon et ne passe pas par le runtime universel. Son intention et ses règles d'accès doivent être confirmées séparément.
+- **Rapport complet :** `docs/MKT-1.1_CREATE_OFFER_AUTHORIZATION_AUDIT.md`.
+- **Aucune écriture, migration, modification de policy Supabase, fusion ni mise en production** n'a été effectuée.
+
