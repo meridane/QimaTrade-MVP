@@ -835,3 +835,27 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - Vercel Preview : **SUCCESS** ([détails](https://vercel.com/bmk1/qimatrade-mvp/9DScwS4kGpCaorvMaBWS1qTYyd6V)), preview uniquement.
 - Ces résultats valident le commit documentaire indiqué ; ils ne constituent pas une validation de Supabase production. Aucune donnée ou migration de production n'a été modifiée, aucun merge ou déploiement de production n'a été effectué.
 
+## OFFER-QA-07 — devise entourée d'espaces rejetée par le RPC (28 octobre 2026, 17:51 KST)
+
+- **État de départ relu :** PR #26 ouverte, en brouillon et non fusionnée ; branche `fix/create-offer-status-contract`. HEAD de test `b2fd0c1a37676526d0564626f4d3ea5cfaa0d66c`.
+- **Modification :** commit `b2fd0c1a37676526d0564626f4d3ea5cfaa0d66c`, fichier `tests/sql/create-offer-runtime.sql`.
+  - Ajout du cas `fixture-padded-currency` avec `p_currency = ' USD '`.
+  - Le contrat RPC strict attend `INVALID_CURRENCY` pour une devise non canonique ; le nom `Padded Currency Offer` est aussi inclus dans l'assertion finale vérifiant qu'aucune offre rejetée n'a été créée.
+  - Aucun code applicatif ni fichier de migration n'a été modifié. Le test s'exécute uniquement dans PostgreSQL isolé de CI.
+- **Contrôles vérifiés sur le commit de test `b2fd0c1a37676526d0564626f4d3ea5cfaa0d66c` :**
+  - QIMA CI run [40659598728](https://github.com/meridane/QimaTrade-MVP/actions/runs/40659598728), run #258 : **SUCCESS**.
+  - `npm ci` depuis le lockfile commité : SUCCESS.
+  - Audit des dépendances : SUCCESS.
+  - TypeScript : SUCCESS.
+  - Build de production : SUCCESS.
+  - Tests Playwright : SUCCESS.
+  - Tests PostgreSQL isolés CREATE_OFFER/concurrence : SUCCESS, y compris le nouveau cas `' USD '` et l'assertion d'absence d'offre après rejet.
+  - Régressions synthétiques messages-RLS et auto-inscription des participants : SUCCESS. Ces résultats ne constituent pas, seuls, une preuve d'exploitabilité ou d'absence de vulnérabilité dans Supabase production.
+  - Artefacts d'audit npm et du lockfile commité : téléversés avec succès.
+  - CodeQL run [40659598727](https://github.com/meridane/QimaTrade-MVP/actions/runs/40659598727), run #221 : **SUCCESS**.
+  - Vercel Preview : **SUCCESS** ([détails](https://vercel.com/bmk1/qimatrade-mvp/6fVjoAs6u5TitQ1HuNFAUG7Q9NCs)), preview uniquement.
+- **Interprétation :** la fonction SQL attend une devise canonique ; la route HTTP normalise les espaces extérieurs avant validation. Ce test couvre le contrat du RPC lorsqu'il est appelé directement, sans prétendre qu'une requête HTTP avec espaces échoue. Il ne change aucune règle métier.
+- **Blocages toujours ouverts :** la règle d'autorisation fournisseur/tenant/demande nécessite une décision métier documentée ; le Security Gate reste **NOT PASS** jusqu'à sa validation et aux tests d'autorisation correspondants.
+- **Garde-fous :** aucune donnée, migration, policy ou configuration Supabase production modifiée ; aucun merge, déploiement de production ou changement des règles de protection.
+- **Prochaine tâche non bloquante :** examiner les validations de format des paramètres CREATE_OFFER déjà couvertes par le contrat existant et ajouter un test de régression isolé uniquement si un écart concret est constaté. Ne pas décider implicitement de l'éligibilité fournisseur.
+
