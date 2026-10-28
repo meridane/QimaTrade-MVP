@@ -530,3 +530,35 @@ Cycle proposé : `draft → pending_review → published → reserved → sold`,
 7. `MKT-6` commande/paiement seulement après décision métier et juridique.
 
 **Garde-fous :** aucune migration production, aucun merge ni déploiement n'est autorisé par cette proposition. Le module n'est pas encore implémenté. Le travail de réconciliation des migrations et les risques de sécurité déjà prioritaires restent devant toute extension du périmètre.
+
+
+## Point de contrôle CI — 28 octobre 2026, 10:41 KST
+
+### État réel de la PR #26
+
+- Branche : `fix/create-offer-status-contract`.
+- HEAD vérifié avant ce point de documentation : `a87309ce83cf997c3acf43001e9989d6a8d78b8f` (`docs: register proposed QIMA Auto Parts Market module`).
+- PR toujours ouverte, en brouillon, non fusionnée.
+- QIMA CI run [40614589108](https://github.com/meridane/QimaTrade-MVP/actions/runs/40614589108) : **SUCCESS**. Les deux jobs ont réussi : TypeScript/audit/build/Playwright et PostgreSQL isolé (CREATE_OFFER, concurrence, tests de régression synthétiques messages RLS et auto-inscription).
+- QIMA CodeQL run [40614589166](https://github.com/meridane/QimaTrade-MVP/actions/runs/40614589166) : **SUCCESS**.
+- Statut Vercel du commit : **SUCCESS** (preview uniquement).
+- Ces résultats correspondent au SHA ci-dessus ; ils ne préjugent pas des contrôles du commit de documentation ajouté ensuite.
+
+### Lockfile npm — blocage restant confirmé
+
+- `package-lock.json` est toujours absent de l'arbre versionné de la branche (lecture GitHub du chemin : 404).
+- L'artefact généré par CI contient un fichier de 62 981 octets, empreinte SHA-256 `8d90037589e58bc2d0408a0d652b29ea5fcfa414cd98af60b155846cc321837f`.
+- La CI a réussi `npm ci` après avoir généré ce lockfile temporaire. Cela prouve que l'installation fonctionne dans cette exécution, **pas** que le dépôt possède un lockfile reproductible.
+- Intégration non terminée : le fichier exact doit être ajouté à Git, puis `npm ci` doit réussir sans étape de génération préalable. Ne pas recréer manuellement le fichier ni déclarer ce point résolu.
+
+### Interprétation sécurité
+
+Les tests SQL de messages RLS et d'auto-inscription exécutés dans CI utilisent des fixtures synthétiques. Leur réussite valide les scénarios reproduits dans ces fixtures uniquement ; elle ne prouve ni l'existence ni l'absence d'un exploit sur les policies Supabase réellement déployées. Les vérifications des policies et des autorisations multi-tenant réelles restent ouvertes. Security Gate demeure **NOT PASS**.
+
+### Prochaine action
+
+1. Intégrer le lockfile généré et vérifié sans altérer son contenu.
+2. Relancer et contrôler CI, CodeQL et Vercel sur le nouveau SHA.
+3. Poursuivre la revue isolée des autorisations de conversation et du lien fournisseur/demande, sans supposer une règle métier non documentée.
+
+Aucune migration, donnée ou policy de Supabase production n'a été modifiée. Aucun merge, déploiement de production ni changement de protection de branche n'a été effectué pendant ce point de contrôle.
