@@ -584,3 +584,22 @@ Aucune migration, donnée ou policy de Supabase production n'a été modifiée. 
 Les tests synthétiques messages-RLS et auto-inscription restent des fixtures de régression, pas une preuve d'exploitation ou d'absence de vulnérabilité sur le schéma Supabase réellement déployé. Security Gate demeure **NOT PASS**. Après les checks du commit courant, continuer la revue isolée des autorisations de conversation et du lien fournisseur/demande ; toute règle métier inconnue reste bloquante et doit être documentée, pas supposée.
 
 Aucune donnée, policy ni migration de Supabase production n'a été modifiée. Aucun merge, déploiement production ni changement de protection de branche n'a été effectué.
+
+
+## MKT-0 — B4/Supabase marketplace reconnaissance (28 octobre 2026, read-only)
+
+La lecture des métadonnées du schéma Supabase confirme que plusieurs objets génériques existent et doivent être audités avant d'ajouter de nouvelles tables :
+
+- `core.publications` : publication générique avec titre/description, type/statut, domaine/catégorie/sous-catégorie, produit master/produit physique, quantité, condition, localisation, prix/devise, disponibilité, marque/fabricant, média principal et version.
+- `core.publication_media` + `core.media_assets` : relation publication-média et métadonnées de fichiers.
+- `core.product_items` : exemplaire physique/stock avec propriétaire, organisation, SKU, numéro de série, condition, données JSON et statut.
+- `core.organizations`, `core.organization_memberships`, `core.profiles` : organisations, membres et profils.
+- `core.orders` : commande liée au modèle actuel de transaction/offre ; réutilisation non confirmée.
+- `public.product_masters`, `public.categories`, `public.subcategories`, `public.trade_domains` : référentiels génériques, mais aucune compatibilité véhicule/OEM ne doit être supposée sans preuve.
+- Les anciens `public.demands`, `public.offers`, `public.messages`, `public.product_requests` existent aussi ; leur cycle de vie ne doit pas être assimilé automatiquement à celui de la marketplace.
+
+**Hypothèse d'architecture à vérifier :** spécialiser `core.publications` pour les annonces de pièces et réutiliser ses médias pourrait éviter des tables d'annonces dupliquées. Il faut d'abord vérifier `kind`, enums, contraintes, `publication_attributes`, fonctions de publication, policies/grants RLS et règles Storage. Une table dédiée de compatibilité véhicule/référence OEM pourrait être nécessaire, mais aucune nouvelle table n'est décidée.
+
+**État :** inventaire initial des métadonnées seulement ; aucun test de sécurité n'est impliqué par la présence de RLS activé. Aucune donnée, policy, table ou migration de production n'a été modifiée.
+
+**Prochaine étape MKT-0.2 :** lire les définitions SQL/policies/grants des objets candidats, puis construire le mapping champ marketplace → objet/colonne existant → écart → décision. Ne pas créer de migration avant cette réconciliation.
