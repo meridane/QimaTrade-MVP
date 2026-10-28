@@ -805,3 +805,25 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **Note sur les runs intermédiaires :** le run QIMA CI [40644605579](https://github.com/meridane/QimaTrade-MVP/actions/runs/40644605579) sur le commit de test `59d7d15` a été annulé par la concurrence après que les étapes de test et de build aient réussi. Le run complet [40644687050](https://github.com/meridane/QimaTrade-MVP/actions/runs/40644687050) sur le HEAD qui inclut ce test est le résultat de référence.
 - **Garde-fous :** test destiné à PostgreSQL isolé CI. Aucune donnée, migration, policy ou configuration Supabase production modifiée ; aucun merge, déploiement de production ou changement de protection de branche.
 
+## OFFER-QA-06 — devise composée uniquement d'espaces (28 octobre 2026, 16:28 KST)
+
+- **État de départ :** PR #26 ouverte en brouillon, branche `fix/create-offer-status-contract`, HEAD précédent `fd2165d2790acab2a3568f516502858c466a6e58`. Les contrôles de ce HEAD étaient réussis ; le présent ajout de test devait être validé séparément.
+- **Modification :** commit `64b1503cedccf8fa44707cf067e8d7d396086af5`, fichier `tests/sql/create-offer-runtime.sql`.
+  - Ajout du cas négatif `fixture-whitespace-currency`, avec `p_currency = '   '`, qui attend `INVALID_CURRENCY`.
+  - Ajout de `Whitespace Currency Offer` à l'assertion finale qui garantit qu'aucune offre rejetée n'a été créée.
+  - Aucun code applicatif ni migration SQL n'a été modifié.
+- **Contrôles vérifiés sur le commit `64b1503cedccf8fa44707cf067e8d7d396086af5` :**
+  - QIMA CI run [40650344416](https://github.com/meridane/QimaTrade-MVP/actions/runs/40650344416), run #255 : **SUCCESS**.
+  - Installation depuis le lockfile avec `npm ci` : SUCCESS.
+  - Audit des dépendances au seuil `high` : SUCCESS.
+  - TypeScript : SUCCESS.
+  - Build de production : SUCCESS.
+  - Tests navigateur Playwright : SUCCESS.
+  - Tests PostgreSQL isolés CREATE_OFFER/concurrence et régressions synthétiques RLS : SUCCESS, incluant le cas devise composée d'espaces.
+  - Artefacts de rapport d'audit et de lockfile : téléversés avec succès.
+  - CodeQL run [40650344363](https://github.com/meridane/QimaTrade-MVP/actions/runs/40650344363), run #218 : **SUCCESS**.
+  - Vercel Preview : **SUCCESS** ([détails](https://vercel.com/bmk1/qimatrade-mvp/2T4pYCdkDVwraXgUbCgDTfKiw4n5)), preview uniquement.
+- **Portée et limites :** ces résultats valident les contrôles exécutés sur ce commit et les scénarios simulés. Ils ne constituent pas une preuve complète de sécurité sur Supabase production et ne confirment pas qu'une vulnérabilité a été exploitée.
+- **Garde-fous :** aucune donnée, migration, policy ou configuration Supabase production modifiée ; aucun merge, déploiement de production ou changement des règles de protection.
+- **Prochaine étape non bloquante :** continuer la couverture des validations d'entrée avec un cas de devise entourée d'espaces (par exemple `' USD '`) et vérifier que le contrat reste cohérent entre API et RPC. Le blocage métier distinct concernant l'éligibilité fournisseur/tenant/demande demeure non résolu et ne doit pas être codé sans décision métier approuvée.
+
