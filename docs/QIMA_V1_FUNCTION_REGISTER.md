@@ -1,7 +1,7 @@
 # QIMA Trade — Registre des fonctionnalités V1 et audit de départ
 
-Dernière vérification : 12 octobre 2026  
-Dépôt : `meridane/QimaTrade-MVP` — branche `main`  
+Dernière vérification : 28 octobre 2026 09:18 KST
+Dépôt : meridane/QimaTrade-MVP — branche fix/create-offer-status-contract (PR #26, brouillon)
 Projet Supabase : `QIMA` (`yyulzlnrfcbaxovzjbnh`)
 
 > Ce document distingue les éléments **présents dans le dépôt**, les éléments **présents dans Supabase** et les éléments **à tester de bout en bout**. La présence d'une table ou d'une route ne prouve pas que la fonctionnalité est prête pour les utilisateurs.
@@ -444,3 +444,21 @@ Priorité : intégrer le `package-lock.json` généré par CI sur la branche de 
 1. Intégrer de façon fiable le lockfile généré dans la branche de travail, après vérification de sa cohérence avec `package.json`.
 2. Exécuter une installation propre `npm ci` à partir du lockfile commité et vérifier que le fichier ne change pas.
 3. Ensuite, continuer les tests négatifs demande/offre et tenant/demande dans un environnement isolé dont les contraintes et policies sont comparées au catalogue live en lecture seule. Ne pas changer le contrat métier sans décision explicite.
+
+
+## 13. Validation et reprise — 28 octobre 2026, 09:18 KST
+
+- **PR #26 :** ouverte, en brouillon, non fusionnée. Branche fix/create-offer-status-contract, HEAD contrôlé : 8d454408a4a66959af06a7870a634be77b537734. Base : main.
+- **QIMA CI : SUCCESS** — run [40603979741](https://github.com/meridane/QimaTrade-MVP/actions/runs/40603979741), commit exact 8d454408a4a66959af06a7870a634be77b537734. Les deux jobs ont réussi : installation depuis le lockfile généré par CI, audit npm, TypeScript, build de production, Playwright smoke tests, CREATE_OFFER/intégration-concurrence PostgreSQL isolée, tests RLS synthétiques des messages et de l'auto-inscription des participants.
+- **CodeQL : SUCCESS** — run [40603979601](https://github.com/meridane/QimaTrade-MVP/actions/runs/40603979601), analyse JavaScript/TypeScript terminée avec succès.
+- **Vercel Preview : READY** pour le même SHA : [ouvrir la prévisualisation](https://qimatrade-a0ur1wuaz-bmk1.vercel.app) — [détails du déploiement](https://vercel.com/bmk1/qimatrade-mvp/GF5to19nfyLMEo9jQm5LFYr8ZgfH). Preview uniquement, pas de déploiement de production.
+- **Artefact lockfile vérifié :** artefact CI generated-package-lock, ID 12780546091. Après extraction, package-lock.json contient 62 981 octets, lockfileVersion 3, SHA-256 8d90037589e58bc2d0408a0d652b29ea5fcfa414cd98af60b155846cc321837f. Les dépendances et devDependencies racine correspondent aux déclarations de package.json.
+- **Lockfile toujours non commité :** CI a réussi npm ci après avoir généré le lockfile, mais ce n'est pas encore une preuve d'installation à partir d'un lockfile suivi dans Git. Ne pas marquer la reproductibilité des installations comme validée avant son intégration et un nouveau run propre.
+- **Contrats métier et sécurité encore ouverts :** autorisation utilisateur/demande, tenant/demande fournisseur, contrat des brouillons de la route historique et parité des fixtures RLS avec le schéma réel. Les tests synthétiques ne prouvent ni l'exploitabilité ni la correction d'une vulnérabilité en production.
+- **Garde opérationnelle :** aucune donnée ni migration Supabase production modifiée ; aucune fusion de PR, aucun déploiement de production, aucune modification des protections.
+
+### Prochaine tâche prioritaire
+
+1. Intégrer le lockfile CI vérifié dans la branche de manière fiable.
+2. Exécuter npm ci depuis ce fichier commité, vérifier que le lockfile reste inchangé, puis relancer CI et CodeQL sur le nouveau SHA.
+3. Continuer les tests négatifs demande/offre et tenant/demande dans un environnement jetable aligné sur les contraintes et politiques observées en lecture seule. Le contrat tenant-demande reste bloqué tant que la règle métier n'est pas définie.
