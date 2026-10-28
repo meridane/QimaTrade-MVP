@@ -827,3 +827,11 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **Garde-fous :** aucune donnée, migration, policy ou configuration Supabase production modifiée ; aucun merge, déploiement de production ou changement des règles de protection.
 - **Prochaine étape non bloquante :** continuer la couverture des validations d'entrée avec un cas de devise entourée d'espaces (par exemple `' USD '`) et vérifier que le contrat reste cohérent entre API et RPC. Le blocage métier distinct concernant l'éligibilité fournisseur/tenant/demande demeure non résolu et ne doit pas être codé sans décision métier approuvée.
 
+### OFFER-QA-06-DOC — validation du registre après consignation des résultats (28 octobre 2026, 16:29 KST)
+
+- Le commit documentaire précédent `3ac6d6e4fe9b191342b7600a471c9d67e4478e20` a lui-même été contrôlé après la mise à jour du registre.
+- QIMA CI run [40650490991](https://github.com/meridane/QimaTrade-MVP/actions/runs/40650490991), run #256 : **SUCCESS** ; `npm ci`, audit npm, TypeScript, build de production, Playwright, tests PostgreSQL CREATE_OFFER/concurrence, régressions synthétiques RLS et téléversement des artefacts ont réussi.
+- CodeQL run [40650491003](https://github.com/meridane/QimaTrade-MVP/actions/runs/40650491003), run #219 : **SUCCESS**.
+- Vercel Preview : **SUCCESS** ([détails](https://vercel.com/bmk1/qimatrade-mvp/9DScwS4kGpCaorvMaBWS1qTYyd6V)), preview uniquement.
+- Ces résultats valident le commit documentaire indiqué ; ils ne constituent pas une validation de Supabase production. Aucune donnée ou migration de production n'a été modifiée, aucun merge ou déploiement de production n'a été effectué.
+
