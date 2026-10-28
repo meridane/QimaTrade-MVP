@@ -761,3 +761,28 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **Limites :** test prévu pour la base PostgreSQL isolée de la CI ; il ne s'agit pas d'un appel à Supabase production et il ne démontre pas à lui seul la sécurité du RPC déployé.
 - **Prochaine action :** attendre et inspecter les checks du SHA `c7a40e581db908599c100e47712520cf5363246a`. Après obtention des résultats, mettre à jour cette entrée avec les statuts exacts ; si le cas échoue, corriger le test ou la fonction dans la branche et relancer les contrôles.
 - **Garde-fous :** aucune donnée ni migration Supabase production modifiée ; aucune fusion, aucun déploiement de production et aucune modification des règles de protection.
+
+## OFFER-QA-04 — résultats des contrôles du test devise NULL (28 octobre 2026, 15:32 KST)
+
+### Résultats vérifiés sur le HEAD `59310e61d33ec48b018b5a4a5cfc6e109aaf5651`
+
+- **QIMA CI run [40641639220](https://github.com/meridane/QimaTrade-MVP/actions/runs/40641639220) — SUCCESS.**
+  - Installation `npm ci` depuis le lockfile commité : SUCCESS.
+  - Audit des dépendances au seuil `high` : SUCCESS.
+  - TypeScript : SUCCESS.
+  - Build de production : SUCCESS.
+  - Installation de Chromium et tests Playwright : SUCCESS.
+  - Tests PostgreSQL isolés CREATE_OFFER et concurrence : SUCCESS ; le lot comprend le cas devise `NULL` ajouté dans `c7a40e581db908599c100e47712520cf5363246a`, qui attend `INVALID_CURRENCY`.
+  - Régressions synthétiques messages-RLS et auto-inscription participants : SUCCESS.
+  - Artefacts `committed-package-lock` et `npm-audit-report` téléversés : SUCCESS.
+- **CodeQL run [40641639125](https://github.com/meridane/QimaTrade-MVP/actions/runs/40641639125) — SUCCESS.**
+- **Vercel Preview — SUCCESS** ([détails](https://vercel.com/bmk1/qimatrade-mvp/79qSkGwGFjSSK4y7PSWZcgzfVhMW)), preview uniquement.
+- Les résultats couvrent le HEAD indiqué, qui contient le test devise `NULL` et la note documentaire initiale. Le présent ajout documentaire déclenchera ses propres contrôles ; ceux-ci doivent être vérifiés séparément.
+
+### Portée et limites
+
+- Les assertions CREATE_OFFER ont réussi dans une base PostgreSQL isolée de CI. Cela valide les scénarios simulés exécutés, pas l'ensemble des autorisations Supabase en production.
+- CodeQL SUCCESS ne constitue pas, à lui seul, une preuve d'absence de vulnérabilité.
+- **Security Gate reste NOT PASS** : l'accès direct du rôle `authenticated` à la RPC bas niveau observé lors de l'inspection précédente et la règle métier fournisseur/tenant/demande restent à traiter via revue et validation dans un environnement isolé. Aucun abus n'est affirmé comme ayant eu lieu.
+- PR #26 reste ouverte, en brouillon et non fusionnée. Aucune écriture de données, migration, policy ou configuration Supabase production ; aucun déploiement de production ; aucune modification des règles de protection.
+
