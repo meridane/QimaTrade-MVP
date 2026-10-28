@@ -872,3 +872,14 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **Rapport complet :** `docs/SECURITY_AUDIT_2026-10-28.md`.
 - **Portée :** lecture de sources et SELECT Supabase uniquement. Aucune donnée, policy ou migration de production modifiée ; aucune fusion ni mise en production.
 
+
+
+### SEC-P0-01 — Correctif de participation aux messages préparé (28 octobre 2026)
+
+- Migration branche-only : `supabase/migrations/20261028180000_fix_message_participant_authorization.sql`.
+- Le helper lie maintenant le profil authentifié à la demande ou à l'offre correspondante et vérifie que l'offre appartient à la demande ciblée.
+- Test isolé ajouté pour l'accès en lecture d'un utilisateur étranger : `tests/sql/legacy-messages-rls-regression.sql`.
+- Commits : `69c20a5dbc4e4f15c694932deed88269b8d5ee88`, `a59288626d0cadc93e4636c3b14f7bd32c383377`, puis documentation.
+- Statut : **IMPLÉMENTÉ SUR BRANCHE / TESTS CI EN ATTENTE**. Le correctif n'est pas appliqué en production.
+- Prochaine étape : CI/CodeQL, inspection des tests et vérification des grants avant de proposer la migration à un environnement isolé.
+
