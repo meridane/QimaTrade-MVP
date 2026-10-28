@@ -926,3 +926,15 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **Portée et limites :** revue statique du code et résultats CI précédant cette mise à jour documentaire ; aucune preuve de vulnérabilité ne découle de ces tests. Les checks du nouveau commit documentaire doivent être vérifiés séparément.
 - **Garde-fous :** aucune donnée, migration, policy ou configuration Supabase production modifiée ; aucune fusion, mise en production ou modification des protections de branche.
 
+
+
+## OFFER-QA-10 — régression HTTP CREATE_OFFER sur le contrat de devise (28 octobre 2026, 21:27 KST)
+
+- **État de départ vérifié :** PR #26 ouverte, en brouillon et non fusionnée ; HEAD de départ `ef89ec18a52cf9900136d7d6248dd96ecc030c73`. QIMA CI [run 40680079639](https://github.com/meridane/QimaTrade-MVP/actions/runs/40680079639) et CodeQL [run 40680079625](https://github.com/meridane/QimaTrade-MVP/actions/runs/40680079625) étaient SUCCESS sur ce HEAD ; statut Vercel Preview SUCCESS.
+- **Modifications de régression :**
+  - Commit `e5e5ad6fd6a5a1af3af7605fd274d365cac2db91` : ajout de `tests/e2e/create-offer-route-contract.spec.ts`. Le test appelle la vraie fonction `POST` avec un client Supabase entièrement simulé, vérifie que `" USD "` est normalisé en `"USD"` avant le RPC, et que `"usd"` est rejeté avant toute requête REST/RPC.
+  - Commit `4fec8052dcdbef2341c818a9e0e7325cd93e2ae7` : import relatif du runtime dans `app/api/actions/create-offer/route.ts`, afin que le test isolé puisse importer la route sans dépendre de l'alias Next.js à l'exécution. Aucun changement de logique métier.
+- **Contrôles après modification, HEAD `4fec8052dcdbef2341c818a9e0e7325cd93e2ae7` :** QIMA CI [run 40688214944](https://github.com/meridane/QimaTrade-MVP/actions/runs/40688214944) : **PENDING** au dernier contrôle ; CodeQL [run 40688214952](https://github.com/meridane/QimaTrade-MVP/actions/runs/40688214952) : **IN PROGRESS** ; statut Vercel Preview : **PENDING**. Aucun résultat de test pour ces commits n'est déclaré réussi tant que les runs ne sont pas terminés.
+- **Prochaine étape :** relire les conclusions CI, en particulier TypeScript et le test Playwright `CREATE_OFFER route currency`. Corriger tout échec, puis consigner les résultats finaux. Si les runs restent absents ou en attente, ne pas supposer la réussite.
+- **Portée et limites :** le test utilise des réponses Supabase simulées ; il vérifie la validation et le contrat d'appel de la route, pas le comportement d'une instance Supabase réelle. Aucun constat de vulnérabilité n'est déduit de ce test synthétique.
+- **Garde-fous :** aucun accès aux données, migrations, policies ou configuration Supabase production ; aucun merge, déploiement de production ou changement des protections de branche.
