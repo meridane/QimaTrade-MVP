@@ -28,10 +28,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Generate npm lockfile with the CI Node/npm toolchain
-        id: lockfile
-        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
-      - name: Install dependencies from lockfile
+      - name: Install dependencies from committed lockfile
         id: install
         run: npm ci --no-audit --no-fund
       - name: Dependency security audit
@@ -101,11 +98,11 @@ jobs:
           path: npm-audit.json
           if-no-files-found: ignore
           retention-days: 14
-      - name: Upload generated lockfile for review and commit
-        if: success() && steps.lockfile.outcome == 'success'
+      - name: Upload committed lockfile for verification
+        if: success() && steps.install.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
-          name: generated-package-lock
+          name: committed-package-lock
           path: package-lock.json
           if-no-files-found: error
           retention-days: 7
