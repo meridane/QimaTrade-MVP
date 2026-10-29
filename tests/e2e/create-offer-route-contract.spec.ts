@@ -11,6 +11,7 @@ async function postCreateOffer(
   rawBody?: string,
   membershipRows: Array<{ tenant_id: string }> = [{ tenant_id: "20000000-0000-4000-8000-000000000001" }],
   rpcStatus = "succeeded",
+  authorizationHeader: string | null = "Bearer qima-route-test-token",
 ) {
   process.env.NEXT_PUBLIC_SUPABASE_URL ??= "https://example.supabase.co";
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??= "ci-placeholder-anon-key";
@@ -76,7 +77,7 @@ async function postCreateOffer(
       new Request("https://qima.test/api/actions/create-offer", {
         method: "POST",
         headers: {
-          authorization: "Bearer qima-route-test-token",
+          ...(authorizationHeader === null ? {} : { authorization: authorizationHeader }),
           "content-type": "application/json",
         },
         body: rawBody ?? JSON.stringify({
@@ -102,6 +103,16 @@ async function postCreateOffer(
   }
 }
 
+
+test("CREATE_OFFER route rejects missing or non-Bearer authorization before database access", async () => {
+  for (const authorizationHeader of [null, "Basic invalid-token"]) {
+    const result = await postCreateOffer("USD", {}, undefined, undefined, "succeeded", authorizationHeader);
+
+    expect(result.status, String(authorizationHeader)).toBe(401);
+    expect(result.body, String(authorizationHeader)).toMatchObject({ error: "UNAUTHENTICATED" });
+    expect(result.requests, String(authorizationHeader)).toEqual([]);
+  }
+});
 
 test("CREATE_OFFER route returns HTTP 409 for a non-succeeded execution status", async () => {
   const result = await postCreateOffer("USD", {}, undefined, undefined, "failed");
