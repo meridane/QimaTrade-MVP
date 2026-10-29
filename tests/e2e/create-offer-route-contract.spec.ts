@@ -357,3 +357,18 @@ test("CREATE_OFFER route requires explicit tenant selection for multiple members
   expect(result.body).toMatchObject({ error: "TENANT_SELECTION_REQUIRED" });
   expect(result.requests.some((request) => request.path.startsWith("/rest/v1/rpc/"))).toBe(false);
 });
+
+
+test("CREATE_OFFER route treats duplicate membership rows for the same tenant as one tenant", async () => {
+  const tenantId = "20000000-0000-4000-8000-000000000001";
+  const result = await postCreateOffer("USD", {}, undefined, [
+    { tenant_id: tenantId },
+    { tenant_id: tenantId },
+  ]);
+
+  expect(result.status, JSON.stringify({ body: result.body, requests: result.requests })).toBe(200);
+  expect(result.body).toMatchObject({ status: "succeeded" });
+  expect(
+    result.requests.some((request) => request.path === "/rest/v1/rpc/execute_create_offer_v1"),
+  ).toBe(true);
+});
