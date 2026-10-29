@@ -87,6 +87,26 @@ BEGIN
     IF SQLERRM NOT LIKE '%IDEMPOTENCY_KEY_REUSE%' THEN RAISE; END IF;
   END;
 
+  -- A different market must not replay the completed result for the same key.
+  BEGIN
+    PERFORM public.execute_create_offer_v1(
+      '10000000-0000-4000-8000-000000000001',
+      'fixture-idempotency-1',
+      '{"case":"same-payload"}'::jsonb,
+      'Fixture Offer',
+      '50000000-0000-4000-8000-000000000001',
+      '40000000-0000-4000-8000-000000000001',
+      '30000000-0000-4000-8000-000000000001',
+      2,
+      12,
+      'USD',
+      p_market => 'industrial'
+    );
+    RAISE EXCEPTION 'Expected changed market to be rejected';
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM NOT LIKE '%IDEMPOTENCY_KEY_REUSE%' THEN RAISE; END IF;
+  END;
+
   BEGIN
     PERFORM public.execute_create_offer_v1(
       '10000000-0000-4000-8000-000000000001',
