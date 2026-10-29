@@ -1130,3 +1130,11 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **Contrôles après chaque modification :** immédiatement après le commit code `e06d81b`, la recherche des workflows associés et les statuts combinés ne retournaient aucun run/check. Après le commit de test `fffdb16`, même résultat : aucun workflow ni statut n'était encore exposé par les endpoints de consultation utilisés. Les contrôles réussis du HEAD précédent ne sont pas extrapolés à ces nouveaux commits. **La nouvelle régression reste NON VALIDÉE par CI** tant qu'un run complet ne termine pas sur le HEAD qui la contient.
 - **Étape suivante :** après ce commit documentaire, revérifier les runs QIMA CI, CodeQL et le statut Vercel du HEAD exact. Si aucun run ne démarre, garder l'état non validé ; si un job échoue, examiner ses logs avant correction.
 - **Garde-fous :** aucune donnée, migration, policy ou configuration Supabase production modifiée ; aucune fusion, mise en production ni modification des protections de branche. La décision métier distincte d'appartenance `demandId` ↔ tenant reste non résolue.
+
+
+### Suivi CI complémentaire — HEAD `45c9ca38e1850f25f7ff6a75338cb5dfa0bd315a`
+
+- QIMA CI [run 40823911806](https://github.com/meridane/QimaTrade-MVP/actions/runs/40823911806) : job PostgreSQL isolé **SUCCESS** ; job navigateur **IN_PROGRESS**. Installation depuis lockfile, audit npm, TypeScript et build **SUCCESS** ; installation de Chromium **IN_PROGRESS**, Playwright pas encore commencé.
+- CodeQL [run 40823911715](https://github.com/meridane/QimaTrade-MVP/actions/runs/40823911715) : **IN_PROGRESS**.
+- Vercel Preview : **SUCCESS** ([Preview](https://vercel.com/bmk1/qimatrade-mvp/APtojE7EPsM7zCZk1Bm7UrWxNwSB)).
+- Ces résultats sont partiels et s'appliquent au HEAD indiqué. Le nouveau commit documentaire relancera des contrôles ; la validation finale devra être vérifiée sur ce nouveau SHA. Aucun échec fonctionnel du test n'est confirmé à ce stade.
