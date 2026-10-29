@@ -1146,3 +1146,20 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - CodeQL [run 40823911715](https://github.com/meridane/QimaTrade-MVP/actions/runs/40823911715) : **SUCCESS**.
 - Vercel Preview : **SUCCESS** ([Preview](https://vercel.com/bmk1/qimatrade-mvp/APtojE7EPsM7zCZk1Bm7UrWxNwSB)).
 - Ces résultats valident le code et le test de régression sur le HEAD `45c9ca3`. Le HEAD documentaire courant avant cet addendum était `8e9bc042b5515f9246e215709465914da8fbc379`, qui n'ajoute que ce suivi documentaire ; ses propres contrôles doivent être vérifiés séparément. Aucun échec fonctionnel n'a été constaté dans le run complet `45c9ca3`.
+
+## OFFER-QA-29 — canonicalisation du jeton Bearer pour Auth et REST (29 octobre 2026)
+
+- **État relu avant modification :** PR #26 ouverte en brouillon et non fusionnée ; branche `fix/create-offer-status-contract`, HEAD `119d45d921a8c82880e2e14ac7ffca67ad2d1f85`. Sur ce HEAD, QIMA CI [run 40824060083](https://github.com/meridane/QimaTrade-MVP/actions/runs/40824060083) : **SUCCESS** (installation verrouillée, audit npm, TypeScript, build, Playwright smoke et tests PostgreSQL isolés) ; CodeQL [run 40824060073](https://github.com/meridane/QimaTrade-MVP/actions/runs/40824060073) : **SUCCESS** ; Vercel Preview : **SUCCESS** ([Preview](https://vercel.com/bmk1/qimatrade-mvp/EG47bGyEZ63AcsrqjUuh4xJpL8d2)).
+
+- **Constat ciblé :** après le retrait des espaces du jeton Bearer, le client Supabase gardait auparavant l'en-tête Authorization brut fourni par le client pour ses appels REST. Le test précédent ne contrôlait que l'en-tête envoyé à Auth. Ce décalage de normalisation est traité comme une incohérence de contrat à tester, et non comme une vulnérabilité confirmée.
+
+- **Correction de code :** commit `148289dcfc767a4dfe48a3b553cc3164856249d6`, fichier `app/api/actions/create-offer/route.ts`. L'en-tête global du client Supabase est désormais reconstruit sous la forme canonique `Bearer ${token}`, après validation du jeton non vide.
+
+- **Régressions ajoutées :** commit `9b67443b18b79f460aa2fba56dd04b934210b919`, fichier `tests/e2e/create-offer-route-contract.spec.ts`. Le cas à espaces répétés vérifie maintenant l'en-tête canonique sur Auth `/auth/v1/user` et sur la requête REST `/rest/v1/profiles`. Un second cas vérifie que `Bearer ` et `Bearer   ` répondent HTTP 401 `UNAUTHENTICATED` avant tout appel réseau simulé.
+
+- **Contrôles après les modifications :** après le commit de code `148289d`, la consultation des workflows associés et du statut combiné ne retournait aucun run/check. Après le commit de test `9b67443`, même résultat : aucun workflow associé ni statut de check n'était exposé au moment du contrôle. Les résultats réussis du HEAD précédent ne sont pas extrapolés à ces nouveaux changements. **Ces changements restent NON VALIDÉS par CI** ; aucun résultat de test n'est déclaré réussi ou échoué sur le nouveau HEAD.
+
+- **Prochaine étape :** obtenir une exécution QIMA CI complète et CodeQL sur le HEAD `9b67443` (déclenchement automatique ou dispatch manuel dans GitHub Actions), puis consigner les résultats définitifs. Si un test échoue, examiner ses logs avant correction.
+
+- **Garde-fous :** aucune donnée, migration, policy ou configuration Supabase production modifiée ; aucune fusion, mise en production ni modification des protections de branche. Le modèle métier d'appartenance `demandId` ↔ tenant reste une décision séparée et non résolue.
+
