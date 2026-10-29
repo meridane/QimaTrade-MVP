@@ -9,7 +9,7 @@ const currencies = new Set(["USD", "EUR", "KRW", "MAD", "CNY"]);
 export async function POST(request: Request) {
   try {
     const authHeader = request.headers.get("authorization");
-    if (!authHeader?.startsWith("Bearer ")) return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
+    if (!authHeader || !/^Bearer /i.test(authHeader)) return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
 
     const token = authHeader.slice("Bearer ".length);
     const supabase = createClient(
