@@ -148,13 +148,25 @@ test("CREATE_OFFER route accepts case-insensitive Bearer schemes", async () => {
   }
 });
 
-test("CREATE_OFFER route trims repeated spaces between Bearer scheme and token", async () => {
+test("CREATE_OFFER route canonicalizes repeated spaces in Bearer headers for Auth and REST", async () => {
   const result = await postCreateOffer("USD", {}, undefined, undefined, "succeeded", "Bearer   qima-route-test-token");
 
   expect(result.status, JSON.stringify({ body: result.body, requests: result.requests })).toBe(200);
   const authRequest = result.requests.find((request) => request.path === "/auth/v1/user");
+  const profileRequest = result.requests.find((request) => request.path === "/rest/v1/profiles");
   expect(authRequest?.authorization).toBe("Bearer qima-route-test-token");
+  expect(profileRequest?.authorization).toBe("Bearer qima-route-test-token");
   expect(result.requests.some((request) => request.path === "/rest/v1/rpc/execute_create_offer_v1")).toBe(true);
+});
+
+test("CREATE_OFFER route rejects an empty Bearer credential before any Supabase request", async () => {
+  for (const authorizationHeader of ["Bearer ", "Bearer   "]) {
+    const result = await postCreateOffer("USD", {}, undefined, undefined, "succeeded", authorizationHeader);
+
+    expect(result.status, JSON.stringify(authorizationHeader)).toBe(401);
+    expect(result.body, JSON.stringify(authorizationHeader)).toMatchObject({ error: "UNAUTHENTICATED" });
+    expect(result.requests, JSON.stringify(authorizationHeader)).toEqual([]);
+  }
 });
 
 test("CREATE_OFFER route returns HTTP 409 for a non-succeeded execution status", async () => {
