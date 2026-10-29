@@ -115,6 +115,53 @@ BEGIN
     IF SQLERRM NOT LIKE '%IDEMPOTENCY_KEY_REUSE%' THEN RAISE; END IF;
   END;
 
+  -- Nested JSONB object key order is insignificant at every nesting level.
+  first_result := public.execute_create_offer_v1(
+    '10000000-0000-4000-8000-000000000001',
+    'fixture-idempotency-jsonb-nested-object',
+    '{"meta":{"alpha":1,"nested":{"x":true,"y":"value"}},"items":[1,2]}'::jsonb,
+    'Nested JSONB Order Offer',
+    '50000000-0000-4000-8000-000000000001',
+    '40000000-0000-4000-8000-000000000001',
+    '30000000-0000-4000-8000-000000000001',
+    2,
+    12,
+    'USD'
+  );
+  IF first_result->>'status' <> 'succeeded' THEN
+    RAISE EXCEPTION 'Expected nested JSONB-order fixture to succeed, got %', first_result;
+  END IF;
+
+  retry_result := public.execute_create_offer_v1(
+    '10000000-0000-4000-8000-000000000001',
+    'fixture-idempotency-jsonb-nested-object',
+    '{"items":[1,2],"meta":{"nested":{"y":"value","x":true},"alpha":1}}'::jsonb,
+    'Nested JSONB Order Offer',
+    '50000000-0000-4000-8000-000000000001',
+    '40000000-0000-4000-8000-000000000001',
+    '30000000-0000-4000-8000-000000000001',
+    2,
+    12,
+    'USD'
+  );
+  IF retry_result IS DISTINCT FROM first_result THEN
+    RAISE EXCEPTION 'Nested JSONB object key reordering did not replay the same result';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE name = 'Nested JSONB Order Offer';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'Expected one nested JSONB-order offer after retry, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE idempotency_key = 'fixture-idempotency-jsonb-nested-object';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'Expected one nested JSONB-order execution after retry, found %', v_count;
+  END IF;
+
   BEGIN
     PERFORM public.execute_create_offer_v1(
       '10000000-0000-4000-8000-000000000001',
