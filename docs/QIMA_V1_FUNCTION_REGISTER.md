@@ -1138,3 +1138,11 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - CodeQL [run 40823911715](https://github.com/meridane/QimaTrade-MVP/actions/runs/40823911715) : **IN_PROGRESS**.
 - Vercel Preview : **SUCCESS** ([Preview](https://vercel.com/bmk1/qimatrade-mvp/APtojE7EPsM7zCZk1Bm7UrWxNwSB)).
 - Ces résultats sont partiels et s'appliquent au HEAD indiqué. Le nouveau commit documentaire relancera des contrôles ; la validation finale devra être vérifiée sur ce nouveau SHA. Aucun échec fonctionnel du test n'est confirmé à ce stade.
+
+
+### Résultat final — HEAD code/tests `45c9ca38e1850f25f7ff6a75338cb5dfa0bd315a`
+
+- QIMA CI [run 40823911806](https://github.com/meridane/QimaTrade-MVP/actions/runs/40823911806) : **SUCCESS**. Les tests PostgreSQL isolés CREATE_OFFER/concurrence, installation depuis lockfile, audit npm, TypeScript, build de production, installation Chromium et tests navigateur smoke ont tous réussi.
+- CodeQL [run 40823911715](https://github.com/meridane/QimaTrade-MVP/actions/runs/40823911715) : **SUCCESS**.
+- Vercel Preview : **SUCCESS** ([Preview](https://vercel.com/bmk1/qimatrade-mvp/APtojE7EPsM7zCZk1Bm7UrWxNwSB)).
+- Ces résultats valident le code et le test de régression sur le HEAD `45c9ca3`. Le HEAD documentaire courant avant cet addendum était `8e9bc042b5515f9246e215709465914da8fbc379`, qui n'ajoute que ce suivi documentaire ; ses propres contrôles doivent être vérifiés séparément. Aucun échec fonctionnel n'a été constaté dans le run complet `45c9ca3`.
