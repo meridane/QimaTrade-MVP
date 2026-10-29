@@ -67,6 +67,26 @@ BEGIN
     IF SQLERRM NOT LIKE '%IDEMPOTENCY_KEY_REUSE%' THEN RAISE; END IF;
   END;
 
+  -- Optional business parameters must participate in the idempotency hash too.
+  BEGIN
+    PERFORM public.execute_create_offer_v1(
+      '10000000-0000-4000-8000-000000000001',
+      'fixture-idempotency-1',
+      '{"case":"same-payload"}'::jsonb,
+      'Fixture Offer',
+      '50000000-0000-4000-8000-000000000001',
+      '40000000-0000-4000-8000-000000000001',
+      '30000000-0000-4000-8000-000000000001',
+      2,
+      12,
+      'USD',
+      p_attributes => '{"quality":"A"}'::jsonb
+    );
+    RAISE EXCEPTION 'Expected changed optional attributes to be rejected';
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM NOT LIKE '%IDEMPOTENCY_KEY_REUSE%' THEN RAISE; END IF;
+  END;
+
   BEGIN
     PERFORM public.execute_create_offer_v1(
       '10000000-0000-4000-8000-000000000001',
