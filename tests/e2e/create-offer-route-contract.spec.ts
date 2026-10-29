@@ -10,6 +10,7 @@ async function postCreateOffer(
   overrides: Record<string, unknown> = {},
   rawBody?: string,
   membershipRows: Array<{ tenant_id: string }> = [{ tenant_id: "20000000-0000-4000-8000-000000000001" }],
+  rpcStatus = "succeeded",
 ) {
   process.env.NEXT_PUBLIC_SUPABASE_URL ??= "https://example.supabase.co";
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??= "ci-placeholder-anon-key";
@@ -61,7 +62,7 @@ async function postCreateOffer(
     if (url.pathname === "/rest/v1/rpc/execute_create_offer_v1") {
       return Response.json({
         executionId: "10000000-0000-4000-8000-000000000001",
-        status: "succeeded",
+        status: rpcStatus,
         objectId: demandId,
         result: { offerId: "70000000-0000-4000-8000-000000000001" },
       });
@@ -100,6 +101,17 @@ async function postCreateOffer(
     globalThis.WebSocket = originalWebSocket;
   }
 }
+
+
+test("CREATE_OFFER route returns HTTP 409 for a non-succeeded execution status", async () => {
+  const result = await postCreateOffer("USD", {}, undefined, undefined, "failed");
+
+  expect(result.status, JSON.stringify({ body: result.body, requests: result.requests })).toBe(409);
+  expect(result.body).toMatchObject({ status: "failed" });
+  expect(
+    result.requests.some((request) => request.path === "/rest/v1/rpc/execute_create_offer_v1"),
+  ).toBe(true);
+});
 
 test('CREATE_OFFER route trims whitespace around a supported currency before the RPC', async () => {
   const result = await postCreateOffer(" USD ");
