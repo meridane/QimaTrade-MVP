@@ -1163,3 +1163,11 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 
 - **Garde-fous :** aucune donnée, migration, policy ou configuration Supabase production modifiée ; aucune fusion, mise en production ni modification des protections de branche. Le modèle métier d'appartenance `demandId` ↔ tenant reste une décision séparée et non résolue.
 
+### Suivi CI — régression OFFER-QA-29, HEAD code/tests `76d7c5b5ad2d4cebb31498579ff7d5c2681d6fa9`
+
+- QIMA CI [run 40829686483](https://github.com/meridane/QimaTrade-MVP/actions/runs/40829686483) : le job PostgreSQL isolé **SUCCESS** (CREATE_OFFER/concurrence, régression messages RLS et auto-inscription RLS). Dans le job navigateur, `npm ci`, audit npm et TypeScript **SUCCESS** ; build de production **IN_PROGRESS** ; Chromium et Playwright pas encore exécutés au dernier relevé.
+- CodeQL [run 40829686260](https://github.com/meridane/QimaTrade-MVP/actions/runs/40829686260) : autobuild **SUCCESS** ; analyse CodeQL **IN_PROGRESS**.
+- Vercel Preview : **PENDING** ([Preview](https://vercel.com/bmk1/qimatrade-mvp/5xAWnu4aV42NZ4Rq3h3aAR9HkVNk)).
+- **État : validation partielle, aucun échec fonctionnel confirmé.** Les nouveaux tests d'en-tête canonique REST et de jeton Bearer vide ne sont pas encore validés par Playwright. Ces résultats correspondent au HEAD code/tests `76d7c5b`, pas au commit documentaire qui consignera ce suivi.
+- Prochaine étape : attendre le résultat final de QIMA CI, CodeQL et Preview ; si un contrôle échoue, examiner ses logs avant toute correction. Ne pas interpréter les tests simulés comme preuve d'une vulnérabilité de production.
+
