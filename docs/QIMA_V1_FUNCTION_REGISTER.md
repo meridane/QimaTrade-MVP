@@ -1182,3 +1182,16 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **Prochaine étape :** vérifier les workflows déclenchés sur le HEAD documentaire qui consigne cette entrée. Confirmer que le job PostgreSQL exécute `tests/sql/create-offer-runtime.sql`; si aucun run ne démarre, garder le statut non validé et ne pas conclure à un succès. Si un test échoue, examiner les logs avant correction.
 
 - **Portée et garde-fous :** test SQL exécuté uniquement dans la base PostgreSQL jetable de CI ; il ne contacte pas Supabase production. Aucune migration appliquée, aucune donnée ni permission de production modifiée, aucune fusion, aucun déploiement de production et aucune modification des protections de branche. La décision métier sur l’appartenance `demandId` ↔ tenant reste non résolue.
+
+
+## OFFER-QA-31 — idempotence : changement de marché (29 octobre 2026)
+
+- **État relu avant modification :** PR #26 ouverte en brouillon et non fusionnée. Dernier HEAD confirmé avant ce test : `82d13d7b504a786db5833df6318cef01799fd916`. QIMA CI [run 40840413110](https://github.com/meridane/QimaTrade-MVP/actions/runs/40840413110) : **SUCCESS** (TypeScript, audit npm, build, Playwright smoke et PostgreSQL isolé). CodeQL [run 40840413172](https://github.com/meridane/QimaTrade-MVP/actions/runs/40840413172) : **SUCCESS**. Vercel Preview : **SUCCESS** ([Preview](https://vercel.com/bmk1/qimatrade-mvp/EADvAkVxgCsHsckS73wRADhsxFzy)).
+
+- **Régression ajoutée :** commit [`0fe9c951e11b70f1f849817f3739208600fef2f5`](https://github.com/meridane/QimaTrade-MVP/commit/0fe9c951e11b70f1f849817f3739208600fef2f5), fichier `tests/sql/create-offer-runtime.sql`. Après une création terminée, le test réutilise la même clé d’idempotence et les mêmes paramètres principaux, mais fournit `p_market => 'industrial'` au lieu de la valeur par défaut NULL. Il exige `IDEMPOTENCY_KEY_REUSE`. Ce cas complète celui qui change `p_attributes` et vérifie un deuxième paramètre optionnel indépendant.
+
+- **Contrôles après le commit de test :** la consultation GitHub Actions pour le SHA `0fe9c951e11b70f1f849817f3739208600fef2f5` n’a retourné **aucun workflow** et le statut combiné n’a retourné **aucun check** au moment du relevé. Le nouveau test est donc **NON VALIDÉ par CI** à ce stade ; aucun résultat de test n’est déclaré réussi ou échoué. Les succès du HEAD précédent ne sont pas extrapolés.
+
+- **Prochaine étape :** vérifier les workflows sur le HEAD documentaire qui consigne cette entrée. Confirmer que le job PostgreSQL exécute `tests/sql/create-offer-runtime.sql` et que l’assertion `IDEMPOTENCY_KEY_REUSE` passe. Si aucun workflow ne démarre, conserver le statut non validé ; si un contrôle échoue, examiner les logs avant correction.
+
+- **Portée et garde-fous :** le test appartient à la suite PostgreSQL jetable de CI et ne doit jamais utiliser Supabase production. Aucune migration, donnée, policy ou configuration de production modifiée ; aucune fusion, mise en production ou modification des protections de branche. La décision métier concernant l’appartenance `demandId` ↔ tenant reste non résolue.
