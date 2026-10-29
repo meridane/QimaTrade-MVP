@@ -1221,3 +1221,16 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 
 - **Portée et garde-fous :** test exécuté uniquement dans la base PostgreSQL jetable de CI ; aucun accès à Supabase production. Aucune donnée, migration, policy ou configuration de production modifiée ; aucune fusion, mise en production ni modification des protections de branche. Le modèle d'appartenance `demandId` ↔ tenant reste une décision métier distincte et non résolue.
 
+
+
+## OFFER-QA-34 — idempotence : canonicalisation des objets JSONB imbriqués (29 octobre 2026)
+
+- **État relu avant modification :** PR #26 ouverte en brouillon et non fusionnée ; branche cible `fix/create-offer-status-contract`, HEAD `fb10263bf8ffce283ee74caa7b27119675b10fb8`. Sur ce HEAD, QIMA CI [run 40863323794](https://github.com/meridane/QimaTrade-MVP/actions/runs/40863323794) : **SUCCESS** (tests PostgreSQL isolés, audit npm, TypeScript, build et Playwright smoke) ; CodeQL [run 40863323804](https://github.com/meridane/QimaTrade-MVP/actions/runs/40863323804) : **SUCCESS** ; Vercel Preview : **SUCCESS**. Ces résultats concernent le HEAD précédent, pas la nouvelle régression.
+
+- **Régression ajoutée :** commit [`8a249fee357ea702b2e5421808a1074b32677944`](https://github.com/meridane/QimaTrade-MVP/commit/8a249fee357ea702b2e5421808a1074b32677944), fichier `tests/sql/create-offer-runtime.sql`. Le nouveau cas crée une offre avec un `p_input` contenant un objet imbriqué et un sous-objet, puis rejoue la même clé d'idempotence avec les clés réordonnées à plusieurs niveaux. Il exige le même résultat et exactement une offre et une exécution. Les tableaux conservent leur ordre ; le test complète les cas existants sur l'ordre des clés d'objet et l'ordre des éléments de tableau.
+
+- **Validation :** la régression est ajoutée à la suite PostgreSQL jetable appelée par `tests/sql/run-create-offer-integration.sh`. Elle n'a pas été exécutée localement pendant cette modification. Elle reste **NON VALIDÉE** tant qu'un run QIMA CI complet sur le HEAD de la PR ne confirme pas l'exécution du job PostgreSQL. Les succès du HEAD précédent ne sont pas extrapolés à ce test.
+
+- **Prochaine étape :** publier le commit de travail sur la branche de la PR, vérifier QIMA CI, CodeQL et Vercel Preview sur le SHA exact, puis mettre à jour ce registre avec les résultats réels. Si le test échoue, examiner le log PostgreSQL avant de changer le code.
+
+- **Portée et garde-fous :** test destiné exclusivement à la base PostgreSQL jetable de CI ; aucune donnée, migration, policy ou configuration Supabase production modifiée. Aucune fusion, mise en production ni modification des protections de branche. Le modèle métier d'appartenance `demandId` ↔ tenant reste une décision distincte et non résolue.
