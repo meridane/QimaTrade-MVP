@@ -11,7 +11,8 @@ export async function POST(request: Request) {
     const authHeader = request.headers.get("authorization");
     if (!authHeader || !/^Bearer /i.test(authHeader)) return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
 
-    const token = authHeader.slice("Bearer ".length);
+    const token = authHeader.slice("Bearer ".length).trim();
+    if (!token) return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
