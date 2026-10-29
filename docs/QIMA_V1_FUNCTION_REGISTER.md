@@ -1195,3 +1195,16 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **Prochaine étape :** vérifier les workflows sur le HEAD documentaire qui consigne cette entrée. Confirmer que le job PostgreSQL exécute `tests/sql/create-offer-runtime.sql` et que l’assertion `IDEMPOTENCY_KEY_REUSE` passe. Si aucun workflow ne démarre, conserver le statut non validé ; si un contrôle échoue, examiner les logs avant correction.
 
 - **Portée et garde-fous :** le test appartient à la suite PostgreSQL jetable de CI et ne doit jamais utiliser Supabase production. Aucune migration, donnée, policy ou configuration de production modifiée ; aucune fusion, mise en production ou modification des protections de branche. La décision métier concernant l’appartenance `demandId` ↔ tenant reste non résolue.
+
+
+## OFFER-QA-32 — idempotence : ordre des clés JSONB (29 octobre 2026)
+
+- **État relu avant modification :** PR #26 ouverte en brouillon, non fusionnée. HEAD précédent : `d27f4f04d586664471ebcb9618d561ec02beda34`. QIMA CI [run 40840976876](https://github.com/meridane/QimaTrade-MVP/actions/runs/40840976876) : **SUCCESS** (installation verrouillée, audit npm, TypeScript, build, Playwright smoke, tests PostgreSQL isolés). CodeQL [run 40840976778](https://github.com/meridane/QimaTrade-MVP/actions/runs/40840976778) : **SUCCESS**. Vercel Preview : **SUCCESS**.
+
+- **Régression ajoutée :** commit [`85141a01260799cc642d4828ba3f816323564c6a`](https://github.com/meridane/QimaTrade-MVP/commit/85141a01260799cc642d4828ba3f816323564c6a), fichier `tests/sql/create-offer-runtime.sql`. Une première requête crée une offre avec `p_input = {"alpha":1,"beta":2}`; le retry réutilise la même clé et les mêmes paramètres avec l'ordre des propriétés inversé (`{"beta":2,"alpha":1}`). Le test exige le même résultat et exactement une offre et une exécution. Le cas couvre l'équivalence sémantique des valeurs JSONB, sans modifier le contrat métier.
+
+- **Contrôles après le commit de test :** au premier relevé du SHA `85141a01260799cc642d4828ba3f816323564c6a`, GitHub Actions ne retournait encore **aucun workflow** et le statut combiné ne retournait **aucun check**. Le nouveau test est donc **NON VALIDÉ par CI** à ce stade. Les résultats verts du HEAD précédent ne sont pas extrapolés au nouveau commit.
+
+- **Prochaine étape :** vérifier les workflows du HEAD qui consigne cette entrée et confirmer que le job PostgreSQL exécute `tests/sql/create-offer-runtime.sql`. Si aucun workflow ne démarre, conserver le statut non validé ; si un contrôle échoue, examiner ses logs avant correction.
+
+- **Portée et garde-fous :** la régression est destinée à la base PostgreSQL jetable de CI ; elle ne contacte pas Supabase production. Aucune migration, donnée, policy ou configuration de production modifiée ; aucune fusion, mise en production ni modification des protections de branche. La décision métier sur l'appartenance `demandId` ↔ tenant reste non résolue.
