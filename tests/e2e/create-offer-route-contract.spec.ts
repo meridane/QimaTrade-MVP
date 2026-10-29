@@ -13,6 +13,7 @@ async function postCreateOffer(
   rpcStatus = "succeeded",
   authorizationHeader: string | null = "Bearer qima-route-test-token",
   authStatus = 200,
+  membershipStatus = 200,
 ) {
   process.env.NEXT_PUBLIC_SUPABASE_URL ??= "https://example.supabase.co";
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??= "ci-placeholder-anon-key";
@@ -60,6 +61,9 @@ async function postCreateOffer(
       return Response.json({ actor_id: "30000000-0000-4000-8000-000000000001" });
     }
     if (url.pathname === "/rest/v1/dt_memberships") {
+      if (membershipStatus !== 200) {
+        return Response.json({ message: "Membership lookup failed", code: "XX000" }, { status: membershipStatus });
+      }
       return Response.json(membershipRows);
     }
     if (url.pathname === "/rest/v1/rpc/get_action_definition_v1") {
@@ -344,6 +348,24 @@ test("CREATE_OFFER route rejects missing tenant membership before calling RPC", 
 
   expect(result.status).toBe(403);
   expect(result.body).toMatchObject({ error: "TENANT_MEMBERSHIP_REQUIRED" });
+  expect(result.requests.some((request) => request.path.startsWith("/rest/v1/rpc/"))).toBe(false);
+});
+
+test("CREATE_OFFER route fails closed when tenant membership lookup returns an error", async () => {
+  const result = await postCreateOffer(
+    "USD",
+    {},
+    undefined,
+    undefined,
+    "succeeded",
+    "Bearer qima-route-test-token",
+    200,
+    500,
+  );
+
+  expect(result.status).toBe(403);
+  expect(result.body).toMatchObject({ error: "TENANT_MEMBERSHIP_REQUIRED" });
+  expect(result.requests.some((request) => request.path === "/rest/v1/dt_memberships")).toBe(true);
   expect(result.requests.some((request) => request.path.startsWith("/rest/v1/rpc/"))).toBe(false);
 });
 
