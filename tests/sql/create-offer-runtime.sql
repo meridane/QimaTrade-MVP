@@ -49,6 +49,53 @@ BEGIN
   SELECT count(*) INTO v_count FROM public.action_events WHERE event_type = 'ACTION_SUCCEEDED';
   IF v_count <> 1 THEN RAISE EXCEPTION 'Expected one success event, found %', v_count; END IF;
 
+  -- JSONB object key order is not semantically significant for an identical request.
+  first_result := public.execute_create_offer_v1(
+    '10000000-0000-4000-8000-000000000001',
+    'fixture-idempotency-jsonb-order',
+    '{"alpha":1,"beta":2}'::jsonb,
+    'JSONB Order Offer',
+    '50000000-0000-4000-8000-000000000001',
+    '40000000-0000-4000-8000-000000000001',
+    '30000000-0000-4000-8000-000000000001',
+    2,
+    12,
+    'USD'
+  );
+  IF first_result->>'status' <> 'succeeded' THEN
+    RAISE EXCEPTION 'Expected JSONB-order fixture to succeed, got %', first_result;
+  END IF;
+
+  retry_result := public.execute_create_offer_v1(
+    '10000000-0000-4000-8000-000000000001',
+    'fixture-idempotency-jsonb-order',
+    '{"beta":2,"alpha":1}'::jsonb,
+    'JSONB Order Offer',
+    '50000000-0000-4000-8000-000000000001',
+    '40000000-0000-4000-8000-000000000001',
+    '30000000-0000-4000-8000-000000000001',
+    2,
+    12,
+    'USD'
+  );
+  IF retry_result IS DISTINCT FROM first_result THEN
+    RAISE EXCEPTION 'Semantically identical JSONB payload with reordered keys did not replay the same result';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE name = 'JSONB Order Offer';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'Expected one JSONB-order offer after retry, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE idempotency_key = 'fixture-idempotency-jsonb-order';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'Expected one JSONB-order execution after retry, found %', v_count;
+  END IF;
+
   BEGIN
     PERFORM public.execute_create_offer_v1(
       '10000000-0000-4000-8000-000000000001',
