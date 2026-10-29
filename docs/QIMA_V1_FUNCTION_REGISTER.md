@@ -1,6 +1,6 @@
 # QIMA Trade — Registre des fonctionnalités V1 et audit de départ
 
-Dernière vérification : 28 octobre 2026 09:18 KST
+Dernière vérification : 29 octobre 2026 (KST)
 Dépôt : meridane/QimaTrade-MVP — branche fix/create-offer-status-contract (PR #26, brouillon)
 Projet Supabase : `QIMA` (`yyulzlnrfcbaxovzjbnh`)
 
@@ -597,7 +597,6 @@ La lecture des métadonnées du schéma Supabase confirme que plusieurs objets g
 - `public.product_masters`, `public.categories`, `public.subcategories`, `public.trade_domains` : référentiels génériques, mais aucune compatibilité véhicule/OEM ne doit être supposée sans preuve.
 - Les anciens `public.demands`, `public.offers`, `public.messages`, `public.product_requests` existent aussi ; leur cycle de vie ne doit pas être assimilé automatiquement à celui de la marketplace.
 **Hypothèse d'architecture à vérifier :** spécialiser `core.publications` pour les annonces de pièces et réutiliser ses médias pourrait éviter des tables d'annonces dupliquées. Il faut d'abord vérifier `kind`, enums, contraintes, `publication_attributes`, fonctions de publication, policies/grants RLS et règles Storage. Une table dédiée de compatibilité véhicule/référence OEM pourrait être nécessaire, mais aucune nouvelle table n'est décidée.
-
 **État :** inventaire initial des métadonnées seulement ; aucun test de sécurité n'est impliqué par la présence de RLS activé. Aucune donnée, policy, table ou migration de production n'a été modifiée.
 
 **Prochaine étape MKT-0.2 :** lire les définitions SQL/policies/grants des objets candidats, puis construire le mapping champ marketplace → objet/colonne existant → écart → décision. Ne pas créer de migration avant cette réconciliation.
@@ -1171,3 +1170,14 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **État : validation partielle, aucun échec fonctionnel confirmé.** Les nouveaux tests d'en-tête canonique REST et de jeton Bearer vide ne sont pas encore validés par Playwright. Ces résultats correspondent au HEAD code/tests `76d7c5b`, pas au commit documentaire qui consignera ce suivi.
 - Prochaine étape : attendre le résultat final de QIMA CI, CodeQL et Preview ; si un contrôle échoue, examiner ses logs avant toute correction. Ne pas interpréter les tests simulés comme preuve d'une vulnérabilité de production.
 
+## OFFER-QA-30 — hash d’idempotence couvrant les attributs optionnels (29 octobre 2026)
+
+- **État relu avant modification :** PR #26 ouverte, brouillon, non fusionnée ; branche `fix/create-offer-status-contract`, HEAD initial `8aed1f9256144745b79d7d60b72e64be02d44ffd`. QIMA CI [run 40829787945](https://github.com/meridane/QimaTrade-MVP/actions/runs/40829787945) : **SUCCESS** (tests PostgreSQL isolés CREATE_OFFER/concurrence et régressions RLS synthétiques ; installation verrouillée, audit npm, TypeScript, build, Chromium et Playwright smoke tests). CodeQL [run 40829787981](https://github.com/meridane/QimaTrade-MVP/actions/runs/40829787981) : **SUCCESS**. Vercel Preview : **SUCCESS** ([Preview](https://vercel.com/bmk1/qimatrade-mvp/E9S2FgPVgf1ArymVerUhxRA238aa)).
+
+- **Régression ajoutée :** commit [`49492ac96df50fc5ec455ac9ca78b2e5bb90520c`](https://github.com/meridane/QimaTrade-MVP/commit/49492ac96df50fc5ec455ac9ca78b2e5bb90520c), fichier `tests/sql/create-offer-runtime.sql`. Le test réutilise la clé d’idempotence déjà complétée et le même input JSON, nom, demande, Product Master, acteur, quantité, prix et devise, mais change l’argument optionnel `p_attributes`. Il exige `IDEMPOTENCY_KEY_REUSE`. Cela vérifie que le hash de la requête effective couvre un paramètre métier optionnel, pas seulement les paramètres principaux.
+
+- **Contrôles immédiatement après le commit de test :** la consultation GitHub Actions pour le SHA `49492ac96df50fc5ec455ac9ca78b2e5bb90520c` n’a retourné **aucun workflow** et le statut combiné n’a retourné **aucun check** au moment du relevé. **Le nouveau test n’est donc pas encore validé par CI**. Les succès cités ci-dessus appartiennent au HEAD précédent `8aed1f9` et ne sont pas extrapolés au commit de test.
+
+- **Prochaine étape :** vérifier les workflows déclenchés sur le HEAD documentaire qui consigne cette entrée. Confirmer que le job PostgreSQL exécute `tests/sql/create-offer-runtime.sql`; si aucun run ne démarre, garder le statut non validé et ne pas conclure à un succès. Si un test échoue, examiner les logs avant correction.
+
+- **Portée et garde-fous :** test SQL exécuté uniquement dans la base PostgreSQL jetable de CI ; il ne contacte pas Supabase production. Aucune migration appliquée, aucune donnée ni permission de production modifiée, aucune fusion, aucun déploiement de production et aucune modification des protections de branche. La décision métier sur l’appartenance `demandId` ↔ tenant reste non résolue.
