@@ -9,7 +9,7 @@ async function postCreateOffer(
   currency: unknown,
   overrides: Record<string, unknown> = {},
   rawBody?: string,
-  membershipRows: Array<{ tenant_id: string }> = [{ tenant_id: "20000000-0000-4000-8000-000000000001" }],
+  membershipRows: Array<{ tenant_id: string | null }> = [{ tenant_id: "20000000-0000-4000-8000-000000000001" }],
   rpcStatus = "succeeded",
   authorizationHeader: string | null = "Bearer qima-route-test-token",
   authStatus = 200,
@@ -371,4 +371,19 @@ test("CREATE_OFFER route treats duplicate membership rows for the same tenant as
   expect(
     result.requests.some((request) => request.path === "/rest/v1/rpc/execute_create_offer_v1"),
   ).toBe(true);
+});
+
+test("CREATE_OFFER route ignores null membership rows when one valid tenant remains", async () => {
+  const tenantId = "20000000-0000-4000-8000-000000000001";
+  const result = await postCreateOffer("USD", {}, undefined, [
+    { tenant_id: null },
+    { tenant_id: tenantId },
+    { tenant_id: null },
+  ]);
+
+  expect(result.status, JSON.stringify({ body: result.body, requests: result.requests })).toBe(200);
+  const executionCall = result.requests.find(
+    (request) => request.path === "/rest/v1/rpc/execute_create_offer_v1",
+  );
+  expect(executionCall?.body?.p_tenant_id).toBe(tenantId);
 });
