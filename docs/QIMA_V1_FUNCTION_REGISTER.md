@@ -597,6 +597,7 @@ La lecture des métadonnées du schéma Supabase confirme que plusieurs objets g
 - `public.product_masters`, `public.categories`, `public.subcategories`, `public.trade_domains` : référentiels génériques, mais aucune compatibilité véhicule/OEM ne doit être supposée sans preuve.
 - Les anciens `public.demands`, `public.offers`, `public.messages`, `public.product_requests` existent aussi ; leur cycle de vie ne doit pas être assimilé automatiquement à celui de la marketplace.
 **Hypothèse d'architecture à vérifier :** spécialiser `core.publications` pour les annonces de pièces et réutiliser ses médias pourrait éviter des tables d'annonces dupliquées. Il faut d'abord vérifier `kind`, enums, contraintes, `publication_attributes`, fonctions de publication, policies/grants RLS et règles Storage. Une table dédiée de compatibilité véhicule/référence OEM pourrait être nécessaire, mais aucune nouvelle table n'est décidée.
+
 **État :** inventaire initial des métadonnées seulement ; aucun test de sécurité n'est impliqué par la présence de RLS activé. Aucune donnée, policy, table ou migration de production n'a été modifiée.
 
 **Prochaine étape MKT-0.2 :** lire les définitions SQL/policies/grants des objets candidats, puis construire le mapping champ marketplace → objet/colonne existant → écart → décision. Ne pas créer de migration avant cette réconciliation.
