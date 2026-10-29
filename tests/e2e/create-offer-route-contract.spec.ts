@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { POST } from "../../app/api/actions/create-offer/route";
 
-type MockRequest = { path: string; body?: Record<string, unknown> };
+type MockRequest = { path: string; body?: Record<string, unknown>; authorization?: string };
 
 test.describe.configure({ mode: "serial" });
 
@@ -42,7 +42,8 @@ async function postCreateOffer(
         body = undefined;
       }
     }
-    requests.push({ path: url.pathname, body });
+    const headers = new Headers(init?.headers ?? request?.headers);
+    requests.push({ path: url.pathname, body, authorization: headers.get("authorization") ?? undefined });
 
     if (url.pathname === "/auth/v1/user") {
       if (authStatus !== 200) {
@@ -145,6 +146,15 @@ test("CREATE_OFFER route accepts case-insensitive Bearer schemes", async () => {
       authorizationHeader,
     ).toBe(true);
   }
+});
+
+test("CREATE_OFFER route trims repeated spaces between Bearer scheme and token", async () => {
+  const result = await postCreateOffer("USD", {}, undefined, undefined, "succeeded", "Bearer   qima-route-test-token");
+
+  expect(result.status, JSON.stringify({ body: result.body, requests: result.requests })).toBe(200);
+  const authRequest = result.requests.find((request) => request.path === "/auth/v1/user");
+  expect(authRequest?.authorization).toBe("Bearer qima-route-test-token");
+  expect(result.requests.some((request) => request.path === "/rest/v1/rpc/execute_create_offer_v1")).toBe(true);
 });
 
 test("CREATE_OFFER route returns HTTP 409 for a non-succeeded execution status", async () => {
