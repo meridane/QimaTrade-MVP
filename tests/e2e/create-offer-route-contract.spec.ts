@@ -5,7 +5,12 @@ type MockRequest = { path: string; body?: Record<string, unknown> };
 
 test.describe.configure({ mode: "serial" });
 
-async function postCreateOffer(currency: unknown, overrides: Record<string, unknown> = {}, rawBody?: string) {
+async function postCreateOffer(
+  currency: unknown,
+  overrides: Record<string, unknown> = {},
+  rawBody?: string,
+  membershipRows: Array<{ tenant_id: string }> = [{ tenant_id: "20000000-0000-4000-8000-000000000001" }],
+) {
   process.env.NEXT_PUBLIC_SUPABASE_URL ??= "https://example.supabase.co";
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??= "ci-placeholder-anon-key";
 
@@ -48,7 +53,7 @@ async function postCreateOffer(currency: unknown, overrides: Record<string, unkn
       return Response.json({ actor_id: "30000000-0000-4000-8000-000000000001" });
     }
     if (url.pathname === "/rest/v1/dt_memberships") {
-      return Response.json([{ tenant_id: "20000000-0000-4000-8000-000000000001" }]);
+      return Response.json(membershipRows);
     }
     if (url.pathname === "/rest/v1/rpc/get_action_definition_v1") {
       return Response.json({ action_key: "CREATE_OFFER", version: 1, status: "published" });
@@ -255,3 +260,22 @@ test("CREATE_OFFER route generates an idempotency UUID when the supplied key is 
   );
 });
 
+
+test("CREATE_OFFER route rejects missing tenant membership before calling RPC", async () => {
+  const result = await postCreateOffer("USD", {}, undefined, []);
+
+  expect(result.status).toBe(403);
+  expect(result.body).toMatchObject({ error: "TENANT_MEMBERSHIP_REQUIRED" });
+  expect(result.requests.some((request) => request.path.startsWith("/rest/v1/rpc/"))).toBe(false);
+});
+
+test("CREATE_OFFER route requires explicit tenant selection for multiple memberships", async () => {
+  const result = await postCreateOffer("USD", {}, undefined, [
+    { tenant_id: "20000000-0000-4000-8000-000000000001" },
+    { tenant_id: "20000000-0000-4000-8000-000000000002" },
+  ]);
+
+  expect(result.status).toBe(409);
+  expect(result.body).toMatchObject({ error: "TENANT_SELECTION_REQUIRED" });
+  expect(result.requests.some((request) => request.path.startsWith("/rest/v1/rpc/"))).toBe(false);
+});
