@@ -16,6 +16,7 @@ async function postCreateOffer(
   membershipStatus = 200,
   profileStatus = 200,
   profileActorId: string | null = "30000000-0000-4000-8000-000000000001",
+  profileMissing = false,
 ) {
   process.env.NEXT_PUBLIC_SUPABASE_URL ??= "https://example.supabase.co";
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??= "ci-placeholder-anon-key";
@@ -63,6 +64,7 @@ async function postCreateOffer(
       if (profileStatus !== 200) {
         return Response.json({ message: "Profile lookup failed", code: "XX000" }, { status: profileStatus });
       }
+      if (profileMissing) return Response.json(null);
       return Response.json(profileActorId ? { actor_id: profileActorId } : {});
     }
     if (url.pathname === "/rest/v1/dt_memberships") {
@@ -380,6 +382,28 @@ test("CREATE_OFFER route fails closed when profile lookup returns an error", asy
     200,
     200,
     500,
+  );
+
+  expect(result.status).toBe(403);
+  expect(result.body).toMatchObject({ error: "PROFILE_ACTOR_NOT_FOUND" });
+  expect(result.requests.some((request) => request.path === "/rest/v1/profiles")).toBe(true);
+  expect(result.requests.some((request) => request.path === "/rest/v1/dt_memberships")).toBe(false);
+  expect(result.requests.some((request) => request.path.startsWith("/rest/v1/rpc/"))).toBe(false);
+});
+
+test("CREATE_OFFER route fails closed when the profile row is absent", async () => {
+  const result = await postCreateOffer(
+    "USD",
+    {},
+    undefined,
+    undefined,
+    "succeeded",
+    "Bearer qima-route-test-token",
+    200,
+    200,
+    200,
+    null,
+    true,
   );
 
   expect(result.status).toBe(403);
