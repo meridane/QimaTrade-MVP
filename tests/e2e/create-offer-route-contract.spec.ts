@@ -12,6 +12,7 @@ async function postCreateOffer(
   membershipRows: Array<{ tenant_id: string }> = [{ tenant_id: "20000000-0000-4000-8000-000000000001" }],
   rpcStatus = "succeeded",
   authorizationHeader: string | null = "Bearer qima-route-test-token",
+  authStatus = 200,
 ) {
   process.env.NEXT_PUBLIC_SUPABASE_URL ??= "https://example.supabase.co";
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??= "ci-placeholder-anon-key";
@@ -44,6 +45,9 @@ async function postCreateOffer(
     requests.push({ path: url.pathname, body });
 
     if (url.pathname === "/auth/v1/user") {
+      if (authStatus !== 200) {
+        return Response.json({ message: "Invalid JWT", code: "bad_jwt" }, { status: authStatus });
+      }
       return Response.json({
         id: "40000000-0000-4000-8000-000000000001",
         aud: "authenticated",
@@ -112,6 +116,23 @@ test("CREATE_OFFER route rejects missing or non-Bearer authorization before data
     expect(result.body, String(authorizationHeader)).toMatchObject({ error: "UNAUTHENTICATED" });
     expect(result.requests, String(authorizationHeader)).toEqual([]);
   }
+});
+
+test("CREATE_OFFER route stops after Supabase rejects a well-formed Bearer token", async () => {
+  const result = await postCreateOffer(
+    "USD",
+    {},
+    undefined,
+    undefined,
+    "succeeded",
+    "Bearer syntactically-valid-but-rejected-token",
+    401,
+  );
+
+  expect(result.status).toBe(401);
+  expect(result.body).toMatchObject({ error: "UNAUTHENTICATED" });
+  expect(result.requests.some((request) => request.path === "/auth/v1/user")).toBe(true);
+  expect(result.requests.some((request) => request.path.startsWith("/rest/v1/"))).toBe(false);
 });
 
 test("CREATE_OFFER route accepts case-insensitive Bearer schemes", async () => {
