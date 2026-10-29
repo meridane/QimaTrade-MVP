@@ -53,7 +53,7 @@ BEGIN
   first_result := public.execute_create_offer_v1(
     '10000000-0000-4000-8000-000000000001',
     'fixture-idempotency-jsonb-order',
-    '{"alpha":1,"beta":2}'::jsonb,
+    '{"alpha":1,"beta":2,"items":[1,2]}'::jsonb,
     'JSONB Order Offer',
     '50000000-0000-4000-8000-000000000001',
     '40000000-0000-4000-8000-000000000001',
@@ -69,7 +69,7 @@ BEGIN
   retry_result := public.execute_create_offer_v1(
     '10000000-0000-4000-8000-000000000001',
     'fixture-idempotency-jsonb-order',
-    '{"beta":2,"alpha":1}'::jsonb,
+    '{"beta":2,"items":[1,2],"alpha":1}'::jsonb,
     'JSONB Order Offer',
     '50000000-0000-4000-8000-000000000001',
     '40000000-0000-4000-8000-000000000001',
@@ -95,6 +95,25 @@ BEGIN
   IF v_count <> 1 THEN
     RAISE EXCEPTION 'Expected one JSONB-order execution after retry, found %', v_count;
   END IF;
+
+  -- JSONB array order is significant and must participate in the idempotency hash.
+  BEGIN
+    PERFORM public.execute_create_offer_v1(
+      '10000000-0000-4000-8000-000000000001',
+      'fixture-idempotency-jsonb-order',
+      '{"beta":2,"items":[2,1],"alpha":1}'::jsonb,
+      'JSONB Order Offer',
+      '50000000-0000-4000-8000-000000000001',
+      '40000000-0000-4000-8000-000000000001',
+      '30000000-0000-4000-8000-000000000001',
+      2,
+      12,
+      'USD'
+    );
+    RAISE EXCEPTION 'Expected reordered JSONB array values to be rejected';
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM NOT LIKE '%IDEMPOTENCY_KEY_REUSE%' THEN RAISE; END IF;
+  END;
 
   BEGIN
     PERFORM public.execute_create_offer_v1(
