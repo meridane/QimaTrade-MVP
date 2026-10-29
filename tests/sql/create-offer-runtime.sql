@@ -180,6 +180,73 @@ BEGIN
     IF SQLERRM NOT LIKE '%IDEMPOTENCY_KEY_REUSE%' THEN RAISE; END IF;
   END;
 
+  -- NULL and an empty attributes object have the same effective request hash.
+  first_result := public.execute_create_offer_v1(
+    '10000000-0000-4000-8000-000000000001',
+    'fixture-idempotency-attributes-null-empty',
+    '{"case":"attributes-null-empty"}'::jsonb,
+    'Attributes Null Empty Offer',
+    '50000000-0000-4000-8000-000000000001',
+    '40000000-0000-4000-8000-000000000001',
+    '30000000-0000-4000-8000-000000000001',
+    1,
+    10,
+    'USD',
+    p_attributes => NULL
+  );
+  IF first_result->>'status' <> 'succeeded' THEN
+    RAISE EXCEPTION 'Expected NULL attributes fixture to succeed, got %', first_result;
+  END IF;
+
+  retry_result := public.execute_create_offer_v1(
+    '10000000-0000-4000-8000-000000000001',
+    'fixture-idempotency-attributes-null-empty',
+    '{"case":"attributes-null-empty"}'::jsonb,
+    'Attributes Null Empty Offer',
+    '50000000-0000-4000-8000-000000000001',
+    '40000000-0000-4000-8000-000000000001',
+    '30000000-0000-4000-8000-000000000001',
+    1,
+    10,
+    'USD',
+    p_attributes => '{}'::jsonb
+  );
+  IF retry_result IS DISTINCT FROM first_result THEN
+    RAISE EXCEPTION 'NULL and empty attributes retries did not replay the same result';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE name = 'Attributes Null Empty Offer'
+    AND attributes = '{}'::jsonb;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'Expected one offer with normalized empty attributes, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE idempotency_key = 'fixture-idempotency-attributes-null-empty';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'Expected one execution for NULL/empty attributes retry, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE key = 'fixture-idempotency-attributes-null-empty'
+    AND status = 'COMPLETED';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'Expected one completed idempotency row for NULL/empty attributes retry, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_events e
+  JOIN public.action_executions x ON x.id = e.execution_id
+  WHERE x.idempotency_key = 'fixture-idempotency-attributes-null-empty'
+    AND e.event_type = 'ACTION_SUCCEEDED';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'Expected one success event for NULL/empty attributes retry, found %', v_count;
+  END IF;
+
   -- Optional business parameters must participate in the idempotency hash too.
   BEGIN
     PERFORM public.execute_create_offer_v1(
