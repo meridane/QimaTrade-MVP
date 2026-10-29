@@ -16,7 +16,7 @@ export async function POST(request: Request) {
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      { auth: { autoRefreshToken: false, persistSession: false }, global: { headers: { Authorization: authHeader } } },
+      { auth: { autoRefreshToken: false, persistSession: false }, global: { headers: { Authorization: `Bearer ${token}` } } },
     );
 
     const { data: { user }, error: userError } = await supabase.auth.getUser(token);
