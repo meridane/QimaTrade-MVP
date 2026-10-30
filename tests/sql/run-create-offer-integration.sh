@@ -66,7 +66,7 @@ if ! cmp -s /tmp/qima-concurrent-1.log /tmp/qima-concurrent-stored-result.log; t
 fi
 
 "${PSQL[@]}" <<'SQL'
-DO $
+DO $qa62$
 DECLARE
   key_rows integer;
   completed_key_rows integer;
@@ -117,7 +117,7 @@ BEGIN
     AND e.object_id = x.object_id;
   IF event_rows <> 1 THEN RAISE EXCEPTION 'Expected one success event for concurrent calls, got %', event_rows; END IF;
 END
-$;
+$qa62$;
 SELECT 'CREATE_OFFER identical same-tenant concurrency assertions passed' AS result;
 SQL
 
