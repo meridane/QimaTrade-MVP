@@ -1465,3 +1465,247 @@ WHERE tenant_id = '10000000-0000-4000-8000-000000000002'
   AND user_id = '20000000-0000-4000-8000-000000000001';
 
 SELECT 'CREATE_OFFER integration assertions passed' AS result;
+
+
+-- OFFER-QA-63: replay terminal FAILED rows and reject an existing IN_PROGRESS row.
+-- Seed these records as the fixture owner, then exercise the public RPC as the
+-- authenticated fixture user. All records remain in the disposable CI database.
+RESET ROLE;
+
+DO $qa63_seed$
+DECLARE
+  v_action_id uuid;
+  v_failed_execution_id uuid := gen_random_uuid();
+  v_running_execution_id uuid := gen_random_uuid();
+  v_actor_id uuid := '30000000-0000-4000-8000-000000000001';
+  v_tenant_id uuid := '10000000-0000-4000-8000-000000000001';
+  v_user_id uuid := '20000000-0000-4000-8000-000000000001';
+  v_input jsonb := '{"case":"offer-status-replay"}'::jsonb;
+  v_hash text;
+  v_failed_result jsonb;
+BEGIN
+  SELECT id INTO v_action_id
+  FROM public.action_definitions
+  WHERE action_key = 'CREATE_OFFER'
+    AND version = 1
+    AND status = 'published';
+
+  IF v_action_id IS NULL THEN
+    RAISE EXCEPTION 'Published CREATE_OFFER fixture definition is missing';
+  END IF;
+
+  v_hash := md5(jsonb_build_object(
+    'input', v_input,
+    'name', 'Existing Status Replay Offer',
+    'demandId', '50000000-0000-4000-8000-000000000001'::uuid,
+    'productMasterId', '40000000-0000-4000-8000-000000000001'::uuid,
+    'providerActorId', v_actor_id,
+    'quantity', 2,
+    'price', 12,
+    'currency', 'USD',
+    'conditions', NULL,
+    'market', NULL,
+    'geography', NULL,
+    'attributes', '{}'::jsonb,
+    'documentationStatus', NULL,
+    'lifecycle', NULL,
+    'offerType', NULL,
+    'pricingModel', NULL
+  )::text);
+
+  v_failed_result := jsonb_build_object(
+    'status', 'failed',
+    'executionId', v_failed_execution_id,
+    'error', 'FIXTURE_FAILURE'
+  );
+
+  INSERT INTO public.action_executions(
+    id, action_id, action_version, actor_id, object_type, object_id,
+    correlation_id, idempotency_key, status, input, result, completed_at, tenant_id
+  )
+  VALUES (
+    v_failed_execution_id, v_action_id, 1, v_actor_id, 'Offer', NULL,
+    gen_random_uuid(), 'fixture-existing-failed-replay', 'FAILED',
+    v_input, v_failed_result, now(), v_tenant_id
+  );
+
+  INSERT INTO public.idempotency_keys(
+    key, action_id, actor_id, request_hash, execution_id,
+    status, result, completed_at, tenant_id
+  )
+  VALUES (
+    'fixture-existing-failed-replay', v_action_id, v_actor_id, v_hash,
+    v_failed_execution_id, 'FAILED', v_failed_result, now(), v_tenant_id
+  );
+
+  INSERT INTO public.action_executions(
+    id, action_id, action_version, actor_id, object_type, object_id,
+    correlation_id, idempotency_key, status, input, result, completed_at, tenant_id
+  )
+  VALUES (
+    v_running_execution_id, v_action_id, 1, v_actor_id, 'Offer', NULL,
+    gen_random_uuid(), 'fixture-existing-in-progress-replay', 'RUNNING',
+    v_input, NULL, NULL, v_tenant_id
+  );
+
+  INSERT INTO public.idempotency_keys(
+    key, action_id, actor_id, request_hash, execution_id,
+    status, result, completed_at, tenant_id
+  )
+  VALUES (
+    'fixture-existing-in-progress-replay', v_action_id, v_actor_id, v_hash,
+    v_running_execution_id, 'IN_PROGRESS', NULL, NULL, v_tenant_id
+  );
+END
+$qa63_seed$;
+
+SET ROLE authenticated;
+
+DO $qa63_assert$
+DECLARE
+  v_failed_expected jsonb;
+  v_failed_actual jsonb;
+  v_error text;
+  v_count integer;
+  v_failed_execution_id uuid;
+  v_running_execution_id uuid;
+BEGIN
+  SELECT result, execution_id
+  INTO v_failed_expected, v_failed_execution_id
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-existing-failed-replay'
+    AND status = 'FAILED';
+
+  IF v_failed_expected IS NULL OR v_failed_execution_id IS NULL THEN
+    RAISE EXCEPTION 'FAILED replay fixture was not seeded with a stored result';
+  END IF;
+
+  v_failed_actual := public.execute_create_offer_v1(
+    '10000000-0000-4000-8000-000000000001',
+    'fixture-existing-failed-replay',
+    '{"case":"offer-status-replay"}'::jsonb,
+    'Existing Status Replay Offer',
+    '50000000-0000-4000-8000-000000000001',
+    '40000000-0000-4000-8000-000000000001',
+    '30000000-0000-4000-8000-000000000001',
+    2,
+    12,
+    'USD'
+  );
+
+  IF v_failed_actual IS DISTINCT FROM v_failed_expected THEN
+    RAISE EXCEPTION 'FAILED replay did not return the stored failure result: expected %, got %',
+      v_failed_expected, v_failed_actual;
+  END IF;
+
+  IF v_failed_actual->>'status' IS DISTINCT FROM 'failed'
+     OR v_failed_actual->>'executionId' IS DISTINCT FROM v_failed_execution_id::text
+     OR v_failed_actual->>'error' IS DISTINCT FROM 'FIXTURE_FAILURE' THEN
+    RAISE EXCEPTION 'FAILED replay returned an unexpected public result: %', v_failed_actual;
+  END IF;
+
+  SELECT execution_id INTO v_running_execution_id
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-existing-in-progress-replay'
+    AND status = 'IN_PROGRESS';
+
+  IF v_running_execution_id IS NULL THEN
+    RAISE EXCEPTION 'IN_PROGRESS replay fixture was not seeded';
+  END IF;
+
+  v_error := NULL;
+  BEGIN
+    PERFORM public.execute_create_offer_v1(
+      '10000000-0000-4000-8000-000000000001',
+      'fixture-existing-in-progress-replay',
+      '{"case":"offer-status-replay"}'::jsonb,
+      'Existing Status Replay Offer',
+      '50000000-0000-4000-8000-000000000001',
+      '40000000-0000-4000-8000-000000000001',
+      '30000000-0000-4000-8000-000000000001',
+      2,
+      12,
+      'USD'
+    );
+  EXCEPTION WHEN OTHERS THEN
+    GET STACKED DIAGNOSTICS v_error = MESSAGE_TEXT;
+  END;
+
+  IF v_error IS DISTINCT FROM 'ACTION_ALREADY_RUNNING' THEN
+    RAISE EXCEPTION 'Expected ACTION_ALREADY_RUNNING for IN_PROGRESS replay, got %', v_error;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key IN (
+      'fixture-existing-failed-replay',
+      'fixture-existing-in-progress-replay'
+    );
+  IF v_count <> 2 THEN
+    RAISE EXCEPTION 'Status replays changed the seeded idempotency row count; expected 2, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND idempotency_key IN (
+      'fixture-existing-failed-replay',
+      'fixture-existing-in-progress-replay'
+    );
+  IF v_count <> 2 THEN
+    RAISE EXCEPTION 'Status replays created or removed executions; expected 2, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-existing-failed-replay'
+    AND status = 'FAILED'
+    AND result = v_failed_expected;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'FAILED replay changed its stored status/result';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-existing-in-progress-replay'
+    AND status = 'IN_PROGRESS'
+    AND result IS NULL;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'IN_PROGRESS replay changed its stored status/result';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE id IN (v_failed_execution_id, v_running_execution_id)
+    AND (
+      (id = v_failed_execution_id AND status = 'FAILED' AND result = v_failed_expected)
+      OR
+      (id = v_running_execution_id AND status = 'RUNNING' AND result IS NULL)
+    );
+  IF v_count <> 2 THEN
+    RAISE EXCEPTION 'Status replays changed the corresponding execution states/results';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE name = 'Existing Status Replay Offer';
+  IF v_count <> 0 THEN
+    RAISE EXCEPTION 'Status replays unexpectedly created an offer, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_events
+  WHERE execution_id IN (v_failed_execution_id, v_running_execution_id);
+  IF v_count <> 0 THEN
+    RAISE EXCEPTION 'Status replays unexpectedly created action events, found %', v_count;
+  END IF;
+END
+$qa63_assert$;
+
+RESET ROLE;
+SELECT 'CREATE_OFFER FAILED and IN_PROGRESS replay assertions passed' AS result;
