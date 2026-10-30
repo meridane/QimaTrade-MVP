@@ -41,7 +41,7 @@ test("executeAction invokes a registered handler once with the original context 
   const context: ActionContext = {
     userId: "user-1",
     tenantId: "tenant-1",
-    actionKey: "CREATE_OFFER",
+    actionKey: "TEST_CREATE_OFFER_V2",
     actionVersion: 7,
     objectType: "TestObject",
     objectId: "object-1",
@@ -70,7 +70,7 @@ test("executeAction invokes a registered handler once with the original context 
       return { actionKey, version, status: "published" };
     },
     handlers: {
-      CREATE_OFFER: async (handlerContext, handlerInput) => {
+      TEST_CREATE_OFFER_V2: async (handlerContext, handlerInput) => {
         handlerCalls += 1;
         receivedContext = handlerContext;
         receivedInput = handlerInput;
