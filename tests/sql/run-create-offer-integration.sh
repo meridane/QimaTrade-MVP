@@ -542,5 +542,6 @@ BEGIN
   END IF;
 END
 $qa61$;
+SQL
 
 echo "CREATE_OFFER same-tenant concurrent conflicting-hash assertions passed (winning price: $winner_price)."
