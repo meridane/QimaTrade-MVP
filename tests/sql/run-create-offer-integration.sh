@@ -5,6 +5,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 PSQL=(psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1)
+PSQL_TUPLE=(psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t)
 
 # This script is only intended for the ephemeral PostgreSQL service in CI.
 # Never point DATABASE_URL at Supabase production.
@@ -118,9 +119,9 @@ SELECT public.execute_create_offer_v1(
 SQL
 )
 
-"${PSQL[@]}" -c "$call_sql_a" > /tmp/qima-intertenant-a.log &
+"${PSQL_TUPLE[@]}" -c "$call_sql_a" > /tmp/qima-intertenant-a.log &
 pid_a=$!
-"${PSQL[@]}" -c "$call_sql_b" > /tmp/qima-intertenant-b.log &
+"${PSQL_TUPLE[@]}" -c "$call_sql_b" > /tmp/qima-intertenant-b.log &
 pid_b=$!
 
 # Both sessions must be inside the fixture delay while holding distinct,
@@ -166,6 +167,37 @@ if [[ "$lock_snapshot" != "2|2" ]]; then
   exit 1
 fi
 echo "Observed two distinct granted inter-tenant advisory locks concurrently."
+
+# Replay both successful requests after the concurrent first insert. Keep psql
+# in tuples-only mode so each file contains only the returned JSONB value.
+# Comparing each replay to its own first result proves tenant-local replay;
+# cross-comparisons ensure neither tenant receives the other tenant's result.
+"${PSQL_TUPLE[@]}" -c "$call_sql_a" > /tmp/qima-intertenant-a-replay.log
+"${PSQL_TUPLE[@]}" -c "$call_sql_b" > /tmp/qima-intertenant-b-replay.log
+
+if ! cmp -s /tmp/qima-intertenant-a.log /tmp/qima-intertenant-a-replay.log; then
+  echo "Tenant A replay did not return its exact original result." >&2
+  diff -u /tmp/qima-intertenant-a.log /tmp/qima-intertenant-a-replay.log >&2 || true
+  exit 1
+fi
+if ! cmp -s /tmp/qima-intertenant-b.log /tmp/qima-intertenant-b-replay.log; then
+  echo "Tenant B replay did not return its exact original result." >&2
+  diff -u /tmp/qima-intertenant-b.log /tmp/qima-intertenant-b-replay.log >&2 || true
+  exit 1
+fi
+if cmp -s /tmp/qima-intertenant-a.log /tmp/qima-intertenant-b.log; then
+  echo "Expected distinct tenant A and tenant B results; received identical results." >&2
+  exit 1
+fi
+if cmp -s /tmp/qima-intertenant-a-replay.log /tmp/qima-intertenant-b.log; then
+  echo "Tenant A replay unexpectedly matches tenant B's original result." >&2
+  exit 1
+fi
+if cmp -s /tmp/qima-intertenant-b-replay.log /tmp/qima-intertenant-a.log; then
+  echo "Tenant B replay unexpectedly matches tenant A's original result." >&2
+  exit 1
+fi
+echo "CREATE_OFFER inter-tenant replay returned each tenant's exact original result."
 
 "${PSQL[@]}" <<'SQL'
 DO $$
