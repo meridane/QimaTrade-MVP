@@ -2788,6 +2788,7 @@ BEGIN
     AND key = 'fixture-hash-mismatch-failed'
     AND status = 'FAILED'
     AND execution_id = v_failed_execution_id
+    AND request_hash = v_expected_hash
     AND result = v_expected_failed_result;
   IF v_count <> 1 THEN
     RAISE EXCEPTION 'FAILED hash-mismatch retry changed the original idempotency row';
@@ -2799,6 +2800,7 @@ BEGIN
     AND key = 'fixture-hash-mismatch-in-progress'
     AND status = 'IN_PROGRESS'
     AND execution_id = v_running_execution_id
+    AND request_hash = v_expected_hash
     AND result IS NULL;
   IF v_count <> 1 THEN
     RAISE EXCEPTION 'IN_PROGRESS hash-mismatch retry changed the original idempotency row';
