@@ -1709,3 +1709,155 @@ $qa63_assert$;
 
 RESET ROLE;
 SELECT 'CREATE_OFFER FAILED and IN_PROGRESS replay assertions passed' AS result;
+
+
+-- OFFER-QA-64: a terminal FAILED row with a NULL result must use the
+-- coalesce fallback result, preserving the original execution identifier.
+-- All records are seeded in and remain limited to the disposable CI database.
+RESET ROLE;
+
+DO $qa64_seed$
+DECLARE
+  v_action_id uuid;
+  v_execution_id uuid := gen_random_uuid();
+  v_actor_id uuid := '30000000-0000-4000-8000-000000000001';
+  v_tenant_id uuid := '10000000-0000-4000-8000-000000000001';
+  v_input jsonb := '{"case":"failed-null-result-replay"}'::jsonb;
+  v_hash text;
+BEGIN
+  SELECT id INTO v_action_id
+  FROM public.action_definitions
+  WHERE action_key = 'CREATE_OFFER'
+    AND version = 1
+    AND status = 'published';
+
+  IF v_action_id IS NULL THEN
+    RAISE EXCEPTION 'Published CREATE_OFFER fixture definition is missing';
+  END IF;
+
+  v_hash := md5(jsonb_build_object(
+    'input', v_input,
+    'name', 'Existing Failed Null Result Replay Offer',
+    'demandId', '50000000-0000-4000-8000-000000000001'::uuid,
+    'productMasterId', '40000000-0000-4000-8000-000000000001'::uuid,
+    'providerActorId', v_actor_id,
+    'quantity', 2,
+    'price', 12,
+    'currency', 'USD',
+    'conditions', NULL,
+    'market', NULL,
+    'geography', NULL,
+    'attributes', '{}'::jsonb,
+    'documentationStatus', NULL,
+    'lifecycle', NULL,
+    'offerType', NULL,
+    'pricingModel', NULL
+  )::text);
+
+  INSERT INTO public.action_executions(
+    id, action_id, action_version, actor_id, object_type, object_id,
+    correlation_id, idempotency_key, status, input, result, completed_at, tenant_id
+  )
+  VALUES (
+    v_execution_id, v_action_id, 1, v_actor_id, 'Offer', NULL,
+    gen_random_uuid(), 'fixture-existing-failed-null-result-replay', 'FAILED',
+    v_input, NULL, now(), v_tenant_id
+  );
+
+  INSERT INTO public.idempotency_keys(
+    key, action_id, actor_id, request_hash, execution_id,
+    status, result, completed_at, tenant_id
+  )
+  VALUES (
+    'fixture-existing-failed-null-result-replay', v_action_id, v_actor_id, v_hash,
+    v_execution_id, 'FAILED', NULL, now(), v_tenant_id
+  );
+END
+$qa64_seed$;
+
+SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+SET ROLE authenticated;
+
+DO $qa64_assert$
+DECLARE
+  v_expected jsonb;
+  v_actual jsonb;
+  v_execution_id uuid;
+  v_count integer;
+BEGIN
+  SELECT execution_id
+  INTO v_execution_id
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-existing-failed-null-result-replay'
+    AND status = 'FAILED'
+    AND result IS NULL;
+
+  IF v_execution_id IS NULL THEN
+    RAISE EXCEPTION 'FAILED NULL-result replay fixture was not seeded';
+  END IF;
+
+  v_expected := jsonb_build_object(
+    'status', 'failed',
+    'executionId', v_execution_id
+  );
+
+  v_actual := public.execute_create_offer_v1(
+    '10000000-0000-4000-8000-000000000001',
+    'fixture-existing-failed-null-result-replay',
+    '{"case":"failed-null-result-replay"}'::jsonb,
+    'Existing Failed Null Result Replay Offer',
+    '50000000-0000-4000-8000-000000000001',
+    '40000000-0000-4000-8000-000000000001',
+    '30000000-0000-4000-8000-000000000001',
+    2,
+    12,
+    'USD'
+  );
+
+  IF v_actual IS DISTINCT FROM v_expected THEN
+    RAISE EXCEPTION 'FAILED NULL-result replay did not return the coalesce fallback: expected %, got %',
+      v_expected, v_actual;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-existing-failed-null-result-replay'
+    AND status = 'FAILED'
+    AND execution_id = v_execution_id
+    AND result IS NULL;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'FAILED NULL-result replay changed or duplicated its idempotency row';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND id = v_execution_id
+    AND idempotency_key = 'fixture-existing-failed-null-result-replay'
+    AND status = 'FAILED'
+    AND result IS NULL
+    AND object_id IS NULL;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'FAILED NULL-result replay changed or duplicated its execution row';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE name = 'Existing Failed Null Result Replay Offer';
+  IF v_count <> 0 THEN
+    RAISE EXCEPTION 'FAILED NULL-result replay unexpectedly created an offer';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_events
+  WHERE execution_id = v_execution_id;
+  IF v_count <> 0 THEN
+    RAISE EXCEPTION 'FAILED NULL-result replay unexpectedly created an action event';
+  END IF;
+END
+$qa64_assert$;
+
+RESET ROLE;
+SELECT 'CREATE_OFFER FAILED NULL-result replay fallback assertions passed' AS result;
