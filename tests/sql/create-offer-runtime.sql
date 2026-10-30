@@ -1834,13 +1834,21 @@ BEGIN
   SELECT count(*) INTO v_count
   FROM public.action_executions
   WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND idempotency_key = 'fixture-existing-failed-null-result-replay';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'FAILED NULL-result replay created or removed an execution; expected 1, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
     AND id = v_execution_id
     AND idempotency_key = 'fixture-existing-failed-null-result-replay'
     AND status = 'FAILED'
     AND result IS NULL
     AND object_id IS NULL;
   IF v_count <> 1 THEN
-    RAISE EXCEPTION 'FAILED NULL-result replay changed or duplicated its execution row';
+    RAISE EXCEPTION 'FAILED NULL-result replay changed the original execution row';
   END IF;
 
   SELECT count(*) INTO v_count
@@ -1851,10 +1859,14 @@ BEGIN
   END IF;
 
   SELECT count(*) INTO v_count
-  FROM public.action_events
-  WHERE execution_id = v_execution_id;
+  FROM public.action_events e
+  JOIN public.action_executions x
+    ON x.id = e.execution_id
+   AND x.tenant_id = e.tenant_id
+  WHERE x.tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND x.idempotency_key = 'fixture-existing-failed-null-result-replay';
   IF v_count <> 0 THEN
-    RAISE EXCEPTION 'FAILED NULL-result replay unexpectedly created an action event';
+    RAISE EXCEPTION 'FAILED NULL-result replay unexpectedly created action events';
   END IF;
 END
 $qa64_assert$;
