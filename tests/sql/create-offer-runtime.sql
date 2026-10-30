@@ -696,6 +696,56 @@ BEGIN
     RAISE EXCEPTION 'Expected one execution for Product Master hash fixture, found %', v_count;
   END IF;
 
+  -- Price is part of the effective request hash and both amounts are valid.
+  first_result := public.execute_create_offer_v1(
+    '10000000-0000-4000-8000-000000000001',
+    'fixture-idempotency-price',
+    '{"case":"price-hash"}'::jsonb,
+    'Price Hash Offer',
+    '50000000-0000-4000-8000-000000000001',
+    '40000000-0000-4000-8000-000000000001',
+    '30000000-0000-4000-8000-000000000001',
+    1,
+    10,
+    'USD'
+  );
+  IF first_result->>'status' <> 'succeeded' THEN
+    RAISE EXCEPTION 'Expected price hash fixture to succeed, got %', first_result;
+  END IF;
+
+  BEGIN
+    PERFORM public.execute_create_offer_v1(
+      '10000000-0000-4000-8000-000000000001',
+      'fixture-idempotency-price',
+      '{"case":"price-hash"}'::jsonb,
+      'Price Hash Offer',
+      '50000000-0000-4000-8000-000000000001',
+      '40000000-0000-4000-8000-000000000001',
+      '30000000-0000-4000-8000-000000000001',
+      1,
+      11,
+      'USD'
+    );
+    RAISE EXCEPTION 'Expected changed price to be rejected';
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM NOT LIKE '%IDEMPOTENCY_KEY_REUSE%' THEN RAISE; END IF;
+  END;
+
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE name = 'Price Hash Offer'
+    AND price = 10;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'Expected one original price hash offer, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE idempotency_key = 'fixture-idempotency-price';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'Expected one execution for price hash fixture, found %', v_count;
+  END IF;
+
   BEGIN
     PERFORM public.execute_create_offer_v1(
       '10000000-0000-4000-8000-000000000001',
