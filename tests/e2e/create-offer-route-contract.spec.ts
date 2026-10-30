@@ -19,6 +19,11 @@ async function postCreateOffer(
   profileMissing = false,
   createOfferRpcHttpStatus = 200,
   getActionDefinitionRpcHttpStatus = 200,
+  actionDefinition: { action_key: string; version: number; status: string } | null = {
+    action_key: "CREATE_OFFER",
+    version: 1,
+    status: "published",
+  },
 ) {
   process.env.NEXT_PUBLIC_SUPABASE_URL ??= "https://example.supabase.co";
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??= "ci-placeholder-anon-key";
@@ -82,7 +87,7 @@ async function postCreateOffer(
           { status: getActionDefinitionRpcHttpStatus },
         );
       }
-      return Response.json({ action_key: "CREATE_OFFER", version: 1, status: "published" });
+      return Response.json(actionDefinition);
     }
     if (url.pathname === "/rest/v1/rpc/execute_create_offer_v1") {
       if (createOfferRpcHttpStatus !== 200) {
@@ -545,4 +550,49 @@ test("CREATE_OFFER route stops before execution when action definition lookup re
   expect(
     result.requests.some((request) => request.path === "/rest/v1/rpc/execute_create_offer_v1"),
   ).toBe(false);
+});
+
+
+test("CREATE_OFFER route rejects missing or unpublished action definitions before execution", async () => {
+  const invalidDefinitions = [
+    { label: "missing definition", definition: null },
+    {
+      label: "draft definition",
+      definition: { action_key: "CREATE_OFFER", version: 1, status: "draft" },
+    },
+    {
+      label: "retired definition",
+      definition: { action_key: "CREATE_OFFER", version: 1, status: "retired" },
+    },
+  ];
+
+  for (const invalidCase of invalidDefinitions) {
+    const result = await postCreateOffer(
+      "USD",
+      {},
+      undefined,
+      undefined,
+      "succeeded",
+      "Bearer qima-route-test-token",
+      200,
+      200,
+      200,
+      "30000000-0000-4000-8000-000000000001",
+      false,
+      200,
+      200,
+      invalidCase.definition,
+    );
+
+    expect(result.status, invalidCase.label).toBe(400);
+    expect(result.body, invalidCase.label).toMatchObject({ error: "ACTION_NOT_PUBLISHED" });
+    expect(
+      result.requests.some((request) => request.path === "/rest/v1/rpc/get_action_definition_v1"),
+      invalidCase.label,
+    ).toBe(true);
+    expect(
+      result.requests.some((request) => request.path === "/rest/v1/rpc/execute_create_offer_v1"),
+      invalidCase.label,
+    ).toBe(false);
+  }
 });
