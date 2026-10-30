@@ -66,3 +66,209 @@ END
 $$;
 SELECT 'CREATE_OFFER concurrency assertions passed' AS result;
 SQL
+
+# Race the same key in two tenants at once, using distinct authenticated users
+# and provider actors. The fixture delay makes simultaneous advisory-lock
+# ownership observable without relying on elapsed-time thresholds.
+"${PSQL[@]}" <<'SQL'
+INSERT INTO public.demands (id, name, demand_status, requester_actor_id)
+VALUES (
+  '50000000-0000-4000-8000-000000000002',
+  'Concurrent Intertenant Demand A',
+  'published',
+  '30000000-0000-4000-8000-000000000001'
+);
+SQL
+
+call_sql_a=$(cat <<'SQL'
+SET application_name = 'qima-intertenant-a';
+SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+SET ROLE authenticated;
+SELECT public.execute_create_offer_v1(
+  '10000000-0000-4000-8000-000000000001',
+  'fixture-concurrent-intertenant',
+  '{"case":"intertenant-concurrent"}'::jsonb,
+  'Concurrent Intertenant Offer A',
+  '50000000-0000-4000-8000-000000000002',
+  '40000000-0000-4000-8000-000000000001',
+  '30000000-0000-4000-8000-000000000001',
+  2,
+  17,
+  'USD'
+);
+SQL
+)
+
+call_sql_b=$(cat <<'SQL'
+SET application_name = 'qima-intertenant-b';
+SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000002';
+SET ROLE authenticated;
+SELECT public.execute_create_offer_v1(
+  '10000000-0000-4000-8000-000000000002',
+  'fixture-concurrent-intertenant',
+  '{"case":"intertenant-concurrent"}'::jsonb,
+  'Concurrent Intertenant Offer B',
+  '50000000-0000-4000-8000-000000000001',
+  '40000000-0000-4000-8000-000000000001',
+  '30000000-0000-4000-8000-000000000002',
+  2,
+  17,
+  'USD'
+);
+SQL
+)
+
+"${PSQL[@]}" -c "$call_sql_a" > /tmp/qima-intertenant-a.log &
+pid_a=$!
+"${PSQL[@]}" -c "$call_sql_b" > /tmp/qima-intertenant-b.log &
+pid_b=$!
+
+# Both sessions must be inside the fixture delay while holding distinct,
+# granted advisory locks. A tenant-agnostic lock would serialize these calls
+# and prevent this observation.
+lock_snapshot=""
+for attempt in $(seq 1 200); do
+  lock_snapshot=$("${PSQL[@]}" -At -c "
+    SELECT
+      count(DISTINCT a.application_name)::text || '|' ||
+      count(DISTINCT concat(l.classid, ':', l.objid, ':', l.objsubid))
+    FROM pg_stat_activity a
+    JOIN pg_locks l ON l.pid = a.pid
+    WHERE a.application_name IN ('qima-intertenant-a', 'qima-intertenant-b')
+      AND a.state = 'active'
+      AND a.wait_event = 'PgSleep'
+      AND l.locktype = 'advisory'
+      AND l.mode = 'ExclusiveLock'
+      AND l.granted;
+  " | tr -d '[:space:]')
+  if [[ "$lock_snapshot" == "2|2" ]]; then
+    break
+  fi
+  sleep 0.025
+done
+
+set +e
+wait "$pid_a"
+status_a=$?
+wait "$pid_b"
+status_b=$?
+set -e
+
+if [[ "$status_a" -ne 0 || "$status_b" -ne 0 ]]; then
+  echo "Inter-tenant concurrent CREATE_OFFER calls failed (A=$status_a, B=$status_b)." >&2
+  cat /tmp/qima-intertenant-a.log /tmp/qima-intertenant-b.log >&2
+  exit 1
+fi
+
+if [[ "$lock_snapshot" != "2|2" ]]; then
+  echo "Expected two distinct granted advisory locks to be held during overlapping PgSleep; observed '$lock_snapshot'." >&2
+  cat /tmp/qima-intertenant-a.log /tmp/qima-intertenant-b.log >&2
+  exit 1
+fi
+
+"${PSQL[@]}" <<'SQL'
+DO $$
+DECLARE
+  v_count integer;
+BEGIN
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE key = 'fixture-concurrent-intertenant'
+    AND tenant_id IN (
+      '10000000-0000-4000-8000-000000000001',
+      '10000000-0000-4000-8000-000000000002'
+    )
+    AND status = 'COMPLETED';
+  IF v_count <> 2 THEN
+    RAISE EXCEPTION 'Expected one completed idempotency row per tenant, found %', v_count;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM public.idempotency_keys
+    WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+      AND key = 'fixture-concurrent-intertenant'
+      AND actor_id = '30000000-0000-4000-8000-000000000001'
+  ) OR NOT EXISTS (
+    SELECT 1 FROM public.idempotency_keys
+    WHERE tenant_id = '10000000-0000-4000-8000-000000000002'
+      AND key = 'fixture-concurrent-intertenant'
+      AND actor_id = '30000000-0000-4000-8000-000000000002'
+  ) THEN
+    RAISE EXCEPTION 'Expected each tenant idempotency row to retain its own actor';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE idempotency_key = 'fixture-concurrent-intertenant'
+    AND tenant_id IN (
+      '10000000-0000-4000-8000-000000000001',
+      '10000000-0000-4000-8000-000000000002'
+    )
+    AND status = 'COMPLETED';
+  IF v_count <> 2 THEN
+    RAISE EXCEPTION 'Expected two completed inter-tenant executions, found %', v_count;
+  END IF;
+
+  SELECT count(DISTINCT actor_id) INTO v_count
+  FROM public.action_executions
+  WHERE idempotency_key = 'fixture-concurrent-intertenant'
+    AND tenant_id IN (
+      '10000000-0000-4000-8000-000000000001',
+      '10000000-0000-4000-8000-000000000002'
+    );
+  IF v_count <> 2 THEN
+    RAISE EXCEPTION 'Expected two distinct authenticated actors, found %', v_count;
+  END IF;
+
+  SELECT count(DISTINCT request_hash) INTO v_count
+  FROM public.idempotency_keys
+  WHERE key = 'fixture-concurrent-intertenant'
+    AND tenant_id IN (
+      '10000000-0000-4000-8000-000000000001',
+      '10000000-0000-4000-8000-000000000002'
+    );
+  IF v_count <> 2 THEN
+    RAISE EXCEPTION 'Expected distinct request hashes for the distinct actor/request pairs, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE name IN (
+    'Concurrent Intertenant Offer A',
+    'Concurrent Intertenant Offer B'
+  );
+  IF v_count <> 2 THEN
+    RAISE EXCEPTION 'Expected two inter-tenant offers, found %', v_count;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM public.offers
+    WHERE name = 'Concurrent Intertenant Offer A'
+      AND demand_id = '50000000-0000-4000-8000-000000000002'
+      AND provider_actor_id = '30000000-0000-4000-8000-000000000001'
+  ) OR NOT EXISTS (
+    SELECT 1 FROM public.offers
+    WHERE name = 'Concurrent Intertenant Offer B'
+      AND demand_id = '50000000-0000-4000-8000-000000000001'
+      AND provider_actor_id = '30000000-0000-4000-8000-000000000002'
+  ) THEN
+    RAISE EXCEPTION 'Inter-tenant offers were not created for their expected fixture actors and demands';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_events e
+  JOIN public.action_executions x ON x.id = e.execution_id
+  WHERE x.idempotency_key = 'fixture-concurrent-intertenant'
+    AND e.event_type = 'ACTION_SUCCEEDED'
+    AND e.tenant_id IN (
+      '10000000-0000-4000-8000-000000000001',
+      '10000000-0000-4000-8000-000000000002'
+    );
+  IF v_count <> 2 THEN
+    RAISE EXCEPTION 'Expected one success event per concurrent tenant execution, found %', v_count;
+  END IF;
+END
+$$;
+
+SELECT 'CREATE_OFFER inter-tenant concurrency assertions passed' AS result;
+SQL
