@@ -2867,3 +2867,300 @@ $qa68_assert$;
 
 RESET ROLE;
 SELECT 'CREATE_OFFER request_hash precedence assertions passed' AS result;
+
+
+-- OFFER-QA-69: request_hash mismatch must take precedence for an existing
+-- COMPLETED key too. A retry with a changed effective business parameter
+-- must not return the previously stored success result or mutate any row.
+-- All records are synthetic and confined to the disposable PostgreSQL CI DB.
+RESET ROLE;
+
+DO $qa69_seed$
+DECLARE
+  v_action_id uuid;
+  v_execution_id uuid := gen_random_uuid();
+  v_offer_id uuid := gen_random_uuid();
+  v_correlation_id uuid := gen_random_uuid();
+  v_actor_id uuid := '30000000-0000-4000-8000-000000000001';
+  v_tenant_id uuid := '10000000-0000-4000-8000-000000000001';
+  v_input jsonb := '{"case":"completed-hash-precedence"}'::jsonb;
+  v_execution_result jsonb;
+  v_original_hash text;
+BEGIN
+  SELECT id INTO v_action_id
+  FROM public.action_definitions
+  WHERE action_key = 'CREATE_OFFER'
+    AND version = 1
+    AND status = 'published';
+
+  IF v_action_id IS NULL THEN
+    RAISE EXCEPTION 'Published CREATE_OFFER fixture definition is missing';
+  END IF;
+
+  v_original_hash := md5(jsonb_build_object(
+    'input', v_input,
+    'name', 'Request Hash Precedence Completed Fixture Offer',
+    'demandId', '50000000-0000-4000-8000-000000000001'::uuid,
+    'productMasterId', '40000000-0000-4000-8000-000000000001'::uuid,
+    'providerActorId', v_actor_id,
+    'quantity', 2,
+    'price', 12,
+    'currency', 'USD',
+    'conditions', NULL,
+    'market', NULL,
+    'geography', NULL,
+    'attributes', '{}'::jsonb,
+    'documentationStatus', NULL,
+    'lifecycle', NULL,
+    'offerType', NULL,
+    'pricingModel', NULL
+  )::text);
+
+  INSERT INTO public.offers(
+    id, name, demand_id, product_master_id, provider_actor_id,
+    quantity, price, currency, attributes
+  )
+  VALUES (
+    v_offer_id,
+    'Request Hash Precedence Completed Fixture Offer',
+    '50000000-0000-4000-8000-000000000001',
+    '40000000-0000-4000-8000-000000000001',
+    v_actor_id,
+    2,
+    12,
+    'USD',
+    '{}'::jsonb
+  );
+
+  v_execution_result := jsonb_build_object(
+    'status', 'succeeded',
+    'executionId', v_execution_id,
+    'objectType', 'Offer',
+    'objectId', v_offer_id
+  );
+
+  INSERT INTO public.action_executions(
+    id, action_id, action_version, actor_id, object_type, object_id,
+    correlation_id, idempotency_key, status, input, result, completed_at, tenant_id
+  )
+  VALUES (
+    v_execution_id, v_action_id, 1, v_actor_id, 'Offer', v_offer_id,
+    v_correlation_id, 'fixture-hash-mismatch-completed', 'COMPLETED',
+    v_input, v_execution_result, now(), v_tenant_id
+  );
+
+  INSERT INTO public.idempotency_keys(
+    key, action_id, actor_id, request_hash, execution_id,
+    status, result, completed_at, tenant_id
+  )
+  VALUES (
+    'fixture-hash-mismatch-completed', v_action_id, v_actor_id,
+    v_original_hash, v_execution_id, 'COMPLETED',
+    v_execution_result, now(), v_tenant_id
+  );
+
+  INSERT INTO public.action_events(
+    execution_id, action_id, action_version, event_type, actor_id,
+    object_type, object_id, correlation_id, payload, tenant_id
+  )
+  VALUES (
+    v_execution_id, v_action_id, 1, 'ACTION_SUCCEEDED', v_actor_id,
+    'Offer', v_offer_id, v_correlation_id, v_execution_result, v_tenant_id
+  );
+END
+$qa69_seed$;
+
+SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+SET ROLE authenticated;
+
+DO $qa69_assert$
+DECLARE
+  v_error text;
+  v_execution_id uuid;
+  v_offer_id uuid;
+  v_original_hash text;
+  v_changed_hash text;
+  v_stored_hash text;
+  v_stored_result jsonb;
+  v_expected_result jsonb;
+  v_count integer;
+BEGIN
+  v_original_hash := md5(jsonb_build_object(
+    'input', '{"case":"completed-hash-precedence"}'::jsonb,
+    'name', 'Request Hash Precedence Completed Fixture Offer',
+    'demandId', '50000000-0000-4000-8000-000000000001'::uuid,
+    'productMasterId', '40000000-0000-4000-8000-000000000001'::uuid,
+    'providerActorId', '30000000-0000-4000-8000-000000000001'::uuid,
+    'quantity', 2,
+    'price', 12,
+    'currency', 'USD',
+    'conditions', NULL,
+    'market', NULL,
+    'geography', NULL,
+    'attributes', '{}'::jsonb,
+    'documentationStatus', NULL,
+    'lifecycle', NULL,
+    'offerType', NULL,
+    'pricingModel', NULL
+  )::text);
+
+  v_changed_hash := md5(jsonb_build_object(
+    'input', '{"case":"completed-hash-precedence"}'::jsonb,
+    'name', 'Request Hash Precedence Completed Fixture Offer',
+    'demandId', '50000000-0000-4000-8000-000000000001'::uuid,
+    'productMasterId', '40000000-0000-4000-8000-000000000001'::uuid,
+    'providerActorId', '30000000-0000-4000-8000-000000000001'::uuid,
+    'quantity', 2,
+    'price', 13,
+    'currency', 'USD',
+    'conditions', NULL,
+    'market', NULL,
+    'geography', NULL,
+    'attributes', '{}'::jsonb,
+    'documentationStatus', NULL,
+    'lifecycle', NULL,
+    'offerType', NULL,
+    'pricingModel', NULL
+  )::text);
+
+  IF v_original_hash = v_changed_hash THEN
+    RAISE EXCEPTION 'Fixture must use different hashes for prices 12 and 13';
+  END IF;
+
+  SELECT execution_id, request_hash, result
+  INTO v_execution_id, v_stored_hash, v_stored_result
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-hash-mismatch-completed'
+    AND status = 'COMPLETED';
+
+  IF v_execution_id IS NULL
+     OR v_stored_hash IS DISTINCT FROM v_original_hash THEN
+    RAISE EXCEPTION 'COMPLETED hash-mismatch fixture was not seeded with the expected original hash';
+  END IF;
+
+  v_expected_result := jsonb_build_object(
+    'status', 'succeeded',
+    'executionId', v_execution_id,
+    'objectType', 'Offer',
+    'objectId', (
+      SELECT object_id
+      FROM public.action_executions
+      WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+        AND id = v_execution_id
+        AND idempotency_key = 'fixture-hash-mismatch-completed'
+    )
+  );
+
+  IF v_stored_result IS DISTINCT FROM v_expected_result THEN
+    RAISE EXCEPTION 'COMPLETED fixture does not contain the expected original success result';
+  END IF;
+
+  SELECT object_id
+  INTO v_offer_id
+  FROM public.action_executions
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND id = v_execution_id
+    AND idempotency_key = 'fixture-hash-mismatch-completed'
+    AND status = 'COMPLETED';
+
+  IF v_offer_id IS NULL THEN
+    RAISE EXCEPTION 'COMPLETED hash-mismatch fixture is missing its original offer';
+  END IF;
+
+  v_error := NULL;
+  BEGIN
+    PERFORM public.execute_create_offer_v1(
+      '10000000-0000-4000-8000-000000000001',
+      'fixture-hash-mismatch-completed',
+      '{"case":"completed-hash-precedence"}'::jsonb,
+      'Request Hash Precedence Completed Fixture Offer',
+      '50000000-0000-4000-8000-000000000001',
+      '40000000-0000-4000-8000-000000000001',
+      '30000000-0000-4000-8000-000000000001',
+      2,
+      13,
+      'USD'
+    );
+  EXCEPTION WHEN OTHERS THEN
+    v_error := SQLERRM;
+  END;
+
+  IF v_error IS DISTINCT FROM 'IDEMPOTENCY_KEY_REUSE' THEN
+    RAISE EXCEPTION 'COMPLETED hash mismatch must take precedence over success replay; expected IDEMPOTENCY_KEY_REUSE, got %',
+      coalesce(v_error, '<no error>');
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-hash-mismatch-completed';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'COMPLETED hash-mismatch retry changed or duplicated the idempotency row; expected 1, found %',
+      v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-hash-mismatch-completed'
+    AND status = 'COMPLETED'
+    AND execution_id = v_execution_id
+    AND request_hash = v_original_hash
+    AND result = v_expected_result;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'COMPLETED hash-mismatch retry changed the original idempotency row';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND idempotency_key = 'fixture-hash-mismatch-completed';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'COMPLETED hash-mismatch retry created or removed an execution; expected 1, found %',
+      v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND id = v_execution_id
+    AND idempotency_key = 'fixture-hash-mismatch-completed'
+    AND status = 'COMPLETED'
+    AND object_id = v_offer_id
+    AND result = v_expected_result;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'COMPLETED hash-mismatch retry changed the original execution result/object';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE id = v_offer_id
+    AND name = 'Request Hash Precedence Completed Fixture Offer'
+    AND demand_id = '50000000-0000-4000-8000-000000000001'
+    AND product_master_id = '40000000-0000-4000-8000-000000000001'
+    AND provider_actor_id = '30000000-0000-4000-8000-000000000001'
+    AND quantity = 2
+    AND price = 12
+    AND currency = 'USD'
+    AND attributes = '{}'::jsonb;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'COMPLETED hash-mismatch retry changed the original offer';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_events
+  WHERE execution_id = v_execution_id
+    AND tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND event_type = 'ACTION_SUCCEEDED'
+    AND object_type = 'Offer'
+    AND object_id = v_offer_id
+    AND payload = v_expected_result;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'COMPLETED hash-mismatch retry changed or duplicated the original success event';
+  END IF;
+END
+$qa69_assert$;
+
+RESET ROLE;
+SELECT 'CREATE_OFFER COMPLETED request_hash precedence assertions passed' AS result;
