@@ -121,3 +121,37 @@ test("executeAction propagates a registered handler rejection without retrying",
   expect(caughtError).toBe(expectedError);
 });
 
+test("executeAction propagates a getDefinition rejection without invoking a handler", async () => {
+  const context: ActionContext = {
+    userId: "user-1",
+    tenantId: "tenant-1",
+    actionKey: "CREATE_OFFER",
+    actionVersion: 1,
+    objectType: "TestObject",
+    objectId: "object-1",
+    correlationId: "correlation-1",
+    idempotencyKey: "idempotency-1",
+  };
+  const input: ActionInput = { demandId: "demand-1", quantity: 3 };
+  const expectedError = new Error("CREATE_OFFER definition lookup unavailable");
+  let definitionLookups = 0;
+  let handlerCalls = 0;
+
+  await expect(
+    executeAction(context, input, {
+      getDefinition: async () => {
+        definitionLookups += 1;
+        throw expectedError;
+      },
+      handlers: {
+        CREATE_OFFER: async () => {
+          handlerCalls += 1;
+          return { executionId: "unexpected", status: "succeeded" };
+        },
+      },
+    }),
+  ).rejects.toBe(expectedError);
+
+  expect(definitionLookups).toBe(1);
+  expect(handlerCalls).toBe(0);
+});
