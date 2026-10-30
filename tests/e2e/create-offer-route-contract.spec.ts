@@ -17,6 +17,7 @@ async function postCreateOffer(
   profileStatus = 200,
   profileActorId: string | null = "30000000-0000-4000-8000-000000000001",
   profileMissing = false,
+  createOfferRpcHttpStatus = 200,
 ) {
   process.env.NEXT_PUBLIC_SUPABASE_URL ??= "https://example.supabase.co";
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??= "ci-placeholder-anon-key";
@@ -77,6 +78,12 @@ async function postCreateOffer(
       return Response.json({ action_key: "CREATE_OFFER", version: 1, status: "published" });
     }
     if (url.pathname === "/rest/v1/rpc/execute_create_offer_v1") {
+      if (createOfferRpcHttpStatus !== 200) {
+        return Response.json(
+          { message: "CREATE_OFFER RPC unavailable", code: "XX000", details: null, hint: null },
+          { status: createOfferRpcHttpStatus },
+        );
+      }
       return Response.json({
         executionId: "10000000-0000-4000-8000-000000000001",
         status: rpcStatus,
@@ -478,4 +485,30 @@ test("CREATE_OFFER route ignores null membership rows when one valid tenant rema
     (request) => request.path === "/rest/v1/rpc/execute_create_offer_v1",
   );
   expect(executionCall?.body?.p_tenant_id).toBe(tenantId);
+});
+
+test("CREATE_OFFER route preserves the current error response when the execution RPC returns HTTP 500", async () => {
+  const result = await postCreateOffer(
+    "USD",
+    {},
+    undefined,
+    undefined,
+    "succeeded",
+    "Bearer qima-route-test-token",
+    200,
+    200,
+    200,
+    "30000000-0000-4000-8000-000000000001",
+    false,
+    500,
+  );
+
+  expect(result.status).toBe(400);
+  expect(result.body).toMatchObject({ error: "CREATE_OFFER RPC unavailable" });
+  expect(
+    result.requests.some((request) => request.path === "/rest/v1/rpc/get_action_definition_v1"),
+  ).toBe(true);
+  expect(
+    result.requests.some((request) => request.path === "/rest/v1/rpc/execute_create_offer_v1"),
+  ).toBe(true);
 });
