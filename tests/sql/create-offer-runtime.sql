@@ -2646,8 +2646,50 @@ DECLARE
   v_failed_result jsonb;
   v_expected_failed_result jsonb;
   v_original_hash text;
+  v_expected_hash text;
+  v_changed_hash text;
   v_count integer;
 BEGIN
+  v_expected_hash := md5(jsonb_build_object(
+    'input', '{"case":"request-hash-precedence"}'::jsonb,
+    'name', 'Request Hash Precedence Fixture Offer',
+    'demandId', '50000000-0000-4000-8000-000000000001'::uuid,
+    'productMasterId', '40000000-0000-4000-8000-000000000001'::uuid,
+    'providerActorId', '30000000-0000-4000-8000-000000000001'::uuid,
+    'quantity', 2,
+    'price', 12,
+    'currency', 'USD',
+    'conditions', NULL,
+    'market', NULL,
+    'geography', NULL,
+    'attributes', '{}'::jsonb,
+    'documentationStatus', NULL,
+    'lifecycle', NULL,
+    'offerType', NULL,
+    'pricingModel', NULL
+  )::text);
+  v_changed_hash := md5(jsonb_build_object(
+    'input', '{"case":"request-hash-precedence"}'::jsonb,
+    'name', 'Request Hash Precedence Fixture Offer',
+    'demandId', '50000000-0000-4000-8000-000000000001'::uuid,
+    'productMasterId', '40000000-0000-4000-8000-000000000001'::uuid,
+    'providerActorId', '30000000-0000-4000-8000-000000000001'::uuid,
+    'quantity', 2,
+    'price', 13,
+    'currency', 'USD',
+    'conditions', NULL,
+    'market', NULL,
+    'geography', NULL,
+    'attributes', '{}'::jsonb,
+    'documentationStatus', NULL,
+    'lifecycle', NULL,
+    'offerType', NULL,
+    'pricingModel', NULL
+  )::text);
+  IF v_expected_hash = v_changed_hash THEN
+    RAISE EXCEPTION 'Fixture must use different hashes for prices 12 and 13';
+  END IF;
+
   SELECT execution_id, result, request_hash
   INTO v_failed_execution_id, v_failed_result, v_original_hash
   FROM public.idempotency_keys
@@ -2655,8 +2697,10 @@ BEGIN
     AND key = 'fixture-hash-mismatch-failed'
     AND status = 'FAILED';
 
-  IF v_failed_execution_id IS NULL OR v_failed_result IS NULL OR v_original_hash IS NULL THEN
-    RAISE EXCEPTION 'FAILED hash-mismatch fixture was not seeded completely';
+  IF v_failed_execution_id IS NULL
+     OR v_failed_result IS NULL
+     OR v_original_hash IS DISTINCT FROM v_expected_hash THEN
+    RAISE EXCEPTION 'FAILED hash-mismatch fixture was not seeded with the expected original hash/result';
   END IF;
 
   v_expected_failed_result := jsonb_build_object(
@@ -2699,8 +2743,9 @@ BEGIN
     AND status = 'IN_PROGRESS'
     AND result IS NULL;
 
-  IF v_running_execution_id IS NULL OR v_original_hash IS NULL THEN
-    RAISE EXCEPTION 'IN_PROGRESS hash-mismatch fixture was not seeded completely';
+  IF v_running_execution_id IS NULL
+     OR v_original_hash IS DISTINCT FROM v_expected_hash THEN
+    RAISE EXCEPTION 'IN_PROGRESS hash-mismatch fixture was not seeded with the expected original hash';
   END IF;
 
   v_error := NULL;
