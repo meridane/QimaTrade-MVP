@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { executeAction, type ActionInput } from "../../lib/actions/engine";
+import { executeAction, type ActionDefinition, type ActionInput } from "../../lib/actions/engine";
 import type { ActionContext, ActionResult } from "../../lib/actions/types";
 
 test("executeAction rejects a published action when no handler is registered", async () => {
@@ -161,3 +161,51 @@ test("executeAction propagates a getDefinition rejection without invoking a hand
   expect(definitionLookups).toBe(1);
   expect(handlerCalls).toBe(0);
 });
+
+const invalidActionDefinitions: Array<{ label: string; definition: ActionDefinition | null }> = [
+  { label: "missing", definition: null },
+  {
+    label: "draft",
+    definition: { actionKey: "CREATE_OFFER", version: 1, status: "draft" },
+  },
+  {
+    label: "retired",
+    definition: { actionKey: "CREATE_OFFER", version: 1, status: "retired" },
+  },
+];
+
+for (const invalidCase of invalidActionDefinitions) {
+  test(`executeAction rejects ${invalidCase.label} definitions before invoking a handler`, async () => {
+    const context: ActionContext = {
+      userId: "user-1",
+      tenantId: "tenant-1",
+      actionKey: "CREATE_OFFER",
+      actionVersion: 1,
+      objectType: "TestObject",
+      objectId: "object-1",
+      correlationId: "correlation-1",
+      idempotencyKey: "idempotency-1",
+    };
+    const input: ActionInput = { demandId: "demand-1", quantity: 3 };
+    let definitionLookups = 0;
+    let handlerCalls = 0;
+
+    await expect(
+      executeAction(context, input, {
+        getDefinition: async () => {
+          definitionLookups += 1;
+          return invalidCase.definition;
+        },
+        handlers: {
+          CREATE_OFFER: async () => {
+            handlerCalls += 1;
+            return { executionId: "unexpected", status: "succeeded" };
+          },
+        },
+      }),
+    ).rejects.toThrow("ACTION_NOT_PUBLISHED");
+
+    expect(definitionLookups).toBe(1);
+    expect(handlerCalls).toBe(0);
+  });
+}
