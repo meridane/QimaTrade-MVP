@@ -32,19 +32,48 @@ SELECT public.execute_create_offer_v1(
   'USD'
 );
 "
-"${PSQL[@]}" -c "$call_sql" > /tmp/qima-concurrent-1.log &
+"${PSQL_TUPLE[@]}" -c "$call_sql" > /tmp/qima-concurrent-1.log &
 pid1=$!
-"${PSQL[@]}" -c "$call_sql" > /tmp/qima-concurrent-2.log &
+"${PSQL_TUPLE[@]}" -c "$call_sql" > /tmp/qima-concurrent-2.log &
 pid2=$!
 wait "$pid1"
 wait "$pid2"
 
+if [[ ! -s /tmp/qima-concurrent-1.log || ! -s /tmp/qima-concurrent-2.log ]]; then
+  echo "Both identical concurrent CREATE_OFFER calls must return a JSONB result." >&2
+  cat /tmp/qima-concurrent-1.log /tmp/qima-concurrent-2.log >&2
+  exit 1
+fi
+
+if ! cmp -s /tmp/qima-concurrent-1.log /tmp/qima-concurrent-2.log; then
+  echo "Identical concurrent CREATE_OFFER calls returned different results." >&2
+  diff -u /tmp/qima-concurrent-1.log /tmp/qima-concurrent-2.log >&2 || true
+  exit 1
+fi
+
+"${PSQL_TUPLE[@]}" -c "
+  SELECT result::text
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-concurrent-first-insert'
+    AND status = 'COMPLETED';
+" > /tmp/qima-concurrent-stored-result.log
+
+if ! cmp -s /tmp/qima-concurrent-1.log /tmp/qima-concurrent-stored-result.log; then
+  echo "Concurrent CREATE_OFFER responses do not match the stored idempotency result." >&2
+  diff -u /tmp/qima-concurrent-1.log /tmp/qima-concurrent-stored-result.log >&2 || true
+  exit 1
+fi
+
 "${PSQL[@]}" <<'SQL'
-DO $$
+DO $
 DECLARE
   key_rows integer;
+  completed_key_rows integer;
   execution_rows integer;
+  completed_execution_rows integer;
   offer_rows integer;
+  event_rows integer;
 BEGIN
   SELECT count(*) INTO key_rows
   FROM public.idempotency_keys
@@ -52,20 +81,44 @@ BEGIN
     AND key = 'fixture-concurrent-first-insert';
   IF key_rows <> 1 THEN RAISE EXCEPTION 'Expected one idempotency row for concurrent calls, got %', key_rows; END IF;
 
+  SELECT count(*) INTO completed_key_rows
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-concurrent-first-insert'
+    AND status = 'COMPLETED';
+  IF completed_key_rows <> 1 THEN RAISE EXCEPTION 'Expected one completed idempotency row for concurrent calls, got %', completed_key_rows; END IF;
+
   SELECT count(*) INTO execution_rows
+  FROM public.action_executions
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND idempotency_key = 'fixture-concurrent-first-insert';
+  IF execution_rows <> 1 THEN RAISE EXCEPTION 'Expected one execution for concurrent calls, got %', execution_rows; END IF;
+
+  SELECT count(*) INTO completed_execution_rows
   FROM public.action_executions
   WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
     AND idempotency_key = 'fixture-concurrent-first-insert'
     AND status = 'COMPLETED';
-  IF execution_rows <> 1 THEN RAISE EXCEPTION 'Expected one completed execution for concurrent calls, got %', execution_rows; END IF;
+  IF completed_execution_rows <> 1 THEN RAISE EXCEPTION 'Expected one completed execution for concurrent calls, got %', completed_execution_rows; END IF;
 
   SELECT count(*) INTO offer_rows
   FROM public.offers
   WHERE name = 'Concurrent Fixture Offer';
   IF offer_rows <> 1 THEN RAISE EXCEPTION 'Expected one offer for concurrent calls, got %', offer_rows; END IF;
+
+  SELECT count(*) INTO event_rows
+  FROM public.action_events e
+  JOIN public.action_executions x
+    ON x.id = e.execution_id
+   AND x.tenant_id = e.tenant_id
+  WHERE x.tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND x.idempotency_key = 'fixture-concurrent-first-insert'
+    AND e.event_type = 'ACTION_SUCCEEDED'
+    AND e.object_id = x.object_id;
+  IF event_rows <> 1 THEN RAISE EXCEPTION 'Expected one success event for concurrent calls, got %', event_rows; END IF;
 END
-$$;
-SELECT 'CREATE_OFFER concurrency assertions passed' AS result;
+$;
+SELECT 'CREATE_OFFER identical same-tenant concurrency assertions passed' AS result;
 SQL
 
 # Race the same key in two tenants at once, using distinct authenticated users
