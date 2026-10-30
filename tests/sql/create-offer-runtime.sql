@@ -1351,8 +1351,113 @@ BEGIN
   IF v_count <> 2 THEN
     RAISE EXCEPTION 'Tenant retries created extra success events; expected 2, found %', v_count;
   END IF;
+
+  -- A changed payload for tenant A must be rejected without disturbing tenant B.
+  BEGIN
+    PERFORM public.execute_create_offer_v1(
+      '10000000-0000-4000-8000-000000000001',
+      'fixture-same-key-two-tenants',
+      '{"case":"tenant-scoped-idempotency"}'::jsonb,
+      'Tenant Scoped Idempotency Offer',
+      '50000000-0000-4000-8000-000000000003',
+      '40000000-0000-4000-8000-000000000001',
+      '30000000-0000-4000-8000-000000000001',
+      1,
+      11,
+      'USD'
+    );
+    RAISE EXCEPTION 'Expected tenant A changed-price retry to be rejected';
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM <> 'IDEMPOTENCY_KEY_REUSE' THEN
+      RAISE EXCEPTION 'Expected IDEMPOTENCY_KEY_REUSE for tenant A, got %', SQLERRM;
+    END IF;
+  END;
+
+  -- Both original requests must still replay their own unchanged results.
+  tenant_a_retry := public.execute_create_offer_v1(
+    '10000000-0000-4000-8000-000000000001',
+    'fixture-same-key-two-tenants',
+    '{"case":"tenant-scoped-idempotency"}'::jsonb,
+    'Tenant Scoped Idempotency Offer',
+    '50000000-0000-4000-8000-000000000003',
+    '40000000-0000-4000-8000-000000000001',
+    '30000000-0000-4000-8000-000000000001',
+    1,
+    10,
+    'USD'
+  );
+  tenant_b_retry := public.execute_create_offer_v1(
+    '10000000-0000-4000-8000-000000000002',
+    'fixture-same-key-two-tenants',
+    '{"case":"tenant-scoped-idempotency"}'::jsonb,
+    'Tenant Scoped Idempotency Offer',
+    '50000000-0000-4000-8000-000000000003',
+    '40000000-0000-4000-8000-000000000001',
+    '30000000-0000-4000-8000-000000000001',
+    1,
+    10,
+    'USD'
+  );
+
+  IF tenant_a_retry IS DISTINCT FROM tenant_a_result THEN
+    RAISE EXCEPTION 'Tenant A original retry changed after rejected payload: initial %, retry %',
+      tenant_a_result, tenant_a_retry;
+  END IF;
+  IF tenant_b_retry IS DISTINCT FROM tenant_b_result THEN
+    RAISE EXCEPTION 'Tenant B replay was affected by tenant A rejection: initial %, retry %',
+      tenant_b_result, tenant_b_retry;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE key = 'fixture-same-key-two-tenants'
+    AND tenant_id IN (
+      '10000000-0000-4000-8000-000000000001',
+      '10000000-0000-4000-8000-000000000002'
+    )
+    AND status = 'COMPLETED';
+  IF v_count <> 2 THEN
+    RAISE EXCEPTION 'Rejected tenant A retry changed idempotency rows; expected 2, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE idempotency_key = 'fixture-same-key-two-tenants'
+    AND tenant_id IN (
+      '10000000-0000-4000-8000-000000000001',
+      '10000000-0000-4000-8000-000000000002'
+    )
+    AND status = 'COMPLETED';
+  IF v_count <> 2 THEN
+    RAISE EXCEPTION 'Rejected tenant A retry created an execution; expected 2, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE id IN (
+    (tenant_a_result->>'objectId')::uuid,
+    (tenant_b_result->>'objectId')::uuid
+  );
+  IF v_count <> 2 THEN
+    RAISE EXCEPTION 'Rejected tenant A retry created or lost an offer; expected 2, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_events
+  WHERE event_type = 'ACTION_SUCCEEDED'
+    AND tenant_id IN (
+      '10000000-0000-4000-8000-000000000001',
+      '10000000-0000-4000-8000-000000000002'
+    )
+    AND object_id IN (
+      (tenant_a_result->>'objectId')::uuid,
+      (tenant_b_result->>'objectId')::uuid
+    );
+  IF v_count <> 2 THEN
+    RAISE EXCEPTION 'Rejected tenant A retry created an event; expected 2, found %', v_count;
+  END IF;
 END
-$$;
+$;
 
 RESET ROLE;
 DELETE FROM public.dt_memberships
