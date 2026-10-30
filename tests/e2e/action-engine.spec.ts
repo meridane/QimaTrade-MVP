@@ -56,6 +56,8 @@ test("executeAction invokes a registered handler once with the original context 
     result: { offerId: "offer-1", accepted: true },
   };
   let definitionLookups = 0;
+  let receivedDefinitionActionKey: string | undefined;
+  let receivedDefinitionVersion: number | undefined;
   let handlerCalls = 0;
   let receivedContext: ActionContext | undefined;
   let receivedInput: ActionInput | undefined;
@@ -63,6 +65,8 @@ test("executeAction invokes a registered handler once with the original context 
   const result = await executeAction(context, input, {
     getDefinition: async (actionKey, version) => {
       definitionLookups += 1;
+      receivedDefinitionActionKey = actionKey;
+      receivedDefinitionVersion = version;
       return { actionKey, version, status: "published" };
     },
     handlers: {
@@ -76,6 +80,8 @@ test("executeAction invokes a registered handler once with the original context 
   });
 
   expect(definitionLookups).toBe(1);
+  expect(receivedDefinitionActionKey).toBe(context.actionKey);
+  expect(receivedDefinitionVersion).toBe(context.actionVersion);
   expect(handlerCalls).toBe(1);
   expect(receivedContext).toBe(context);
   expect(receivedInput).toBe(input);
