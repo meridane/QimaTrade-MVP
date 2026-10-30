@@ -367,6 +367,116 @@ BEGIN
     IF SQLERRM NOT LIKE '%IDEMPOTENCY_KEY_REUSE%' THEN RAISE; END IF;
   END;
 
+  -- Lifecycle uses the application default "draft" and must participate in the request hash.
+  first_result := public.execute_create_offer_v1(
+    '10000000-0000-4000-8000-000000000001',
+    'fixture-idempotency-lifecycle',
+    '{"case":"lifecycle-hash"}'::jsonb,
+    'Lifecycle Hash Offer',
+    '50000000-0000-4000-8000-000000000001',
+    '40000000-0000-4000-8000-000000000001',
+    '30000000-0000-4000-8000-000000000001',
+    1,
+    10,
+    'USD',
+    p_lifecycle => 'draft',
+    p_offer_type => 'supplier_offer'
+  );
+  IF first_result->>'status' <> 'succeeded' THEN
+    RAISE EXCEPTION 'Expected lifecycle hash fixture to succeed, got %', first_result;
+  END IF;
+
+  BEGIN
+    PERFORM public.execute_create_offer_v1(
+      '10000000-0000-4000-8000-000000000001',
+      'fixture-idempotency-lifecycle',
+      '{"case":"lifecycle-hash"}'::jsonb,
+      'Lifecycle Hash Offer',
+      '50000000-0000-4000-8000-000000000001',
+      '40000000-0000-4000-8000-000000000001',
+      '30000000-0000-4000-8000-000000000001',
+      1,
+      10,
+      'USD',
+      p_lifecycle => NULL,
+      p_offer_type => 'supplier_offer'
+    );
+    RAISE EXCEPTION 'Expected changed lifecycle to be rejected';
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM NOT LIKE '%IDEMPOTENCY_KEY_REUSE%' THEN RAISE; END IF;
+  END;
+
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE name = 'Lifecycle Hash Offer'
+    AND lifecycle = 'draft'
+    AND offer_type = 'supplier_offer';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'Expected one lifecycle hash offer with application defaults, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE idempotency_key = 'fixture-idempotency-lifecycle';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'Expected one execution for lifecycle hash fixture, found %', v_count;
+  END IF;
+
+  -- Offer type uses the application default "supplier_offer" and must participate in the request hash.
+  first_result := public.execute_create_offer_v1(
+    '10000000-0000-4000-8000-000000000001',
+    'fixture-idempotency-offer-type',
+    '{"case":"offer-type-hash"}'::jsonb,
+    'Offer Type Hash Offer',
+    '50000000-0000-4000-8000-000000000001',
+    '40000000-0000-4000-8000-000000000001',
+    '30000000-0000-4000-8000-000000000001',
+    1,
+    10,
+    'USD',
+    p_lifecycle => 'draft',
+    p_offer_type => 'supplier_offer'
+  );
+  IF first_result->>'status' <> 'succeeded' THEN
+    RAISE EXCEPTION 'Expected offer type hash fixture to succeed, got %', first_result;
+  END IF;
+
+  BEGIN
+    PERFORM public.execute_create_offer_v1(
+      '10000000-0000-4000-8000-000000000001',
+      'fixture-idempotency-offer-type',
+      '{"case":"offer-type-hash"}'::jsonb,
+      'Offer Type Hash Offer',
+      '50000000-0000-4000-8000-000000000001',
+      '40000000-0000-4000-8000-000000000001',
+      '30000000-0000-4000-8000-000000000001',
+      1,
+      10,
+      'USD',
+      p_lifecycle => 'draft',
+      p_offer_type => NULL
+    );
+    RAISE EXCEPTION 'Expected changed offer type to be rejected';
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM NOT LIKE '%IDEMPOTENCY_KEY_REUSE%' THEN RAISE; END IF;
+  END;
+
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE name = 'Offer Type Hash Offer'
+    AND lifecycle = 'draft'
+    AND offer_type = 'supplier_offer';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'Expected one offer type hash offer with application defaults, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE idempotency_key = 'fixture-idempotency-offer-type';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'Expected one execution for offer type hash fixture, found %', v_count;
+  END IF;
+
   BEGIN
     PERFORM public.execute_create_offer_v1(
       '10000000-0000-4000-8000-000000000001',
