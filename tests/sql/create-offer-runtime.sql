@@ -2331,3 +2331,211 @@ $qa66_assert$;
 
 RESET ROLE;
 SELECT 'CREATE_OFFER COMPLETED JSONB-null replay assertions passed' AS result;
+
+-- OFFER-QA-67: a FAILED idempotency row containing JSONB null must return
+-- that stored JSON value unchanged, while preserving the original failure
+-- result on action_executions. All rows are limited to disposable CI.
+RESET ROLE;
+
+DO $qa67_seed$
+DECLARE
+  v_action_id uuid;
+  v_execution_id uuid := gen_random_uuid();
+  v_actor_id uuid := '30000000-0000-4000-8000-000000000001';
+  v_tenant_id uuid := '10000000-0000-4000-8000-000000000001';
+  v_input jsonb := '{"case":"failed-json-null-result-replay"}'::jsonb;
+  v_execution_result jsonb;
+  v_hash text;
+BEGIN
+  SELECT id INTO v_action_id
+  FROM public.action_definitions
+  WHERE action_key = 'CREATE_OFFER'
+    AND version = 1
+    AND status = 'published';
+
+  IF v_action_id IS NULL THEN
+    RAISE EXCEPTION 'Published CREATE_OFFER fixture definition is missing';
+  END IF;
+
+  v_hash := md5(jsonb_build_object(
+    'input', v_input,
+    'name', 'Existing Failed JSON Null Result Replay Offer',
+    'demandId', '50000000-0000-4000-8000-000000000001'::uuid,
+    'productMasterId', '40000000-0000-4000-8000-000000000001'::uuid,
+    'providerActorId', v_actor_id,
+    'quantity', 2,
+    'price', 12,
+    'currency', 'USD',
+    'conditions', NULL,
+    'market', NULL,
+    'geography', NULL,
+    'attributes', '{}'::jsonb,
+    'documentationStatus', NULL,
+    'lifecycle', NULL,
+    'offerType', NULL,
+    'pricingModel', NULL
+  )::text);
+
+  v_execution_result := jsonb_build_object(
+    'status', 'failed',
+    'executionId', v_execution_id,
+    'error', jsonb_build_object('code', 'FIXTURE_FAILURE')
+  );
+
+  INSERT INTO public.action_executions(
+    id, action_id, action_version, actor_id, object_type, object_id,
+    correlation_id, idempotency_key, status, input, result, completed_at, tenant_id
+  )
+  VALUES (
+    v_execution_id, v_action_id, 1, v_actor_id, 'Offer', NULL,
+    gen_random_uuid(), 'fixture-existing-failed-json-null-result-replay', 'FAILED',
+    v_input, v_execution_result, now(), v_tenant_id
+  );
+
+  -- JSONB null is non-NULL to SQL COALESCE. Keep a separate, meaningful
+  -- failure result on the execution row to prove the replay returns the
+  -- idempotency row's JSON null rather than the execution's result.
+  INSERT INTO public.idempotency_keys(
+    key, action_id, actor_id, request_hash, execution_id,
+    status, result, completed_at, tenant_id
+  )
+  VALUES (
+    'fixture-existing-failed-json-null-result-replay', v_action_id, v_actor_id, v_hash,
+    v_execution_id, 'FAILED', 'null'::jsonb, now(), v_tenant_id
+  );
+END
+$qa67_seed$;
+
+SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+SET ROLE authenticated;
+
+DO $qa67_assert$
+DECLARE
+  v_actual jsonb;
+  v_execution_id uuid;
+  v_idempotency_result jsonb;
+  v_execution_result jsonb;
+  v_expected_execution_result jsonb;
+  v_count integer;
+BEGIN
+  SELECT execution_id, result
+  INTO v_execution_id, v_idempotency_result
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-existing-failed-json-null-result-replay'
+    AND status = 'FAILED';
+
+  IF v_execution_id IS NULL THEN
+    RAISE EXCEPTION 'FAILED JSONB-null replay fixture was not seeded';
+  END IF;
+
+  IF v_idempotency_result IS NULL
+     OR jsonb_typeof(v_idempotency_result) IS DISTINCT FROM 'null' THEN
+    RAISE EXCEPTION 'FAILED JSONB-null fixture must contain JSON null, not SQL NULL';
+  END IF;
+
+  v_expected_execution_result := jsonb_build_object(
+    'status', 'failed',
+    'executionId', v_execution_id,
+    'error', jsonb_build_object('code', 'FIXTURE_FAILURE')
+  );
+
+  SELECT result INTO v_execution_result
+  FROM public.action_executions
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND id = v_execution_id
+    AND idempotency_key = 'fixture-existing-failed-json-null-result-replay'
+    AND status = 'FAILED'
+    AND object_id IS NULL;
+
+  IF v_execution_result IS DISTINCT FROM v_expected_execution_result THEN
+    RAISE EXCEPTION 'FAILED JSONB-null fixture lost its original execution failure result';
+  END IF;
+
+  v_actual := public.execute_create_offer_v1(
+    '10000000-0000-4000-8000-000000000001',
+    'fixture-existing-failed-json-null-result-replay',
+    '{"case":"failed-json-null-result-replay"}'::jsonb,
+    'Existing Failed JSON Null Result Replay Offer',
+    '50000000-0000-4000-8000-000000000001',
+    '40000000-0000-4000-8000-000000000001',
+    '30000000-0000-4000-8000-000000000001',
+    2,
+    12,
+    'USD'
+  );
+
+  IF v_actual IS DISTINCT FROM 'null'::jsonb THEN
+    RAISE EXCEPTION 'FAILED JSONB-null replay must return stored JSON null unchanged; got %',
+      v_actual;
+  END IF;
+
+  IF jsonb_typeof(v_actual) IS DISTINCT FROM 'null' THEN
+    RAISE EXCEPTION 'FAILED JSONB-null replay returned an unexpected JSON type: %',
+      jsonb_typeof(v_actual);
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-existing-failed-json-null-result-replay';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'FAILED JSONB-null replay created or removed an idempotency row; expected 1, found %',
+      v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-existing-failed-json-null-result-replay'
+    AND status = 'FAILED'
+    AND execution_id = v_execution_id
+    AND result IS NOT NULL
+    AND jsonb_typeof(result) = 'null';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'FAILED JSONB-null replay changed the original idempotency result';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND idempotency_key = 'fixture-existing-failed-json-null-result-replay';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'FAILED JSONB-null replay created or removed an execution; expected 1, found %',
+      v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND id = v_execution_id
+    AND idempotency_key = 'fixture-existing-failed-json-null-result-replay'
+    AND status = 'FAILED'
+    AND object_id IS NULL
+    AND result = v_expected_execution_result;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'FAILED JSONB-null replay changed the original execution failure result';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE name = 'Existing Failed JSON Null Result Replay Offer';
+  IF v_count <> 0 THEN
+    RAISE EXCEPTION 'FAILED JSONB-null replay unexpectedly created an offer';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_events e
+  JOIN public.action_executions x
+    ON x.id = e.execution_id
+   AND x.tenant_id = e.tenant_id
+  WHERE x.tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND x.idempotency_key = 'fixture-existing-failed-json-null-result-replay';
+  IF v_count <> 0 THEN
+    RAISE EXCEPTION 'FAILED JSONB-null replay unexpectedly created action events';
+  END IF;
+END
+$qa67_assert$;
+
+RESET ROLE;
+SELECT 'CREATE_OFFER FAILED JSONB-null replay assertions passed' AS result;
