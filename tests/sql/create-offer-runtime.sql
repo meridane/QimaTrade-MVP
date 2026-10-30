@@ -1873,3 +1873,228 @@ $qa64_assert$;
 
 RESET ROLE;
 SELECT 'CREATE_OFFER FAILED NULL-result replay fallback assertions passed' AS result;
+
+-- OFFER-QA-65: a terminal COMPLETED idempotency row with a NULL result
+-- must use the SQL fallback, even when the linked execution retains its
+-- normal succeeded result. This deliberately records the status-contract
+-- difference without changing the migration or choosing a public mapping.
+-- All records remain in the disposable PostgreSQL database used by CI.
+RESET ROLE;
+
+DO $qa65_seed$
+DECLARE
+  v_action_id uuid;
+  v_execution_id uuid := gen_random_uuid();
+  v_offer_id uuid := gen_random_uuid();
+  v_correlation_id uuid := gen_random_uuid();
+  v_actor_id uuid := '30000000-0000-4000-8000-000000000001';
+  v_tenant_id uuid := '10000000-0000-4000-8000-000000000001';
+  v_input jsonb := '{"case":"completed-null-result-replay"}'::jsonb;
+  v_execution_result jsonb;
+  v_hash text;
+BEGIN
+  SELECT id INTO v_action_id
+  FROM public.action_definitions
+  WHERE action_key = 'CREATE_OFFER'
+    AND version = 1
+    AND status = 'published';
+
+  IF v_action_id IS NULL THEN
+    RAISE EXCEPTION 'Published CREATE_OFFER fixture definition is missing';
+  END IF;
+
+  v_hash := md5(jsonb_build_object(
+    'input', v_input,
+    'name', 'Existing Completed Null Result Replay Offer',
+    'demandId', '50000000-0000-4000-8000-000000000001'::uuid,
+    'productMasterId', '40000000-0000-4000-8000-000000000001'::uuid,
+    'providerActorId', v_actor_id,
+    'quantity', 2,
+    'price', 12,
+    'currency', 'USD',
+    'conditions', NULL,
+    'market', NULL,
+    'geography', NULL,
+    'attributes', '{}'::jsonb,
+    'documentationStatus', NULL,
+    'lifecycle', NULL,
+    'offerType', NULL,
+    'pricingModel', NULL
+  )::text);
+
+  INSERT INTO public.offers(
+    id, name, demand_id, product_master_id, provider_actor_id,
+    quantity, price, currency, attributes
+  )
+  VALUES (
+    v_offer_id,
+    'Existing Completed Null Result Replay Offer',
+    '50000000-0000-4000-8000-000000000001',
+    '40000000-0000-4000-8000-000000000001',
+    v_actor_id,
+    2,
+    12,
+    'USD',
+    '{}'::jsonb
+  );
+
+  v_execution_result := jsonb_build_object(
+    'status', 'succeeded',
+    'executionId', v_execution_id,
+    'objectType', 'Offer',
+    'objectId', v_offer_id
+  );
+
+  INSERT INTO public.action_executions(
+    id, action_id, action_version, actor_id, object_type, object_id,
+    correlation_id, idempotency_key, status, input, result, completed_at, tenant_id
+  )
+  VALUES (
+    v_execution_id, v_action_id, 1, v_actor_id, 'Offer', v_offer_id,
+    v_correlation_id, 'fixture-existing-completed-null-result-replay', 'COMPLETED',
+    v_input, v_execution_result, now(), v_tenant_id
+  );
+
+  -- Model a partial result-column inconsistency: the execution and success
+  -- event retain their normal result, while the idempotency row result is NULL.
+  INSERT INTO public.idempotency_keys(
+    key, action_id, actor_id, request_hash, execution_id,
+    status, result, completed_at, tenant_id
+  )
+  VALUES (
+    'fixture-existing-completed-null-result-replay', v_action_id, v_actor_id, v_hash,
+    v_execution_id, 'COMPLETED', NULL, now(), v_tenant_id
+  );
+
+  INSERT INTO public.action_events(
+    execution_id, action_id, action_version, event_type, actor_id,
+    object_type, object_id, correlation_id, payload, tenant_id
+  )
+  VALUES (
+    v_execution_id, v_action_id, 1, 'ACTION_SUCCEEDED', v_actor_id,
+    'Offer', v_offer_id, v_correlation_id, v_execution_result, v_tenant_id
+  );
+END
+$qa65_seed$;
+
+SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+SET ROLE authenticated;
+
+DO $qa65_assert$
+DECLARE
+  v_expected jsonb;
+  v_actual jsonb;
+  v_execution_id uuid;
+  v_offer_id uuid;
+  v_count integer;
+BEGIN
+  SELECT execution_id
+  INTO v_execution_id
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-existing-completed-null-result-replay'
+    AND status = 'COMPLETED'
+    AND result IS NULL;
+
+  IF v_execution_id IS NULL THEN
+    RAISE EXCEPTION 'COMPLETED NULL-result replay fixture was not seeded';
+  END IF;
+
+  SELECT object_id
+  INTO v_offer_id
+  FROM public.action_executions
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND id = v_execution_id
+    AND idempotency_key = 'fixture-existing-completed-null-result-replay'
+    AND status = 'COMPLETED';
+
+  IF v_offer_id IS NULL THEN
+    RAISE EXCEPTION 'COMPLETED replay fixture is missing its original offer reference';
+  END IF;
+
+  v_expected := jsonb_build_object(
+    'status', 'completed',
+    'executionId', v_execution_id
+  );
+
+  v_actual := public.execute_create_offer_v1(
+    '10000000-0000-4000-8000-000000000001',
+    'fixture-existing-completed-null-result-replay',
+    '{"case":"completed-null-result-replay"}'::jsonb,
+    'Existing Completed Null Result Replay Offer',
+    '50000000-0000-4000-8000-000000000001',
+    '40000000-0000-4000-8000-000000000001',
+    '30000000-0000-4000-8000-000000000001',
+    2,
+    12,
+    'USD'
+  );
+
+  IF v_actual IS DISTINCT FROM v_expected THEN
+    RAISE EXCEPTION 'COMPLETED NULL-result replay did not return the coalesce fallback: expected %, got %',
+      v_expected, v_actual;
+  END IF;
+
+  IF v_actual->>'status' IS DISTINCT FROM 'completed'
+     OR v_actual->>'status' = 'succeeded'
+     OR v_actual->>'executionId' IS DISTINCT FROM v_execution_id::text THEN
+    RAISE EXCEPTION 'COMPLETED NULL-result fallback status/identifier contract changed unexpectedly: %',
+      v_actual;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-existing-completed-null-result-replay'
+    AND status = 'COMPLETED'
+    AND execution_id = v_execution_id
+    AND result IS NULL;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'COMPLETED NULL-result replay changed or duplicated its idempotency row';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND idempotency_key = 'fixture-existing-completed-null-result-replay';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'COMPLETED NULL-result replay created or removed an execution; expected 1, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND id = v_execution_id
+    AND status = 'COMPLETED'
+    AND object_id = v_offer_id
+    AND result = jsonb_build_object(
+      'status', 'succeeded',
+      'executionId', v_execution_id,
+      'objectType', 'Offer',
+      'objectId', v_offer_id
+    );
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'COMPLETED NULL-result replay changed the original execution result/object';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE id = v_offer_id
+    AND name = 'Existing Completed Null Result Replay Offer';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'COMPLETED NULL-result replay created, removed, or changed the original offer';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_events
+  WHERE execution_id = v_execution_id
+    AND event_type = 'ACTION_SUCCEEDED'
+    AND object_id = v_offer_id;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'COMPLETED NULL-result replay created or removed the original success event';
+  END IF;
+END
+$qa65_assert$;
+
+RESET ROLE;
+SELECT 'CREATE_OFFER COMPLETED NULL-result replay fallback assertions passed' AS result;
