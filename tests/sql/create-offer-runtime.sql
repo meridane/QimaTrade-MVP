@@ -1131,7 +1131,7 @@ VALUES (
 
 SET ROLE authenticated;
 
-DO $$
+DO $qima$
 DECLARE
   tenant_a_result jsonb;
   tenant_b_result jsonb;
@@ -1457,7 +1457,7 @@ BEGIN
     RAISE EXCEPTION 'Rejected tenant A retry created an event; expected 2, found %', v_count;
   END IF;
 END
-$;
+$qima$;
 
 RESET ROLE;
 DELETE FROM public.dt_memberships
