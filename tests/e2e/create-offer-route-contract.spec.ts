@@ -18,6 +18,7 @@ async function postCreateOffer(
   profileActorId: string | null = "30000000-0000-4000-8000-000000000001",
   profileMissing = false,
   createOfferRpcHttpStatus = 200,
+  getActionDefinitionRpcHttpStatus = 200,
 ) {
   process.env.NEXT_PUBLIC_SUPABASE_URL ??= "https://example.supabase.co";
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??= "ci-placeholder-anon-key";
@@ -75,6 +76,12 @@ async function postCreateOffer(
       return Response.json(membershipRows);
     }
     if (url.pathname === "/rest/v1/rpc/get_action_definition_v1") {
+      if (getActionDefinitionRpcHttpStatus !== 200) {
+        return Response.json(
+          { message: "Action definition lookup unavailable", code: "XX000", details: null, hint: null },
+          { status: getActionDefinitionRpcHttpStatus },
+        );
+      }
       return Response.json({ action_key: "CREATE_OFFER", version: 1, status: "published" });
     }
     if (url.pathname === "/rest/v1/rpc/execute_create_offer_v1") {
@@ -511,4 +518,31 @@ test("CREATE_OFFER route preserves the current error response when the execution
   expect(
     result.requests.some((request) => request.path === "/rest/v1/rpc/execute_create_offer_v1"),
   ).toBe(true);
+});
+
+test("CREATE_OFFER route stops before execution when action definition lookup returns HTTP 500", async () => {
+  const result = await postCreateOffer(
+    "USD",
+    {},
+    undefined,
+    undefined,
+    "succeeded",
+    "Bearer qima-route-test-token",
+    200,
+    200,
+    200,
+    "30000000-0000-4000-8000-000000000001",
+    false,
+    200,
+    500,
+  );
+
+  expect(result.status).toBe(400);
+  expect(result.body).toMatchObject({ error: "Action definition lookup unavailable" });
+  expect(
+    result.requests.some((request) => request.path === "/rest/v1/rpc/get_action_definition_v1"),
+  ).toBe(true);
+  expect(
+    result.requests.some((request) => request.path === "/rest/v1/rpc/execute_create_offer_v1"),
+  ).toBe(false);
 });
