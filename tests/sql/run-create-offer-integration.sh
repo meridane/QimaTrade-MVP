@@ -165,6 +165,7 @@ if [[ "$lock_snapshot" != "2|2" ]]; then
   cat /tmp/qima-intertenant-a.log /tmp/qima-intertenant-b.log >&2
   exit 1
 fi
+echo "Observed two distinct granted inter-tenant advisory locks concurrently."
 
 "${PSQL[@]}" <<'SQL'
 DO $$
@@ -257,7 +258,9 @@ BEGIN
 
   SELECT count(*) INTO v_count
   FROM public.action_events e
-  JOIN public.action_executions x ON x.id = e.execution_id
+  JOIN public.action_executions x
+    ON x.id = e.execution_id
+   AND x.tenant_id = e.tenant_id
   WHERE x.idempotency_key = 'fixture-concurrent-intertenant'
     AND e.event_type = 'ACTION_SUCCEEDED'
     AND e.tenant_id IN (
@@ -266,6 +269,17 @@ BEGIN
     );
   IF v_count <> 2 THEN
     RAISE EXCEPTION 'Expected one success event per concurrent tenant execution, found %', v_count;
+  END IF;
+
+  SELECT count(DISTINCT e.tenant_id) INTO v_count
+  FROM public.action_events e
+  JOIN public.action_executions x
+    ON x.id = e.execution_id
+   AND x.tenant_id = e.tenant_id
+  WHERE x.idempotency_key = 'fixture-concurrent-intertenant'
+    AND e.event_type = 'ACTION_SUCCEEDED';
+  IF v_count <> 2 THEN
+    RAISE EXCEPTION 'Expected success events in both tenants, found % distinct tenants', v_count;
   END IF;
 END
 $$;
