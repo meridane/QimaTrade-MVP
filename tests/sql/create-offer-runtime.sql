@@ -1135,6 +1135,8 @@ DO $$
 DECLARE
   tenant_a_result jsonb;
   tenant_b_result jsonb;
+  tenant_a_retry jsonb;
+  tenant_b_retry jsonb;
   v_count integer;
 BEGIN
   IF (
@@ -1255,6 +1257,99 @@ BEGIN
     );
   IF v_count <> 2 THEN
     RAISE EXCEPTION 'Expected one success event per tenant-scoped execution, found %', v_count;
+  END IF;
+
+  -- Replay each tenant's original request with the same key. Each call must
+  -- return that tenant's stored result, never the other tenant's result.
+  tenant_a_retry := public.execute_create_offer_v1(
+    '10000000-0000-4000-8000-000000000001',
+    'fixture-same-key-two-tenants',
+    '{"case":"tenant-scoped-idempotency"}'::jsonb,
+    'Tenant Scoped Idempotency Offer',
+    '50000000-0000-4000-8000-000000000003',
+    '40000000-0000-4000-8000-000000000001',
+    '30000000-0000-4000-8000-000000000001',
+    1,
+    10,
+    'USD'
+  );
+
+  tenant_b_retry := public.execute_create_offer_v1(
+    '10000000-0000-4000-8000-000000000002',
+    'fixture-same-key-two-tenants',
+    '{"case":"tenant-scoped-idempotency"}'::jsonb,
+    'Tenant Scoped Idempotency Offer',
+    '50000000-0000-4000-8000-000000000003',
+    '40000000-0000-4000-8000-000000000001',
+    '30000000-0000-4000-8000-000000000001',
+    1,
+    10,
+    'USD'
+  );
+
+  IF tenant_a_retry IS DISTINCT FROM tenant_a_result THEN
+    RAISE EXCEPTION 'Tenant A retry did not return its original result: initial %, retry %',
+      tenant_a_result, tenant_a_retry;
+  END IF;
+
+  IF tenant_b_retry IS DISTINCT FROM tenant_b_result THEN
+    RAISE EXCEPTION 'Tenant B retry did not return its original result: initial %, retry %',
+      tenant_b_result, tenant_b_retry;
+  END IF;
+
+  IF tenant_a_retry->>'objectId' = tenant_b_retry->>'objectId'
+     OR tenant_a_retry->>'executionId' = tenant_b_retry->>'executionId' THEN
+    RAISE EXCEPTION 'Tenant retries must remain bound to distinct original offers and executions: %, %',
+      tenant_a_retry, tenant_b_retry;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE key = 'fixture-same-key-two-tenants'
+    AND tenant_id IN (
+      '10000000-0000-4000-8000-000000000001',
+      '10000000-0000-4000-8000-000000000002'
+    )
+    AND status = 'COMPLETED';
+  IF v_count <> 2 THEN
+    RAISE EXCEPTION 'Tenant retries created or lost idempotency rows; expected 2, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE idempotency_key = 'fixture-same-key-two-tenants'
+    AND tenant_id IN (
+      '10000000-0000-4000-8000-000000000001',
+      '10000000-0000-4000-8000-000000000002'
+    )
+    AND status = 'COMPLETED';
+  IF v_count <> 2 THEN
+    RAISE EXCEPTION 'Tenant retries created extra executions; expected 2, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE id IN (
+    (tenant_a_result->>'objectId')::uuid,
+    (tenant_b_result->>'objectId')::uuid
+  );
+  IF v_count <> 2 THEN
+    RAISE EXCEPTION 'Tenant retries created or lost offers; expected 2, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_events
+  WHERE event_type = 'ACTION_SUCCEEDED'
+    AND tenant_id IN (
+      '10000000-0000-4000-8000-000000000001',
+      '10000000-0000-4000-8000-000000000002'
+    )
+    AND object_id IN (
+      (tenant_a_result->>'objectId')::uuid,
+      (tenant_b_result->>'objectId')::uuid
+    );
+  IF v_count <> 2 THEN
+    RAISE EXCEPTION 'Tenant retries created extra success events; expected 2, found %', v_count;
   END IF;
 END
 $$;
