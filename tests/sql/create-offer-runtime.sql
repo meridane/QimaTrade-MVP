@@ -13,12 +13,19 @@ VALUES (
 );
 
 INSERT INTO public.demands (id, name, demand_status, requester_actor_id)
-VALUES (
-  '50000000-0000-4000-8000-000000000002',
-  'Fixture Demand Alternate',
-  'published',
-  '30000000-0000-4000-8000-000000000002'
-);
+VALUES
+  (
+    '50000000-0000-4000-8000-000000000002',
+    'Fixture Demand Alternate',
+    'published',
+    '30000000-0000-4000-8000-000000000002'
+  ),
+  (
+    '50000000-0000-4000-8000-000000000003',
+    'Tenant Scope Fixture Demand',
+    'published',
+    '30000000-0000-4000-8000-000000000001'
+  );
 
 SET ROLE authenticated;
 
@@ -1147,7 +1154,7 @@ BEGIN
     'fixture-same-key-two-tenants',
     '{"case":"tenant-scoped-idempotency"}'::jsonb,
     'Tenant Scoped Idempotency Offer',
-    '50000000-0000-4000-8000-000000000001',
+    '50000000-0000-4000-8000-000000000003',
     '40000000-0000-4000-8000-000000000001',
     '30000000-0000-4000-8000-000000000001',
     1,
@@ -1164,7 +1171,7 @@ BEGIN
     'fixture-same-key-two-tenants',
     '{"case":"tenant-scoped-idempotency"}'::jsonb,
     'Tenant Scoped Idempotency Offer',
-    '50000000-0000-4000-8000-000000000001',
+    '50000000-0000-4000-8000-000000000003',
     '40000000-0000-4000-8000-000000000001',
     '30000000-0000-4000-8000-000000000001',
     1,
