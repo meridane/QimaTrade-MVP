@@ -42,7 +42,7 @@ test("executeAction invokes a registered handler once with the original context 
     userId: "user-1",
     tenantId: "tenant-1",
     actionKey: "CREATE_OFFER",
-    actionVersion: 1,
+    actionVersion: 7,
     objectType: "TestObject",
     objectId: "object-1",
     correlationId: "correlation-1",
