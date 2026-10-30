@@ -2539,3 +2539,284 @@ $qa67_assert$;
 
 RESET ROLE;
 SELECT 'CREATE_OFFER FAILED JSONB-null replay assertions passed' AS result;
+
+
+-- OFFER-QA-68: request_hash must be checked before terminal/in-progress
+-- status handling. A changed effective business parameter (price) must be
+-- rejected as IDEMPOTENCY_KEY_REUSE for both FAILED and IN_PROGRESS rows.
+-- Fixtures are synthetic and confined to the disposable PostgreSQL CI DB.
+RESET ROLE;
+
+DO $qa68_seed$
+DECLARE
+  v_action_id uuid;
+  v_failed_execution_id uuid := gen_random_uuid();
+  v_running_execution_id uuid := gen_random_uuid();
+  v_actor_id uuid := '30000000-0000-4000-8000-000000000001';
+  v_tenant_id uuid := '10000000-0000-4000-8000-000000000001';
+  v_input jsonb := '{"case":"request-hash-precedence"}'::jsonb;
+  v_request_hash text;
+  v_failed_result jsonb;
+BEGIN
+  SELECT id INTO v_action_id
+  FROM public.action_definitions
+  WHERE action_key = 'CREATE_OFFER'
+    AND version = 1
+    AND status = 'published';
+
+  IF v_action_id IS NULL THEN
+    RAISE EXCEPTION 'Published CREATE_OFFER fixture definition is missing';
+  END IF;
+
+  -- The stored hash represents the original request at price 12. Both retry
+  -- calls below change only price to 13, keeping all other effective inputs.
+  v_request_hash := md5(jsonb_build_object(
+    'input', v_input,
+    'name', 'Request Hash Precedence Fixture Offer',
+    'demandId', '50000000-0000-4000-8000-000000000001'::uuid,
+    'productMasterId', '40000000-0000-4000-8000-000000000001'::uuid,
+    'providerActorId', v_actor_id,
+    'quantity', 2,
+    'price', 12,
+    'currency', 'USD',
+    'conditions', NULL,
+    'market', NULL,
+    'geography', NULL,
+    'attributes', '{}'::jsonb,
+    'documentationStatus', NULL,
+    'lifecycle', NULL,
+    'offerType', NULL,
+    'pricingModel', NULL
+  )::text);
+
+  v_failed_result := jsonb_build_object(
+    'status', 'failed',
+    'executionId', v_failed_execution_id,
+    'error', jsonb_build_object('code', 'FIXTURE_FAILURE')
+  );
+
+  INSERT INTO public.action_executions(
+    id, action_id, action_version, actor_id, object_type, object_id,
+    correlation_id, idempotency_key, status, input, result, completed_at, tenant_id
+  )
+  VALUES (
+    v_failed_execution_id, v_action_id, 1, v_actor_id, 'Offer', NULL,
+    gen_random_uuid(), 'fixture-hash-mismatch-failed', 'FAILED',
+    v_input, v_failed_result, now(), v_tenant_id
+  );
+
+  INSERT INTO public.idempotency_keys(
+    key, action_id, actor_id, request_hash, execution_id,
+    status, result, completed_at, tenant_id
+  )
+  VALUES (
+    'fixture-hash-mismatch-failed', v_action_id, v_actor_id, v_request_hash,
+    v_failed_execution_id, 'FAILED', v_failed_result, now(), v_tenant_id
+  );
+
+  INSERT INTO public.action_executions(
+    id, action_id, action_version, actor_id, object_type, object_id,
+    correlation_id, idempotency_key, status, input, result, completed_at, tenant_id
+  )
+  VALUES (
+    v_running_execution_id, v_action_id, 1, v_actor_id, 'Offer', NULL,
+    gen_random_uuid(), 'fixture-hash-mismatch-in-progress', 'RUNNING',
+    v_input, NULL, NULL, v_tenant_id
+  );
+
+  INSERT INTO public.idempotency_keys(
+    key, action_id, actor_id, request_hash, execution_id,
+    status, result, completed_at, tenant_id
+  )
+  VALUES (
+    'fixture-hash-mismatch-in-progress', v_action_id, v_actor_id, v_request_hash,
+    v_running_execution_id, 'IN_PROGRESS', NULL, NULL, v_tenant_id
+  );
+END
+$qa68_seed$;
+
+SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+SET ROLE authenticated;
+
+DO $qa68_assert$
+DECLARE
+  v_error text;
+  v_failed_execution_id uuid;
+  v_running_execution_id uuid;
+  v_failed_result jsonb;
+  v_expected_failed_result jsonb;
+  v_original_hash text;
+  v_count integer;
+BEGIN
+  SELECT execution_id, result, request_hash
+  INTO v_failed_execution_id, v_failed_result, v_original_hash
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-hash-mismatch-failed'
+    AND status = 'FAILED';
+
+  IF v_failed_execution_id IS NULL OR v_failed_result IS NULL OR v_original_hash IS NULL THEN
+    RAISE EXCEPTION 'FAILED hash-mismatch fixture was not seeded completely';
+  END IF;
+
+  v_expected_failed_result := jsonb_build_object(
+    'status', 'failed',
+    'executionId', v_failed_execution_id,
+    'error', jsonb_build_object('code', 'FIXTURE_FAILURE')
+  );
+  IF v_failed_result IS DISTINCT FROM v_expected_failed_result THEN
+    RAISE EXCEPTION 'FAILED hash-mismatch fixture has an unexpected stored result';
+  END IF;
+
+  v_error := NULL;
+  BEGIN
+    PERFORM public.execute_create_offer_v1(
+      '10000000-0000-4000-8000-000000000001',
+      'fixture-hash-mismatch-failed',
+      '{"case":"request-hash-precedence"}'::jsonb,
+      'Request Hash Precedence Fixture Offer',
+      '50000000-0000-4000-8000-000000000001',
+      '40000000-0000-4000-8000-000000000001',
+      '30000000-0000-4000-8000-000000000001',
+      2,
+      13,
+      'USD'
+    );
+  EXCEPTION WHEN OTHERS THEN
+    v_error := SQLERRM;
+  END;
+
+  IF v_error IS DISTINCT FROM 'IDEMPOTENCY_KEY_REUSE' THEN
+    RAISE EXCEPTION 'FAILED hash mismatch must take precedence over terminal replay; expected IDEMPOTENCY_KEY_REUSE, got %',
+      coalesce(v_error, '<no error>');
+  END IF;
+
+  SELECT execution_id, request_hash
+  INTO v_running_execution_id, v_original_hash
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-hash-mismatch-in-progress'
+    AND status = 'IN_PROGRESS'
+    AND result IS NULL;
+
+  IF v_running_execution_id IS NULL OR v_original_hash IS NULL THEN
+    RAISE EXCEPTION 'IN_PROGRESS hash-mismatch fixture was not seeded completely';
+  END IF;
+
+  v_error := NULL;
+  BEGIN
+    PERFORM public.execute_create_offer_v1(
+      '10000000-0000-4000-8000-000000000001',
+      'fixture-hash-mismatch-in-progress',
+      '{"case":"request-hash-precedence"}'::jsonb,
+      'Request Hash Precedence Fixture Offer',
+      '50000000-0000-4000-8000-000000000001',
+      '40000000-0000-4000-8000-000000000001',
+      '30000000-0000-4000-8000-000000000001',
+      2,
+      13,
+      'USD'
+    );
+  EXCEPTION WHEN OTHERS THEN
+    v_error := SQLERRM;
+  END;
+
+  IF v_error IS DISTINCT FROM 'IDEMPOTENCY_KEY_REUSE' THEN
+    RAISE EXCEPTION 'IN_PROGRESS hash mismatch must take precedence over running-state handling; expected IDEMPOTENCY_KEY_REUSE, got %',
+      coalesce(v_error, '<no error>');
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key IN (
+      'fixture-hash-mismatch-failed',
+      'fixture-hash-mismatch-in-progress'
+    );
+  IF v_count <> 2 THEN
+    RAISE EXCEPTION 'Hash-mismatch retries changed or duplicated idempotency rows; expected 2, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-hash-mismatch-failed'
+    AND status = 'FAILED'
+    AND execution_id = v_failed_execution_id
+    AND result = v_expected_failed_result;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'FAILED hash-mismatch retry changed the original idempotency row';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-hash-mismatch-in-progress'
+    AND status = 'IN_PROGRESS'
+    AND execution_id = v_running_execution_id
+    AND result IS NULL;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'IN_PROGRESS hash-mismatch retry changed the original idempotency row';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND idempotency_key IN (
+      'fixture-hash-mismatch-failed',
+      'fixture-hash-mismatch-in-progress'
+    );
+  IF v_count <> 2 THEN
+    RAISE EXCEPTION 'Hash-mismatch retries created or removed executions; expected 2, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND id = v_failed_execution_id
+    AND idempotency_key = 'fixture-hash-mismatch-failed'
+    AND status = 'FAILED'
+    AND result = v_expected_failed_result
+    AND object_id IS NULL;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'FAILED hash-mismatch retry changed the original execution';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND id = v_running_execution_id
+    AND idempotency_key = 'fixture-hash-mismatch-in-progress'
+    AND status = 'RUNNING'
+    AND result IS NULL
+    AND object_id IS NULL
+    AND completed_at IS NULL;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'IN_PROGRESS hash-mismatch retry changed the original execution';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE name = 'Request Hash Precedence Fixture Offer';
+  IF v_count <> 0 THEN
+    RAISE EXCEPTION 'Hash-mismatch retries unexpectedly created an offer';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_events e
+  JOIN public.action_executions x
+    ON x.id = e.execution_id
+   AND x.tenant_id = e.tenant_id
+  WHERE x.tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND x.idempotency_key IN (
+      'fixture-hash-mismatch-failed',
+      'fixture-hash-mismatch-in-progress'
+    );
+  IF v_count <> 0 THEN
+    RAISE EXCEPTION 'Hash-mismatch retries unexpectedly created action events';
+  END IF;
+END
+$qa68_assert$;
+
+RESET ROLE;
+SELECT 'CREATE_OFFER request_hash precedence assertions passed' AS result;
