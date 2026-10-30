@@ -1112,4 +1112,149 @@ END
 $$;
 
 RESET ROLE;
+
+-- The same authenticated principal belongs to both tenants for this isolated
+-- scope test. Keeping actor and every request parameter identical ensures that
+-- only p_tenant_id differs; this does not test demand ownership.
+INSERT INTO public.dt_memberships (tenant_id, user_id)
+VALUES (
+  '10000000-0000-4000-8000-000000000002',
+  '20000000-0000-4000-8000-000000000001'
+);
+
+SET ROLE authenticated;
+
+DO $$
+DECLARE
+  tenant_a_result jsonb;
+  tenant_b_result jsonb;
+  v_count integer;
+BEGIN
+  IF (
+    SELECT count(*)
+    FROM public.dt_memberships
+    WHERE user_id = '20000000-0000-4000-8000-000000000001'
+      AND tenant_id IN (
+        '10000000-0000-4000-8000-000000000001',
+        '10000000-0000-4000-8000-000000000002'
+      )
+  ) <> 2 THEN
+    RAISE EXCEPTION 'Expected the fixture user to have valid memberships in both tenants';
+  END IF;
+
+  tenant_a_result := public.execute_create_offer_v1(
+    '10000000-0000-4000-8000-000000000001',
+    'fixture-same-key-two-tenants',
+    '{"case":"tenant-scoped-idempotency"}'::jsonb,
+    'Tenant Scoped Idempotency Offer',
+    '50000000-0000-4000-8000-000000000001',
+    '40000000-0000-4000-8000-000000000001',
+    '30000000-0000-4000-8000-000000000001',
+    1,
+    10,
+    'USD'
+  );
+
+  IF tenant_a_result->>'status' <> 'succeeded' THEN
+    RAISE EXCEPTION 'Expected tenant A request to succeed, got %', tenant_a_result;
+  END IF;
+
+  tenant_b_result := public.execute_create_offer_v1(
+    '10000000-0000-4000-8000-000000000002',
+    'fixture-same-key-two-tenants',
+    '{"case":"tenant-scoped-idempotency"}'::jsonb,
+    'Tenant Scoped Idempotency Offer',
+    '50000000-0000-4000-8000-000000000001',
+    '40000000-0000-4000-8000-000000000001',
+    '30000000-0000-4000-8000-000000000001',
+    1,
+    10,
+    'USD'
+  );
+
+  IF tenant_b_result->>'status' <> 'succeeded' THEN
+    RAISE EXCEPTION 'Expected tenant B request to succeed independently, got %', tenant_b_result;
+  END IF;
+
+  IF tenant_a_result->>'executionId' IS NULL
+     OR tenant_b_result->>'executionId' IS NULL
+     OR tenant_a_result->>'executionId' = tenant_b_result->>'executionId' THEN
+    RAISE EXCEPTION 'The same key in separate tenants must create distinct executions: %, %',
+      tenant_a_result, tenant_b_result;
+  END IF;
+
+  IF tenant_a_result->>'objectId' IS NULL
+     OR tenant_b_result->>'objectId' IS NULL
+     OR tenant_a_result->>'objectId' = tenant_b_result->>'objectId' THEN
+    RAISE EXCEPTION 'The same key in separate tenants must create distinct offers: %, %',
+      tenant_a_result, tenant_b_result;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE key = 'fixture-same-key-two-tenants'
+    AND tenant_id IN (
+      '10000000-0000-4000-8000-000000000001',
+      '10000000-0000-4000-8000-000000000002'
+    )
+    AND status = 'COMPLETED';
+  IF v_count <> 2 THEN
+    RAISE EXCEPTION 'Expected one completed idempotency row per tenant, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE idempotency_key = 'fixture-same-key-two-tenants'
+    AND tenant_id IN (
+      '10000000-0000-4000-8000-000000000001',
+      '10000000-0000-4000-8000-000000000002'
+    )
+    AND status = 'COMPLETED';
+  IF v_count <> 2 THEN
+    RAISE EXCEPTION 'Expected two completed executions across tenants, found %', v_count;
+  END IF;
+
+  SELECT count(DISTINCT request_hash) INTO v_count
+  FROM public.idempotency_keys
+  WHERE key = 'fixture-same-key-two-tenants'
+    AND tenant_id IN (
+      '10000000-0000-4000-8000-000000000001',
+      '10000000-0000-4000-8000-000000000002'
+    );
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'Expected identical request hashes when only tenant scope changes, found % distinct hashes', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE id IN (
+    (tenant_a_result->>'objectId')::uuid,
+    (tenant_b_result->>'objectId')::uuid
+  );
+  IF v_count <> 2 THEN
+    RAISE EXCEPTION 'Expected two distinct offers for the two tenant-scoped executions, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_events
+  WHERE event_type = 'ACTION_SUCCEEDED'
+    AND tenant_id IN (
+      '10000000-0000-4000-8000-000000000001',
+      '10000000-0000-4000-8000-000000000002'
+    )
+    AND object_id IN (
+      (tenant_a_result->>'objectId')::uuid,
+      (tenant_b_result->>'objectId')::uuid
+    );
+  IF v_count <> 2 THEN
+    RAISE EXCEPTION 'Expected one success event per tenant-scoped execution, found %', v_count;
+  END IF;
+END
+$$;
+
+RESET ROLE;
+DELETE FROM public.dt_memberships
+WHERE tenant_id = '10000000-0000-4000-8000-000000000002'
+  AND user_id = '20000000-0000-4000-8000-000000000001';
+
 SELECT 'CREATE_OFFER integration assertions passed' AS result;
