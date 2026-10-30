@@ -1,5 +1,25 @@
 \set ON_ERROR_STOP on
 SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+
+-- Additional valid synthetic references for one-field idempotency retries.
+-- These rows exist only in the disposable PostgreSQL fixture used by CI.
+INSERT INTO public.product_masters (id, code, name, canonical_name, status)
+VALUES (
+  '40000000-0000-4000-8000-000000000002',
+  'FIXTURE-2',
+  'Fixture Product Alternate',
+  'Fixture Product Alternate',
+  'active'
+);
+
+INSERT INTO public.demands (id, name, demand_status, requester_actor_id)
+VALUES (
+  '50000000-0000-4000-8000-000000000002',
+  'Fixture Demand Alternate',
+  'published',
+  '30000000-0000-4000-8000-000000000002'
+);
+
 SET ROLE authenticated;
 
 DO $$
@@ -475,6 +495,205 @@ BEGIN
   WHERE idempotency_key = 'fixture-idempotency-offer-type';
   IF v_count <> 1 THEN
     RAISE EXCEPTION 'Expected one execution for offer type hash fixture, found %', v_count;
+  END IF;
+
+  -- Name is part of the effective request hash.
+  first_result := public.execute_create_offer_v1(
+    '10000000-0000-4000-8000-000000000001',
+    'fixture-idempotency-name',
+    '{"case":"name-hash"}'::jsonb,
+    'Name Hash Offer',
+    '50000000-0000-4000-8000-000000000001',
+    '40000000-0000-4000-8000-000000000001',
+    '30000000-0000-4000-8000-000000000001',
+    1,
+    10,
+    'USD'
+  );
+  IF first_result->>'status' <> 'succeeded' THEN
+    RAISE EXCEPTION 'Expected name hash fixture to succeed, got %', first_result;
+  END IF;
+
+  BEGIN
+    PERFORM public.execute_create_offer_v1(
+      '10000000-0000-4000-8000-000000000001',
+      'fixture-idempotency-name',
+      '{"case":"name-hash"}'::jsonb,
+      'Name Hash Offer Changed',
+      '50000000-0000-4000-8000-000000000001',
+      '40000000-0000-4000-8000-000000000001',
+      '30000000-0000-4000-8000-000000000001',
+      1,
+      10,
+      'USD'
+    );
+    RAISE EXCEPTION 'Expected changed name to be rejected';
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM NOT LIKE '%IDEMPOTENCY_KEY_REUSE%' THEN RAISE; END IF;
+  END;
+
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE name = 'Name Hash Offer';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'Expected one original name hash offer, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE idempotency_key = 'fixture-idempotency-name';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'Expected one execution for name hash fixture, found %', v_count;
+  END IF;
+
+  -- Currency is part of the effective request hash; both values are accepted by the RPC.
+  first_result := public.execute_create_offer_v1(
+    '10000000-0000-4000-8000-000000000001',
+    'fixture-idempotency-currency',
+    '{"case":"currency-hash"}'::jsonb,
+    'Currency Hash Offer',
+    '50000000-0000-4000-8000-000000000001',
+    '40000000-0000-4000-8000-000000000001',
+    '30000000-0000-4000-8000-000000000001',
+    1,
+    10,
+    'USD'
+  );
+  IF first_result->>'status' <> 'succeeded' THEN
+    RAISE EXCEPTION 'Expected currency hash fixture to succeed, got %', first_result;
+  END IF;
+
+  BEGIN
+    PERFORM public.execute_create_offer_v1(
+      '10000000-0000-4000-8000-000000000001',
+      'fixture-idempotency-currency',
+      '{"case":"currency-hash"}'::jsonb,
+      'Currency Hash Offer',
+      '50000000-0000-4000-8000-000000000001',
+      '40000000-0000-4000-8000-000000000001',
+      '30000000-0000-4000-8000-000000000001',
+      1,
+      10,
+      'EUR'
+    );
+    RAISE EXCEPTION 'Expected changed currency to be rejected';
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM NOT LIKE '%IDEMPOTENCY_KEY_REUSE%' THEN RAISE; END IF;
+  END;
+
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE name = 'Currency Hash Offer'
+    AND currency = 'USD';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'Expected one original USD currency hash offer, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE idempotency_key = 'fixture-idempotency-currency';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'Expected one execution for currency hash fixture, found %', v_count;
+  END IF;
+
+  -- A second existing demand isolates demandId in the request hash.
+  first_result := public.execute_create_offer_v1(
+    '10000000-0000-4000-8000-000000000001',
+    'fixture-idempotency-demand',
+    '{"case":"demand-hash"}'::jsonb,
+    'Demand Hash Offer',
+    '50000000-0000-4000-8000-000000000001',
+    '40000000-0000-4000-8000-000000000001',
+    '30000000-0000-4000-8000-000000000001',
+    1,
+    10,
+    'USD'
+  );
+  IF first_result->>'status' <> 'succeeded' THEN
+    RAISE EXCEPTION 'Expected demand hash fixture to succeed, got %', first_result;
+  END IF;
+
+  BEGIN
+    PERFORM public.execute_create_offer_v1(
+      '10000000-0000-4000-8000-000000000001',
+      'fixture-idempotency-demand',
+      '{"case":"demand-hash"}'::jsonb,
+      'Demand Hash Offer',
+      '50000000-0000-4000-8000-000000000002',
+      '40000000-0000-4000-8000-000000000001',
+      '30000000-0000-4000-8000-000000000001',
+      1,
+      10,
+      'USD'
+    );
+    RAISE EXCEPTION 'Expected changed demandId to be rejected';
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM NOT LIKE '%IDEMPOTENCY_KEY_REUSE%' THEN RAISE; END IF;
+  END;
+
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE name = 'Demand Hash Offer'
+    AND demand_id = '50000000-0000-4000-8000-000000000001';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'Expected one original demand hash offer, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE idempotency_key = 'fixture-idempotency-demand';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'Expected one execution for demand hash fixture, found %', v_count;
+  END IF;
+
+  -- A second active Product Master isolates productMasterId in the request hash.
+  first_result := public.execute_create_offer_v1(
+    '10000000-0000-4000-8000-000000000001',
+    'fixture-idempotency-product-master',
+    '{"case":"product-master-hash"}'::jsonb,
+    'Product Master Hash Offer',
+    '50000000-0000-4000-8000-000000000001',
+    '40000000-0000-4000-8000-000000000001',
+    '30000000-0000-4000-8000-000000000001',
+    1,
+    10,
+    'USD'
+  );
+  IF first_result->>'status' <> 'succeeded' THEN
+    RAISE EXCEPTION 'Expected Product Master hash fixture to succeed, got %', first_result;
+  END IF;
+
+  BEGIN
+    PERFORM public.execute_create_offer_v1(
+      '10000000-0000-4000-8000-000000000001',
+      'fixture-idempotency-product-master',
+      '{"case":"product-master-hash"}'::jsonb,
+      'Product Master Hash Offer',
+      '50000000-0000-4000-8000-000000000001',
+      '40000000-0000-4000-8000-000000000002',
+      '30000000-0000-4000-8000-000000000001',
+      1,
+      10,
+      'USD'
+    );
+    RAISE EXCEPTION 'Expected changed productMasterId to be rejected';
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM NOT LIKE '%IDEMPOTENCY_KEY_REUSE%' THEN RAISE; END IF;
+  END;
+
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE name = 'Product Master Hash Offer'
+    AND product_master_id = '40000000-0000-4000-8000-000000000001';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'Expected one original Product Master hash offer, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE idempotency_key = 'fixture-idempotency-product-master';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'Expected one execution for Product Master hash fixture, found %', v_count;
   END IF;
 
   BEGIN
