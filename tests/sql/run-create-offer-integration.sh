@@ -73,7 +73,7 @@ SQL
 "${PSQL[@]}" <<'SQL'
 INSERT INTO public.demands (id, name, demand_status, requester_actor_id)
 VALUES (
-  '50000000-0000-4000-8000-000000000002',
+  '50000000-0000-4000-8000-000000000004',
   'Concurrent Intertenant Demand A',
   'published',
   '30000000-0000-4000-8000-000000000001'
@@ -89,7 +89,7 @@ SELECT public.execute_create_offer_v1(
   'fixture-concurrent-intertenant',
   '{"case":"intertenant-concurrent"}'::jsonb,
   'Concurrent Intertenant Offer A',
-  '50000000-0000-4000-8000-000000000002',
+  '50000000-0000-4000-8000-000000000004',
   '40000000-0000-4000-8000-000000000001',
   '30000000-0000-4000-8000-000000000001',
   2,
@@ -244,7 +244,7 @@ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM public.offers
     WHERE name = 'Concurrent Intertenant Offer A'
-      AND demand_id = '50000000-0000-4000-8000-000000000002'
+      AND demand_id = '50000000-0000-4000-8000-000000000004'
       AND provider_actor_id = '30000000-0000-4000-8000-000000000001'
   ) OR NOT EXISTS (
     SELECT 1 FROM public.offers
