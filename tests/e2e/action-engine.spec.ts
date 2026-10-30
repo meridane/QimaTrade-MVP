@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { executeAction, type ActionInput } from "../../lib/actions/engine";
-import type { ActionContext } from "../../lib/actions/types";
+import type { ActionContext, ActionResult } from "../../lib/actions/types";
 
 test("executeAction rejects a published action when no handler is registered", async () => {
   const context: ActionContext = {
@@ -34,4 +34,50 @@ test("executeAction rejects a published action when no handler is registered", a
 
   expect(definitionLookups).toBe(1);
   expect(otherHandlerCalls).toBe(0);
+});
+
+
+test("executeAction invokes a registered handler once with the original context and input", async () => {
+  const context: ActionContext = {
+    userId: "user-1",
+    tenantId: "tenant-1",
+    actionKey: "CREATE_OFFER",
+    actionVersion: 1,
+    objectType: "TestObject",
+    objectId: "object-1",
+    correlationId: "correlation-1",
+    idempotencyKey: "idempotency-1",
+  };
+  const input: ActionInput = { demandId: "demand-1", quantity: 3 };
+  const expectedResult: ActionResult = {
+    executionId: "execution-1",
+    status: "succeeded",
+    objectId: "offer-1",
+    result: { offerId: "offer-1", accepted: true },
+  };
+  let definitionLookups = 0;
+  let handlerCalls = 0;
+  let receivedContext: ActionContext | undefined;
+  let receivedInput: ActionInput | undefined;
+
+  const result = await executeAction(context, input, {
+    getDefinition: async (actionKey, version) => {
+      definitionLookups += 1;
+      return { actionKey, version, status: "published" };
+    },
+    handlers: {
+      CREATE_OFFER: async (handlerContext, handlerInput) => {
+        handlerCalls += 1;
+        receivedContext = handlerContext;
+        receivedInput = handlerInput;
+        return expectedResult;
+      },
+    },
+  });
+
+  expect(definitionLookups).toBe(1);
+  expect(handlerCalls).toBe(1);
+  expect(receivedContext).toBe(context);
+  expect(receivedInput).toBe(input);
+  expect(result).toBe(expectedResult);
 });
