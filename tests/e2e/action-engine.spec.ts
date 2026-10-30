@@ -81,3 +81,43 @@ test("executeAction invokes a registered handler once with the original context 
   expect(receivedInput).toBe(input);
   expect(result).toBe(expectedResult);
 });
+
+test("executeAction propagates a registered handler rejection without retrying", async () => {
+  const context: ActionContext = {
+    userId: "user-1",
+    tenantId: "tenant-1",
+    actionKey: "CREATE_OFFER",
+    actionVersion: 1,
+    objectType: "TestObject",
+    objectId: "object-1",
+    correlationId: "correlation-1",
+    idempotencyKey: "idempotency-1",
+  };
+  const input: ActionInput = { demandId: "demand-1", quantity: 3 };
+  const expectedError = new Error("CREATE_OFFER backend unavailable");
+  let definitionLookups = 0;
+  let handlerCalls = 0;
+  let caughtError: unknown;
+
+  try {
+    await executeAction(context, input, {
+      getDefinition: async (actionKey, version) => {
+        definitionLookups += 1;
+        return { actionKey, version, status: "published" };
+      },
+      handlers: {
+        CREATE_OFFER: async () => {
+          handlerCalls += 1;
+          throw expectedError;
+        },
+      },
+    });
+  } catch (error) {
+    caughtError = error;
+  }
+
+  expect(definitionLookups).toBe(1);
+  expect(handlerCalls).toBe(1);
+  expect(caughtError).toBe(expectedError);
+});
+
