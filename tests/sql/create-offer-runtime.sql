@@ -5324,3 +5324,239 @@ $qa75_assert$;
 
 RESET ROLE;
 SELECT 'CREATE_OFFER nested p_attributes numeric-scale hash characterization assertions passed' AS result;
+
+
+-- OFFER-QA-76: characterize SQL NULL and empty-object equivalence for p_attributes.
+-- Exercise both replay directions with independent idempotency keys. The function
+-- hashes coalesce(p_attributes, '{}'::jsonb), and create_offer_v1 persists the
+-- same normalized empty object. These are disposable CI fixtures only.
+SET ROLE authenticated;
+
+DO $qa76_assert$
+DECLARE
+  v_case record;
+  v_input jsonb;
+  v_name text;
+  v_key text;
+  v_payload_null jsonb;
+  v_payload_empty jsonb;
+  v_hash_null text;
+  v_hash_empty text;
+  v_result jsonb;
+  v_retry jsonb;
+  v_execution_id uuid;
+  v_offer_id uuid;
+  v_stored_hash text;
+  v_stored_result jsonb;
+  v_count integer;
+BEGIN
+  FOR v_case IN
+    SELECT *
+    FROM (VALUES
+      ('null-to-empty', true),
+      ('empty-to-null', false)
+    ) AS cases(direction, first_is_null)
+  LOOP
+    v_input := jsonb_build_object(
+      'case', 'attributes-sql-null-empty',
+      'direction', v_case.direction
+    );
+    v_name := 'Attributes SQL NULL Empty ' || v_case.direction;
+    v_key := 'fixture-attributes-sql-null-empty-' || v_case.direction;
+
+    -- Mirror the complete effective hash payload in the same field contract
+    -- as execute_create_offer_v1; only the SQL representation of attributes
+    -- differs before COALESCE.
+    v_payload_null := jsonb_build_object(
+      'input', v_input,
+      'name', v_name,
+      'demandId', '50000000-0000-4000-8000-000000000001'::uuid,
+      'productMasterId', '40000000-0000-4000-8000-000000000001'::uuid,
+      'providerActorId', '30000000-0000-4000-8000-000000000001'::uuid,
+      'quantity', 1::numeric,
+      'price', 10::numeric,
+      'currency', 'USD',
+      'conditions', NULL,
+      'market', NULL,
+      'geography', NULL,
+      'attributes', coalesce(NULL::jsonb, '{}'::jsonb),
+      'documentationStatus', NULL,
+      'lifecycle', NULL,
+      'offerType', NULL,
+      'pricingModel', NULL
+    );
+    v_payload_empty := jsonb_build_object(
+      'input', v_input,
+      'name', v_name,
+      'demandId', '50000000-0000-4000-8000-000000000001'::uuid,
+      'productMasterId', '40000000-0000-4000-8000-000000000001'::uuid,
+      'providerActorId', '30000000-0000-4000-8000-000000000001'::uuid,
+      'quantity', 1::numeric,
+      'price', 10::numeric,
+      'currency', 'USD',
+      'conditions', NULL,
+      'market', NULL,
+      'geography', NULL,
+      'attributes', coalesce('{}'::jsonb, '{}'::jsonb),
+      'documentationStatus', NULL,
+      'lifecycle', NULL,
+      'offerType', NULL,
+      'pricingModel', NULL
+    );
+
+    IF v_payload_null IS DISTINCT FROM v_payload_empty THEN
+      RAISE EXCEPTION 'SQL NULL and empty attributes must produce equal effective JSONB payloads';
+    END IF;
+    IF v_payload_null::text IS DISTINCT FROM v_payload_empty::text THEN
+      RAISE EXCEPTION 'SQL NULL and empty attributes must produce identical effective payload text';
+    END IF;
+
+    v_hash_null := md5(v_payload_null::text);
+    v_hash_empty := md5(v_payload_empty::text);
+    IF v_hash_null IS DISTINCT FROM v_hash_empty THEN
+      RAISE EXCEPTION 'SQL NULL and empty attributes must produce identical effective request hashes';
+    END IF;
+
+    IF v_case.first_is_null THEN
+      v_result := public.execute_create_offer_v1(
+        p_tenant_id => '10000000-0000-4000-8000-000000000001',
+        p_idempotency_key => v_key,
+        p_input => v_input,
+        p_name => v_name,
+        p_demand_id => '50000000-0000-4000-8000-000000000001',
+        p_product_master_id => '40000000-0000-4000-8000-000000000001',
+        p_provider_actor_id => '30000000-0000-4000-8000-000000000001',
+        p_quantity => 1::numeric,
+        p_price => 10::numeric,
+        p_currency => 'USD',
+        p_attributes => NULL
+      );
+      v_retry := public.execute_create_offer_v1(
+        p_tenant_id => '10000000-0000-4000-8000-000000000001',
+        p_idempotency_key => v_key,
+        p_input => v_input,
+        p_name => v_name,
+        p_demand_id => '50000000-0000-4000-8000-000000000001',
+        p_product_master_id => '40000000-0000-4000-8000-000000000001',
+        p_provider_actor_id => '30000000-0000-4000-8000-000000000001',
+        p_quantity => 1::numeric,
+        p_price => 10::numeric,
+        p_currency => 'USD',
+        p_attributes => '{}'::jsonb
+      );
+    ELSE
+      v_result := public.execute_create_offer_v1(
+        p_tenant_id => '10000000-0000-4000-8000-000000000001',
+        p_idempotency_key => v_key,
+        p_input => v_input,
+        p_name => v_name,
+        p_demand_id => '50000000-0000-4000-8000-000000000001',
+        p_product_master_id => '40000000-0000-4000-8000-000000000001',
+        p_provider_actor_id => '30000000-0000-4000-8000-000000000001',
+        p_quantity => 1::numeric,
+        p_price => 10::numeric,
+        p_currency => 'USD',
+        p_attributes => '{}'::jsonb
+      );
+      v_retry := public.execute_create_offer_v1(
+        p_tenant_id => '10000000-0000-4000-8000-000000000001',
+        p_idempotency_key => v_key,
+        p_input => v_input,
+        p_name => v_name,
+        p_demand_id => '50000000-0000-4000-8000-000000000001',
+        p_product_master_id => '40000000-0000-4000-8000-000000000001',
+        p_provider_actor_id => '30000000-0000-4000-8000-000000000001',
+        p_quantity => 1::numeric,
+        p_price => 10::numeric,
+        p_currency => 'USD',
+        p_attributes => NULL
+      );
+    END IF;
+
+    IF v_result->>'status' IS DISTINCT FROM 'succeeded' THEN
+      RAISE EXCEPTION 'Initial % request did not succeed: %', v_case.direction, v_result;
+    END IF;
+    IF v_retry IS DISTINCT FROM v_result THEN
+      RAISE EXCEPTION 'SQL NULL/empty attributes replay failed for direction %', v_case.direction;
+    END IF;
+
+    SELECT execution_id, request_hash, result
+    INTO v_execution_id, v_stored_hash, v_stored_result
+    FROM public.idempotency_keys
+    WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+      AND key = v_key
+      AND status = 'COMPLETED';
+
+    IF v_execution_id IS NULL
+       OR v_stored_hash IS DISTINCT FROM v_hash_null
+       OR v_stored_result IS DISTINCT FROM v_result THEN
+      RAISE EXCEPTION 'Stored idempotency row does not match the normalized % request', v_case.direction;
+    END IF;
+
+    SELECT object_id INTO v_offer_id
+    FROM public.action_executions
+    WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+      AND id = v_execution_id
+      AND idempotency_key = v_key
+      AND status = 'COMPLETED'
+      AND input = v_input
+      AND result = v_result;
+
+    IF v_offer_id IS NULL THEN
+      RAISE EXCEPTION 'Original % execution is missing or changed', v_case.direction;
+    END IF;
+
+    SELECT count(*) INTO v_count
+    FROM public.idempotency_keys
+    WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+      AND key = v_key
+      AND status = 'COMPLETED'
+      AND execution_id = v_execution_id
+      AND request_hash = v_hash_null
+      AND result = v_result;
+    IF v_count <> 1 THEN
+      RAISE EXCEPTION 'Expected exactly one unchanged idempotency row for %', v_case.direction;
+    END IF;
+
+    SELECT count(*) INTO v_count
+    FROM public.action_executions
+    WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+      AND id = v_execution_id
+      AND idempotency_key = v_key
+      AND status = 'COMPLETED'
+      AND input = v_input
+      AND result = v_result
+      AND object_id = v_offer_id;
+    IF v_count <> 1 THEN
+      RAISE EXCEPTION 'Expected exactly one unchanged execution for %', v_case.direction;
+    END IF;
+
+    SELECT count(*) INTO v_count
+    FROM public.offers
+    WHERE id = v_offer_id
+      AND name = v_name
+      AND quantity = 1
+      AND price = 10
+      AND currency = 'USD'
+      AND attributes = '{}'::jsonb;
+    IF v_count <> 1 THEN
+      RAISE EXCEPTION 'Expected one offer with normalized empty attributes for %', v_case.direction;
+    END IF;
+
+    SELECT count(*) INTO v_count
+    FROM public.action_events
+    WHERE execution_id = v_execution_id
+      AND tenant_id = '10000000-0000-4000-8000-000000000001'
+      AND event_type = 'ACTION_SUCCEEDED'
+      AND object_type = 'Offer'
+      AND object_id = v_offer_id
+      AND payload = v_result;
+    IF v_count <> 1 THEN
+      RAISE EXCEPTION 'Expected exactly one unchanged success event for %', v_case.direction;
+    END IF;
+  END LOOP;
+END
+$qa76_assert$;
+
+RESET ROLE;
+SELECT 'CREATE_OFFER SQL NULL and empty p_attributes bidirectional replay assertions passed' AS result;
