@@ -9247,7 +9247,35 @@ DECLARE
   v_case record;
   v_error text;
   v_count integer;
+  v_action_id uuid;
+  v_original_hash text;
+  v_input jsonb := '{"case":"action-publication-precondition-order"}'::jsonb;
 BEGIN
+  SELECT id INTO v_action_id
+  FROM public.action_definitions
+  WHERE action_key = 'CREATE_OFFER'
+    AND version = 1
+    AND status = 'draft';
+
+  IF v_action_id IS NULL OR (
+    SELECT count(*) FROM public.action_definitions
+    WHERE action_key = 'CREATE_OFFER' AND version = 1 AND status = 'draft'
+  ) <> 1 THEN
+    RAISE EXCEPTION 'QA87 expected exactly one temporarily unpublished CREATE_OFFER v1 definition';
+  END IF;
+
+  v_original_hash := md5(jsonb_build_object(
+    'input', v_input,
+    'name', 'Action Publication Precondition Order Fixture Offer',
+    'demandId', '50000000-0000-4000-8000-000000000001'::uuid,
+    'productMasterId', '40000000-0000-4000-8000-000000000001'::uuid,
+    'providerActorId', '30000000-0000-4000-8000-000000000001'::uuid,
+    'quantity', 2, 'price', 12, 'currency', 'USD',
+    'conditions', NULL, 'market', NULL, 'geography', NULL,
+    'attributes', '{}'::jsonb, 'documentationStatus', NULL,
+    'lifecycle', NULL, 'offerType', NULL, 'pricingModel', NULL
+  )::text);
+
   IF EXISTS (
     SELECT 1 FROM public.action_definitions
     WHERE action_key = 'CREATE_OFFER'
@@ -9317,7 +9345,9 @@ BEGIN
     SELECT 1 FROM public.idempotency_keys
     WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
       AND key = 'fixture-action-publication-completed'
+      AND action_id = v_action_id
       AND actor_id = '30000000-0000-4000-8000-000000000001'
+      AND request_hash = v_original_hash
       AND request_hash = md5(jsonb_build_object(
         'input', '{"case":"action-publication-precondition-order"}'::jsonb,
         'name', 'Action Publication Precondition Order Fixture Offer',
@@ -9345,7 +9375,9 @@ BEGIN
   SELECT count(*) INTO v_count
   FROM public.idempotency_keys
   WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND action_id = v_action_id
     AND actor_id = '30000000-0000-4000-8000-000000000001'
+    AND request_hash = v_original_hash
     AND (
       (key = 'fixture-action-publication-failed'
         AND status = 'FAILED'
@@ -9370,8 +9402,10 @@ BEGIN
   SELECT count(*) INTO v_count
   FROM public.action_executions
   WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND action_id = v_action_id
+    AND action_version = 1
     AND actor_id = '30000000-0000-4000-8000-000000000001'
-    AND input = '{"case":"action-publication-precondition-order"}'::jsonb
+    AND input = v_input
     AND (
       (id = '70000000-0000-4000-8000-000000000093'
         AND idempotency_key = 'fixture-action-publication-completed'
