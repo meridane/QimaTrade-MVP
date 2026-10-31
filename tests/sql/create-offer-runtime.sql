@@ -4532,3 +4532,502 @@ $qa73_assert$;
 
 RESET ROLE;
 SELECT 'CREATE_OFFER JSONB numeric-scale hash characterization assertions passed' AS result;
+
+
+-- OFFER-QA-74: characterize numeric scale in the typed quantity and price arguments.
+-- The function hashes jsonb_build_object(..., 'quantity', p_quantity, 'price', p_price, ...).
+-- Keep quantity and price cases separate so each typed argument is varied independently.
+-- This is a disposable PostgreSQL characterization; it does not change the function.
+RESET ROLE;
+
+DO $qa74_seed$
+DECLARE
+  v_action_id uuid;
+  v_quantity_execution_id uuid := gen_random_uuid();
+  v_quantity_offer_id uuid := gen_random_uuid();
+  v_quantity_correlation_id uuid := gen_random_uuid();
+  v_price_execution_id uuid := gen_random_uuid();
+  v_price_offer_id uuid := gen_random_uuid();
+  v_price_correlation_id uuid := gen_random_uuid();
+  v_actor_id uuid := '30000000-0000-4000-8000-000000000001';
+  v_tenant_id uuid := '10000000-0000-4000-8000-000000000001';
+  v_input jsonb := '{"case":"typed-numeric-scale"}'::jsonb;
+  v_payload jsonb;
+  v_hash text;
+  v_result jsonb;
+BEGIN
+  SELECT id INTO v_action_id
+  FROM public.action_definitions
+  WHERE action_key = 'CREATE_OFFER'
+    AND version = 1
+    AND status = 'published';
+
+  IF v_action_id IS NULL THEN
+    RAISE EXCEPTION 'Published CREATE_OFFER fixture definition is missing';
+  END IF;
+
+  -- Quantity-scale baseline: p_quantity = 2::numeric, p_price = 12::numeric.
+  v_payload := jsonb_build_object(
+    'input', v_input,
+    'name', 'Typed Numeric Quantity Scale Fixture Offer',
+    'demandId', '50000000-0000-4000-8000-000000000001'::uuid,
+    'productMasterId', '40000000-0000-4000-8000-000000000001'::uuid,
+    'providerActorId', v_actor_id,
+    'quantity', 2::numeric,
+    'price', 12::numeric,
+    'currency', 'USD',
+    'conditions', NULL,
+    'market', NULL,
+    'geography', NULL,
+    'attributes', '{}'::jsonb,
+    'documentationStatus', NULL,
+    'lifecycle', NULL,
+    'offerType', NULL,
+    'pricingModel', NULL
+  );
+  v_hash := md5(v_payload::text);
+
+  INSERT INTO public.offers(
+    id, name, demand_id, product_master_id, provider_actor_id,
+    quantity, price, currency, attributes
+  )
+  VALUES (
+    v_quantity_offer_id,
+    'Typed Numeric Quantity Scale Fixture Offer',
+    '50000000-0000-4000-8000-000000000001',
+    '40000000-0000-4000-8000-000000000001',
+    v_actor_id, 2, 12, 'USD', '{}'::jsonb
+  );
+
+  v_result := jsonb_build_object(
+    'status', 'succeeded',
+    'executionId', v_quantity_execution_id,
+    'objectType', 'Offer',
+    'objectId', v_quantity_offer_id
+  );
+
+  INSERT INTO public.action_executions(
+    id, action_id, action_version, actor_id, object_type, object_id,
+    correlation_id, idempotency_key, status, input, result, completed_at, tenant_id
+  )
+  VALUES (
+    v_quantity_execution_id, v_action_id, 1, v_actor_id, 'Offer', v_quantity_offer_id,
+    v_quantity_correlation_id, 'fixture-typed-quantity-scale-completed',
+    'COMPLETED', v_input, v_result, now(), v_tenant_id
+  );
+
+  INSERT INTO public.idempotency_keys(
+    key, action_id, actor_id, request_hash, execution_id,
+    status, result, completed_at, tenant_id
+  )
+  VALUES (
+    'fixture-typed-quantity-scale-completed', v_action_id, v_actor_id,
+    v_hash, v_quantity_execution_id, 'COMPLETED', v_result, now(), v_tenant_id
+  );
+
+  INSERT INTO public.action_events(
+    execution_id, action_id, action_version, event_type, actor_id,
+    object_type, object_id, correlation_id, payload, tenant_id
+  )
+  VALUES (
+    v_quantity_execution_id, v_action_id, 1, 'ACTION_SUCCEEDED', v_actor_id,
+    'Offer', v_quantity_offer_id, v_quantity_correlation_id, v_result, v_tenant_id
+  );
+
+  -- Price-scale baseline: p_quantity = 2::numeric, p_price = 12::numeric.
+  v_payload := jsonb_build_object(
+    'input', v_input,
+    'name', 'Typed Numeric Price Scale Fixture Offer',
+    'demandId', '50000000-0000-4000-8000-000000000001'::uuid,
+    'productMasterId', '40000000-0000-4000-8000-000000000001'::uuid,
+    'providerActorId', v_actor_id,
+    'quantity', 2::numeric,
+    'price', 12::numeric,
+    'currency', 'USD',
+    'conditions', NULL,
+    'market', NULL,
+    'geography', NULL,
+    'attributes', '{}'::jsonb,
+    'documentationStatus', NULL,
+    'lifecycle', NULL,
+    'offerType', NULL,
+    'pricingModel', NULL
+  );
+  v_hash := md5(v_payload::text);
+
+  INSERT INTO public.offers(
+    id, name, demand_id, product_master_id, provider_actor_id,
+    quantity, price, currency, attributes
+  )
+  VALUES (
+    v_price_offer_id,
+    'Typed Numeric Price Scale Fixture Offer',
+    '50000000-0000-4000-8000-000000000001',
+    '40000000-0000-4000-8000-000000000001',
+    v_actor_id, 2, 12, 'USD', '{}'::jsonb
+  );
+
+  v_result := jsonb_build_object(
+    'status', 'succeeded',
+    'executionId', v_price_execution_id,
+    'objectType', 'Offer',
+    'objectId', v_price_offer_id
+  );
+
+  INSERT INTO public.action_executions(
+    id, action_id, action_version, actor_id, object_type, object_id,
+    correlation_id, idempotency_key, status, input, result, completed_at, tenant_id
+  )
+  VALUES (
+    v_price_execution_id, v_action_id, 1, v_actor_id, 'Offer', v_price_offer_id,
+    v_price_correlation_id, 'fixture-typed-price-scale-completed',
+    'COMPLETED', v_input, v_result, now(), v_tenant_id
+  );
+
+  INSERT INTO public.idempotency_keys(
+    key, action_id, actor_id, request_hash, execution_id,
+    status, result, completed_at, tenant_id
+  )
+  VALUES (
+    'fixture-typed-price-scale-completed', v_action_id, v_actor_id,
+    v_hash, v_price_execution_id, 'COMPLETED', v_result, now(), v_tenant_id
+  );
+
+  INSERT INTO public.action_events(
+    execution_id, action_id, action_version, event_type, actor_id,
+    object_type, object_id, correlation_id, payload, tenant_id
+  )
+  VALUES (
+    v_price_execution_id, v_action_id, 1, 'ACTION_SUCCEEDED', v_actor_id,
+    'Offer', v_price_offer_id, v_price_correlation_id, v_result, v_tenant_id
+  );
+END
+$qa74_seed$;
+
+SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+SET ROLE authenticated;
+
+DO $qa74_assert$
+DECLARE
+  v_input jsonb := '{"case":"typed-numeric-scale"}'::jsonb;
+  v_quantity_base jsonb;
+  v_quantity_scaled jsonb;
+  v_price_base jsonb;
+  v_price_scaled jsonb;
+  v_quantity_hash text;
+  v_quantity_scaled_hash text;
+  v_price_hash text;
+  v_price_scaled_hash text;
+  v_execution_id uuid;
+  v_offer_id uuid;
+  v_stored_hash text;
+  v_stored_result jsonb;
+  v_expected_result jsonb;
+  v_actual jsonb;
+  v_error text;
+  v_count integer;
+BEGIN
+  v_quantity_base := jsonb_build_object(
+    'input', v_input,
+    'name', 'Typed Numeric Quantity Scale Fixture Offer',
+    'demandId', '50000000-0000-4000-8000-000000000001'::uuid,
+    'productMasterId', '40000000-0000-4000-8000-000000000001'::uuid,
+    'providerActorId', '30000000-0000-4000-8000-000000000001'::uuid,
+    'quantity', 2::numeric,
+    'price', 12::numeric,
+    'currency', 'USD',
+    'conditions', NULL,
+    'market', NULL,
+    'geography', NULL,
+    'attributes', '{}'::jsonb,
+    'documentationStatus', NULL,
+    'lifecycle', NULL,
+    'offerType', NULL,
+    'pricingModel', NULL
+  );
+  v_quantity_scaled := jsonb_build_object(
+    'input', v_input,
+    'name', 'Typed Numeric Quantity Scale Fixture Offer',
+    'demandId', '50000000-0000-4000-8000-000000000001'::uuid,
+    'productMasterId', '40000000-0000-4000-8000-000000000001'::uuid,
+    'providerActorId', '30000000-0000-4000-8000-000000000001'::uuid,
+    'quantity', 2.0::numeric,
+    'price', 12::numeric,
+    'currency', 'USD',
+    'conditions', NULL,
+    'market', NULL,
+    'geography', NULL,
+    'attributes', '{}'::jsonb,
+    'documentationStatus', NULL,
+    'lifecycle', NULL,
+    'offerType', NULL,
+    'pricingModel', NULL
+  );
+
+  IF v_quantity_base IS DISTINCT FROM v_quantity_scaled THEN
+    RAISE EXCEPTION 'Typed numeric quantity values 2 and 2.0 should compare equal as JSONB';
+  END IF;
+  IF v_quantity_base::text IS NOT DISTINCT FROM v_quantity_scaled::text THEN
+    RAISE EXCEPTION 'Typed numeric quantity scale should remain visible in jsonb::text';
+  END IF;
+  v_quantity_hash := md5(v_quantity_base::text);
+  v_quantity_scaled_hash := md5(v_quantity_scaled::text);
+  IF v_quantity_hash IS NOT DISTINCT FROM v_quantity_scaled_hash THEN
+    RAISE EXCEPTION 'Typed numeric quantity scale unexpectedly produced the same hash';
+  END IF;
+
+  v_price_base := jsonb_build_object(
+    'input', v_input,
+    'name', 'Typed Numeric Price Scale Fixture Offer',
+    'demandId', '50000000-0000-4000-8000-000000000001'::uuid,
+    'productMasterId', '40000000-0000-4000-8000-000000000001'::uuid,
+    'providerActorId', '30000000-0000-4000-8000-000000000001'::uuid,
+    'quantity', 2::numeric,
+    'price', 12::numeric,
+    'currency', 'USD',
+    'conditions', NULL,
+    'market', NULL,
+    'geography', NULL,
+    'attributes', '{}'::jsonb,
+    'documentationStatus', NULL,
+    'lifecycle', NULL,
+    'offerType', NULL,
+    'pricingModel', NULL
+  );
+  v_price_scaled := jsonb_build_object(
+    'input', v_input,
+    'name', 'Typed Numeric Price Scale Fixture Offer',
+    'demandId', '50000000-0000-4000-8000-000000000001'::uuid,
+    'productMasterId', '40000000-0000-4000-8000-000000000001'::uuid,
+    'providerActorId', '30000000-0000-4000-8000-000000000001'::uuid,
+    'quantity', 2::numeric,
+    'price', 12.0::numeric,
+    'currency', 'USD',
+    'conditions', NULL,
+    'market', NULL,
+    'geography', NULL,
+    'attributes', '{}'::jsonb,
+    'documentationStatus', NULL,
+    'lifecycle', NULL,
+    'offerType', NULL,
+    'pricingModel', NULL
+  );
+
+  IF v_price_base IS DISTINCT FROM v_price_scaled THEN
+    RAISE EXCEPTION 'Typed numeric price values 12 and 12.0 should compare equal as JSONB';
+  END IF;
+  IF v_price_base::text IS NOT DISTINCT FROM v_price_scaled::text THEN
+    RAISE EXCEPTION 'Typed numeric price scale should remain visible in jsonb::text';
+  END IF;
+  v_price_hash := md5(v_price_base::text);
+  v_price_scaled_hash := md5(v_price_scaled::text);
+  IF v_price_hash IS NOT DISTINCT FROM v_price_scaled_hash THEN
+    RAISE EXCEPTION 'Typed numeric price scale unexpectedly produced the same hash';
+  END IF;
+
+  -- Replay with only p_quantity changed from 2 to 2.0.
+  SELECT execution_id, request_hash, result
+  INTO v_execution_id, v_stored_hash, v_stored_result
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-typed-quantity-scale-completed'
+    AND status = 'COMPLETED';
+
+  IF v_execution_id IS NULL OR v_stored_hash IS DISTINCT FROM v_quantity_hash THEN
+    RAISE EXCEPTION 'Stored quantity-scale hash does not match the integer-scale request';
+  END IF;
+
+  SELECT object_id INTO v_offer_id
+  FROM public.action_executions
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND id = v_execution_id
+    AND idempotency_key = 'fixture-typed-quantity-scale-completed'
+    AND status = 'COMPLETED';
+
+  v_expected_result := jsonb_build_object(
+    'status', 'succeeded',
+    'executionId', v_execution_id,
+    'objectType', 'Offer',
+    'objectId', v_offer_id
+  );
+  IF v_offer_id IS NULL OR v_stored_result IS DISTINCT FROM v_expected_result THEN
+    RAISE EXCEPTION 'Quantity-scale fixture has an unexpected stored result';
+  END IF;
+
+  v_error := NULL;
+  BEGIN
+    v_actual := public.execute_create_offer_v1(
+      '10000000-0000-4000-8000-000000000001',
+      'fixture-typed-quantity-scale-completed',
+      v_input,
+      'Typed Numeric Quantity Scale Fixture Offer',
+      '50000000-0000-4000-8000-000000000001',
+      '40000000-0000-4000-8000-000000000001',
+      '30000000-0000-4000-8000-000000000001',
+      2.0::numeric,
+      12::numeric,
+      'USD'
+    );
+  EXCEPTION WHEN OTHERS THEN
+    v_error := SQLERRM;
+  END;
+
+  IF v_error IS DISTINCT FROM 'IDEMPOTENCY_KEY_REUSE' THEN
+    RAISE EXCEPTION 'Typed quantity-scale replay expected IDEMPOTENCY_KEY_REUSE; got %',
+      coalesce(v_error, '<no error>');
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-typed-quantity-scale-completed'
+    AND status = 'COMPLETED'
+    AND execution_id = v_execution_id
+    AND request_hash = v_quantity_hash
+    AND result = v_expected_result;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'Quantity-scale replay changed or duplicated the original idempotency row';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND id = v_execution_id
+    AND idempotency_key = 'fixture-typed-quantity-scale-completed'
+    AND status = 'COMPLETED'
+    AND input = v_input
+    AND result = v_expected_result
+    AND object_id = v_offer_id;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'Quantity-scale replay changed the original execution';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE id = v_offer_id
+    AND name = 'Typed Numeric Quantity Scale Fixture Offer'
+    AND quantity = 2
+    AND price = 12
+    AND currency = 'USD'
+    AND attributes = '{}'::jsonb;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'Quantity-scale replay changed the original offer';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_events
+  WHERE execution_id = v_execution_id
+    AND tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND event_type = 'ACTION_SUCCEEDED'
+    AND object_type = 'Offer'
+    AND object_id = v_offer_id
+    AND payload = v_expected_result;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'Quantity-scale replay changed or duplicated the original success event';
+  END IF;
+
+  -- Replay with only p_price changed from 12 to 12.0.
+  SELECT execution_id, request_hash, result
+  INTO v_execution_id, v_stored_hash, v_stored_result
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-typed-price-scale-completed'
+    AND status = 'COMPLETED';
+
+  IF v_execution_id IS NULL OR v_stored_hash IS DISTINCT FROM v_price_hash THEN
+    RAISE EXCEPTION 'Stored price-scale hash does not match the integer-scale request';
+  END IF;
+
+  SELECT object_id INTO v_offer_id
+  FROM public.action_executions
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND id = v_execution_id
+    AND idempotency_key = 'fixture-typed-price-scale-completed'
+    AND status = 'COMPLETED';
+
+  v_expected_result := jsonb_build_object(
+    'status', 'succeeded',
+    'executionId', v_execution_id,
+    'objectType', 'Offer',
+    'objectId', v_offer_id
+  );
+  IF v_offer_id IS NULL OR v_stored_result IS DISTINCT FROM v_expected_result THEN
+    RAISE EXCEPTION 'Price-scale fixture has an unexpected stored result';
+  END IF;
+
+  v_error := NULL;
+  BEGIN
+    v_actual := public.execute_create_offer_v1(
+      '10000000-0000-4000-8000-000000000001',
+      'fixture-typed-price-scale-completed',
+      v_input,
+      'Typed Numeric Price Scale Fixture Offer',
+      '50000000-0000-4000-8000-000000000001',
+      '40000000-0000-4000-8000-000000000001',
+      '30000000-0000-4000-8000-000000000001',
+      2::numeric,
+      12.0::numeric,
+      'USD'
+    );
+  EXCEPTION WHEN OTHERS THEN
+    v_error := SQLERRM;
+  END;
+
+  IF v_error IS DISTINCT FROM 'IDEMPOTENCY_KEY_REUSE' THEN
+    RAISE EXCEPTION 'Typed price-scale replay expected IDEMPOTENCY_KEY_REUSE; got %',
+      coalesce(v_error, '<no error>');
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-typed-price-scale-completed'
+    AND status = 'COMPLETED'
+    AND execution_id = v_execution_id
+    AND request_hash = v_price_hash
+    AND result = v_expected_result;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'Price-scale replay changed or duplicated the original idempotency row';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND id = v_execution_id
+    AND idempotency_key = 'fixture-typed-price-scale-completed'
+    AND status = 'COMPLETED'
+    AND input = v_input
+    AND result = v_expected_result
+    AND object_id = v_offer_id;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'Price-scale replay changed the original execution';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE id = v_offer_id
+    AND name = 'Typed Numeric Price Scale Fixture Offer'
+    AND quantity = 2
+    AND price = 12
+    AND currency = 'USD'
+    AND attributes = '{}'::jsonb;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'Price-scale replay changed the original offer';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_events
+  WHERE execution_id = v_execution_id
+    AND tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND event_type = 'ACTION_SUCCEEDED'
+    AND object_type = 'Offer'
+    AND object_id = v_offer_id
+    AND payload = v_expected_result;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'Price-scale replay changed or duplicated the original success event';
+  END IF;
+END
+$qa74_assert$;
+
+RESET ROLE;
+SELECT 'CREATE_OFFER typed numeric quantity and price scale characterization assertions passed' AS result;
