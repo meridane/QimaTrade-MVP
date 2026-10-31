@@ -3907,3 +3907,327 @@ $qa71_assert$;
 
 RESET ROLE;
 SELECT 'CREATE_OFFER FAILED and IN_PROGRESS quantity, currency, and attributes hash precedence assertions passed' AS result;
+
+
+-- OFFER-QA-72: JSONB object key order must not change the effective request hash.
+-- The same COMPLETED request is replayed with reordered top-level and nested
+-- keys in both p_input and p_attributes. The original result and all records
+-- must remain unchanged. All records are synthetic and CI-local.
+RESET ROLE;
+
+DO $qa72_seed$
+DECLARE
+  v_action_id uuid;
+  v_execution_id uuid := gen_random_uuid();
+  v_offer_id uuid := gen_random_uuid();
+  v_correlation_id uuid := gen_random_uuid();
+  v_actor_id uuid := '30000000-0000-4000-8000-000000000001';
+  v_tenant_id uuid := '10000000-0000-4000-8000-000000000001';
+  v_input_original jsonb :=
+    '{"case":"jsonb-key-order-canonicalization","metadata":{"a":1,"b":2}}'::jsonb;
+  v_attributes_original jsonb :=
+    '{"grade":"A","metadata":{"x":1,"y":2}}'::jsonb;
+  v_base_payload jsonb;
+  v_request_hash text;
+  v_result jsonb;
+BEGIN
+  SELECT id INTO v_action_id
+  FROM public.action_definitions
+  WHERE action_key = 'CREATE_OFFER'
+    AND version = 1
+    AND status = 'published';
+
+  IF v_action_id IS NULL THEN
+    RAISE EXCEPTION 'Published CREATE_OFFER fixture definition is missing';
+  END IF;
+
+  v_base_payload := jsonb_build_object(
+    'input', v_input_original,
+    'name', 'JSONB Key Order Canonicalization Fixture Offer',
+    'demandId', '50000000-0000-4000-8000-000000000001'::uuid,
+    'productMasterId', '40000000-0000-4000-8000-000000000001'::uuid,
+    'providerActorId', v_actor_id,
+    'quantity', 2,
+    'price', 12,
+    'currency', 'USD',
+    'conditions', NULL,
+    'market', NULL,
+    'geography', NULL,
+    'attributes', v_attributes_original,
+    'documentationStatus', NULL,
+    'lifecycle', NULL,
+    'offerType', NULL,
+    'pricingModel', NULL
+  );
+  v_request_hash := md5(v_base_payload::text);
+
+  INSERT INTO public.offers(
+    id, name, demand_id, product_master_id, provider_actor_id,
+    quantity, price, currency, attributes
+  )
+  VALUES (
+    v_offer_id,
+    'JSONB Key Order Canonicalization Fixture Offer',
+    '50000000-0000-4000-8000-000000000001',
+    '40000000-0000-4000-8000-000000000001',
+    v_actor_id,
+    2,
+    12,
+    'USD',
+    v_attributes_original
+  );
+
+  v_result := jsonb_build_object(
+    'status', 'succeeded',
+    'executionId', v_execution_id,
+    'objectType', 'Offer',
+    'objectId', v_offer_id
+  );
+
+  INSERT INTO public.action_executions(
+    id, action_id, action_version, actor_id, object_type, object_id,
+    correlation_id, idempotency_key, status, input, result, completed_at, tenant_id
+  )
+  VALUES (
+    v_execution_id, v_action_id, 1, v_actor_id, 'Offer', v_offer_id,
+    v_correlation_id, 'fixture-jsonb-key-order-completed', 'COMPLETED',
+    v_input_original, v_result, now(), v_tenant_id
+  );
+
+  INSERT INTO public.idempotency_keys(
+    key, action_id, actor_id, request_hash, execution_id,
+    status, result, completed_at, tenant_id
+  )
+  VALUES (
+    'fixture-jsonb-key-order-completed', v_action_id, v_actor_id,
+    v_request_hash, v_execution_id, 'COMPLETED',
+    v_result, now(), v_tenant_id
+  );
+
+  INSERT INTO public.action_events(
+    execution_id, action_id, action_version, event_type, actor_id,
+    object_type, object_id, correlation_id, payload, tenant_id
+  )
+  VALUES (
+    v_execution_id, v_action_id, 1, 'ACTION_SUCCEEDED', v_actor_id,
+    'Offer', v_offer_id, v_correlation_id, v_result, v_tenant_id
+  );
+END
+$qa72_seed$;
+
+SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+SET ROLE authenticated;
+
+DO $qa72_assert$
+DECLARE
+  v_input_original jsonb :=
+    '{"case":"jsonb-key-order-canonicalization","metadata":{"a":1,"b":2}}'::jsonb;
+  v_input_reordered jsonb :=
+    '{"metadata":{"b":2,"a":1},"case":"jsonb-key-order-canonicalization"}'::jsonb;
+  v_attributes_original jsonb :=
+    '{"grade":"A","metadata":{"x":1,"y":2}}'::jsonb;
+  v_attributes_reordered jsonb :=
+    '{"metadata":{"y":2,"x":1},"grade":"A"}'::jsonb;
+  v_base_payload jsonb;
+  v_reordered_payload jsonb;
+  v_original_hash text;
+  v_reordered_hash text;
+  v_execution_id uuid;
+  v_offer_id uuid;
+  v_stored_hash text;
+  v_stored_result jsonb;
+  v_expected_result jsonb;
+  v_actual jsonb;
+  v_count integer;
+BEGIN
+  IF v_input_original IS DISTINCT FROM v_input_reordered
+     OR v_input_original::text IS DISTINCT FROM v_input_reordered::text THEN
+    RAISE EXCEPTION 'Reordered input objects must be equal JSONB with identical canonical text';
+  END IF;
+
+  IF v_attributes_original IS DISTINCT FROM v_attributes_reordered
+     OR v_attributes_original::text IS DISTINCT FROM v_attributes_reordered::text THEN
+    RAISE EXCEPTION 'Reordered attribute objects must be equal JSONB with identical canonical text';
+  END IF;
+
+  v_base_payload := jsonb_build_object(
+    'input', v_input_original,
+    'name', 'JSONB Key Order Canonicalization Fixture Offer',
+    'demandId', '50000000-0000-4000-8000-000000000001'::uuid,
+    'productMasterId', '40000000-0000-4000-8000-000000000001'::uuid,
+    'providerActorId', '30000000-0000-4000-8000-000000000001'::uuid,
+    'quantity', 2,
+    'price', 12,
+    'currency', 'USD',
+    'conditions', NULL,
+    'market', NULL,
+    'geography', NULL,
+    'attributes', v_attributes_original,
+    'documentationStatus', NULL,
+    'lifecycle', NULL,
+    'offerType', NULL,
+    'pricingModel', NULL
+  );
+
+  v_reordered_payload := jsonb_build_object(
+    'input', v_input_reordered,
+    'name', 'JSONB Key Order Canonicalization Fixture Offer',
+    'demandId', '50000000-0000-4000-8000-000000000001'::uuid,
+    'productMasterId', '40000000-0000-4000-8000-000000000001'::uuid,
+    'providerActorId', '30000000-0000-4000-8000-000000000001'::uuid,
+    'quantity', 2,
+    'price', 12,
+    'currency', 'USD',
+    'conditions', NULL,
+    'market', NULL,
+    'geography', NULL,
+    'attributes', v_attributes_reordered,
+    'documentationStatus', NULL,
+    'lifecycle', NULL,
+    'offerType', NULL,
+    'pricingModel', NULL
+  );
+
+  IF v_base_payload IS DISTINCT FROM v_reordered_payload
+     OR v_base_payload::text IS DISTINCT FROM v_reordered_payload::text THEN
+    RAISE EXCEPTION 'Equivalent effective request payloads must have identical JSONB values and text';
+  END IF;
+
+  v_original_hash := md5(v_base_payload::text);
+  v_reordered_hash := md5(v_reordered_payload::text);
+  IF v_original_hash IS DISTINCT FROM v_reordered_hash THEN
+    RAISE EXCEPTION 'Equivalent effective request payloads must produce the same hash';
+  END IF;
+
+  SELECT execution_id, request_hash, result
+  INTO v_execution_id, v_stored_hash, v_stored_result
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-jsonb-key-order-completed'
+    AND status = 'COMPLETED';
+
+  IF v_execution_id IS NULL
+     OR v_stored_hash IS DISTINCT FROM v_original_hash
+     OR v_stored_hash IS DISTINCT FROM v_reordered_hash THEN
+    RAISE EXCEPTION 'Stored idempotency row does not match the canonical request hash';
+  END IF;
+
+  SELECT object_id INTO v_offer_id
+  FROM public.action_executions
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND id = v_execution_id
+    AND idempotency_key = 'fixture-jsonb-key-order-completed'
+    AND status = 'COMPLETED';
+
+  IF v_offer_id IS NULL THEN
+    RAISE EXCEPTION 'COMPLETED canonicalization fixture is missing its original offer';
+  END IF;
+
+  v_expected_result := jsonb_build_object(
+    'status', 'succeeded',
+    'executionId', v_execution_id,
+    'objectType', 'Offer',
+    'objectId', v_offer_id
+  );
+  IF v_stored_result IS DISTINCT FROM v_expected_result THEN
+    RAISE EXCEPTION 'Canonicalization fixture has an unexpected stored result';
+  END IF;
+
+  SELECT public.execute_create_offer_v1(
+    '10000000-0000-4000-8000-000000000001',
+    'fixture-jsonb-key-order-completed',
+    v_input_reordered,
+    'JSONB Key Order Canonicalization Fixture Offer',
+    '50000000-0000-4000-8000-000000000001',
+    '40000000-0000-4000-8000-000000000001',
+    '30000000-0000-4000-8000-000000000001',
+    2,
+    12,
+    'USD',
+    NULL,
+    NULL,
+    NULL,
+    v_attributes_reordered,
+    NULL,
+    NULL,
+    NULL,
+    NULL
+  ) INTO v_actual;
+
+  IF v_actual IS DISTINCT FROM v_expected_result THEN
+    RAISE EXCEPTION 'Reordered JSONB replay did not return the original result; got %',
+      coalesce(v_actual::text, '<SQL NULL>');
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-jsonb-key-order-completed';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'Canonical JSONB replay changed or duplicated the idempotency row';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-jsonb-key-order-completed'
+    AND status = 'COMPLETED'
+    AND execution_id = v_execution_id
+    AND request_hash = v_original_hash
+    AND result = v_expected_result;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'Canonical JSONB replay changed the original idempotency key/hash/result';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND idempotency_key = 'fixture-jsonb-key-order-completed';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'Canonical JSONB replay created or removed an execution';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND id = v_execution_id
+    AND idempotency_key = 'fixture-jsonb-key-order-completed'
+    AND status = 'COMPLETED'
+    AND object_id = v_offer_id
+    AND input = v_input_original
+    AND result = v_expected_result;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'Canonical JSONB replay changed the original execution';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE id = v_offer_id
+    AND name = 'JSONB Key Order Canonicalization Fixture Offer'
+    AND demand_id = '50000000-0000-4000-8000-000000000001'
+    AND product_master_id = '40000000-0000-4000-8000-000000000001'
+    AND provider_actor_id = '30000000-0000-4000-8000-000000000001'
+    AND quantity = 2
+    AND price = 12
+    AND currency = 'USD'
+    AND attributes = v_attributes_original;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'Canonical JSONB replay changed the original offer';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_events
+  WHERE execution_id = v_execution_id
+    AND tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND event_type = 'ACTION_SUCCEEDED'
+    AND object_type = 'Offer'
+    AND object_id = v_offer_id
+    AND payload = v_expected_result;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'Canonical JSONB replay changed or duplicated the original success event';
+  END IF;
+END
+$qa72_assert$;
+
+RESET ROLE;
+SELECT 'CREATE_OFFER JSONB key-order canonical hash replay assertions passed' AS result;
