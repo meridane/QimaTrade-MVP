@@ -5799,3 +5799,220 @@ $qa77_assert$;
 RESET ROLE;
 SELECT 'CREATE_OFFER SQL NULL, JSONB null, and empty-object p_attributes characterization assertions passed' AS result;
 
+
+-- OFFER-QA-78: verify the p_attributes DEFAULT '{}'::jsonb argument contract.
+-- Exercise both directions: omitted argument -> explicit {}, and explicit {} -> omitted argument.
+-- The calls below intentionally omit p_attributes; all later optional parameters retain their SQL defaults.
+-- These fixtures are disposable CI data only.
+RESET ROLE;
+SET ROLE authenticated;
+
+DO $qa78_assert$
+DECLARE
+  v_case record;
+  v_input jsonb;
+  v_name text;
+  v_key text;
+  v_effective_payload jsonb;
+  v_expected_hash text;
+  v_first_result jsonb;
+  v_retry_result jsonb;
+  v_execution_id uuid;
+  v_offer_id uuid;
+  v_stored_hash text;
+  v_stored_result jsonb;
+  v_persisted_attributes jsonb;
+  v_count integer;
+BEGIN
+  FOR v_case IN
+    SELECT *
+    FROM (VALUES
+      ('default-to-explicit-empty', true),
+      ('explicit-empty-to-default', false)
+    ) AS cases(direction, first_uses_default)
+  LOOP
+    v_input := jsonb_build_object(
+      'case', 'attributes-default-empty-replay',
+      'direction', v_case.direction
+    );
+    v_name := 'Attributes Default Empty ' || v_case.direction;
+    v_key := 'fixture-attributes-default-empty-' || v_case.direction;
+
+    -- Match the complete effective hash payload from execute_create_offer_v1.
+    -- The omitted p_attributes argument resolves to its declared '{}'::jsonb default.
+    v_effective_payload := jsonb_build_object(
+      'input', v_input,
+      'name', v_name,
+      'demandId', '50000000-0000-4000-8000-000000000001'::uuid,
+      'productMasterId', '40000000-0000-4000-8000-000000000001'::uuid,
+      'providerActorId', '30000000-0000-4000-8000-000000000001'::uuid,
+      'quantity', 1::numeric,
+      'price', 10::numeric,
+      'currency', 'USD',
+      'conditions', NULL,
+      'market', NULL,
+      'geography', NULL,
+      'attributes', '{}'::jsonb,
+      'documentationStatus', NULL,
+      'lifecycle', NULL,
+      'offerType', NULL,
+      'pricingModel', NULL
+    );
+    v_expected_hash := md5(v_effective_payload::text);
+
+    IF v_case.first_uses_default THEN
+      -- Intentionally omit p_attributes and every later optional argument.
+      v_first_result := public.execute_create_offer_v1(
+        p_tenant_id => '10000000-0000-4000-8000-000000000001',
+        p_idempotency_key => v_key,
+        p_input => v_input,
+        p_name => v_name,
+        p_demand_id => '50000000-0000-4000-8000-000000000001',
+        p_product_master_id => '40000000-0000-4000-8000-000000000001',
+        p_provider_actor_id => '30000000-0000-4000-8000-000000000001',
+        p_quantity => 1::numeric,
+        p_price => 10::numeric,
+        p_currency => 'USD'
+      );
+      v_retry_result := public.execute_create_offer_v1(
+        p_tenant_id => '10000000-0000-4000-8000-000000000001',
+        p_idempotency_key => v_key,
+        p_input => v_input,
+        p_name => v_name,
+        p_demand_id => '50000000-0000-4000-8000-000000000001',
+        p_product_master_id => '40000000-0000-4000-8000-000000000001',
+        p_provider_actor_id => '30000000-0000-4000-8000-000000000001',
+        p_quantity => 1::numeric,
+        p_price => 10::numeric,
+        p_currency => 'USD',
+        p_attributes => '{}'::jsonb
+      );
+    ELSE
+      v_first_result := public.execute_create_offer_v1(
+        p_tenant_id => '10000000-0000-4000-8000-000000000001',
+        p_idempotency_key => v_key,
+        p_input => v_input,
+        p_name => v_name,
+        p_demand_id => '50000000-0000-4000-8000-000000000001',
+        p_product_master_id => '40000000-0000-4000-8000-000000000001',
+        p_provider_actor_id => '30000000-0000-4000-8000-000000000001',
+        p_quantity => 1::numeric,
+        p_price => 10::numeric,
+        p_currency => 'USD',
+        p_attributes => '{}'::jsonb
+      );
+      -- Intentionally omit p_attributes and every later optional argument.
+      v_retry_result := public.execute_create_offer_v1(
+        p_tenant_id => '10000000-0000-4000-8000-000000000001',
+        p_idempotency_key => v_key,
+        p_input => v_input,
+        p_name => v_name,
+        p_demand_id => '50000000-0000-4000-8000-000000000001',
+        p_product_master_id => '40000000-0000-4000-8000-000000000001',
+        p_provider_actor_id => '30000000-0000-4000-8000-000000000001',
+        p_quantity => 1::numeric,
+        p_price => 10::numeric,
+        p_currency => 'USD'
+      );
+    END IF;
+
+    IF v_first_result->>'status' IS DISTINCT FROM 'succeeded' THEN
+      RAISE EXCEPTION 'Initial % request did not succeed: %', v_case.direction, v_first_result;
+    END IF;
+    IF v_retry_result IS DISTINCT FROM v_first_result THEN
+      RAISE EXCEPTION 'Default/explicit-empty replay returned a different result for %: %',
+        v_case.direction, v_retry_result;
+    END IF;
+
+    SELECT execution_id, request_hash, result
+    INTO v_execution_id, v_stored_hash, v_stored_result
+    FROM public.idempotency_keys
+    WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+      AND key = v_key
+      AND status = 'COMPLETED';
+
+    IF v_execution_id IS NULL
+       OR v_stored_hash IS DISTINCT FROM v_expected_hash
+       OR v_stored_result IS DISTINCT FROM v_first_result THEN
+      RAISE EXCEPTION 'Stored idempotency row does not match the effective default payload for %',
+        v_case.direction;
+    END IF;
+
+    SELECT object_id INTO v_offer_id
+    FROM public.action_executions
+    WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+      AND id = v_execution_id
+      AND idempotency_key = v_key
+      AND status = 'COMPLETED'
+      AND input = v_input
+      AND result = v_first_result;
+
+    IF v_offer_id IS NULL THEN
+      RAISE EXCEPTION 'Original execution is missing or changed for %', v_case.direction;
+    END IF;
+
+    SELECT attributes INTO v_persisted_attributes
+    FROM public.offers
+    WHERE id = v_offer_id
+      AND name = v_name;
+
+    IF NOT FOUND OR v_persisted_attributes IS DISTINCT FROM '{}'::jsonb THEN
+      RAISE EXCEPTION 'Default p_attributes must persist as an empty JSON object for %',
+        v_case.direction;
+    END IF;
+
+    SELECT count(*) INTO v_count
+    FROM public.idempotency_keys
+    WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+      AND key = v_key
+      AND status = 'COMPLETED'
+      AND execution_id = v_execution_id
+      AND request_hash = v_expected_hash
+      AND result = v_first_result;
+    IF v_count <> 1 THEN
+      RAISE EXCEPTION 'Expected exactly one unchanged idempotency row for %', v_case.direction;
+    END IF;
+
+    SELECT count(*) INTO v_count
+    FROM public.action_executions
+    WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+      AND id = v_execution_id
+      AND idempotency_key = v_key
+      AND status = 'COMPLETED'
+      AND input = v_input
+      AND result = v_first_result
+      AND object_id = v_offer_id;
+    IF v_count <> 1 THEN
+      RAISE EXCEPTION 'Expected exactly one unchanged execution for %', v_case.direction;
+    END IF;
+
+    SELECT count(*) INTO v_count
+    FROM public.offers
+    WHERE id = v_offer_id
+      AND name = v_name
+      AND quantity = 1
+      AND price = 10
+      AND currency = 'USD'
+      AND attributes = '{}'::jsonb;
+    IF v_count <> 1 THEN
+      RAISE EXCEPTION 'Expected exactly one offer with default empty attributes for %',
+        v_case.direction;
+    END IF;
+
+    SELECT count(*) INTO v_count
+    FROM public.action_events
+    WHERE execution_id = v_execution_id
+      AND tenant_id = '10000000-0000-4000-8000-000000000001'
+      AND event_type = 'ACTION_SUCCEEDED'
+      AND object_type = 'Offer'
+      AND object_id = v_offer_id
+      AND payload = v_first_result;
+    IF v_count <> 1 THEN
+      RAISE EXCEPTION 'Expected exactly one unchanged success event for %', v_case.direction;
+    END IF;
+  END LOOP;
+END
+$qa78_assert$;
+
+RESET ROLE;
+SELECT 'CREATE_OFFER p_attributes default and explicit-empty bidirectional replay assertions passed' AS result;
