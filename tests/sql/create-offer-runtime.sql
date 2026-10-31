@@ -10756,3 +10756,491 @@ $qa91_integrity$;
 COMMIT;
 
 SELECT 'CREATE_OFFER null tenant and null/empty/whitespace idempotency-key preconditions rejected before writes (4 cases); row counts unchanged' AS result;
+
+-- OFFER-QA-92: a profile without an actor must be rejected before idempotency handling.
+-- Keep the profile row and tenant membership; only actor_id is temporarily NULL.
+-- All mutations are confined to this disposable PostgreSQL CI transaction.
+BEGIN;
+
+SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+
+DO $qa92_seed$
+DECLARE
+  v_action_id uuid;
+  v_tenant_id uuid := '10000000-0000-4000-8000-000000000001';
+  v_user_id uuid := '20000000-0000-4000-8000-000000000001';
+  v_actor_id uuid := '30000000-0000-4000-8000-000000000001';
+  v_input jsonb := '{"case":"profile-actor-not-found-precedence"}'::jsonb;
+  v_name text := 'Profile Actor Missing Precedence Fixture Offer';
+  v_demand_id uuid := '50000000-0000-4000-8000-000000000001';
+  v_product_master_id uuid := '40000000-0000-4000-8000-000000000001';
+  v_request_hash text;
+  v_completed_result jsonb;
+  v_failed_result jsonb;
+  v_terminal_at timestamptz := clock_timestamp();
+  v_rows integer;
+BEGIN
+  SELECT count(*) INTO v_rows
+  FROM public.profiles
+  WHERE auth_user_id = v_user_id
+    AND actor_id = v_actor_id;
+  IF v_rows <> 1 THEN
+    RAISE EXCEPTION 'QA92 requires exactly one provider A profile with its original actor_id';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM public.dt_memberships
+    WHERE tenant_id = v_tenant_id AND user_id = v_user_id
+  ) THEN
+    RAISE EXCEPTION 'QA92 requires the original tenant A membership to remain present';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM public.idempotency_keys
+    WHERE tenant_id = v_tenant_id
+      AND key IN (
+        'fixture-profile-actor-completed',
+        'fixture-profile-actor-failed',
+        'fixture-profile-actor-in-progress'
+      )
+  ) THEN
+    RAISE EXCEPTION 'QA92 idempotency fixture keys already exist';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM public.action_executions
+    WHERE id IN (
+      '70000000-0000-4000-8000-000000000112',
+      '70000000-0000-4000-8000-000000000113',
+      '70000000-0000-4000-8000-000000000114'
+    )
+  ) OR EXISTS (
+    SELECT 1 FROM public.offers
+    WHERE id = '71000000-0000-4000-8000-000000000100'
+  ) THEN
+    RAISE EXCEPTION 'QA92 fixture execution or offer IDs already exist';
+  END IF;
+
+  SELECT id INTO v_action_id
+  FROM public.action_definitions
+  WHERE action_key = 'CREATE_OFFER'
+    AND version = 1
+    AND status = 'published';
+
+  IF v_action_id IS NULL OR (
+    SELECT count(*)
+    FROM public.action_definitions
+    WHERE action_key = 'CREATE_OFFER'
+      AND version = 1
+      AND status = 'published'
+  ) <> 1 THEN
+    RAISE EXCEPTION 'QA92 requires exactly one published CREATE_OFFER v1 definition';
+  END IF;
+
+  v_request_hash := md5(jsonb_build_object(
+    'input', v_input,
+    'name', v_name,
+    'demandId', v_demand_id,
+    'productMasterId', v_product_master_id,
+    'providerActorId', v_actor_id,
+    'quantity', 2::numeric,
+    'price', 12::numeric,
+    'currency', 'USD',
+    'conditions', NULL,
+    'market', NULL,
+    'geography', NULL,
+    'attributes', '{}'::jsonb,
+    'documentationStatus', NULL,
+    'lifecycle', NULL,
+    'offerType', NULL,
+    'pricingModel', NULL
+  )::text);
+
+  v_completed_result := jsonb_build_object(
+    'status', 'succeeded',
+    'executionId', '70000000-0000-4000-8000-000000000112'::uuid,
+    'objectType', 'Offer',
+    'objectId', '71000000-0000-4000-8000-000000000100'::uuid
+  );
+  v_failed_result := jsonb_build_object(
+    'status', 'failed',
+    'executionId', '70000000-0000-4000-8000-000000000113'::uuid,
+    'error', 'fixture failure'
+  );
+
+  INSERT INTO public.offers(
+    id, name, demand_id, product_master_id, provider_actor_id,
+    quantity, price, currency, conditions, market, geography,
+    documentation_status, lifecycle, offer_type, pricing_model, attributes
+  )
+  VALUES (
+    '71000000-0000-4000-8000-000000000100',
+    v_name, v_demand_id, v_product_master_id, v_actor_id,
+    2, 12, 'USD', NULL, NULL, NULL, NULL, NULL, NULL, NULL, '{}'::jsonb
+  );
+
+  INSERT INTO public.action_executions(
+    id, action_id, action_version, actor_id, object_type, object_id,
+    correlation_id, idempotency_key, status, input, result, completed_at, tenant_id
+  )
+  VALUES
+    (
+      '70000000-0000-4000-8000-000000000112',
+      v_action_id, 1, v_actor_id, 'Offer',
+      '71000000-0000-4000-8000-000000000100',
+      '72000000-0000-4000-8000-000000000112',
+      'fixture-profile-actor-completed', 'COMPLETED',
+      v_input, v_completed_result, v_terminal_at, v_tenant_id
+    ),
+    (
+      '70000000-0000-4000-8000-000000000113',
+      v_action_id, 1, v_actor_id, 'Offer', NULL,
+      '72000000-0000-4000-8000-000000000113',
+      'fixture-profile-actor-failed', 'FAILED',
+      v_input, v_failed_result, v_terminal_at, v_tenant_id
+    ),
+    (
+      '70000000-0000-4000-8000-000000000114',
+      v_action_id, 1, v_actor_id, 'Offer', NULL,
+      '72000000-0000-4000-8000-000000000114',
+      'fixture-profile-actor-in-progress', 'RUNNING',
+      v_input, NULL, NULL, v_tenant_id
+    );
+
+  INSERT INTO public.idempotency_keys(
+    key, action_id, actor_id, request_hash, execution_id,
+    status, result, completed_at, tenant_id
+  )
+  VALUES
+    (
+      'fixture-profile-actor-completed', v_action_id, v_actor_id, v_request_hash,
+      '70000000-0000-4000-8000-000000000112',
+      'COMPLETED', v_completed_result, v_terminal_at, v_tenant_id
+    ),
+    (
+      'fixture-profile-actor-failed', v_action_id, v_actor_id, v_request_hash,
+      '70000000-0000-4000-8000-000000000113',
+      'FAILED', v_failed_result, v_terminal_at, v_tenant_id
+    ),
+    (
+      'fixture-profile-actor-in-progress', v_action_id, v_actor_id, v_request_hash,
+      '70000000-0000-4000-8000-000000000114',
+      'IN_PROGRESS', NULL, NULL, v_tenant_id
+    );
+
+  INSERT INTO public.action_events(
+    execution_id, action_id, action_version, event_type, actor_id,
+    object_type, object_id, correlation_id, payload, tenant_id
+  )
+  VALUES (
+    '70000000-0000-4000-8000-000000000112',
+    v_action_id, 1, 'ACTION_SUCCEEDED', v_actor_id,
+    'Offer', '71000000-0000-4000-8000-000000000100',
+    '72000000-0000-4000-8000-000000000112',
+    v_completed_result, v_tenant_id
+  );
+
+  UPDATE public.profiles
+  SET actor_id = NULL
+  WHERE auth_user_id = v_user_id
+    AND actor_id = v_actor_id;
+  GET DIAGNOSTICS v_rows = ROW_COUNT;
+  IF v_rows <> 1 THEN
+    RAISE EXCEPTION 'QA92 expected to null actor_id on exactly one provider A profile, updated % rows', v_rows;
+  END IF;
+END
+$qa92_seed$;
+
+CREATE TEMP TABLE qa92_baseline ON COMMIT DROP AS
+SELECT
+  (SELECT count(*) FROM public.idempotency_keys) AS idempotency_count,
+  (SELECT count(*) FROM public.action_executions) AS execution_count,
+  (SELECT count(*) FROM public.offers) AS offer_count,
+  (SELECT count(*) FROM public.action_events) AS event_count;
+
+SET ROLE authenticated;
+
+DO $qa92_assert$
+DECLARE
+  v_case record;
+  v_error text;
+BEGIN
+  IF auth.uid() IS DISTINCT FROM '20000000-0000-4000-8000-000000000001'::uuid THEN
+    RAISE EXCEPTION 'QA92 requires authenticated provider A before testing a missing profile actor';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM public.profiles
+    WHERE auth_user_id = auth.uid()
+      AND actor_id IS NULL
+  ) THEN
+    RAISE EXCEPTION 'QA92 must retain provider A profile row while actor_id is NULL';
+  END IF;
+
+  FOR v_case IN
+    SELECT *
+    FROM (VALUES
+      ('COMPLETED', 'fixture-profile-actor-completed'),
+      ('FAILED', 'fixture-profile-actor-failed'),
+      ('IN_PROGRESS', 'fixture-profile-actor-in-progress')
+    ) AS cases(status_name, idempotency_key)
+  LOOP
+    v_error := NULL;
+    BEGIN
+      -- All arguments, including provider_actor_id, remain valid.
+      -- The profile row exists; only its actor_id is temporarily absent.
+      PERFORM public.execute_create_offer_v1(
+        p_tenant_id => '10000000-0000-4000-8000-000000000001',
+        p_idempotency_key => v_case.idempotency_key,
+        p_input => '{"case":"profile-actor-not-found-precedence"}'::jsonb,
+        p_name => 'Profile Actor Missing Precedence Fixture Offer',
+        p_demand_id => '50000000-0000-4000-8000-000000000001',
+        p_product_master_id => '40000000-0000-4000-8000-000000000001',
+        p_provider_actor_id => '30000000-0000-4000-8000-000000000001',
+        p_quantity => 2::numeric,
+        p_price => 12::numeric,
+        p_currency => 'USD',
+        p_conditions => NULL,
+        p_market => NULL,
+        p_geography => NULL,
+        p_attributes => '{}'::jsonb,
+        p_documentation_status => NULL,
+        p_lifecycle => NULL,
+        p_offer_type => NULL,
+        p_pricing_model => NULL
+      );
+      RAISE EXCEPTION 'QA92 expected PROFILE_ACTOR_NOT_FOUND for % key', v_case.status_name;
+    EXCEPTION WHEN OTHERS THEN
+      GET STACKED DIAGNOSTICS v_error = MESSAGE_TEXT;
+    END;
+
+    IF v_error IS DISTINCT FROM 'PROFILE_ACTOR_NOT_FOUND' THEN
+      RAISE EXCEPTION 'Profile actor precondition mismatch for % key: expected PROFILE_ACTOR_NOT_FOUND, got %',
+        v_case.status_name, coalesce(v_error, '<no error>');
+    END IF;
+  END LOOP;
+END
+$qa92_assert$;
+
+RESET ROLE;
+
+DO $qa92_restore$
+DECLARE
+  v_rows integer;
+BEGIN
+  UPDATE public.profiles
+  SET actor_id = '30000000-0000-4000-8000-000000000001'
+  WHERE auth_user_id = '20000000-0000-4000-8000-000000000001'
+    AND actor_id IS NULL;
+  GET DIAGNOSTICS v_rows = ROW_COUNT;
+  IF v_rows <> 1 THEN
+    RAISE EXCEPTION 'QA92 expected to restore exactly one provider A profile actor_id, restored % rows', v_rows;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM public.profiles
+    WHERE auth_user_id = '20000000-0000-4000-8000-000000000001'
+      AND actor_id = '30000000-0000-4000-8000-000000000001'
+  ) THEN
+    RAISE EXCEPTION 'QA92 failed to restore the original provider A profile actor_id';
+  END IF;
+END
+$qa92_restore$;
+
+DO $qa92_integrity$
+DECLARE
+  v_action_id uuid;
+  v_tenant_id uuid := '10000000-0000-4000-8000-000000000001';
+  v_actor_id uuid := '30000000-0000-4000-8000-000000000001';
+  v_request_hash text;
+  v_input jsonb := '{"case":"profile-actor-not-found-precedence"}'::jsonb;
+  v_completed_result jsonb;
+  v_failed_result jsonb;
+  v_terminal_at timestamptz;
+  v_before record;
+  v_after record;
+  v_count integer;
+BEGIN
+  IF auth.uid() IS DISTINCT FROM '20000000-0000-4000-8000-000000000001'::uuid THEN
+    RAISE EXCEPTION 'QA92 must preserve the authenticated provider A JWT subject';
+  END IF;
+
+  SELECT id INTO v_action_id
+  FROM public.action_definitions
+  WHERE action_key = 'CREATE_OFFER'
+    AND version = 1
+    AND status = 'published';
+
+  v_request_hash := md5(jsonb_build_object(
+    'input', v_input,
+    'name', 'Profile Actor Missing Precedence Fixture Offer',
+    'demandId', '50000000-0000-4000-8000-000000000001'::uuid,
+    'productMasterId', '40000000-0000-4000-8000-000000000001'::uuid,
+    'providerActorId', v_actor_id,
+    'quantity', 2::numeric,
+    'price', 12::numeric,
+    'currency', 'USD',
+    'conditions', NULL,
+    'market', NULL,
+    'geography', NULL,
+    'attributes', '{}'::jsonb,
+    'documentationStatus', NULL,
+    'lifecycle', NULL,
+    'offerType', NULL,
+    'pricingModel', NULL
+  )::text);
+
+  v_completed_result := jsonb_build_object(
+    'status', 'succeeded',
+    'executionId', '70000000-0000-4000-8000-000000000112'::uuid,
+    'objectType', 'Offer',
+    'objectId', '71000000-0000-4000-8000-000000000100'::uuid
+  );
+  v_failed_result := jsonb_build_object(
+    'status', 'failed',
+    'executionId', '70000000-0000-4000-8000-000000000113'::uuid,
+    'error', 'fixture failure'
+  );
+
+  SELECT * INTO v_before FROM pg_temp.qa92_baseline;
+  SELECT
+    (SELECT count(*) FROM public.idempotency_keys) AS idempotency_count,
+    (SELECT count(*) FROM public.action_executions) AS execution_count,
+    (SELECT count(*) FROM public.offers) AS offer_count,
+    (SELECT count(*) FROM public.action_events) AS event_count
+  INTO v_after;
+
+  IF ROW(v_after.idempotency_count, v_after.execution_count, v_after.offer_count, v_after.event_count)
+     IS DISTINCT FROM
+     ROW(v_before.idempotency_count, v_before.execution_count, v_before.offer_count, v_before.event_count) THEN
+    RAISE EXCEPTION 'QA92 profile actor replays created or removed rows (before: %, %, %, %; after: %, %, %, %)',
+      v_before.idempotency_count, v_before.execution_count, v_before.offer_count, v_before.event_count,
+      v_after.idempotency_count, v_after.execution_count, v_after.offer_count, v_after.event_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE tenant_id = v_tenant_id
+    AND key IN (
+      'fixture-profile-actor-completed',
+      'fixture-profile-actor-failed',
+      'fixture-profile-actor-in-progress'
+    )
+    AND action_id = v_action_id
+    AND actor_id = v_actor_id
+    AND request_hash = v_request_hash;
+  IF v_count <> 3 THEN
+    RAISE EXCEPTION 'QA92 expected all three original idempotency keys and hashes to remain unchanged, found %', v_count;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM public.idempotency_keys
+    WHERE tenant_id = v_tenant_id
+      AND key = 'fixture-profile-actor-completed'
+      AND execution_id = '70000000-0000-4000-8000-000000000112'
+      AND status = 'COMPLETED'
+      AND result = v_completed_result
+      AND completed_at = (SELECT completed_at FROM public.idempotency_keys WHERE key = 'fixture-profile-actor-completed' AND tenant_id = v_tenant_id)
+  ) OR NOT EXISTS (
+    SELECT 1 FROM public.idempotency_keys
+    WHERE tenant_id = v_tenant_id
+      AND key = 'fixture-profile-actor-failed'
+      AND execution_id = '70000000-0000-4000-8000-000000000113'
+      AND status = 'FAILED'
+      AND result = v_failed_result
+  ) OR NOT EXISTS (
+    SELECT 1 FROM public.idempotency_keys
+    WHERE tenant_id = v_tenant_id
+      AND key = 'fixture-profile-actor-in-progress'
+      AND execution_id = '70000000-0000-4000-8000-000000000114'
+      AND status = 'IN_PROGRESS'
+      AND result IS NULL
+      AND completed_at IS NULL
+  ) THEN
+    RAISE EXCEPTION 'QA92 original idempotency status, execution, result or timestamp changed';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE tenant_id = v_tenant_id
+    AND actor_id = v_actor_id
+    AND input = v_input
+    AND (
+      (id = '70000000-0000-4000-8000-000000000112'
+        AND idempotency_key = 'fixture-profile-actor-completed'
+        AND status = 'COMPLETED'
+        AND object_id = '71000000-0000-4000-8000-000000000100'
+        AND result = v_completed_result
+        AND completed_at IS NOT NULL)
+      OR
+      (id = '70000000-0000-4000-8000-000000000113'
+        AND idempotency_key = 'fixture-profile-actor-failed'
+        AND status = 'FAILED'
+        AND object_id IS NULL
+        AND result = v_failed_result
+        AND completed_at IS NOT NULL)
+      OR
+      (id = '70000000-0000-4000-8000-000000000114'
+        AND idempotency_key = 'fixture-profile-actor-in-progress'
+        AND status = 'RUNNING'
+        AND object_id IS NULL
+        AND result IS NULL
+        AND completed_at IS NULL)
+    );
+  IF v_count <> 3 THEN
+    RAISE EXCEPTION 'QA92 original action executions, status or results changed';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE id = '71000000-0000-4000-8000-000000000100'
+    AND name = 'Profile Actor Missing Precedence Fixture Offer'
+    AND demand_id = '50000000-0000-4000-8000-000000000001'
+    AND product_master_id = '40000000-0000-4000-8000-000000000001'
+    AND provider_actor_id = v_actor_id
+    AND quantity = 2
+    AND price = 12
+    AND currency = 'USD'
+    AND attributes = '{}'::jsonb;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA92 original offer changed or duplicated';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_events
+  WHERE execution_id = '70000000-0000-4000-8000-000000000112'
+    AND tenant_id = v_tenant_id
+    AND event_type = 'ACTION_SUCCEEDED'
+    AND actor_id = v_actor_id
+    AND object_id = '71000000-0000-4000-8000-000000000100'
+    AND payload = v_completed_result;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA92 original ACTION_SUCCEEDED event changed or duplicated';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_events
+  WHERE execution_id IN (
+    '70000000-0000-4000-8000-000000000112',
+    '70000000-0000-4000-8000-000000000113',
+    '70000000-0000-4000-8000-000000000114'
+  );
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA92 profile actor replays unexpectedly created or removed action events';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE auth_user_id = '20000000-0000-4000-8000-000000000001'
+      AND actor_id = v_actor_id
+  ) THEN
+    RAISE EXCEPTION 'QA92 provider A profile actor_id was not restored';
+  END IF;
+END
+$qa92_integrity$;
+
+COMMIT;
+
+SELECT 'CREATE_OFFER missing profile actor validation precedes idempotency hash/status handling for COMPLETED, FAILED and IN_PROGRESS keys (3 retries); profile actor_id restored; original records unchanged' AS result;
