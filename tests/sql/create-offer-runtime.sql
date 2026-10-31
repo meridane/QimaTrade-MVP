@@ -2644,7 +2644,6 @@ DECLARE
   v_failed_execution_id uuid;
   v_running_execution_id uuid;
   v_failed_result jsonb;
-  v_stored_hash text;
   v_expected_failed_result jsonb;
   v_original_hash text;
   v_expected_hash text;
@@ -2692,7 +2691,7 @@ BEGIN
   END IF;
 
   SELECT execution_id, result, request_hash
-  INTO v_failed_execution_id, v_failed_result, v_stored_hash
+  INTO v_failed_execution_id, v_failed_result, v_original_hash
   FROM public.idempotency_keys
   WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
     AND key = 'fixture-hash-mismatch-failed'
@@ -3603,6 +3602,7 @@ DECLARE
   v_currency_hash text;
   v_attributes_hash text;
   v_failed_result jsonb;
+  v_stored_hash text;
   v_expected_failed_result jsonb;
   v_count integer;
 BEGIN
@@ -3640,7 +3640,7 @@ BEGIN
   END IF;
 
   SELECT execution_id, result, request_hash
-  INTO v_failed_execution_id, v_failed_result, v_original_hash
+  INTO v_failed_execution_id, v_failed_result, v_stored_hash
   FROM public.idempotency_keys
   WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
     AND key = 'fixture-hash-parameters-failed'
