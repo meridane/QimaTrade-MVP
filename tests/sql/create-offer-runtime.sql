@@ -7046,29 +7046,13 @@ DECLARE
   v_request_hash text;
   v_failed_result jsonb;
 BEGIN
-  -- The alternate demand and active product satisfy the function's current
-  -- existence/status preconditions. This fixture does not assert demand
-  -- ownership or define the separate demandId/tenantId authorization contract.
-  INSERT INTO public.demands(id, name, demand_status, requester_actor_id)
-  VALUES (
-    '50000000-0000-4000-8000-000000000005',
-    'QA82 Alternate Fixture Demand',
-    'published',
-    '30000000-0000-4000-8000-000000000002'
-  );
-
-  INSERT INTO public.product_masters(id, code, name, canonical_name, status)
-  VALUES (
-    '40000000-0000-4000-8000-000000000002',
-    'QA82-FIXTURE-2',
-    'QA82 Alternate Fixture Product',
-    'QA82 Alternate Fixture Product',
-    'active'
-  );
-
+  -- Reuse the alternate published demand and active product already seeded
+  -- by create-offer-runtime.sql. This fixture does not assert demand ownership
+  -- or define the separate demandId/tenantId authorization contract.
   IF NOT EXISTS (
     SELECT 1 FROM public.demands
-    WHERE id = '50000000-0000-4000-8000-000000000005'
+    WHERE id = '50000000-0000-4000-8000-000000000002'
+      AND demand_status = 'published'
   ) OR NOT EXISTS (
     SELECT 1 FROM public.product_masters
     WHERE id = '40000000-0000-4000-8000-000000000002'
@@ -7266,7 +7250,7 @@ BEGIN
       FROM (VALUES
         ('p_input', 'input', '{"case":"changed-base-input"}'::jsonb),
         ('p_name', 'name', '"Request Hash Base Fields Alternate Fixture Offer"'::jsonb),
-        ('p_demand_id', 'demandId', '"50000000-0000-4000-8000-000000000005"'::jsonb),
+        ('p_demand_id', 'demandId', '"50000000-0000-4000-8000-000000000002"'::jsonb),
         ('p_product_master_id', 'productMasterId', '"40000000-0000-4000-8000-000000000002"'::jsonb)
       ) AS cases(parameter_name, hash_key, changed_value)
     LOOP
