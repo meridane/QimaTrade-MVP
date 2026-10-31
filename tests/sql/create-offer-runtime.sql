@@ -5031,3 +5031,296 @@ $qa74_assert$;
 
 RESET ROLE;
 SELECT 'CREATE_OFFER typed numeric quantity and price scale characterization assertions passed' AS result;
+
+
+-- OFFER-QA-75: characterize numeric scale inside nested p_attributes JSONB.
+-- The effective CREATE_OFFER hash includes coalesce(p_attributes, '{}'::jsonb).
+-- Keep the nested numeric value as the only changed business input.
+-- This disposable PostgreSQL fixture documents current behavior; it does not alter the function.
+RESET ROLE;
+
+DO $qa75_seed$
+DECLARE
+  v_action_id uuid;
+  v_execution_id uuid := gen_random_uuid();
+  v_offer_id uuid := gen_random_uuid();
+  v_correlation_id uuid := gen_random_uuid();
+  v_actor_id uuid := '30000000-0000-4000-8000-000000000001';
+  v_tenant_id uuid := '10000000-0000-4000-8000-000000000001';
+  v_input jsonb := '{"case":"nested-attributes-numeric-scale"}'::jsonb;
+  v_attributes jsonb := '{"grade":"A","spec":{"weight":1}}'::jsonb;
+  v_payload jsonb;
+  v_hash text;
+  v_result jsonb;
+BEGIN
+  SELECT id INTO v_action_id
+  FROM public.action_definitions
+  WHERE action_key = 'CREATE_OFFER'
+    AND version = 1
+    AND status = 'published';
+
+  IF v_action_id IS NULL THEN
+    RAISE EXCEPTION 'Published CREATE_OFFER fixture definition is missing';
+  END IF;
+
+  v_payload := jsonb_build_object(
+    'input', v_input,
+    'name', 'Nested Attributes Numeric Scale Fixture Offer',
+    'demandId', '50000000-0000-4000-8000-000000000001'::uuid,
+    'productMasterId', '40000000-0000-4000-8000-000000000001'::uuid,
+    'providerActorId', v_actor_id,
+    'quantity', 2::numeric,
+    'price', 12::numeric,
+    'currency', 'USD',
+    'conditions', NULL,
+    'market', NULL,
+    'geography', NULL,
+    'attributes', coalesce(v_attributes, '{}'::jsonb),
+    'documentationStatus', NULL,
+    'lifecycle', NULL,
+    'offerType', NULL,
+    'pricingModel', NULL
+  );
+  v_hash := md5(v_payload::text);
+
+  INSERT INTO public.offers(
+    id, name, demand_id, product_master_id, provider_actor_id,
+    quantity, price, currency, attributes
+  )
+  VALUES (
+    v_offer_id,
+    'Nested Attributes Numeric Scale Fixture Offer',
+    '50000000-0000-4000-8000-000000000001',
+    '40000000-0000-4000-8000-000000000001',
+    v_actor_id,
+    2,
+    12,
+    'USD',
+    v_attributes
+  );
+
+  v_result := jsonb_build_object(
+    'status', 'succeeded',
+    'executionId', v_execution_id,
+    'objectType', 'Offer',
+    'objectId', v_offer_id
+  );
+
+  INSERT INTO public.action_executions(
+    id, action_id, action_version, actor_id, object_type, object_id,
+    correlation_id, idempotency_key, status, input, result, completed_at, tenant_id
+  )
+  VALUES (
+    v_execution_id, v_action_id, 1, v_actor_id, 'Offer', v_offer_id,
+    v_correlation_id, 'fixture-nested-attributes-numeric-scale-completed',
+    'COMPLETED', v_input, v_result, now(), v_tenant_id
+  );
+
+  INSERT INTO public.idempotency_keys(
+    key, action_id, actor_id, request_hash, execution_id,
+    status, result, completed_at, tenant_id
+  )
+  VALUES (
+    'fixture-nested-attributes-numeric-scale-completed',
+    v_action_id, v_actor_id, v_hash, v_execution_id,
+    'COMPLETED', v_result, now(), v_tenant_id
+  );
+
+  INSERT INTO public.action_events(
+    execution_id, action_id, action_version, event_type, actor_id,
+    object_type, object_id, correlation_id, payload, tenant_id
+  )
+  VALUES (
+    v_execution_id, v_action_id, 1, 'ACTION_SUCCEEDED', v_actor_id,
+    'Offer', v_offer_id, v_correlation_id, v_result, v_tenant_id
+  );
+END
+$qa75_seed$;
+
+SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+SET ROLE authenticated;
+
+DO $qa75_assert$
+DECLARE
+  v_input jsonb := '{"case":"nested-attributes-numeric-scale"}'::jsonb;
+  v_original_attributes jsonb := '{"grade":"A","spec":{"weight":1}}'::jsonb;
+  v_scaled_attributes jsonb := '{"grade":"A","spec":{"weight":1.0}}'::jsonb;
+  v_original_payload jsonb;
+  v_scaled_payload jsonb;
+  v_original_hash text;
+  v_scaled_hash text;
+  v_execution_id uuid;
+  v_offer_id uuid;
+  v_stored_hash text;
+  v_stored_result jsonb;
+  v_expected_result jsonb;
+  v_actual jsonb;
+  v_error text;
+  v_count integer;
+BEGIN
+  IF v_original_attributes IS DISTINCT FROM v_scaled_attributes THEN
+    RAISE EXCEPTION 'Nested JSONB numeric values 1 and 1.0 should compare equal';
+  END IF;
+
+  IF v_original_attributes::text IS NOT DISTINCT FROM v_scaled_attributes::text THEN
+    RAISE EXCEPTION 'Nested JSONB numeric scale should remain visible in jsonb::text';
+  END IF;
+
+  v_original_payload := jsonb_build_object(
+    'input', v_input,
+    'name', 'Nested Attributes Numeric Scale Fixture Offer',
+    'demandId', '50000000-0000-4000-8000-000000000001'::uuid,
+    'productMasterId', '40000000-0000-4000-8000-000000000001'::uuid,
+    'providerActorId', '30000000-0000-4000-8000-000000000001'::uuid,
+    'quantity', 2::numeric,
+    'price', 12::numeric,
+    'currency', 'USD',
+    'conditions', NULL,
+    'market', NULL,
+    'geography', NULL,
+    'attributes', coalesce(v_original_attributes, '{}'::jsonb),
+    'documentationStatus', NULL,
+    'lifecycle', NULL,
+    'offerType', NULL,
+    'pricingModel', NULL
+  );
+
+  v_scaled_payload := jsonb_build_object(
+    'input', v_input,
+    'name', 'Nested Attributes Numeric Scale Fixture Offer',
+    'demandId', '50000000-0000-4000-8000-000000000001'::uuid,
+    'productMasterId', '40000000-0000-4000-8000-000000000001'::uuid,
+    'providerActorId', '30000000-0000-4000-8000-000000000001'::uuid,
+    'quantity', 2::numeric,
+    'price', 12::numeric,
+    'currency', 'USD',
+    'conditions', NULL,
+    'market', NULL,
+    'geography', NULL,
+    'attributes', coalesce(v_scaled_attributes, '{}'::jsonb),
+    'documentationStatus', NULL,
+    'lifecycle', NULL,
+    'offerType', NULL,
+    'pricingModel', NULL
+  );
+
+  IF v_original_payload IS DISTINCT FROM v_scaled_payload THEN
+    RAISE EXCEPTION 'Effective payloads should remain JSONB-equal when nested numeric scale changes';
+  END IF;
+
+  IF v_original_payload::text IS NOT DISTINCT FROM v_scaled_payload::text THEN
+    RAISE EXCEPTION 'Effective payload text unexpectedly normalized nested numeric scale';
+  END IF;
+
+  v_original_hash := md5(v_original_payload::text);
+  v_scaled_hash := md5(v_scaled_payload::text);
+  IF v_original_hash IS NOT DISTINCT FROM v_scaled_hash THEN
+    RAISE EXCEPTION 'Nested numeric scale unexpectedly produced the same effective request hash';
+  END IF;
+
+  SELECT execution_id, request_hash, result
+  INTO v_execution_id, v_stored_hash, v_stored_result
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-nested-attributes-numeric-scale-completed'
+    AND status = 'COMPLETED';
+
+  IF v_execution_id IS NULL OR v_stored_hash IS DISTINCT FROM v_original_hash THEN
+    RAISE EXCEPTION 'Stored hash does not match the original nested-attributes request';
+  END IF;
+
+  SELECT object_id INTO v_offer_id
+  FROM public.action_executions
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND id = v_execution_id
+    AND idempotency_key = 'fixture-nested-attributes-numeric-scale-completed'
+    AND status = 'COMPLETED';
+
+  v_expected_result := jsonb_build_object(
+    'status', 'succeeded',
+    'executionId', v_execution_id,
+    'objectType', 'Offer',
+    'objectId', v_offer_id
+  );
+
+  IF v_offer_id IS NULL OR v_stored_result IS DISTINCT FROM v_expected_result THEN
+    RAISE EXCEPTION 'Nested-attributes fixture has an unexpected original result';
+  END IF;
+
+  v_error := NULL;
+  BEGIN
+    v_actual := public.execute_create_offer_v1(
+      p_tenant_id => '10000000-0000-4000-8000-000000000001',
+      p_idempotency_key => 'fixture-nested-attributes-numeric-scale-completed',
+      p_input => v_input,
+      p_name => 'Nested Attributes Numeric Scale Fixture Offer',
+      p_demand_id => '50000000-0000-4000-8000-000000000001',
+      p_product_master_id => '40000000-0000-4000-8000-000000000001',
+      p_provider_actor_id => '30000000-0000-4000-8000-000000000001',
+      p_quantity => 2::numeric,
+      p_price => 12::numeric,
+      p_currency => 'USD',
+      p_attributes => v_scaled_attributes
+    );
+  EXCEPTION WHEN OTHERS THEN
+    v_error := SQLERRM;
+  END;
+
+  IF v_error IS DISTINCT FROM 'IDEMPOTENCY_KEY_REUSE' THEN
+    RAISE EXCEPTION 'Nested attributes numeric-scale replay expected IDEMPOTENCY_KEY_REUSE; got %',
+      coalesce(v_error, '<no error>');
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-nested-attributes-numeric-scale-completed'
+    AND status = 'COMPLETED'
+    AND execution_id = v_execution_id
+    AND request_hash = v_original_hash
+    AND result = v_expected_result;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'Nested-attributes replay changed or duplicated the original idempotency row';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND id = v_execution_id
+    AND idempotency_key = 'fixture-nested-attributes-numeric-scale-completed'
+    AND status = 'COMPLETED'
+    AND input = v_input
+    AND result = v_expected_result
+    AND object_id = v_offer_id;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'Nested-attributes replay changed the original execution';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE id = v_offer_id
+    AND name = 'Nested Attributes Numeric Scale Fixture Offer'
+    AND quantity = 2
+    AND price = 12
+    AND currency = 'USD'
+    AND attributes = v_original_attributes;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'Nested-attributes replay changed the original offer attributes';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_events
+  WHERE execution_id = v_execution_id
+    AND tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND event_type = 'ACTION_SUCCEEDED'
+    AND object_type = 'Offer'
+    AND object_id = v_offer_id
+    AND payload = v_expected_result;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'Nested-attributes replay changed or duplicated the original success event';
+  END IF;
+END
+$qa75_assert$;
+
+RESET ROLE;
+SELECT 'CREATE_OFFER nested p_attributes numeric-scale hash characterization assertions passed' AS result;
