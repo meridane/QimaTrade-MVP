@@ -8181,3 +8181,422 @@ $qa84_assert$;
 
 RESET ROLE;
 SELECT 'CREATE_OFFER provider actor identity validation precedes idempotency hash/status handling for COMPLETED, FAILED and IN_PROGRESS keys (3 retries) assertions passed' AS result;
+
+
+-- OFFER-QA-85: tenant membership is checked before provider identity, hash,
+-- and stored idempotency status. User B belongs only to tenant B and attempts
+-- to address three existing keys owned by tenant A. Provider actor B matches
+-- the JWT so this isolates the tenant membership guard.
+-- All fixtures are synthetic and confined to the disposable PostgreSQL CI DB.
+RESET ROLE;
+
+DO $qa85_seed$
+DECLARE
+  v_action_id uuid;
+  v_actor_id uuid := '30000000-0000-4000-8000-000000000001';
+  v_other_actor_id uuid := '30000000-0000-4000-8000-000000000002';
+  v_tenant_id uuid := '10000000-0000-4000-8000-000000000001';
+  v_other_tenant_id uuid := '10000000-0000-4000-8000-000000000002';
+  v_input jsonb := '{"case":"tenant-membership-validation-order"}'::jsonb;
+  v_name text := 'Tenant Membership Validation Order Fixture Offer';
+  v_demand_id uuid := '50000000-0000-4000-8000-000000000001';
+  v_product_master_id uuid := '40000000-0000-4000-8000-000000000001';
+  v_base_payload jsonb;
+  v_request_hash text;
+  v_completed_result jsonb;
+  v_failed_result jsonb;
+  v_terminal_at timestamptz := clock_timestamp();
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE auth_user_id = '20000000-0000-4000-8000-000000000001'
+      AND actor_id = v_actor_id
+  ) OR NOT EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE auth_user_id = '20000000-0000-4000-8000-000000000002'
+      AND actor_id = v_other_actor_id
+  ) THEN
+    RAISE EXCEPTION 'QA85 requires both synthetic provider profiles';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM public.dt_memberships
+    WHERE tenant_id = v_other_tenant_id
+      AND user_id = '20000000-0000-4000-8000-000000000002'
+  ) OR EXISTS (
+    SELECT 1 FROM public.dt_memberships
+    WHERE tenant_id = v_tenant_id
+      AND user_id = '20000000-0000-4000-8000-000000000002'
+  ) THEN
+    RAISE EXCEPTION 'QA85 requires user B to belong to tenant B only, not tenant A';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM public.idempotency_keys
+    WHERE tenant_id = v_tenant_id
+      AND key IN (
+        'fixture-tenant-membership-completed',
+        'fixture-tenant-membership-failed',
+        'fixture-tenant-membership-in-progress'
+      )
+  ) THEN
+    RAISE EXCEPTION 'QA85 idempotency fixture keys already exist';
+  END IF;
+
+  SELECT id INTO v_action_id
+  FROM public.action_definitions
+  WHERE action_key = 'CREATE_OFFER'
+    AND version = 1
+    AND status = 'published';
+
+  IF v_action_id IS NULL THEN
+    RAISE EXCEPTION 'Published CREATE_OFFER fixture definition is missing';
+  END IF;
+
+  v_base_payload := jsonb_build_object(
+    'input', v_input,
+    'name', v_name,
+    'demandId', v_demand_id,
+    'productMasterId', v_product_master_id,
+    'providerActorId', v_actor_id,
+    'quantity', 2,
+    'price', 12,
+    'currency', 'USD',
+    'conditions', NULL,
+    'market', NULL,
+    'geography', NULL,
+    'attributes', '{}'::jsonb,
+    'documentationStatus', NULL,
+    'lifecycle', NULL,
+    'offerType', NULL,
+    'pricingModel', NULL
+  );
+  v_request_hash := md5(v_base_payload::text);
+
+  v_completed_result := jsonb_build_object(
+    'status', 'succeeded',
+    'executionId', '70000000-0000-4000-8000-000000000087'::uuid,
+    'objectType', 'Offer',
+    'objectId', '71000000-0000-4000-8000-000000000085'::uuid
+  );
+  v_failed_result := jsonb_build_object(
+    'status', 'failed',
+    'executionId', '70000000-0000-4000-8000-000000000088'::uuid,
+    'error', 'fixture failure'
+  );
+
+  INSERT INTO public.offers(
+    id, name, demand_id, product_master_id, provider_actor_id,
+    quantity, price, currency, conditions, market, geography,
+    documentation_status, lifecycle, offer_type, pricing_model, attributes
+  )
+  VALUES (
+    '71000000-0000-4000-8000-000000000085',
+    v_name,
+    v_demand_id,
+    v_product_master_id,
+    v_actor_id,
+    2,
+    12,
+    'USD',
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    '{}'::jsonb
+  );
+
+  INSERT INTO public.action_executions(
+    id, action_id, action_version, actor_id, object_type, object_id,
+    correlation_id, idempotency_key, status, input, result, completed_at, tenant_id
+  )
+  VALUES
+    (
+      '70000000-0000-4000-8000-000000000087',
+      v_action_id, 1, v_actor_id, 'Offer',
+      '71000000-0000-4000-8000-000000000085',
+      '72000000-0000-4000-8000-000000000087',
+      'fixture-tenant-membership-completed', 'COMPLETED',
+      v_input, v_completed_result, v_terminal_at, v_tenant_id
+    ),
+    (
+      '70000000-0000-4000-8000-000000000088',
+      v_action_id, 1, v_actor_id, 'Offer', NULL,
+      '72000000-0000-4000-8000-000000000088',
+      'fixture-tenant-membership-failed', 'FAILED',
+      v_input, v_failed_result, v_terminal_at, v_tenant_id
+    ),
+    (
+      '70000000-0000-4000-8000-000000000089',
+      v_action_id, 1, v_actor_id, 'Offer', NULL,
+      '72000000-0000-4000-8000-000000000089',
+      'fixture-tenant-membership-in-progress', 'RUNNING',
+      v_input, NULL, NULL, v_tenant_id
+    );
+
+  INSERT INTO public.idempotency_keys(
+    key, action_id, actor_id, request_hash, execution_id,
+    status, result, completed_at, tenant_id
+  )
+  VALUES
+    (
+      'fixture-tenant-membership-completed', v_action_id, v_actor_id,
+      v_request_hash, '70000000-0000-4000-8000-000000000087',
+      'COMPLETED', v_completed_result, v_terminal_at, v_tenant_id
+    ),
+    (
+      'fixture-tenant-membership-failed', v_action_id, v_actor_id,
+      v_request_hash, '70000000-0000-4000-8000-000000000088',
+      'FAILED', v_failed_result, v_terminal_at, v_tenant_id
+    ),
+    (
+      'fixture-tenant-membership-in-progress', v_action_id, v_actor_id,
+      v_request_hash, '70000000-0000-4000-8000-000000000089',
+      'IN_PROGRESS', NULL, NULL, v_tenant_id
+    );
+
+  INSERT INTO public.action_events(
+    execution_id, action_id, action_version, event_type, actor_id,
+    object_type, object_id, correlation_id, payload, tenant_id
+  )
+  VALUES (
+    '70000000-0000-4000-8000-000000000087',
+    v_action_id, 1, 'ACTION_SUCCEEDED', v_actor_id,
+    'Offer',
+    '71000000-0000-4000-8000-000000000085',
+    '72000000-0000-4000-8000-000000000087',
+    v_completed_result,
+    v_tenant_id
+  );
+END
+$qa85_seed$;
+
+-- User B's JWT and provider actor are consistent, but user B is not a member
+-- of tenant A. The tenant membership guard must fire before actor/hash/status.
+SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000002';
+SET ROLE authenticated;
+
+DO $qa85_assert$
+DECLARE
+  v_case record;
+  v_error text;
+  v_base_payload jsonb;
+  v_other_actor_payload jsonb;
+  v_original_hash text;
+  v_other_actor_hash text;
+  v_expected_completed_result jsonb;
+  v_expected_failed_result jsonb;
+  v_count integer;
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM public.dt_memberships
+    WHERE tenant_id = '10000000-0000-4000-8000-000000000002'
+      AND user_id = '20000000-0000-4000-8000-000000000002'
+  ) OR EXISTS (
+    SELECT 1 FROM public.dt_memberships
+    WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+      AND user_id = '20000000-0000-4000-8000-000000000002'
+  ) THEN
+    RAISE EXCEPTION 'QA85 caller membership fixture is not isolated to tenant B';
+  END IF;
+
+  v_base_payload := jsonb_build_object(
+    'input', '{"case":"tenant-membership-validation-order"}'::jsonb,
+    'name', 'Tenant Membership Validation Order Fixture Offer',
+    'demandId', '50000000-0000-4000-8000-000000000001'::uuid,
+    'productMasterId', '40000000-0000-4000-8000-000000000001'::uuid,
+    'providerActorId', '30000000-0000-4000-8000-000000000001'::uuid,
+    'quantity', 2,
+    'price', 12,
+    'currency', 'USD',
+    'conditions', NULL,
+    'market', NULL,
+    'geography', NULL,
+    'attributes', '{}'::jsonb,
+    'documentationStatus', NULL,
+    'lifecycle', NULL,
+    'offerType', NULL,
+    'pricingModel', NULL
+  );
+  v_original_hash := md5(v_base_payload::text);
+  v_other_actor_payload := jsonb_set(
+    v_base_payload,
+    ARRAY['providerActorId'],
+    to_jsonb('30000000-0000-4000-8000-000000000002'::uuid)
+  );
+  v_other_actor_hash := md5(v_other_actor_payload::text);
+
+  IF v_other_actor_hash = v_original_hash THEN
+    RAISE EXCEPTION 'QA85 provider actor variation did not change the independently calculated request hash';
+  END IF;
+
+  v_expected_completed_result := jsonb_build_object(
+    'status', 'succeeded',
+    'executionId', '70000000-0000-4000-8000-000000000087'::uuid,
+    'objectType', 'Offer',
+    'objectId', '71000000-0000-4000-8000-000000000085'::uuid
+  );
+  v_expected_failed_result := jsonb_build_object(
+    'status', 'failed',
+    'executionId', '70000000-0000-4000-8000-000000000088'::uuid,
+    'error', 'fixture failure'
+  );
+
+  FOR v_case IN
+    SELECT *
+    FROM (VALUES
+      ('COMPLETED', 'fixture-tenant-membership-completed'),
+      ('FAILED', 'fixture-tenant-membership-failed'),
+      ('IN_PROGRESS', 'fixture-tenant-membership-in-progress')
+    ) AS cases(status_name, idempotency_key)
+  LOOP
+    v_error := NULL;
+    BEGIN
+      PERFORM public.execute_create_offer_v1(
+        p_tenant_id => '10000000-0000-4000-8000-000000000001',
+        p_idempotency_key => v_case.idempotency_key,
+        p_input => '{"case":"tenant-membership-validation-order"}'::jsonb,
+        p_name => 'Tenant Membership Validation Order Fixture Offer',
+        p_demand_id => '50000000-0000-4000-8000-000000000001',
+        p_product_master_id => '40000000-0000-4000-8000-000000000001',
+        p_provider_actor_id => '30000000-0000-4000-8000-000000000002',
+        p_quantity => 2,
+        p_price => 12,
+        p_currency => 'USD',
+        p_conditions => NULL,
+        p_market => NULL,
+        p_geography => NULL,
+        p_attributes => '{}'::jsonb,
+        p_documentation_status => NULL,
+        p_lifecycle => NULL,
+        p_offer_type => NULL,
+        p_pricing_model => NULL
+      );
+      RAISE EXCEPTION 'QA85 expected TENANT_ACCESS_DENIED for % key', v_case.status_name;
+    EXCEPTION WHEN OTHERS THEN
+      GET STACKED DIAGNOSTICS v_error = MESSAGE_TEXT;
+    END;
+
+    IF v_error IS DISTINCT FROM 'TENANT_ACCESS_DENIED' THEN
+      RAISE EXCEPTION 'Tenant membership validation must precede provider identity/hash/status handling for %; got %',
+        v_case.status_name, coalesce(v_error, '<no error>');
+    END IF;
+  END LOOP;
+
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key IN (
+      'fixture-tenant-membership-completed',
+      'fixture-tenant-membership-failed',
+      'fixture-tenant-membership-in-progress'
+    );
+  IF v_count <> 3 THEN
+    RAISE EXCEPTION 'QA85 retries changed or duplicated idempotency rows; expected 3, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND actor_id = '30000000-0000-4000-8000-000000000001'
+    AND request_hash = v_original_hash
+    AND (
+      (key = 'fixture-tenant-membership-completed'
+        AND status = 'COMPLETED'
+        AND execution_id = '70000000-0000-4000-8000-000000000087'
+        AND result = v_expected_completed_result
+        AND completed_at IS NOT NULL)
+      OR
+      (key = 'fixture-tenant-membership-failed'
+        AND status = 'FAILED'
+        AND execution_id = '70000000-0000-4000-8000-000000000088'
+        AND result = v_expected_failed_result
+        AND completed_at IS NOT NULL)
+      OR
+      (key = 'fixture-tenant-membership-in-progress'
+        AND status = 'IN_PROGRESS'
+        AND execution_id = '70000000-0000-4000-8000-000000000089'
+        AND result IS NULL
+        AND completed_at IS NULL)
+    );
+  IF v_count <> 3 THEN
+    RAISE EXCEPTION 'QA85 retries changed original idempotency status, actor, hash or result';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND actor_id = '30000000-0000-4000-8000-000000000001'
+    AND input = '{"case":"tenant-membership-validation-order"}'::jsonb
+    AND (
+      (id = '70000000-0000-4000-8000-000000000087'
+        AND idempotency_key = 'fixture-tenant-membership-completed'
+        AND status = 'COMPLETED'
+        AND object_id = '71000000-0000-4000-8000-000000000085'
+        AND result = v_expected_completed_result
+        AND completed_at IS NOT NULL)
+      OR
+      (id = '70000000-0000-4000-8000-000000000088'
+        AND idempotency_key = 'fixture-tenant-membership-failed'
+        AND status = 'FAILED'
+        AND object_id IS NULL
+        AND result = v_expected_failed_result
+        AND completed_at IS NOT NULL)
+      OR
+      (id = '70000000-0000-4000-8000-000000000089'
+        AND idempotency_key = 'fixture-tenant-membership-in-progress'
+        AND status = 'RUNNING'
+        AND object_id IS NULL
+        AND result IS NULL
+        AND completed_at IS NULL)
+    );
+  IF v_count <> 3 THEN
+    RAISE EXCEPTION 'QA85 retries changed original execution status, actor, object or result';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE id = '71000000-0000-4000-8000-000000000085'
+    AND name = 'Tenant Membership Validation Order Fixture Offer'
+    AND demand_id = '50000000-0000-4000-8000-000000000001'
+    AND product_master_id = '40000000-0000-4000-8000-000000000001'
+    AND provider_actor_id = '30000000-0000-4000-8000-000000000001'
+    AND quantity = 2
+    AND price = 12
+    AND currency = 'USD'
+    AND attributes = '{}'::jsonb;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA85 retries changed or duplicated the original offer';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_events
+  WHERE execution_id = '70000000-0000-4000-8000-000000000087'
+    AND tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND event_type = 'ACTION_SUCCEEDED'
+    AND actor_id = '30000000-0000-4000-8000-000000000001'
+    AND object_id = '71000000-0000-4000-8000-000000000085'
+    AND payload = v_expected_completed_result;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA85 retries changed or duplicated the original success event';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_events
+  WHERE execution_id IN (
+    '70000000-0000-4000-8000-000000000087',
+    '70000000-0000-4000-8000-000000000088',
+    '70000000-0000-4000-8000-000000000089'
+  );
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA85 retries unexpectedly created or removed action events';
+  END IF;
+END
+$qa85_assert$;
+
+RESET ROLE;
+SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+SELECT 'CREATE_OFFER tenant membership validation precedes provider identity/hash/status handling for COMPLETED, FAILED and IN_PROGRESS keys (3 cross-tenant retries) assertions passed' AS result;
