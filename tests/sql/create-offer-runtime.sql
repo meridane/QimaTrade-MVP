@@ -3490,3 +3490,417 @@ $qa70_assert$;
 
 RESET ROLE;
 SELECT 'CREATE_OFFER quantity, currency, and attributes hash precedence assertions passed' AS result;
+
+
+-- OFFER-QA-71: changed quantity, currency, and attributes must take request_hash
+-- precedence for both FAILED and IN_PROGRESS keys. The stored execution/key
+-- rows must remain unchanged, with no offer or action event created.
+-- All records are synthetic and confined to the disposable PostgreSQL CI DB.
+RESET ROLE;
+
+DO $qa71_seed$
+DECLARE
+  v_action_id uuid;
+  v_failed_execution_id uuid := gen_random_uuid();
+  v_running_execution_id uuid := gen_random_uuid();
+  v_actor_id uuid := '30000000-0000-4000-8000-000000000001';
+  v_tenant_id uuid := '10000000-0000-4000-8000-000000000001';
+  v_input jsonb := '{"case":"failed-running-hash-parameter-coverage"}'::jsonb;
+  v_base_payload jsonb;
+  v_request_hash text;
+  v_failed_result jsonb;
+BEGIN
+  SELECT id INTO v_action_id
+  FROM public.action_definitions
+  WHERE action_key = 'CREATE_OFFER'
+    AND version = 1
+    AND status = 'published';
+
+  IF v_action_id IS NULL THEN
+    RAISE EXCEPTION 'Published CREATE_OFFER fixture definition is missing';
+  END IF;
+
+  v_base_payload := jsonb_build_object(
+    'input', v_input,
+    'name', 'Request Hash Parameter Coverage Failed Running Fixture Offer',
+    'demandId', '50000000-0000-4000-8000-000000000001'::uuid,
+    'productMasterId', '40000000-0000-4000-8000-000000000001'::uuid,
+    'providerActorId', v_actor_id,
+    'quantity', 2,
+    'price', 12,
+    'currency', 'USD',
+    'conditions', NULL,
+    'market', NULL,
+    'geography', NULL,
+    'attributes', '{}'::jsonb,
+    'documentationStatus', NULL,
+    'lifecycle', NULL,
+    'offerType', NULL,
+    'pricingModel', NULL
+  );
+  v_request_hash := md5(v_base_payload::text);
+
+  v_failed_result := jsonb_build_object(
+    'status', 'failed',
+    'executionId', v_failed_execution_id,
+    'error', jsonb_build_object('code', 'FIXTURE_FAILURE')
+  );
+
+  INSERT INTO public.action_executions(
+    id, action_id, action_version, actor_id, object_type, object_id,
+    correlation_id, idempotency_key, status, input, result, completed_at, tenant_id
+  )
+  VALUES (
+    v_failed_execution_id, v_action_id, 1, v_actor_id, 'Offer', NULL,
+    gen_random_uuid(), 'fixture-hash-parameters-failed', 'FAILED',
+    v_input, v_failed_result, now(), v_tenant_id
+  );
+
+  INSERT INTO public.idempotency_keys(
+    key, action_id, actor_id, request_hash, execution_id,
+    status, result, completed_at, tenant_id
+  )
+  VALUES (
+    'fixture-hash-parameters-failed', v_action_id, v_actor_id,
+    v_request_hash, v_failed_execution_id, 'FAILED',
+    v_failed_result, now(), v_tenant_id
+  );
+
+  INSERT INTO public.action_executions(
+    id, action_id, action_version, actor_id, object_type, object_id,
+    correlation_id, idempotency_key, status, input, result, completed_at, tenant_id
+  )
+  VALUES (
+    v_running_execution_id, v_action_id, 1, v_actor_id, 'Offer', NULL,
+    gen_random_uuid(), 'fixture-hash-parameters-in-progress', 'RUNNING',
+    v_input, NULL, NULL, v_tenant_id
+  );
+
+  INSERT INTO public.idempotency_keys(
+    key, action_id, actor_id, request_hash, execution_id,
+    status, result, completed_at, tenant_id
+  )
+  VALUES (
+    'fixture-hash-parameters-in-progress', v_action_id, v_actor_id,
+    v_request_hash, v_running_execution_id, 'IN_PROGRESS',
+    NULL, NULL, v_tenant_id
+  );
+END
+$qa71_seed$;
+
+SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+SET ROLE authenticated;
+
+DO $qa71_assert$
+DECLARE
+  v_error text;
+  v_failed_execution_id uuid;
+  v_running_execution_id uuid;
+  v_base_payload jsonb;
+  v_original_hash text;
+  v_quantity_hash text;
+  v_currency_hash text;
+  v_attributes_hash text;
+  v_failed_result jsonb;
+  v_expected_failed_result jsonb;
+  v_count integer;
+BEGIN
+  v_base_payload := jsonb_build_object(
+    'input', '{"case":"failed-running-hash-parameter-coverage"}'::jsonb,
+    'name', 'Request Hash Parameter Coverage Failed Running Fixture Offer',
+    'demandId', '50000000-0000-4000-8000-000000000001'::uuid,
+    'productMasterId', '40000000-0000-4000-8000-000000000001'::uuid,
+    'providerActorId', '30000000-0000-4000-8000-000000000001'::uuid,
+    'quantity', 2,
+    'price', 12,
+    'currency', 'USD',
+    'conditions', NULL,
+    'market', NULL,
+    'geography', NULL,
+    'attributes', '{}'::jsonb,
+    'documentationStatus', NULL,
+    'lifecycle', NULL,
+    'offerType', NULL,
+    'pricingModel', NULL
+  );
+
+  v_original_hash := md5(v_base_payload::text);
+  v_quantity_hash := md5(jsonb_set(v_base_payload, '{quantity}', to_jsonb(3::numeric))::text);
+  v_currency_hash := md5(jsonb_set(v_base_payload, '{currency}', to_jsonb('EUR'::text))::text);
+  v_attributes_hash := md5(jsonb_set(v_base_payload, '{attributes}', '{"grade":"A"}'::jsonb)::text);
+
+  IF v_original_hash = v_quantity_hash
+     OR v_original_hash = v_currency_hash
+     OR v_original_hash = v_attributes_hash
+     OR v_quantity_hash = v_currency_hash
+     OR v_quantity_hash = v_attributes_hash
+     OR v_currency_hash = v_attributes_hash THEN
+    RAISE EXCEPTION 'Changed quantity, currency, and attributes must each produce a distinct fixture hash';
+  END IF;
+
+  SELECT execution_id, result, request_hash
+  INTO v_failed_execution_id, v_failed_result, v_original_hash
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-hash-parameters-failed'
+    AND status = 'FAILED';
+
+  IF v_failed_execution_id IS NULL
+     OR v_failed_result IS NULL THEN
+    RAISE EXCEPTION 'FAILED parameter fixture was not seeded';
+  END IF;
+
+  -- Recompute the expected original hash after reading the stored row.
+  v_original_hash := md5(v_base_payload::text);
+  v_expected_failed_result := jsonb_build_object(
+    'status', 'failed',
+    'executionId', v_failed_execution_id,
+    'error', jsonb_build_object('code', 'FIXTURE_FAILURE')
+  );
+  IF v_failed_result IS DISTINCT FROM v_expected_failed_result THEN
+    RAISE EXCEPTION 'FAILED parameter fixture has an unexpected stored result';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM public.idempotency_keys
+    WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+      AND key = 'fixture-hash-parameters-failed'
+      AND request_hash = v_original_hash
+  ) THEN
+    RAISE EXCEPTION 'FAILED parameter fixture has an unexpected original hash';
+  END IF;
+
+  SELECT execution_id INTO v_running_execution_id
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-hash-parameters-in-progress'
+    AND status = 'IN_PROGRESS'
+    AND result IS NULL
+    AND request_hash = v_original_hash;
+
+  IF v_running_execution_id IS NULL THEN
+    RAISE EXCEPTION 'IN_PROGRESS parameter fixture was not seeded with the expected hash';
+  END IF;
+
+  -- FAILED: quantity, currency, and attributes must all fail before replay.
+  v_error := NULL;
+  BEGIN
+    PERFORM public.execute_create_offer_v1(
+      '10000000-0000-4000-8000-000000000001',
+      'fixture-hash-parameters-failed',
+      '{"case":"failed-running-hash-parameter-coverage"}'::jsonb,
+      'Request Hash Parameter Coverage Failed Running Fixture Offer',
+      '50000000-0000-4000-8000-000000000001',
+      '40000000-0000-4000-8000-000000000001',
+      '30000000-0000-4000-8000-000000000001',
+      3, 12, 'USD'
+    );
+  EXCEPTION WHEN OTHERS THEN
+    v_error := SQLERRM;
+  END;
+  IF v_error IS DISTINCT FROM 'IDEMPOTENCY_KEY_REUSE' THEN
+    RAISE EXCEPTION 'FAILED changed quantity must raise IDEMPOTENCY_KEY_REUSE; got %',
+      coalesce(v_error, '<no error>');
+  END IF;
+
+  v_error := NULL;
+  BEGIN
+    PERFORM public.execute_create_offer_v1(
+      '10000000-0000-4000-8000-000000000001',
+      'fixture-hash-parameters-failed',
+      '{"case":"failed-running-hash-parameter-coverage"}'::jsonb,
+      'Request Hash Parameter Coverage Failed Running Fixture Offer',
+      '50000000-0000-4000-8000-000000000001',
+      '40000000-0000-4000-8000-000000000001',
+      '30000000-0000-4000-8000-000000000001',
+      2, 12, 'EUR'
+    );
+  EXCEPTION WHEN OTHERS THEN
+    v_error := SQLERRM;
+  END;
+  IF v_error IS DISTINCT FROM 'IDEMPOTENCY_KEY_REUSE' THEN
+    RAISE EXCEPTION 'FAILED changed currency must raise IDEMPOTENCY_KEY_REUSE; got %',
+      coalesce(v_error, '<no error>');
+  END IF;
+
+  v_error := NULL;
+  BEGIN
+    PERFORM public.execute_create_offer_v1(
+      '10000000-0000-4000-8000-000000000001',
+      'fixture-hash-parameters-failed',
+      '{"case":"failed-running-hash-parameter-coverage"}'::jsonb,
+      'Request Hash Parameter Coverage Failed Running Fixture Offer',
+      '50000000-0000-4000-8000-000000000001',
+      '40000000-0000-4000-8000-000000000001',
+      '30000000-0000-4000-8000-000000000001',
+      2, 12, 'USD',
+      NULL, NULL, NULL, '{"grade":"A"}'::jsonb
+    );
+  EXCEPTION WHEN OTHERS THEN
+    v_error := SQLERRM;
+  END;
+  IF v_error IS DISTINCT FROM 'IDEMPOTENCY_KEY_REUSE' THEN
+    RAISE EXCEPTION 'FAILED changed attributes must raise IDEMPOTENCY_KEY_REUSE; got %',
+      coalesce(v_error, '<no error>');
+  END IF;
+
+  -- IN_PROGRESS: the same three variations must fail before running-state handling.
+  v_error := NULL;
+  BEGIN
+    PERFORM public.execute_create_offer_v1(
+      '10000000-0000-4000-8000-000000000001',
+      'fixture-hash-parameters-in-progress',
+      '{"case":"failed-running-hash-parameter-coverage"}'::jsonb,
+      'Request Hash Parameter Coverage Failed Running Fixture Offer',
+      '50000000-0000-4000-8000-000000000001',
+      '40000000-0000-4000-8000-000000000001',
+      '30000000-0000-4000-8000-000000000001',
+      3, 12, 'USD'
+    );
+  EXCEPTION WHEN OTHERS THEN
+    v_error := SQLERRM;
+  END;
+  IF v_error IS DISTINCT FROM 'IDEMPOTENCY_KEY_REUSE' THEN
+    RAISE EXCEPTION 'IN_PROGRESS changed quantity must raise IDEMPOTENCY_KEY_REUSE; got %',
+      coalesce(v_error, '<no error>');
+  END IF;
+
+  v_error := NULL;
+  BEGIN
+    PERFORM public.execute_create_offer_v1(
+      '10000000-0000-4000-8000-000000000001',
+      'fixture-hash-parameters-in-progress',
+      '{"case":"failed-running-hash-parameter-coverage"}'::jsonb,
+      'Request Hash Parameter Coverage Failed Running Fixture Offer',
+      '50000000-0000-4000-8000-000000000001',
+      '40000000-0000-4000-8000-000000000001',
+      '30000000-0000-4000-8000-000000000001',
+      2, 12, 'EUR'
+    );
+  EXCEPTION WHEN OTHERS THEN
+    v_error := SQLERRM;
+  END;
+  IF v_error IS DISTINCT FROM 'IDEMPOTENCY_KEY_REUSE' THEN
+    RAISE EXCEPTION 'IN_PROGRESS changed currency must raise IDEMPOTENCY_KEY_REUSE; got %',
+      coalesce(v_error, '<no error>');
+  END IF;
+
+  v_error := NULL;
+  BEGIN
+    PERFORM public.execute_create_offer_v1(
+      '10000000-0000-4000-8000-000000000001',
+      'fixture-hash-parameters-in-progress',
+      '{"case":"failed-running-hash-parameter-coverage"}'::jsonb,
+      'Request Hash Parameter Coverage Failed Running Fixture Offer',
+      '50000000-0000-4000-8000-000000000001',
+      '40000000-0000-4000-8000-000000000001',
+      '30000000-0000-4000-8000-000000000001',
+      2, 12, 'USD',
+      NULL, NULL, NULL, '{"grade":"A"}'::jsonb
+    );
+  EXCEPTION WHEN OTHERS THEN
+    v_error := SQLERRM;
+  END;
+  IF v_error IS DISTINCT FROM 'IDEMPOTENCY_KEY_REUSE' THEN
+    RAISE EXCEPTION 'IN_PROGRESS changed attributes must raise IDEMPOTENCY_KEY_REUSE; got %',
+      coalesce(v_error, '<no error>');
+  END IF;
+
+  -- Both original idempotency rows and their hashes/results must remain intact.
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key IN (
+      'fixture-hash-parameters-failed',
+      'fixture-hash-parameters-in-progress'
+    );
+  IF v_count <> 2 THEN
+    RAISE EXCEPTION 'QA71 retries changed or duplicated idempotency rows; expected 2, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-hash-parameters-failed'
+    AND status = 'FAILED'
+    AND execution_id = v_failed_execution_id
+    AND request_hash = v_original_hash
+    AND result = v_expected_failed_result;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA71 retries changed the original FAILED idempotency row';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-hash-parameters-in-progress'
+    AND status = 'IN_PROGRESS'
+    AND execution_id = v_running_execution_id
+    AND request_hash = v_original_hash
+    AND result IS NULL
+    AND completed_at IS NULL;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA71 retries changed the original IN_PROGRESS idempotency row';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND idempotency_key IN (
+      'fixture-hash-parameters-failed',
+      'fixture-hash-parameters-in-progress'
+    );
+  IF v_count <> 2 THEN
+    RAISE EXCEPTION 'QA71 retries created or removed executions; expected 2, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND id = v_failed_execution_id
+    AND idempotency_key = 'fixture-hash-parameters-failed'
+    AND status = 'FAILED'
+    AND object_id IS NULL
+    AND result = v_expected_failed_result;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA71 retries changed the original FAILED execution';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND id = v_running_execution_id
+    AND idempotency_key = 'fixture-hash-parameters-in-progress'
+    AND status = 'RUNNING'
+    AND object_id IS NULL
+    AND result IS NULL
+    AND completed_at IS NULL;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA71 retries changed the original RUNNING execution';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE name = 'Request Hash Parameter Coverage Failed Running Fixture Offer';
+  IF v_count <> 0 THEN
+    RAISE EXCEPTION 'QA71 retries unexpectedly created an offer';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_events e
+  JOIN public.action_executions x
+    ON x.id = e.execution_id
+   AND x.tenant_id = e.tenant_id
+  WHERE x.tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND x.idempotency_key IN (
+      'fixture-hash-parameters-failed',
+      'fixture-hash-parameters-in-progress'
+    );
+  IF v_count <> 0 THEN
+    RAISE EXCEPTION 'QA71 retries unexpectedly created action events';
+  END IF;
+END
+$qa71_assert$;
+
+RESET ROLE;
+SELECT 'CREATE_OFFER FAILED and IN_PROGRESS quantity, currency, and attributes hash precedence assertions passed' AS result;
