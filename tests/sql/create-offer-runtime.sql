@@ -2644,6 +2644,7 @@ DECLARE
   v_failed_execution_id uuid;
   v_running_execution_id uuid;
   v_failed_result jsonb;
+  v_stored_hash text;
   v_expected_failed_result jsonb;
   v_original_hash text;
   v_expected_hash text;
@@ -2691,7 +2692,7 @@ BEGIN
   END IF;
 
   SELECT execution_id, result, request_hash
-  INTO v_failed_execution_id, v_failed_result, v_original_hash
+  INTO v_failed_execution_id, v_failed_result, v_stored_hash
   FROM public.idempotency_keys
   WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
     AND key = 'fixture-hash-mismatch-failed'
@@ -3650,8 +3651,10 @@ BEGIN
     RAISE EXCEPTION 'FAILED parameter fixture was not seeded';
   END IF;
 
-  -- Recompute the expected original hash after reading the stored row.
-  v_original_hash := md5(v_base_payload::text);
+  IF v_stored_hash IS DISTINCT FROM v_original_hash THEN
+    RAISE EXCEPTION 'FAILED parameter fixture has an unexpected original hash';
+  END IF;
+
   v_expected_failed_result := jsonb_build_object(
     'status', 'failed',
     'executionId', v_failed_execution_id,
