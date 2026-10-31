@@ -8600,3 +8600,468 @@ $qa85_assert$;
 RESET ROLE;
 SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
 SELECT 'CREATE_OFFER tenant membership validation precedes provider identity/hash/status handling for COMPLETED, FAILED and IN_PROGRESS keys (3 cross-tenant retries) assertions passed' AS result;
+
+
+-- OFFER-QA-86: product-active and demand-existence preconditions must run
+-- before the idempotency hash/status branch for COMPLETED, FAILED and
+-- IN_PROGRESS keys. The inactive product and missing demand are synthetic
+-- references in the disposable PostgreSQL CI database only.
+RESET ROLE;
+
+DO $qa86_seed$
+DECLARE
+  v_action_id uuid;
+  v_tenant_id uuid := '10000000-0000-4000-8000-000000000001';
+  v_actor_id uuid := '30000000-0000-4000-8000-000000000001';
+  v_demand_id uuid := '50000000-0000-4000-8000-000000000001';
+  v_product_master_id uuid := '40000000-0000-4000-8000-000000000001';
+  v_inactive_product_id uuid := '40000000-0000-4000-8000-000000000099';
+  v_missing_demand_id uuid := '50000000-0000-4000-8000-000000000099';
+  v_input jsonb := '{"case":"product-demand-precondition-order"}'::jsonb;
+  v_name text := 'Product Demand Precondition Order Fixture Offer';
+  v_base_payload jsonb;
+  v_request_hash text;
+  v_completed_result jsonb;
+  v_failed_result jsonb;
+  v_terminal_at timestamptz := clock_timestamp();
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE auth_user_id = '20000000-0000-4000-8000-000000000001'
+      AND actor_id = v_actor_id
+  ) OR NOT EXISTS (
+    SELECT 1 FROM public.dt_memberships
+    WHERE tenant_id = v_tenant_id
+      AND user_id = '20000000-0000-4000-8000-000000000001'
+  ) THEN
+    RAISE EXCEPTION 'QA86 requires provider A profile and tenant A membership';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM public.product_masters
+    WHERE id = v_inactive_product_id
+      AND status = 'draft'
+  ) THEN
+    RAISE EXCEPTION 'QA86 requires the existing inactive draft product fixture';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM public.demands
+    WHERE id = v_missing_demand_id
+  ) THEN
+    RAISE EXCEPTION 'QA86 missing-demand fixture identifier unexpectedly exists';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM public.idempotency_keys
+    WHERE tenant_id = v_tenant_id
+      AND key IN (
+        'fixture-precondition-order-completed',
+        'fixture-precondition-order-failed',
+        'fixture-precondition-order-in-progress'
+      )
+  ) THEN
+    RAISE EXCEPTION 'QA86 idempotency fixture keys already exist';
+  END IF;
+
+  SELECT id INTO v_action_id
+  FROM public.action_definitions
+  WHERE action_key = 'CREATE_OFFER'
+    AND version = 1
+    AND status = 'published';
+
+  IF v_action_id IS NULL THEN
+    RAISE EXCEPTION 'Published CREATE_OFFER fixture definition is missing';
+  END IF;
+
+  v_base_payload := jsonb_build_object(
+    'input', v_input,
+    'name', v_name,
+    'demandId', v_demand_id,
+    'productMasterId', v_product_master_id,
+    'providerActorId', v_actor_id,
+    'quantity', 2,
+    'price', 12,
+    'currency', 'USD',
+    'conditions', NULL,
+    'market', NULL,
+    'geography', NULL,
+    'attributes', '{}'::jsonb,
+    'documentationStatus', NULL,
+    'lifecycle', NULL,
+    'offerType', NULL,
+    'pricingModel', NULL
+  );
+  v_request_hash := md5(v_base_payload::text);
+
+  v_completed_result := jsonb_build_object(
+    'status', 'succeeded',
+    'executionId', '70000000-0000-4000-8000-000000000090'::uuid,
+    'objectType', 'Offer',
+    'objectId', '71000000-0000-4000-8000-000000000086'::uuid
+  );
+  v_failed_result := jsonb_build_object(
+    'status', 'failed',
+    'executionId', '70000000-0000-4000-8000-000000000091'::uuid,
+    'error', 'fixture failure'
+  );
+
+  INSERT INTO public.offers(
+    id, name, demand_id, product_master_id, provider_actor_id,
+    quantity, price, currency, conditions, market, geography,
+    documentation_status, lifecycle, offer_type, pricing_model, attributes
+  )
+  VALUES (
+    '71000000-0000-4000-8000-000000000086',
+    v_name,
+    v_demand_id,
+    v_product_master_id,
+    v_actor_id,
+    2,
+    12,
+    'USD',
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    '{}'::jsonb
+  );
+
+  INSERT INTO public.action_executions(
+    id, action_id, action_version, actor_id, object_type, object_id,
+    correlation_id, idempotency_key, status, input, result, completed_at, tenant_id
+  )
+  VALUES
+    (
+      '70000000-0000-4000-8000-000000000090',
+      v_action_id, 1, v_actor_id, 'Offer',
+      '71000000-0000-4000-8000-000000000086',
+      '72000000-0000-4000-8000-000000000090',
+      'fixture-precondition-order-completed', 'COMPLETED',
+      v_input, v_completed_result, v_terminal_at, v_tenant_id
+    ),
+    (
+      '70000000-0000-4000-8000-000000000091',
+      v_action_id, 1, v_actor_id, 'Offer', NULL,
+      '72000000-0000-4000-8000-000000000091',
+      'fixture-precondition-order-failed', 'FAILED',
+      v_input, v_failed_result, v_terminal_at, v_tenant_id
+    ),
+    (
+      '70000000-0000-4000-8000-000000000092',
+      v_action_id, 1, v_actor_id, 'Offer', NULL,
+      '72000000-0000-4000-8000-000000000092',
+      'fixture-precondition-order-in-progress', 'RUNNING',
+      v_input, NULL, NULL, v_tenant_id
+    );
+
+  INSERT INTO public.idempotency_keys(
+    key, action_id, actor_id, request_hash, execution_id,
+    status, result, completed_at, tenant_id
+  )
+  VALUES
+    (
+      'fixture-precondition-order-completed', v_action_id, v_actor_id,
+      v_request_hash, '70000000-0000-4000-8000-000000000090',
+      'COMPLETED', v_completed_result, v_terminal_at, v_tenant_id
+    ),
+    (
+      'fixture-precondition-order-failed', v_action_id, v_actor_id,
+      v_request_hash, '70000000-0000-4000-8000-000000000091',
+      'FAILED', v_failed_result, v_terminal_at, v_tenant_id
+    ),
+    (
+      'fixture-precondition-order-in-progress', v_action_id, v_actor_id,
+      v_request_hash, '70000000-0000-4000-8000-000000000092',
+      'IN_PROGRESS', NULL, NULL, v_tenant_id
+    );
+
+  INSERT INTO public.action_events(
+    execution_id, action_id, action_version, event_type, actor_id,
+    object_type, object_id, correlation_id, payload, tenant_id
+  )
+  VALUES (
+    '70000000-0000-4000-8000-000000000090',
+    v_action_id, 1, 'ACTION_SUCCEEDED', v_actor_id,
+    'Offer',
+    '71000000-0000-4000-8000-000000000086',
+    '72000000-0000-4000-8000-000000000090',
+    v_completed_result,
+    v_tenant_id
+  );
+END
+$qa86_seed$;
+
+-- Keep tenant A's JWT and provider actor consistent. Each invalid reference
+-- changes the effective request hash, but its precondition must fail first.
+SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+SET ROLE authenticated;
+
+DO $qa86_assert$
+DECLARE
+  v_case record;
+  v_error text;
+  v_base_payload jsonb;
+  v_inactive_product_payload jsonb;
+  v_missing_demand_payload jsonb;
+  v_original_hash text;
+  v_inactive_product_hash text;
+  v_missing_demand_hash text;
+  v_expected_completed_result jsonb;
+  v_expected_failed_result jsonb;
+  v_count integer;
+BEGIN
+  v_base_payload := jsonb_build_object(
+    'input', '{"case":"product-demand-precondition-order"}'::jsonb,
+    'name', 'Product Demand Precondition Order Fixture Offer',
+    'demandId', '50000000-0000-4000-8000-000000000001'::uuid,
+    'productMasterId', '40000000-0000-4000-8000-000000000001'::uuid,
+    'providerActorId', '30000000-0000-4000-8000-000000000001'::uuid,
+    'quantity', 2,
+    'price', 12,
+    'currency', 'USD',
+    'conditions', NULL,
+    'market', NULL,
+    'geography', NULL,
+    'attributes', '{}'::jsonb,
+    'documentationStatus', NULL,
+    'lifecycle', NULL,
+    'offerType', NULL,
+    'pricingModel', NULL
+  );
+  v_original_hash := md5(v_base_payload::text);
+
+  v_inactive_product_payload := jsonb_set(
+    v_base_payload,
+    ARRAY['productMasterId'],
+    to_jsonb('40000000-0000-4000-8000-000000000099'::uuid)
+  );
+  v_inactive_product_hash := md5(v_inactive_product_payload::text);
+
+  v_missing_demand_payload := jsonb_set(
+    v_base_payload,
+    ARRAY['demandId'],
+    to_jsonb('50000000-0000-4000-8000-000000000099'::uuid)
+  );
+  v_missing_demand_hash := md5(v_missing_demand_payload::text);
+
+  IF v_inactive_product_hash = v_original_hash THEN
+    RAISE EXCEPTION 'QA86 inactive product variation did not change the independently calculated request hash';
+  END IF;
+  IF v_missing_demand_hash = v_original_hash THEN
+    RAISE EXCEPTION 'QA86 missing demand variation did not change the independently calculated request hash';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM public.product_masters
+    WHERE id = '40000000-0000-4000-8000-000000000099'
+      AND status = 'draft'
+  ) OR EXISTS (
+    SELECT 1 FROM public.demands
+    WHERE id = '50000000-0000-4000-8000-000000000099'
+  ) THEN
+    RAISE EXCEPTION 'QA86 invalid reference fixtures are not in the expected state';
+  END IF;
+
+  v_expected_completed_result := jsonb_build_object(
+    'status', 'succeeded',
+    'executionId', '70000000-0000-4000-8000-000000000090'::uuid,
+    'objectType', 'Offer',
+    'objectId', '71000000-0000-4000-8000-000000000086'::uuid
+  );
+  v_expected_failed_result := jsonb_build_object(
+    'status', 'failed',
+    'executionId', '70000000-0000-4000-8000-000000000091'::uuid,
+    'error', 'fixture failure'
+  );
+
+  FOR v_case IN
+    SELECT *
+    FROM (VALUES
+      ('COMPLETED', 'fixture-precondition-order-completed'),
+      ('FAILED', 'fixture-precondition-order-failed'),
+      ('IN_PROGRESS', 'fixture-precondition-order-in-progress')
+    ) AS cases(status_name, idempotency_key)
+  LOOP
+    v_error := NULL;
+    BEGIN
+      PERFORM public.execute_create_offer_v1(
+        p_tenant_id => '10000000-0000-4000-8000-000000000001',
+        p_idempotency_key => v_case.idempotency_key,
+        p_input => '{"case":"product-demand-precondition-order"}'::jsonb,
+        p_name => 'Product Demand Precondition Order Fixture Offer',
+        p_demand_id => '50000000-0000-4000-8000-000000000001',
+        p_product_master_id => '40000000-0000-4000-8000-000000000099',
+        p_provider_actor_id => '30000000-0000-4000-8000-000000000001',
+        p_quantity => 2,
+        p_price => 12,
+        p_currency => 'USD',
+        p_conditions => NULL,
+        p_market => NULL,
+        p_geography => NULL,
+        p_attributes => '{}'::jsonb,
+        p_documentation_status => NULL,
+        p_lifecycle => NULL,
+        p_offer_type => NULL,
+        p_pricing_model => NULL
+      );
+      RAISE EXCEPTION 'QA86 expected PRODUCT_MASTER_NOT_FOUND for % key', v_case.status_name;
+    EXCEPTION WHEN OTHERS THEN
+      GET STACKED DIAGNOSTICS v_error = MESSAGE_TEXT;
+    END;
+
+    IF v_error IS DISTINCT FROM 'PRODUCT_MASTER_NOT_FOUND' THEN
+      RAISE EXCEPTION 'Product active-state validation must precede hash/status handling for %; got %',
+        v_case.status_name, coalesce(v_error, '<no error>');
+    END IF;
+
+    v_error := NULL;
+    BEGIN
+      PERFORM public.execute_create_offer_v1(
+        p_tenant_id => '10000000-0000-4000-8000-000000000001',
+        p_idempotency_key => v_case.idempotency_key,
+        p_input => '{"case":"product-demand-precondition-order"}'::jsonb,
+        p_name => 'Product Demand Precondition Order Fixture Offer',
+        p_demand_id => '50000000-0000-4000-8000-000000000099',
+        p_product_master_id => '40000000-0000-4000-8000-000000000001',
+        p_provider_actor_id => '30000000-0000-4000-8000-000000000001',
+        p_quantity => 2,
+        p_price => 12,
+        p_currency => 'USD',
+        p_conditions => NULL,
+        p_market => NULL,
+        p_geography => NULL,
+        p_attributes => '{}'::jsonb,
+        p_documentation_status => NULL,
+        p_lifecycle => NULL,
+        p_offer_type => NULL,
+        p_pricing_model => NULL
+      );
+      RAISE EXCEPTION 'QA86 expected DEMAND_NOT_FOUND for % key', v_case.status_name;
+    EXCEPTION WHEN OTHERS THEN
+      GET STACKED DIAGNOSTICS v_error = MESSAGE_TEXT;
+    END;
+
+    IF v_error IS DISTINCT FROM 'DEMAND_NOT_FOUND' THEN
+      RAISE EXCEPTION 'Demand existence validation must precede hash/status handling for %; got %',
+        v_case.status_name, coalesce(v_error, '<no error>');
+    END IF;
+  END LOOP;
+
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key IN (
+      'fixture-precondition-order-completed',
+      'fixture-precondition-order-failed',
+      'fixture-precondition-order-in-progress'
+    );
+  IF v_count <> 3 THEN
+    RAISE EXCEPTION 'QA86 retries changed or duplicated idempotency rows; expected 3, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND actor_id = '30000000-0000-4000-8000-000000000001'
+    AND request_hash = v_original_hash
+    AND (
+      (key = 'fixture-precondition-order-completed'
+        AND status = 'COMPLETED'
+        AND execution_id = '70000000-0000-4000-8000-000000000090'
+        AND result = v_expected_completed_result
+        AND completed_at IS NOT NULL)
+      OR
+      (key = 'fixture-precondition-order-failed'
+        AND status = 'FAILED'
+        AND execution_id = '70000000-0000-4000-8000-000000000091'
+        AND result = v_expected_failed_result
+        AND completed_at IS NOT NULL)
+      OR
+      (key = 'fixture-precondition-order-in-progress'
+        AND status = 'IN_PROGRESS'
+        AND execution_id = '70000000-0000-4000-8000-000000000092'
+        AND result IS NULL
+        AND completed_at IS NULL)
+    );
+  IF v_count <> 3 THEN
+    RAISE EXCEPTION 'QA86 retries changed original idempotency status, actor, hash or result';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND actor_id = '30000000-0000-4000-8000-000000000001'
+    AND input = '{"case":"product-demand-precondition-order"}'::jsonb
+    AND (
+      (id = '70000000-0000-4000-8000-000000000090'
+        AND idempotency_key = 'fixture-precondition-order-completed'
+        AND status = 'COMPLETED'
+        AND object_id = '71000000-0000-4000-8000-000000000086'
+        AND result = v_expected_completed_result
+        AND completed_at IS NOT NULL)
+      OR
+      (id = '70000000-0000-4000-8000-000000000091'
+        AND idempotency_key = 'fixture-precondition-order-failed'
+        AND status = 'FAILED'
+        AND object_id IS NULL
+        AND result = v_expected_failed_result
+        AND completed_at IS NOT NULL)
+      OR
+      (id = '70000000-0000-4000-8000-000000000092'
+        AND idempotency_key = 'fixture-precondition-order-in-progress'
+        AND status = 'RUNNING'
+        AND object_id IS NULL
+        AND result IS NULL
+        AND completed_at IS NULL)
+    );
+  IF v_count <> 3 THEN
+    RAISE EXCEPTION 'QA86 retries changed original execution status, actor, object or result';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE id = '71000000-0000-4000-8000-000000000086'
+    AND name = 'Product Demand Precondition Order Fixture Offer'
+    AND demand_id = '50000000-0000-4000-8000-000000000001'
+    AND product_master_id = '40000000-0000-4000-8000-000000000001'
+    AND provider_actor_id = '30000000-0000-4000-8000-000000000001'
+    AND quantity = 2
+    AND price = 12
+    AND currency = 'USD'
+    AND attributes = '{}'::jsonb;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA86 retries changed or duplicated the original offer';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_events
+  WHERE execution_id = '70000000-0000-4000-8000-000000000090'
+    AND tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND event_type = 'ACTION_SUCCEEDED'
+    AND actor_id = '30000000-0000-4000-8000-000000000001'
+    AND object_id = '71000000-0000-4000-8000-000000000086'
+    AND payload = v_expected_completed_result;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA86 retries changed or duplicated the original success event';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_events
+  WHERE execution_id IN (
+    '70000000-0000-4000-8000-000000000090',
+    '70000000-0000-4000-8000-000000000091',
+    '70000000-0000-4000-8000-000000000092'
+  );
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA86 retries unexpectedly created or removed action events';
+  END IF;
+END
+$qa86_assert$;
+
+RESET ROLE;
+SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+SELECT 'CREATE_OFFER product-active and demand-existence preconditions precede idempotency hash/status handling for COMPLETED, FAILED and IN_PROGRESS keys (6 retries) assertions passed' AS result;
