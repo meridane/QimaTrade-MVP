@@ -11505,7 +11505,7 @@ BEGIN
     v_error := NULL;
     BEGIN
       -- All arguments, including provider_actor_id, remain valid.
-      -- The profile row exists; only its actor_id is temporarily absent.
+      -- The profile row is absent; all other call arguments remain valid.
       PERFORM public.execute_create_offer_v1(
         p_tenant_id => '10000000-0000-4000-8000-000000000001',
         p_idempotency_key => v_case.idempotency_key,
