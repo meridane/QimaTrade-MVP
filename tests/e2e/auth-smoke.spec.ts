@@ -57,7 +57,6 @@ test("publishing a product request requires a request ID", async ({ request }) =
   });
 });
 
-
 test.describe("protected routes require authentication", () => {
   for (const protectedPath of ["/demands", "/decision-tree", "/offers", "/request"]) {
     test(`${protectedPath} redirects unauthenticated visitors to login`, async ({ page }) => {
@@ -100,5 +99,89 @@ test("offers API rejects an unsupported currency before authentication", async (
   expect(response.status()).toBe(400);
   await expect(response.json()).resolves.toMatchObject({
     error: "Please select a valid currency.",
+  });
+});
+
+test("offers API rejects a non-numeric quantity before authentication", async ({ request }) => {
+  const response = await request.post("/api/offers", {
+    multipart: { name: "Test offer", quantity: "not-a-number" },
+  });
+
+  expect(response.status()).toBe(400);
+  await expect(response.json()).resolves.toMatchObject({
+    error: "Please provide a valid offer name and quantity.",
+  });
+});
+
+test("offers API rejects a non-numeric price before authentication", async ({ request }) => {
+  const response = await request.post("/api/offers", {
+    multipart: { name: "Test offer", quantity: "1", price: "not-a-number" },
+  });
+
+  expect(response.status()).toBe(400);
+  await expect(response.json()).resolves.toMatchObject({
+    error: "Price must be a valid positive number.",
+  });
+});
+
+test("offers API rejects an infinite quantity before authentication", async ({ request }) => {
+  const response = await request.post("/api/offers", {
+    multipart: { name: "Test offer", quantity: "Infinity" },
+  });
+
+  expect(response.status()).toBe(400);
+  await expect(response.json()).resolves.toMatchObject({
+    error: "Please provide a valid offer name and quantity.",
+  });
+});
+
+test("offers API rejects an infinite price before authentication", async ({ request }) => {
+  const response = await request.post("/api/offers", {
+    multipart: { name: "Test offer", quantity: "1", price: "Infinity" },
+  });
+
+  expect(response.status()).toBe(400);
+  await expect(response.json()).resolves.toMatchObject({
+    error: "Price must be a valid positive number.",
+  });
+});
+
+test("offers API rejects NaN quantity before authentication", async ({ request }) => {
+  const response = await request.post("/api/offers", {
+    multipart: { name: "Test offer", quantity: "NaN" },
+  });
+
+  expect(response.status()).toBe(400);
+  await expect(response.json()).resolves.toMatchObject({
+    error: "Please provide a valid offer name and quantity.",
+  });
+});
+
+test("offers API rejects NaN price before authentication", async ({ request }) => {
+  const response = await request.post("/api/offers", {
+    multipart: { name: "Test offer", quantity: "1", price: "NaN" },
+  });
+
+  expect(response.status()).toBe(400);
+  await expect(response.json()).resolves.toMatchObject({
+    error: "Price must be a valid positive number.",
+  });
+});
+
+
+test("CREATE_OFFER action API rejects requests without a bearer token", async ({ request }) => {
+  const response = await request.post("/api/actions/create-offer", {
+    data: {
+      name: "Unauthenticated fixture offer",
+      demandId: "50000000-0000-4000-8000-000000000001",
+      quantity: 1,
+      price: 10,
+      currency: "USD",
+    },
+  });
+
+  expect(response.status()).toBe(401);
+  await expect(response.json()).resolves.toMatchObject({
+    error: "UNAUTHENTICATED",
   });
 });

@@ -28,9 +28,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Install dependencies
+      - name: Install dependencies from committed lockfile
         id: install
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
       - name: Dependency security audit
         id: audit
         continue-on-error: true
@@ -79,6 +79,17 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder-anon-key
           PLAYWRIGHT_BASE_URL: http://127.0.0.1:3000
+      - name: Enforce dependency audit result
+        if: always()
+        env:
+          AUDIT_OUTCOME: ${{ steps.audit.outcome }}
+        shell: bash
+        run: |
+          if [ "${AUDIT_OUTCOME}" != "success" ]; then
+            echo "::error::Dependency audit did not complete successfully. Review the npm-audit-report artifact."
+            exit 1
+          fi
+
       - name: Upload npm audit report
         if: always()
         uses: actions/upload-artifact@v4
@@ -87,6 +98,14 @@ jobs:
           path: npm-audit.json
           if-no-files-found: ignore
           retention-days: 14
+      - name: Upload committed lockfile for verification
+        if: success() && steps.install.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: committed-package-lock
+          path: package-lock.json
+          if-no-files-found: error
+          retention-days: 7
       - name: Write automation report
         if: always()
         shell: bash
@@ -110,3 +129,40 @@ jobs:
             echo
             echo "L'audit npm reste informatif. Toute correction de dépendance doit être revue avant fusion."
           } >> "$GITHUB_STEP_SUMMARY"
+
+
+  postgres-integration:
+    name: CREATE_OFFER PostgreSQL integration tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: qima_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d qima_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/qima_test
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+      - name: Run isolated CREATE_OFFER integration and concurrency tests
+        run: bash tests/sql/run-create-offer-integration.sh
+
+      - name: Run isolated legacy messages RLS regression tests
+        run: bash tests/sql/run-legacy-messages-rls-regression.sh
+
+      - name: Run isolated participant self-enrollment RLS regression tests
+        run: bash tests/sql/run-participant-self-enrollment-regression.sh
