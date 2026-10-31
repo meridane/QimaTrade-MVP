@@ -6278,3 +6278,361 @@ $qa79_assert$;
 
 RESET ROLE;
 SELECT 'CREATE_OFFER NULL-defaulted optional parameter bidirectional replay assertions passed' AS result;
+
+
+-- OFFER-QA-80: every NULL-defaulted optional business parameter must independently
+-- participate in the request hash for an existing COMPLETED key. Change one field
+-- per replay and require IDEMPOTENCY_KEY_REUSE without mutating the original rows.
+-- Values are synthetic; all fixtures are confined to the disposable PostgreSQL CI DB.
+RESET ROLE;
+
+DO $qa80_seed$
+DECLARE
+  v_action_id uuid;
+  v_execution_id uuid := gen_random_uuid();
+  v_offer_id uuid := gen_random_uuid();
+  v_correlation_id uuid := gen_random_uuid();
+  v_actor_id uuid := '30000000-0000-4000-8000-000000000001';
+  v_tenant_id uuid := '10000000-0000-4000-8000-000000000001';
+  v_input jsonb := '{"case":"completed-optional-field-hash-coverage"}'::jsonb;
+  v_base_payload jsonb;
+  v_original_hash text;
+  v_execution_result jsonb;
+BEGIN
+  SELECT id INTO v_action_id
+  FROM public.action_definitions
+  WHERE action_key = 'CREATE_OFFER'
+    AND version = 1
+    AND status = 'published';
+
+  IF v_action_id IS NULL THEN
+    RAISE EXCEPTION 'Published CREATE_OFFER fixture definition is missing';
+  END IF;
+
+  v_base_payload := jsonb_build_object(
+    'input', v_input,
+    'name', 'Request Hash Optional Fields Completed Fixture Offer',
+    'demandId', '50000000-0000-4000-8000-000000000001'::uuid,
+    'productMasterId', '40000000-0000-4000-8000-000000000001'::uuid,
+    'providerActorId', v_actor_id,
+    'quantity', 2,
+    'price', 12,
+    'currency', 'USD',
+    'conditions', NULL,
+    'market', NULL,
+    'geography', NULL,
+    'attributes', '{}'::jsonb,
+    'documentationStatus', NULL,
+    'lifecycle', NULL,
+    'offerType', NULL,
+    'pricingModel', NULL
+  );
+  v_original_hash := md5(v_base_payload::text);
+
+  INSERT INTO public.offers(
+    id, name, demand_id, product_master_id, provider_actor_id,
+    quantity, price, currency, conditions, market, geography,
+    documentation_status, lifecycle, offer_type, pricing_model, attributes
+  )
+  VALUES (
+    v_offer_id,
+    'Request Hash Optional Fields Completed Fixture Offer',
+    '50000000-0000-4000-8000-000000000001',
+    '40000000-0000-4000-8000-000000000001',
+    v_actor_id,
+    2,
+    12,
+    'USD',
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    '{}'::jsonb
+  );
+
+  v_execution_result := jsonb_build_object(
+    'status', 'succeeded',
+    'executionId', v_execution_id,
+    'objectType', 'Offer',
+    'objectId', v_offer_id
+  );
+
+  INSERT INTO public.action_executions(
+    id, action_id, action_version, actor_id, object_type, object_id,
+    correlation_id, idempotency_key, status, input, result, completed_at, tenant_id
+  )
+  VALUES (
+    v_execution_id, v_action_id, 1, v_actor_id, 'Offer', v_offer_id,
+    v_correlation_id, 'fixture-hash-optional-fields-completed', 'COMPLETED',
+    v_input, v_execution_result, now(), v_tenant_id
+  );
+
+  INSERT INTO public.idempotency_keys(
+    key, action_id, actor_id, request_hash, execution_id,
+    status, result, completed_at, tenant_id
+  )
+  VALUES (
+    'fixture-hash-optional-fields-completed', v_action_id, v_actor_id,
+    v_original_hash, v_execution_id, 'COMPLETED',
+    v_execution_result, now(), v_tenant_id
+  );
+
+  INSERT INTO public.action_events(
+    execution_id, action_id, action_version, event_type, actor_id,
+    object_type, object_id, correlation_id, payload, tenant_id
+  )
+  VALUES (
+    v_execution_id, v_action_id, 1, 'ACTION_SUCCEEDED', v_actor_id,
+    'Offer', v_offer_id, v_correlation_id, v_execution_result, v_tenant_id
+  );
+END
+$qa80_seed$;
+
+SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+SET ROLE authenticated;
+
+DO $qa80_assert$
+DECLARE
+  v_case record;
+  v_error text;
+  v_execution_id uuid;
+  v_offer_id uuid;
+  v_base_payload jsonb;
+  v_changed_payload jsonb;
+  v_original_hash text;
+  v_changed_hash text;
+  v_changed_hashes text[] := ARRAY[]::text[];
+  v_distinct_hashes integer;
+  v_stored_hash text;
+  v_stored_result jsonb;
+  v_expected_result jsonb;
+  v_conditions text;
+  v_market text;
+  v_geography text;
+  v_documentation_status text;
+  v_lifecycle text;
+  v_offer_type text;
+  v_pricing_model text;
+  v_count integer;
+BEGIN
+  v_base_payload := jsonb_build_object(
+    'input', '{"case":"completed-optional-field-hash-coverage"}'::jsonb,
+    'name', 'Request Hash Optional Fields Completed Fixture Offer',
+    'demandId', '50000000-0000-4000-8000-000000000001'::uuid,
+    'productMasterId', '40000000-0000-4000-8000-000000000001'::uuid,
+    'providerActorId', '30000000-0000-4000-8000-000000000001'::uuid,
+    'quantity', 2,
+    'price', 12,
+    'currency', 'USD',
+    'conditions', NULL,
+    'market', NULL,
+    'geography', NULL,
+    'attributes', '{}'::jsonb,
+    'documentationStatus', NULL,
+    'lifecycle', NULL,
+    'offerType', NULL,
+    'pricingModel', NULL
+  );
+  v_original_hash := md5(v_base_payload::text);
+
+  SELECT execution_id, request_hash, result
+  INTO v_execution_id, v_stored_hash, v_stored_result
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-hash-optional-fields-completed'
+    AND status = 'COMPLETED';
+
+  IF v_execution_id IS NULL
+     OR v_stored_hash IS DISTINCT FROM v_original_hash THEN
+    RAISE EXCEPTION 'COMPLETED optional-field fixture was not seeded with the expected original hash';
+  END IF;
+
+  SELECT object_id INTO v_offer_id
+  FROM public.action_executions
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND id = v_execution_id
+    AND idempotency_key = 'fixture-hash-optional-fields-completed'
+    AND status = 'COMPLETED';
+
+  IF v_offer_id IS NULL THEN
+    RAISE EXCEPTION 'COMPLETED optional-field fixture is missing its original offer';
+  END IF;
+
+  v_expected_result := jsonb_build_object(
+    'status', 'succeeded',
+    'executionId', v_execution_id,
+    'objectType', 'Offer',
+    'objectId', v_offer_id
+  );
+  IF v_stored_result IS DISTINCT FROM v_expected_result THEN
+    RAISE EXCEPTION 'COMPLETED optional-field fixture has an unexpected original result';
+  END IF;
+
+  -- Each changed value is isolated to one effective request-hash property.
+  FOR v_case IN
+    SELECT *
+    FROM (VALUES
+      ('p_conditions', 'conditions', 'FOB test'),
+      ('p_market', 'market', 'EU'),
+      ('p_geography', 'geography', 'Morocco'),
+      ('p_documentation_status', 'documentationStatus', 'pending'),
+      ('p_lifecycle', 'lifecycle', 'draft'),
+      ('p_offer_type', 'offerType', 'supplier_offer'),
+      ('p_pricing_model', 'pricingModel', 'fixed')
+    ) AS cases(parameter_name, hash_key, changed_value)
+  LOOP
+    v_changed_payload := jsonb_set(
+      v_base_payload,
+      ARRAY[v_case.hash_key],
+      to_jsonb(v_case.changed_value)
+    );
+    v_changed_hash := md5(v_changed_payload::text);
+    v_changed_hashes := array_append(v_changed_hashes, v_changed_hash);
+
+    IF v_changed_hash = v_original_hash THEN
+      RAISE EXCEPTION 'Changing % did not change the independently calculated request hash',
+        v_case.parameter_name;
+    END IF;
+
+    v_conditions := NULL;
+    v_market := NULL;
+    v_geography := NULL;
+    v_documentation_status := NULL;
+    v_lifecycle := NULL;
+    v_offer_type := NULL;
+    v_pricing_model := NULL;
+
+    CASE v_case.parameter_name
+      WHEN 'p_conditions' THEN v_conditions := v_case.changed_value;
+      WHEN 'p_market' THEN v_market := v_case.changed_value;
+      WHEN 'p_geography' THEN v_geography := v_case.changed_value;
+      WHEN 'p_documentation_status' THEN v_documentation_status := v_case.changed_value;
+      WHEN 'p_lifecycle' THEN v_lifecycle := v_case.changed_value;
+      WHEN 'p_offer_type' THEN v_offer_type := v_case.changed_value;
+      WHEN 'p_pricing_model' THEN v_pricing_model := v_case.changed_value;
+      ELSE RAISE EXCEPTION 'Unexpected QA80 parameter %', v_case.parameter_name;
+    END CASE;
+
+    v_error := NULL;
+    BEGIN
+      PERFORM public.execute_create_offer_v1(
+        p_tenant_id => '10000000-0000-4000-8000-000000000001',
+        p_idempotency_key => 'fixture-hash-optional-fields-completed',
+        p_input => '{"case":"completed-optional-field-hash-coverage"}'::jsonb,
+        p_name => 'Request Hash Optional Fields Completed Fixture Offer',
+        p_demand_id => '50000000-0000-4000-8000-000000000001',
+        p_product_master_id => '40000000-0000-4000-8000-000000000001',
+        p_provider_actor_id => '30000000-0000-4000-8000-000000000001',
+        p_quantity => 2,
+        p_price => 12,
+        p_currency => 'USD',
+        p_conditions => v_conditions,
+        p_market => v_market,
+        p_geography => v_geography,
+        p_attributes => '{}'::jsonb,
+        p_documentation_status => v_documentation_status,
+        p_lifecycle => v_lifecycle,
+        p_offer_type => v_offer_type,
+        p_pricing_model => v_pricing_model
+      );
+    EXCEPTION WHEN OTHERS THEN
+      v_error := SQLERRM;
+    END;
+
+    IF v_error IS DISTINCT FROM 'IDEMPOTENCY_KEY_REUSE' THEN
+      RAISE EXCEPTION 'Changed % must raise IDEMPOTENCY_KEY_REUSE; got %',
+        v_case.parameter_name, coalesce(v_error, '<no error>');
+    END IF;
+  END LOOP;
+
+  SELECT count(DISTINCT changed_hash)
+  INTO v_distinct_hashes
+  FROM unnest(v_changed_hashes) AS hashes(changed_hash);
+
+  IF v_distinct_hashes <> 7 OR cardinality(v_changed_hashes) <> 7 THEN
+    RAISE EXCEPTION 'Expected seven distinct changed-parameter hashes, found %',
+      v_distinct_hashes;
+  END IF;
+
+  -- All seven rejected attempts must leave the original idempotency row intact.
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-hash-optional-fields-completed';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA80 retries changed or duplicated the original idempotency row';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-hash-optional-fields-completed'
+    AND status = 'COMPLETED'
+    AND execution_id = v_execution_id
+    AND request_hash = v_original_hash
+    AND result = v_expected_result;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA80 retries changed the original idempotency key/hash/result';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND idempotency_key = 'fixture-hash-optional-fields-completed';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA80 retries created or removed an execution';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND id = v_execution_id
+    AND idempotency_key = 'fixture-hash-optional-fields-completed'
+    AND status = 'COMPLETED'
+    AND object_id = v_offer_id
+    AND result = v_expected_result;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA80 retries changed the original execution';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE id = v_offer_id
+    AND name = 'Request Hash Optional Fields Completed Fixture Offer'
+    AND demand_id = '50000000-0000-4000-8000-000000000001'
+    AND product_master_id = '40000000-0000-4000-8000-000000000001'
+    AND provider_actor_id = '30000000-0000-4000-8000-000000000001'
+    AND quantity = 2
+    AND price = 12
+    AND currency = 'USD'
+    AND conditions IS NULL
+    AND market IS NULL
+    AND geography IS NULL
+    AND documentation_status IS NULL
+    AND lifecycle IS NULL
+    AND offer_type IS NULL
+    AND pricing_model IS NULL
+    AND attributes = '{}'::jsonb;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA80 retries changed the original offer';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_events
+  WHERE execution_id = v_execution_id
+    AND tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND event_type = 'ACTION_SUCCEEDED'
+    AND object_type = 'Offer'
+    AND object_id = v_offer_id
+    AND payload = v_expected_result;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA80 retries changed or duplicated the original success event';
+  END IF;
+END
+$qa80_assert$;
+
+RESET ROLE;
+SELECT 'CREATE_OFFER all seven NULL-defaulted optional fields independently affect completed request hash assertions passed' AS result;
