@@ -10260,3 +10260,381 @@ SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
 COMMIT;
 
 SELECT 'CREATE_OFFER SQL NULL p_input validation precedes idempotency hash/status handling for COMPLETED, FAILED and IN_PROGRESS keys (3 retries) assertions passed' AS result;
+
+
+-- OFFER-QA-90: authentication must precede tenant and idempotency lookups.
+BEGIN;
+
+DO $qa90_seed$
+DECLARE
+  v_action_id uuid;
+  v_request_hash text;
+  v_input jsonb := '{"case":"unauthenticated-precedence"}'::jsonb;
+  v_completed_result jsonb;
+  v_failed_result jsonb;
+  v_terminal_at timestamptz := now();
+BEGIN
+  SELECT id INTO v_action_id
+  FROM public.action_definitions
+  WHERE action_key = 'CREATE_OFFER'
+    AND version = 1
+    AND status = 'published';
+
+  IF v_action_id IS NULL OR (
+    SELECT count(*)
+    FROM public.action_definitions
+    WHERE action_key = 'CREATE_OFFER'
+      AND version = 1
+      AND status = 'published'
+  ) <> 1 THEN
+    RAISE EXCEPTION 'QA90 requires exactly one published CREATE_OFFER v1 definition';
+  END IF;
+
+  v_request_hash := md5(jsonb_build_object(
+    'input', v_input,
+    'name', 'Unauthenticated Precedence Fixture Offer',
+    'demandId', '50000000-0000-4000-8000-000000000001'::uuid,
+    'productMasterId', '40000000-0000-4000-8000-000000000001'::uuid,
+    'providerActorId', '30000000-0000-4000-8000-000000000001'::uuid,
+    'quantity', 2::numeric,
+    'price', 12::numeric,
+    'currency', 'USD',
+    'conditions', NULL,
+    'market', NULL,
+    'geography', NULL,
+    'attributes', '{}'::jsonb,
+    'documentationStatus', NULL,
+    'lifecycle', NULL,
+    'offerType', NULL,
+    'pricingModel', NULL
+  )::text);
+
+  v_completed_result := jsonb_build_object(
+    'status', 'succeeded',
+    'executionId', '70000000-0000-4000-8000-000000000109'::uuid,
+    'objectType', 'Offer',
+    'objectId', '71000000-0000-4000-8000-000000000099'::uuid
+  );
+  v_failed_result := jsonb_build_object(
+    'status', 'failed',
+    'executionId', '70000000-0000-4000-8000-000000000110'::uuid,
+    'error', 'fixture failure'
+  );
+
+  INSERT INTO public.offers(
+    id, name, demand_id, product_master_id, provider_actor_id,
+    quantity, price, currency, attributes
+  )
+  VALUES (
+    '71000000-0000-4000-8000-000000000099',
+    'Unauthenticated Precedence Fixture Offer',
+    '50000000-0000-4000-8000-000000000001',
+    '40000000-0000-4000-8000-000000000001',
+    '30000000-0000-4000-8000-000000000001',
+    2, 12, 'USD', '{}'::jsonb
+  );
+
+  INSERT INTO public.action_executions(
+    id, action_id, action_version, actor_id, object_type, object_id,
+    correlation_id, idempotency_key, status, input, result, completed_at, tenant_id
+  )
+  VALUES
+    (
+      '70000000-0000-4000-8000-000000000109',
+      v_action_id, 1, '30000000-0000-4000-8000-000000000001',
+      'Offer', '71000000-0000-4000-8000-000000000099',
+      '72000000-0000-4000-8000-000000000109',
+      'fixture-unauthenticated-completed', 'COMPLETED',
+      v_input, v_completed_result, v_terminal_at,
+      '10000000-0000-4000-8000-000000000001'
+    ),
+    (
+      '70000000-0000-4000-8000-000000000110',
+      v_action_id, 1, '30000000-0000-4000-8000-000000000001',
+      'Offer', NULL,
+      '72000000-0000-4000-8000-000000000110',
+      'fixture-unauthenticated-failed', 'FAILED',
+      v_input, v_failed_result, v_terminal_at,
+      '10000000-0000-4000-8000-000000000001'
+    ),
+    (
+      '70000000-0000-4000-8000-000000000111',
+      v_action_id, 1, '30000000-0000-4000-8000-000000000001',
+      'Offer', NULL,
+      '72000000-0000-4000-8000-000000000111',
+      'fixture-unauthenticated-in-progress', 'RUNNING',
+      v_input, NULL, NULL,
+      '10000000-0000-4000-8000-000000000001'
+    );
+
+  INSERT INTO public.idempotency_keys(
+    key, action_id, actor_id, request_hash, execution_id,
+    status, result, completed_at, tenant_id
+  )
+  VALUES
+    (
+      'fixture-unauthenticated-completed', v_action_id,
+      '30000000-0000-4000-8000-000000000001', v_request_hash,
+      '70000000-0000-4000-8000-000000000109',
+      'COMPLETED', v_completed_result, v_terminal_at,
+      '10000000-0000-4000-8000-000000000001'
+    ),
+    (
+      'fixture-unauthenticated-failed', v_action_id,
+      '30000000-0000-4000-8000-000000000001', v_request_hash,
+      '70000000-0000-4000-8000-000000000110',
+      'FAILED', v_failed_result, v_terminal_at,
+      '10000000-0000-4000-8000-000000000001'
+    ),
+    (
+      'fixture-unauthenticated-in-progress', v_action_id,
+      '30000000-0000-4000-8000-000000000001', v_request_hash,
+      '70000000-0000-4000-8000-000000000111',
+      'IN_PROGRESS', NULL, NULL,
+      '10000000-0000-4000-8000-000000000001'
+    );
+
+  INSERT INTO public.action_events(
+    execution_id, action_id, action_version, event_type, actor_id,
+    object_type, object_id, correlation_id, payload, tenant_id
+  )
+  VALUES (
+    '70000000-0000-4000-8000-000000000109',
+    v_action_id, 1, 'ACTION_SUCCEEDED',
+    '30000000-0000-4000-8000-000000000001',
+    'Offer', '71000000-0000-4000-8000-000000000099',
+    '72000000-0000-4000-8000-000000000109',
+    v_completed_result,
+    '10000000-0000-4000-8000-000000000001'
+  );
+END
+$qa90_seed$;
+
+-- The empty JWT subject makes auth.uid() return SQL NULL in this fixture.
+SET request.jwt.claim.sub = '';
+SET ROLE authenticated;
+
+DO $qa90_assert$
+DECLARE
+  v_case record;
+  v_error text;
+BEGIN
+  IF auth.uid() IS NOT NULL THEN
+    RAISE EXCEPTION 'QA90 fixture must have a NULL auth.uid() before replay';
+  END IF;
+
+  FOR v_case IN
+    SELECT *
+    FROM (VALUES
+      ('COMPLETED', 'fixture-unauthenticated-completed'),
+      ('FAILED', 'fixture-unauthenticated-failed'),
+      ('IN_PROGRESS', 'fixture-unauthenticated-in-progress')
+    ) AS cases(status_name, idempotency_key)
+  LOOP
+    v_error := NULL;
+    BEGIN
+      -- All business arguments are valid; only the JWT subject is absent.
+      -- Authentication must fail before tenant access or status/result lookup.
+      PERFORM public.execute_create_offer_v1(
+        p_tenant_id => '10000000-0000-4000-8000-000000000001',
+        p_idempotency_key => v_case.idempotency_key,
+        p_input => '{"case":"unauthenticated-precedence"}'::jsonb,
+        p_name => 'Unauthenticated Precedence Fixture Offer',
+        p_demand_id => '50000000-0000-4000-8000-000000000001',
+        p_product_master_id => '40000000-0000-4000-8000-000000000001',
+        p_provider_actor_id => '30000000-0000-4000-8000-000000000001',
+        p_quantity => 2::numeric,
+        p_price => 12::numeric,
+        p_currency => 'USD',
+        p_conditions => NULL,
+        p_market => NULL,
+        p_geography => NULL,
+        p_attributes => '{}'::jsonb,
+        p_documentation_status => NULL,
+        p_lifecycle => NULL,
+        p_offer_type => NULL,
+        p_pricing_model => NULL
+      );
+      RAISE EXCEPTION 'QA90 expected UNAUTHENTICATED for % key', v_case.status_name;
+    EXCEPTION WHEN OTHERS THEN
+      GET STACKED DIAGNOSTICS v_error = MESSAGE_TEXT;
+    END;
+
+    IF v_error IS DISTINCT FROM 'UNAUTHENTICATED' THEN
+      RAISE EXCEPTION 'Authentication must precede idempotency result handling for % key; expected UNAUTHENTICATED, got %',
+        v_case.status_name, coalesce(v_error, '<no error>');
+    END IF;
+  END LOOP;
+END
+$qa90_assert$;
+
+RESET ROLE;
+SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+
+DO $qa90_integrity$
+DECLARE
+  v_action_id uuid;
+  v_input jsonb := '{"case":"unauthenticated-precedence"}'::jsonb;
+  v_original_hash text;
+  v_count integer;
+BEGIN
+  IF auth.uid() IS DISTINCT FROM '20000000-0000-4000-8000-000000000001'::uuid THEN
+    RAISE EXCEPTION 'QA90 must restore the original authenticated JWT subject after negative tests';
+  END IF;
+
+  SELECT id INTO v_action_id
+  FROM public.action_definitions
+  WHERE action_key = 'CREATE_OFFER'
+    AND version = 1
+    AND status = 'published';
+
+  v_original_hash := md5(jsonb_build_object(
+    'input', v_input,
+    'name', 'Unauthenticated Precedence Fixture Offer',
+    'demandId', '50000000-0000-4000-8000-000000000001'::uuid,
+    'productMasterId', '40000000-0000-4000-8000-000000000001'::uuid,
+    'providerActorId', '30000000-0000-4000-8000-000000000001'::uuid,
+    'quantity', 2::numeric,
+    'price', 12::numeric,
+    'currency', 'USD',
+    'conditions', NULL,
+    'market', NULL,
+    'geography', NULL,
+    'attributes', '{}'::jsonb,
+    'documentationStatus', NULL,
+    'lifecycle', NULL,
+    'offerType', NULL,
+    'pricingModel', NULL
+  )::text);
+
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key IN (
+      'fixture-unauthenticated-completed',
+      'fixture-unauthenticated-failed',
+      'fixture-unauthenticated-in-progress'
+    );
+  IF v_count <> 3 THEN
+    RAISE EXCEPTION 'QA90 unauthenticated replays changed or duplicated idempotency rows; expected 3, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND action_id = v_action_id
+    AND actor_id = '30000000-0000-4000-8000-000000000001'
+    AND request_hash = v_original_hash
+    AND (
+      (key = 'fixture-unauthenticated-completed'
+        AND status = 'COMPLETED'
+        AND execution_id = '70000000-0000-4000-8000-000000000109'
+        AND result = jsonb_build_object(
+          'status', 'succeeded',
+          'executionId', '70000000-0000-4000-8000-000000000109'::uuid,
+          'objectType', 'Offer',
+          'objectId', '71000000-0000-4000-8000-000000000099'::uuid
+        )
+        AND completed_at IS NOT NULL)
+      OR
+      (key = 'fixture-unauthenticated-failed'
+        AND status = 'FAILED'
+        AND execution_id = '70000000-0000-4000-8000-000000000110'
+        AND result = jsonb_build_object(
+          'status', 'failed',
+          'executionId', '70000000-0000-4000-8000-000000000110'::uuid,
+          'error', 'fixture failure'
+        )
+        AND completed_at IS NOT NULL)
+      OR
+      (key = 'fixture-unauthenticated-in-progress'
+        AND status = 'IN_PROGRESS'
+        AND execution_id = '70000000-0000-4000-8000-000000000111'
+        AND result IS NULL
+        AND completed_at IS NULL)
+    );
+  IF v_count <> 3 THEN
+    RAISE EXCEPTION 'QA90 unauthenticated replays changed original key hash, status, execution or result';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND action_id = v_action_id
+    AND action_version = 1
+    AND actor_id = '30000000-0000-4000-8000-000000000001'
+    AND input = v_input
+    AND (
+      (id = '70000000-0000-4000-8000-000000000109'
+        AND idempotency_key = 'fixture-unauthenticated-completed'
+        AND status = 'COMPLETED'
+        AND object_id = '71000000-0000-4000-8000-000000000099'
+        AND result->>'status' = 'succeeded'
+        AND completed_at IS NOT NULL)
+      OR
+      (id = '70000000-0000-4000-8000-000000000110'
+        AND idempotency_key = 'fixture-unauthenticated-failed'
+        AND status = 'FAILED'
+        AND object_id IS NULL
+        AND result->>'status' = 'failed'
+        AND completed_at IS NOT NULL)
+      OR
+      (id = '70000000-0000-4000-8000-000000000111'
+        AND idempotency_key = 'fixture-unauthenticated-in-progress'
+        AND status = 'RUNNING'
+        AND object_id IS NULL
+        AND result IS NULL
+        AND completed_at IS NULL)
+    );
+  IF v_count <> 3 THEN
+    RAISE EXCEPTION 'QA90 unauthenticated replays changed original execution status, actor, object or result';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE id = '71000000-0000-4000-8000-000000000099'
+    AND name = 'Unauthenticated Precedence Fixture Offer'
+    AND demand_id = '50000000-0000-4000-8000-000000000001'
+    AND product_master_id = '40000000-0000-4000-8000-000000000001'
+    AND provider_actor_id = '30000000-0000-4000-8000-000000000001'
+    AND quantity = 2
+    AND price = 12
+    AND currency = 'USD'
+    AND attributes = '{}'::jsonb;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA90 unauthenticated replays changed or duplicated the original offer';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_events
+  WHERE execution_id = '70000000-0000-4000-8000-000000000109'
+    AND tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND event_type = 'ACTION_SUCCEEDED'
+    AND actor_id = '30000000-0000-4000-8000-000000000001'
+    AND object_id = '71000000-0000-4000-8000-000000000099'
+    AND payload = jsonb_build_object(
+      'status', 'succeeded',
+      'executionId', '70000000-0000-4000-8000-000000000109'::uuid,
+      'objectType', 'Offer',
+      'objectId', '71000000-0000-4000-8000-000000000099'::uuid
+    );
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA90 unauthenticated replays changed or duplicated the original success event';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_events
+  WHERE execution_id IN (
+    '70000000-0000-4000-8000-000000000109',
+    '70000000-0000-4000-8000-000000000110',
+    '70000000-0000-4000-8000-000000000111'
+  );
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA90 unauthenticated replays unexpectedly created or removed action events';
+  END IF;
+END
+$qa90_integrity$;
+
+COMMIT;
+
+SELECT 'CREATE_OFFER authentication validation precedes tenant and idempotency result handling for COMPLETED, FAILED and IN_PROGRESS keys (3 retries); JWT subject restored; original records unchanged' AS result;
