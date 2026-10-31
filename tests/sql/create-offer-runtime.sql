@@ -11142,7 +11142,8 @@ BEGIN
       AND execution_id = '70000000-0000-4000-8000-000000000112'
       AND status = 'COMPLETED'
       AND result = v_completed_result
-      AND completed_at = (SELECT completed_at FROM public.idempotency_keys WHERE key = 'fixture-profile-actor-completed' AND tenant_id = v_tenant_id)
+      AND completed_at IS NOT NULL
+      AND completed_at = (SELECT completed_at FROM public.action_executions WHERE id = '70000000-0000-4000-8000-000000000112' AND tenant_id = v_tenant_id)
   ) OR NOT EXISTS (
     SELECT 1 FROM public.idempotency_keys
     WHERE tenant_id = v_tenant_id
@@ -11150,6 +11151,8 @@ BEGIN
       AND execution_id = '70000000-0000-4000-8000-000000000113'
       AND status = 'FAILED'
       AND result = v_failed_result
+      AND completed_at IS NOT NULL
+      AND completed_at = (SELECT completed_at FROM public.action_executions WHERE id = '70000000-0000-4000-8000-000000000113' AND tenant_id = v_tenant_id)
   ) OR NOT EXISTS (
     SELECT 1 FROM public.idempotency_keys
     WHERE tenant_id = v_tenant_id
