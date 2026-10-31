@@ -9065,3 +9065,411 @@ $qa86_assert$;
 RESET ROLE;
 SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
 SELECT 'CREATE_OFFER product-active and demand-existence preconditions precede idempotency hash/status handling for COMPLETED, FAILED and IN_PROGRESS keys (6 retries) assertions passed' AS result;
+
+
+-- OFFER-QA-87: the published action definition is a precondition to
+-- idempotency lookup. The temporary status change is transactional and runs
+-- only in the disposable PostgreSQL integration database.
+BEGIN;
+
+DO $qa87_seed$
+DECLARE
+  v_action_id uuid;
+  v_request_hash text;
+  v_input jsonb := '{"case":"action-publication-precondition-order"}'::jsonb;
+  v_completed_result jsonb;
+  v_failed_result jsonb;
+  v_terminal_at timestamptz := now();
+BEGIN
+  SELECT id INTO v_action_id
+  FROM public.action_definitions
+  WHERE action_key = 'CREATE_OFFER'
+    AND version = 1
+    AND status = 'published';
+
+  IF v_action_id IS NULL THEN
+    RAISE EXCEPTION 'QA87 requires exactly one published CREATE_OFFER v1 definition';
+  END IF;
+
+  IF (
+    SELECT count(*)
+    FROM public.action_definitions
+    WHERE action_key = 'CREATE_OFFER'
+      AND version = 1
+      AND status = 'published'
+  ) <> 1 THEN
+    RAISE EXCEPTION 'QA87 expected exactly one published CREATE_OFFER v1 definition';
+  END IF;
+
+  v_request_hash := md5(jsonb_build_object(
+    'input', v_input,
+    'name', 'Action Publication Precondition Order Fixture Offer',
+    'demandId', '50000000-0000-4000-8000-000000000001'::uuid,
+    'productMasterId', '40000000-0000-4000-8000-000000000001'::uuid,
+    'providerActorId', '30000000-0000-4000-8000-000000000001'::uuid,
+    'quantity', 2,
+    'price', 12,
+    'currency', 'USD',
+    'conditions', NULL,
+    'market', NULL,
+    'geography', NULL,
+    'attributes', '{}'::jsonb,
+    'documentationStatus', NULL,
+    'lifecycle', NULL,
+    'offerType', NULL,
+    'pricingModel', NULL
+  )::text);
+
+  v_completed_result := jsonb_build_object(
+    'status', 'succeeded',
+    'executionId', '70000000-0000-4000-8000-000000000093'::uuid,
+    'objectType', 'Offer',
+    'objectId', '71000000-0000-4000-8000-000000000087'::uuid
+  );
+  v_failed_result := jsonb_build_object(
+    'status', 'failed',
+    'executionId', '70000000-0000-4000-8000-000000000094'::uuid,
+    'error', 'fixture failure'
+  );
+
+  INSERT INTO public.offers(
+    id, name, demand_id, product_master_id, provider_actor_id,
+    quantity, price, currency, attributes
+  )
+  VALUES (
+    '71000000-0000-4000-8000-000000000087',
+    'Action Publication Precondition Order Fixture Offer',
+    '50000000-0000-4000-8000-000000000001',
+    '40000000-0000-4000-8000-000000000001',
+    '30000000-0000-4000-8000-000000000001',
+    2, 12, 'USD', '{}'::jsonb
+  );
+
+  INSERT INTO public.action_executions(
+    id, action_id, action_version, actor_id, object_type, object_id,
+    correlation_id, idempotency_key, status, input, result, completed_at, tenant_id
+  )
+  VALUES
+    (
+      '70000000-0000-4000-8000-000000000093',
+      v_action_id, 1, '30000000-0000-4000-8000-000000000001',
+      'Offer', '71000000-0000-4000-8000-000000000087',
+      '72000000-0000-4000-8000-000000000093',
+      'fixture-action-publication-completed', 'COMPLETED',
+      v_input, v_completed_result, v_terminal_at,
+      '10000000-0000-4000-8000-000000000001'
+    ),
+    (
+      '70000000-0000-4000-8000-000000000094',
+      v_action_id, 1, '30000000-0000-4000-8000-000000000001',
+      'Offer', NULL,
+      '72000000-0000-4000-8000-000000000094',
+      'fixture-action-publication-failed', 'FAILED',
+      v_input, v_failed_result, v_terminal_at,
+      '10000000-0000-4000-8000-000000000001'
+    ),
+    (
+      '70000000-0000-4000-8000-000000000095',
+      v_action_id, 1, '30000000-0000-4000-8000-000000000001',
+      'Offer', NULL,
+      '72000000-0000-4000-8000-000000000095',
+      'fixture-action-publication-in-progress', 'RUNNING',
+      v_input, NULL, NULL,
+      '10000000-0000-4000-8000-000000000001'
+    );
+
+  INSERT INTO public.idempotency_keys(
+    key, action_id, actor_id, request_hash, execution_id,
+    status, result, completed_at, tenant_id
+  )
+  VALUES
+    (
+      'fixture-action-publication-completed', v_action_id,
+      '30000000-0000-4000-8000-000000000001', v_request_hash,
+      '70000000-0000-4000-8000-000000000093',
+      'COMPLETED', v_completed_result, v_terminal_at,
+      '10000000-0000-4000-8000-000000000001'
+    ),
+    (
+      'fixture-action-publication-failed', v_action_id,
+      '30000000-0000-4000-8000-000000000001', v_request_hash,
+      '70000000-0000-4000-8000-000000000094',
+      'FAILED', v_failed_result, v_terminal_at,
+      '10000000-0000-4000-8000-000000000001'
+    ),
+    (
+      'fixture-action-publication-in-progress', v_action_id,
+      '30000000-0000-4000-8000-000000000001', v_request_hash,
+      '70000000-0000-4000-8000-000000000095',
+      'IN_PROGRESS', NULL, NULL,
+      '10000000-0000-4000-8000-000000000001'
+    );
+
+  INSERT INTO public.action_events(
+    execution_id, action_id, action_version, event_type, actor_id,
+    object_type, object_id, correlation_id, payload, tenant_id
+  )
+  VALUES (
+    '70000000-0000-4000-8000-000000000093',
+    v_action_id, 1, 'ACTION_SUCCEEDED',
+    '30000000-0000-4000-8000-000000000001',
+    'Offer', '71000000-0000-4000-8000-000000000087',
+    '72000000-0000-4000-8000-000000000093',
+    v_completed_result,
+    '10000000-0000-4000-8000-000000000001'
+  );
+END
+$qa87_seed$;
+
+-- No published v1 definition remains visible to the SECURITY DEFINER function.
+DO $qa87_unpublish$
+DECLARE
+  v_rows integer;
+BEGIN
+  UPDATE public.action_definitions
+  SET status = 'draft', updated_at = now()
+  WHERE action_key = 'CREATE_OFFER'
+    AND version = 1
+    AND status = 'published';
+
+  GET DIAGNOSTICS v_rows = ROW_COUNT;
+  IF v_rows <> 1 THEN
+    RAISE EXCEPTION 'QA87 expected to temporarily unpublish exactly one CREATE_OFFER v1 definition; updated %', v_rows;
+  END IF;
+END
+$qa87_unpublish$;
+
+SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+SET ROLE authenticated;
+
+DO $qa87_assert$
+DECLARE
+  v_case record;
+  v_error text;
+  v_count integer;
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM public.action_definitions
+    WHERE action_key = 'CREATE_OFFER'
+      AND version = 1
+      AND status = 'published'
+  ) THEN
+    RAISE EXCEPTION 'QA87 fixture still has a published CREATE_OFFER v1 definition';
+  END IF;
+
+  FOR v_case IN
+    SELECT *
+    FROM (VALUES
+      ('COMPLETED', 'fixture-action-publication-completed'),
+      ('FAILED', 'fixture-action-publication-failed'),
+      ('IN_PROGRESS', 'fixture-action-publication-in-progress')
+    ) AS cases(status_name, idempotency_key)
+  LOOP
+    v_error := NULL;
+    BEGIN
+      -- Exact same effective parameters as the stored request: if action
+      -- publication were checked after idempotency, this would replay the
+      -- completed/failed result or report ACTION_ALREADY_RUNNING instead.
+      PERFORM public.execute_create_offer_v1(
+        p_tenant_id => '10000000-0000-4000-8000-000000000001',
+        p_idempotency_key => v_case.idempotency_key,
+        p_input => '{"case":"action-publication-precondition-order"}'::jsonb,
+        p_name => 'Action Publication Precondition Order Fixture Offer',
+        p_demand_id => '50000000-0000-4000-8000-000000000001',
+        p_product_master_id => '40000000-0000-4000-8000-000000000001',
+        p_provider_actor_id => '30000000-0000-4000-8000-000000000001',
+        p_quantity => 2,
+        p_price => 12,
+        p_currency => 'USD',
+        p_conditions => NULL,
+        p_market => NULL,
+        p_geography => NULL,
+        p_attributes => '{}'::jsonb,
+        p_documentation_status => NULL,
+        p_lifecycle => NULL,
+        p_offer_type => NULL,
+        p_pricing_model => NULL
+      );
+      RAISE EXCEPTION 'QA87 expected ACTION_NOT_PUBLISHED for % key', v_case.status_name;
+    EXCEPTION WHEN OTHERS THEN
+      GET STACKED DIAGNOSTICS v_error = MESSAGE_TEXT;
+    END;
+
+    IF v_error IS DISTINCT FROM 'ACTION_NOT_PUBLISHED' THEN
+      RAISE EXCEPTION 'Published-action validation must precede idempotency hash/status handling for %; got %',
+        v_case.status_name, coalesce(v_error, '<no error>');
+    END IF;
+  END LOOP;
+
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key IN (
+      'fixture-action-publication-completed',
+      'fixture-action-publication-failed',
+      'fixture-action-publication-in-progress'
+    );
+  IF v_count <> 3 THEN
+    RAISE EXCEPTION 'QA87 retries changed or duplicated idempotency rows; expected 3, found %', v_count;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM public.idempotency_keys
+    WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+      AND key = 'fixture-action-publication-completed'
+      AND actor_id = '30000000-0000-4000-8000-000000000001'
+      AND request_hash = md5(jsonb_build_object(
+        'input', '{"case":"action-publication-precondition-order"}'::jsonb,
+        'name', 'Action Publication Precondition Order Fixture Offer',
+        'demandId', '50000000-0000-4000-8000-000000000001'::uuid,
+        'productMasterId', '40000000-0000-4000-8000-000000000001'::uuid,
+        'providerActorId', '30000000-0000-4000-8000-000000000001'::uuid,
+        'quantity', 2, 'price', 12, 'currency', 'USD',
+        'conditions', NULL, 'market', NULL, 'geography', NULL,
+        'attributes', '{}'::jsonb, 'documentationStatus', NULL,
+        'lifecycle', NULL, 'offerType', NULL, 'pricingModel', NULL
+      )::text)
+      AND status = 'COMPLETED'
+      AND execution_id = '70000000-0000-4000-8000-000000000093'
+      AND result = jsonb_build_object(
+        'status', 'succeeded',
+        'executionId', '70000000-0000-4000-8000-000000000093'::uuid,
+        'objectType', 'Offer',
+        'objectId', '71000000-0000-4000-8000-000000000087'::uuid
+      )
+      AND completed_at IS NOT NULL
+  ) THEN
+    RAISE EXCEPTION 'QA87 changed the original COMPLETED idempotency result';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND actor_id = '30000000-0000-4000-8000-000000000001'
+    AND (
+      (key = 'fixture-action-publication-failed'
+        AND status = 'FAILED'
+        AND execution_id = '70000000-0000-4000-8000-000000000094'
+        AND result = jsonb_build_object(
+          'status', 'failed',
+          'executionId', '70000000-0000-4000-8000-000000000094'::uuid,
+          'error', 'fixture failure'
+        )
+        AND completed_at IS NOT NULL)
+      OR
+      (key = 'fixture-action-publication-in-progress'
+        AND status = 'IN_PROGRESS'
+        AND execution_id = '70000000-0000-4000-8000-000000000095'
+        AND result IS NULL
+        AND completed_at IS NULL)
+    );
+  IF v_count <> 2 THEN
+    RAISE EXCEPTION 'QA87 changed the original FAILED or IN_PROGRESS idempotency result';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND actor_id = '30000000-0000-4000-8000-000000000001'
+    AND input = '{"case":"action-publication-precondition-order"}'::jsonb
+    AND (
+      (id = '70000000-0000-4000-8000-000000000093'
+        AND idempotency_key = 'fixture-action-publication-completed'
+        AND status = 'COMPLETED'
+        AND object_id = '71000000-0000-4000-8000-000000000087'
+        AND result->>'status' = 'succeeded'
+        AND completed_at IS NOT NULL)
+      OR
+      (id = '70000000-0000-4000-8000-000000000094'
+        AND idempotency_key = 'fixture-action-publication-failed'
+        AND status = 'FAILED'
+        AND object_id IS NULL
+        AND result->>'status' = 'failed'
+        AND completed_at IS NOT NULL)
+      OR
+      (id = '70000000-0000-4000-8000-000000000095'
+        AND idempotency_key = 'fixture-action-publication-in-progress'
+        AND status = 'RUNNING'
+        AND object_id IS NULL
+        AND result IS NULL
+        AND completed_at IS NULL)
+    );
+  IF v_count <> 3 THEN
+    RAISE EXCEPTION 'QA87 retries changed original execution state';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE id = '71000000-0000-4000-8000-000000000087'
+    AND name = 'Action Publication Precondition Order Fixture Offer'
+    AND demand_id = '50000000-0000-4000-8000-000000000001'
+    AND product_master_id = '40000000-0000-4000-8000-000000000001'
+    AND provider_actor_id = '30000000-0000-4000-8000-000000000001'
+    AND quantity = 2
+    AND price = 12
+    AND currency = 'USD'
+    AND attributes = '{}'::jsonb;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA87 retries changed or duplicated the original offer';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_events
+  WHERE execution_id = '70000000-0000-4000-8000-000000000093'
+    AND tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND event_type = 'ACTION_SUCCEEDED'
+    AND actor_id = '30000000-0000-4000-8000-000000000001'
+    AND object_id = '71000000-0000-4000-8000-000000000087'
+    AND payload->>'status' = 'succeeded';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA87 retries changed or duplicated the original success event';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_events
+  WHERE execution_id IN (
+    '70000000-0000-4000-8000-000000000093',
+    '70000000-0000-4000-8000-000000000094',
+    '70000000-0000-4000-8000-000000000095'
+  );
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA87 retries unexpectedly created or removed action events';
+  END IF;
+END
+$qa87_assert$;
+
+RESET ROLE;
+SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+
+-- Restore the published action definition before any following integration
+-- tests. If an assertion above fails, the enclosing transaction rolls back.
+DO $qa87_restore$
+DECLARE
+  v_rows integer;
+BEGIN
+  UPDATE public.action_definitions
+  SET status = 'published', updated_at = now()
+  WHERE action_key = 'CREATE_OFFER'
+    AND version = 1
+    AND status = 'draft';
+
+  GET DIAGNOSTICS v_rows = ROW_COUNT;
+  IF v_rows <> 1 THEN
+    RAISE EXCEPTION 'QA87 expected to restore exactly one published CREATE_OFFER v1 definition; updated %', v_rows;
+  END IF;
+
+  IF (
+    SELECT count(*)
+    FROM public.action_definitions
+    WHERE action_key = 'CREATE_OFFER'
+      AND version = 1
+      AND status = 'published'
+  ) <> 1 THEN
+    RAISE EXCEPTION 'QA87 failed to restore exactly one published CREATE_OFFER v1 definition';
+  END IF;
+END
+$qa87_restore$;
+
+COMMIT;
+
+SELECT 'CREATE_OFFER published-action precondition precedes idempotency hash/status handling for COMPLETED, FAILED and IN_PROGRESS keys (3 retries); fixture status restored' AS result;
