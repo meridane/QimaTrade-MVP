@@ -10638,3 +10638,121 @@ $qa90_integrity$;
 COMMIT;
 
 SELECT 'CREATE_OFFER authentication validation precedes tenant and idempotency result handling for COMPLETED, FAILED and IN_PROGRESS keys (3 retries); JWT subject restored; original records unchanged' AS result;
+
+-- OFFER-QA-91: tenant and idempotency-key requirements must reject before writes.
+BEGIN;
+
+CREATE TEMP TABLE qa91_baseline ON COMMIT DROP AS
+SELECT
+  (SELECT count(*) FROM public.idempotency_keys) AS idempotency_count,
+  (SELECT count(*) FROM public.action_executions) AS execution_count,
+  (SELECT count(*) FROM public.offers) AS offer_count,
+  (SELECT count(*) FROM public.action_events) AS event_count;
+
+SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+SET ROLE authenticated;
+
+DO $qa91_assert$
+DECLARE
+  v_case record;
+  v_error text;
+BEGIN
+  IF auth.uid() IS DISTINCT FROM '20000000-0000-4000-8000-000000000001'::uuid THEN
+    RAISE EXCEPTION 'QA91 requires the authenticated fixture user before testing required tenant/key arguments';
+  END IF;
+
+  FOR v_case IN
+    SELECT *
+    FROM (VALUES
+      ('null tenant', NULL::uuid, 'fixture-qa91-null-tenant'::text, 'TENANT_REQUIRED'::text),
+      ('null key', '10000000-0000-4000-8000-000000000001'::uuid, NULL::text, 'IDEMPOTENCY_KEY_REQUIRED'::text),
+      ('empty key', '10000000-0000-4000-8000-000000000001'::uuid, ''::text, 'IDEMPOTENCY_KEY_REQUIRED'::text),
+      ('whitespace key', '10000000-0000-4000-8000-000000000001'::uuid, '   '::text, 'IDEMPOTENCY_KEY_REQUIRED'::text)
+    ) AS cases(case_name, tenant_id, idempotency_key, expected_error)
+  LOOP
+    v_error := NULL;
+    BEGIN
+      -- All later arguments are valid. Only the required tenant/key argument varies.
+      PERFORM public.execute_create_offer_v1(
+        p_tenant_id => v_case.tenant_id,
+        p_idempotency_key => v_case.idempotency_key,
+        p_input => '{"case":"qa91-required-tenant-key-preconditions"}'::jsonb,
+        p_name => 'QA91 Required Tenant Key Fixture Offer',
+        p_demand_id => '50000000-0000-4000-8000-000000000001',
+        p_product_master_id => '40000000-0000-4000-8000-000000000001',
+        p_provider_actor_id => '30000000-0000-4000-8000-000000000001',
+        p_quantity => 2::numeric,
+        p_price => 12::numeric,
+        p_currency => 'USD',
+        p_conditions => NULL,
+        p_market => NULL,
+        p_geography => NULL,
+        p_attributes => '{}'::jsonb,
+        p_documentation_status => NULL,
+        p_lifecycle => NULL,
+        p_offer_type => NULL,
+        p_pricing_model => NULL
+      );
+      RAISE EXCEPTION 'QA91 expected % for % case', v_case.expected_error, v_case.case_name;
+    EXCEPTION WHEN OTHERS THEN
+      GET STACKED DIAGNOSTICS v_error = MESSAGE_TEXT;
+    END;
+
+    IF v_error IS DISTINCT FROM v_case.expected_error THEN
+      RAISE EXCEPTION 'Required tenant/key precondition mismatch for %: expected %, got %',
+        v_case.case_name, v_case.expected_error, coalesce(v_error, '<no error>');
+    END IF;
+  END LOOP;
+END
+$qa91_assert$;
+
+RESET ROLE;
+
+DO $qa91_integrity$
+DECLARE
+  v_before record;
+  v_after record;
+BEGIN
+  SELECT * INTO v_before FROM pg_temp.qa91_baseline;
+
+  SELECT
+    (SELECT count(*) FROM public.idempotency_keys) AS idempotency_count,
+    (SELECT count(*) FROM public.action_executions) AS execution_count,
+    (SELECT count(*) FROM public.offers) AS offer_count,
+    (SELECT count(*) FROM public.action_events) AS event_count
+  INTO v_after;
+
+  IF ROW(
+    v_after.idempotency_count,
+    v_after.execution_count,
+    v_after.offer_count,
+    v_after.event_count
+  ) IS DISTINCT FROM ROW(
+    v_before.idempotency_count,
+    v_before.execution_count,
+    v_before.offer_count,
+    v_before.event_count
+  ) THEN
+    RAISE EXCEPTION
+      'QA91 invalid tenant/key arguments created or removed rows (before: %, %, %, %; after: %, %, %, %)',
+      v_before.idempotency_count, v_before.execution_count, v_before.offer_count, v_before.event_count,
+      v_after.idempotency_count, v_after.execution_count, v_after.offer_count, v_after.event_count;
+  END IF;
+
+  IF EXISTS (
+    SELECT 1
+    FROM public.idempotency_keys
+    WHERE key = 'fixture-qa91-null-tenant'
+  ) OR EXISTS (
+    SELECT 1
+    FROM public.action_executions
+    WHERE idempotency_key = 'fixture-qa91-null-tenant'
+  ) THEN
+    RAISE EXCEPTION 'QA91 null-tenant call unexpectedly created a keyed execution or idempotency row';
+  END IF;
+END
+$qa91_integrity$;
+
+COMMIT;
+
+SELECT 'CREATE_OFFER null tenant and null/empty/whitespace idempotency-key preconditions rejected before writes (4 cases); row counts unchanged' AS result;
