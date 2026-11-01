@@ -2459,3 +2459,237 @@ $qa107$;
 SQL
 
 echo "CREATE_OFFER same-tenant shared-key cross-actor reuse is rejected; first actor ownership, hash, result and exact replay remain intact."
+
+
+# QA108: JSONB object key order must not change the effective request hash.
+# The same tenant, actor, key and business values are replayed with reordered
+# keys in both p_input and p_attributes. JSONB semantics should canonicalize
+# the objects, preserving the hash and the exact persisted result.
+"\${PSQL[@]}" <<'SQL'
+INSERT INTO public.demands (id, name, demand_status, requester_actor_id)
+VALUES (
+  '50000000-0000-4000-8000-000000000010',
+  'QA108 JSONB Canonicalization Demand',
+  'published',
+  '30000000-0000-4000-8000-000000000001'
+);
+SQL
+
+qa108_call_a=$(cat <<'SQL'
+SET application_name = 'qima-qa108-jsonb-order-a';
+SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+SET ROLE authenticated;
+SELECT public.execute_create_offer_v1(
+  '10000000-0000-4000-8000-000000000001',
+  'fixture-qa108-jsonb-key-order',
+  '{"alpha":1,"nested":{"left":"L","right":"R"},"omega":[1,2]}'::jsonb,
+  'QA108 JSONB Canonicalization Offer',
+  '50000000-0000-4000-8000-000000000010',
+  '40000000-0000-4000-8000-000000000001',
+  '30000000-0000-4000-8000-000000000001',
+  8,
+  44,
+  'USD',
+  NULL,
+  NULL,
+  NULL,
+  '{"dimensions":{"height":12,"width":7},"labels":["one","two"],"metadata":{"grade":"A","origin":"MA"}}'::jsonb
+);
+SQL
+)
+
+qa108_call_b=$(cat <<'SQL'
+SET application_name = 'qima-qa108-jsonb-order-b';
+SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+SET ROLE authenticated;
+SELECT public.execute_create_offer_v1(
+  '10000000-0000-4000-8000-000000000001',
+  'fixture-qa108-jsonb-key-order',
+  '{"omega":[1,2],"nested":{"right":"R","left":"L"},"alpha":1}'::jsonb,
+  'QA108 JSONB Canonicalization Offer',
+  '50000000-0000-4000-8000-000000000010',
+  '40000000-0000-4000-8000-000000000001',
+  '30000000-0000-4000-8000-000000000001',
+  8,
+  44,
+  'USD',
+  NULL,
+  NULL,
+  NULL,
+  '{"metadata":{"origin":"MA","grade":"A"},"labels":["one","two"],"dimensions":{"width":7,"height":12}}'::jsonb
+);
+SQL
+)
+
+# The first request creates the offer. The reordered request must be treated
+# as the same JSONB value and return the already-persisted result.
+"\${PSQL_TUPLE[@]}" -c "$qa108_call_a" > /tmp/qima-qa108-first.log
+"\${PSQL_TUPLE[@]}" -c "$qa108_call_b" > /tmp/qima-qa108-reordered-replay.log
+if ! cmp -s /tmp/qima-qa108-first.log /tmp/qima-qa108-reordered-replay.log; then
+  echo "QA108 reordered JSONB request did not return the exact persisted result." >&2
+  diff -u /tmp/qima-qa108-first.log /tmp/qima-qa108-reordered-replay.log >&2 || true
+  exit 1
+fi
+
+"\${PSQL_TUPLE[@]}" -c "
+  SELECT result::text
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-qa108-jsonb-key-order'
+    AND status = 'COMPLETED';
+" > /tmp/qima-qa108-stored-result.log
+if ! cmp -s /tmp/qima-qa108-first.log /tmp/qima-qa108-stored-result.log; then
+  echo "QA108 first response does not match the persisted idempotency result." >&2
+  diff -u /tmp/qima-qa108-first.log /tmp/qima-qa108-stored-result.log >&2 || true
+  exit 1
+fi
+
+"\${PSQL[@]}" <<'SQL'
+DO $qa108$
+DECLARE
+  v_input_a jsonb := '{"alpha":1,"nested":{"left":"L","right":"R"},"omega":[1,2]}'::jsonb;
+  v_input_b jsonb := '{"omega":[1,2],"nested":{"right":"R","left":"L"},"alpha":1}'::jsonb;
+  v_attributes_a jsonb := '{"dimensions":{"height":12,"width":7},"labels":["one","two"],"metadata":{"grade":"A","origin":"MA"}}'::jsonb;
+  v_attributes_b jsonb := '{"metadata":{"origin":"MA","grade":"A"},"labels":["one","two"],"dimensions":{"width":7,"height":12}}'::jsonb;
+  v_expected_hash_a text;
+  v_expected_hash_b text;
+  v_request_hash text;
+  v_actor_id uuid;
+  v_execution_id uuid;
+  v_result jsonb;
+  v_execution_input jsonb;
+  v_offer_attributes jsonb;
+  v_offer_id uuid;
+  v_count integer;
+BEGIN
+  IF v_input_a IS DISTINCT FROM v_input_b
+     OR v_attributes_a IS DISTINCT FROM v_attributes_b THEN
+    RAISE EXCEPTION 'QA108 reordered JSONB objects are not semantically equal';
+  END IF;
+
+  v_expected_hash_a := md5(jsonb_build_object(
+    'input', v_input_a,
+    'name', 'QA108 JSONB Canonicalization Offer',
+    'demandId', '50000000-0000-4000-8000-000000000010'::uuid,
+    'productMasterId', '40000000-0000-4000-8000-000000000001'::uuid,
+    'providerActorId', '30000000-0000-4000-8000-000000000001'::uuid,
+    'quantity', 8::numeric,
+    'price', 44::numeric,
+    'currency', 'USD',
+    'conditions', NULL::text,
+    'market', NULL::text,
+    'geography', NULL::text,
+    'attributes', v_attributes_a,
+    'documentationStatus', NULL::text,
+    'lifecycle', NULL::text,
+    'offerType', NULL::text,
+    'pricingModel', NULL::text
+  )::text);
+
+  v_expected_hash_b := md5(jsonb_build_object(
+    'input', v_input_b,
+    'name', 'QA108 JSONB Canonicalization Offer',
+    'demandId', '50000000-0000-4000-8000-000000000010'::uuid,
+    'productMasterId', '40000000-0000-4000-8000-000000000001'::uuid,
+    'providerActorId', '30000000-0000-4000-8000-000000000001'::uuid,
+    'quantity', 8::numeric,
+    'price', 44::numeric,
+    'currency', 'USD',
+    'conditions', NULL::text,
+    'market', NULL::text,
+    'geography', NULL::text,
+    'attributes', v_attributes_b,
+    'documentationStatus', NULL::text,
+    'lifecycle', NULL::text,
+    'offerType', NULL::text,
+    'pricingModel', NULL::text
+  )::text);
+
+  IF v_expected_hash_a IS DISTINCT FROM v_expected_hash_b THEN
+    RAISE EXCEPTION 'QA108 equivalent JSONB key orders produced different expected request hashes';
+  END IF;
+
+  SELECT actor_id, request_hash, execution_id, result
+  INTO v_actor_id, v_request_hash, v_execution_id, v_result
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-qa108-jsonb-key-order'
+    AND status = 'COMPLETED';
+
+  IF v_actor_id IS DISTINCT FROM '30000000-0000-4000-8000-000000000001'::uuid
+     OR v_request_hash IS DISTINCT FROM v_expected_hash_a THEN
+    RAISE EXCEPTION 'QA108 persisted actor or request hash does not match the canonical JSONB request';
+  END IF;
+
+  IF v_result ->> 'status' IS DISTINCT FROM 'succeeded'
+     OR v_result ->> 'objectType' IS DISTINCT FROM 'Offer' THEN
+    RAISE EXCEPTION 'QA108 persisted result is not a successful Offer result';
+  END IF;
+  v_offer_id := (v_result ->> 'objectId')::uuid;
+
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-qa108-jsonb-key-order';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA108 expected exactly one idempotency key, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND idempotency_key = 'fixture-qa108-jsonb-key-order'
+    AND status = 'COMPLETED';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA108 expected exactly one completed execution, found %', v_count;
+  END IF;
+
+  SELECT input INTO v_execution_input
+  FROM public.action_executions
+  WHERE id = v_execution_id
+    AND tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND actor_id = '30000000-0000-4000-8000-000000000001'
+    AND result = v_result;
+  IF v_execution_input IS DISTINCT FROM v_input_a THEN
+    RAISE EXCEPTION 'QA108 persisted execution input does not match the canonical JSONB value';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE id = v_offer_id
+    AND name = 'QA108 JSONB Canonicalization Offer'
+    AND demand_id = '50000000-0000-4000-8000-000000000010'
+    AND provider_actor_id = '30000000-0000-4000-8000-000000000001'
+    AND quantity = 8
+    AND price = 44
+    AND currency = 'USD';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA108 expected exactly one correctly attributed offer, found %', v_count;
+  END IF;
+
+  SELECT attributes INTO v_offer_attributes
+  FROM public.offers
+  WHERE id = v_offer_id;
+  IF v_offer_attributes IS DISTINCT FROM v_attributes_a THEN
+    RAISE EXCEPTION 'QA108 persisted offer attributes do not match the canonical JSONB value';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_events e
+  JOIN public.action_executions x
+    ON x.id = e.execution_id
+   AND x.tenant_id = e.tenant_id
+  WHERE x.id = v_execution_id
+    AND x.idempotency_key = 'fixture-qa108-jsonb-key-order'
+    AND e.event_type = 'ACTION_SUCCEEDED'
+    AND e.actor_id = '30000000-0000-4000-8000-000000000001'
+    AND e.object_id = v_offer_id
+    AND e.payload = v_result;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA108 expected exactly one success event for the canonical JSONB request, found %', v_count;
+  END IF;
+END
+$qa108$;
+SQL
+
+echo "CREATE_OFFER JSONB object key reordering preserves request hash, persisted input/attributes and exact idempotent replay."
