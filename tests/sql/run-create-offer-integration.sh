@@ -4182,3 +4182,473 @@ $qa111$;
 SQL
 
 echo "CREATE_OFFER QA111 records PostgreSQL JSONB numeric-scale equality, text representation and request-hash behavior in p_input and p_attributes; same-key retries follow the calculated hash and preserve the first result without duplicates."
+
+# QA112: characterize numeric scale in the SQL parameters p_quantity and p_price.
+# The migration hashes jsonb_build_object(... )::text. Compare numeric equality,
+# JSONB equality/text, and the complete request hash before exercising same-key
+# retries. Keep quantity and price cases isolated so only one numeric parameter
+# changes in each retry.
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 <<'SQL'
+INSERT INTO public.demands (id, name, demand_status, requester_actor_id)
+VALUES
+  (
+    '50000000-0000-4000-8000-000000000019',
+    'QA112 Quantity Numeric Scale Demand',
+    'published',
+    '30000000-0000-4000-8000-000000000001'
+  ),
+  (
+    '50000000-0000-4000-8000-000000000020',
+    'QA112 Price Numeric Scale Demand',
+    'published',
+    '30000000-0000-4000-8000-000000000001'
+  );
+SQL
+
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 <<'SQL'
+SET application_name = 'qima-qa112-numeric-parameters';
+SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+SET ROLE authenticated;
+
+DO $qa112$
+DECLARE
+  v_quantity_integer numeric := 13::numeric;
+  v_quantity_decimal numeric := 13.0::numeric;
+  v_quantity_stable_price numeric := 49::numeric;
+  v_price_stable_quantity numeric := 14::numeric;
+  v_price_integer numeric := 49::numeric;
+  v_price_scale2 numeric := 49.00::numeric;
+
+  v_input_quantity jsonb := '{"context":{"case":"qa112-quantity-parameter-scale"}}'::jsonb;
+  v_attributes_quantity jsonb := '{"metadata":{"source":"qa112-quantity"}}'::jsonb;
+  v_input_price jsonb := '{"context":{"case":"qa112-price-parameter-scale"}}'::jsonb;
+  v_attributes_price jsonb := '{"metadata":{"source":"qa112-price"}}'::jsonb;
+
+  v_quantity_hash_integer jsonb;
+  v_quantity_hash_decimal jsonb;
+  v_price_hash_integer jsonb;
+  v_price_hash_scale2 jsonb;
+
+  v_first_result jsonb;
+  v_retry_result jsonb;
+  v_replay_result jsonb;
+  v_retry_error text;
+  v_actor_id uuid;
+  v_request_hash text;
+  v_execution_id uuid;
+  v_result jsonb;
+  v_offer_id uuid;
+  v_execution_input jsonb;
+  v_offer_attributes jsonb;
+  v_stored_quantity numeric;
+  v_stored_price numeric;
+  v_count integer;
+BEGIN
+  -- p_quantity: PostgreSQL numeric equality and JSONB equality should be true,
+  -- while the numeric/JSONB text representation may preserve the decimal scale.
+  IF v_quantity_integer <> v_quantity_decimal THEN
+    RAISE EXCEPTION 'QA112 p_quantity numeric values 13 and 13.0 are not equal';
+  END IF;
+  IF v_quantity_integer::text = v_quantity_decimal::text THEN
+    RAISE EXCEPTION 'QA112 p_quantity numeric text unexpectedly erased the 13.0 scale';
+  END IF;
+
+  v_quantity_hash_integer := jsonb_build_object(
+    'input', v_input_quantity,
+    'name', 'QA112 Quantity Numeric Scale Offer',
+    'demandId', '50000000-0000-4000-8000-000000000019'::uuid,
+    'productMasterId', '40000000-0000-4000-8000-000000000001'::uuid,
+    'providerActorId', '30000000-0000-4000-8000-000000000001'::uuid,
+    'quantity', v_quantity_integer,
+    'price', v_quantity_stable_price,
+    'currency', 'USD',
+    'conditions', NULL::text,
+    'market', NULL::text,
+    'geography', NULL::text,
+    'attributes', coalesce(v_attributes_quantity, '{}'::jsonb),
+    'documentationStatus', NULL::text,
+    'lifecycle', NULL::text,
+    'offerType', NULL::text,
+    'pricingModel', NULL::text
+  );
+  v_quantity_hash_decimal := jsonb_set(
+    v_quantity_hash_integer,
+    '{quantity}',
+    to_jsonb(v_quantity_decimal),
+    false
+  );
+  IF v_quantity_hash_integer IS DISTINCT FROM v_quantity_hash_decimal THEN
+    RAISE EXCEPTION 'QA112 p_quantity JSONB payloads 13 and 13.0 unexpectedly differ';
+  END IF;
+  IF v_quantity_hash_integer::text = v_quantity_hash_decimal::text THEN
+    RAISE EXCEPTION 'QA112 p_quantity JSONB text unexpectedly erased the decimal scale';
+  END IF;
+  IF md5(v_quantity_hash_integer::text) = md5(v_quantity_hash_decimal::text) THEN
+    RAISE EXCEPTION 'QA112 p_quantity complete request hashes unexpectedly match';
+  END IF;
+  RAISE NOTICE 'QA112 p_quantity: numeric_equal=t jsonb_equal=t text_equal=f hash_equal=f';
+
+  -- p_price: isolate 49 versus 49.00 while every other effective parameter,
+  -- including p_quantity, remains unchanged.
+  IF v_price_integer <> v_price_scale2 THEN
+    RAISE EXCEPTION 'QA112 p_price numeric values 49 and 49.00 are not equal';
+  END IF;
+  IF v_price_integer::text = v_price_scale2::text THEN
+    RAISE EXCEPTION 'QA112 p_price numeric text unexpectedly erased the 49.00 scale';
+  END IF;
+
+  v_price_hash_integer := jsonb_build_object(
+    'input', v_input_price,
+    'name', 'QA112 Price Numeric Scale Offer',
+    'demandId', '50000000-0000-4000-8000-000000000020'::uuid,
+    'productMasterId', '40000000-0000-4000-8000-000000000001'::uuid,
+    'providerActorId', '30000000-0000-4000-8000-000000000001'::uuid,
+    'quantity', v_price_stable_quantity,
+    'price', v_price_integer,
+    'currency', 'USD',
+    'conditions', NULL::text,
+    'market', NULL::text,
+    'geography', NULL::text,
+    'attributes', coalesce(v_attributes_price, '{}'::jsonb),
+    'documentationStatus', NULL::text,
+    'lifecycle', NULL::text,
+    'offerType', NULL::text,
+    'pricingModel', NULL::text
+  );
+  v_price_hash_scale2 := jsonb_set(
+    v_price_hash_integer,
+    '{price}',
+    to_jsonb(v_price_scale2),
+    false
+  );
+  IF v_price_hash_integer IS DISTINCT FROM v_price_hash_scale2 THEN
+    RAISE EXCEPTION 'QA112 p_price JSONB payloads 49 and 49.00 unexpectedly differ';
+  END IF;
+  IF v_price_hash_integer::text = v_price_hash_scale2::text THEN
+    RAISE EXCEPTION 'QA112 p_price JSONB text unexpectedly erased the decimal scale';
+  END IF;
+  IF md5(v_price_hash_integer::text) = md5(v_price_hash_scale2::text) THEN
+    RAISE EXCEPTION 'QA112 p_price complete request hashes unexpectedly match';
+  END IF;
+  RAISE NOTICE 'QA112 p_price: numeric_equal=t jsonb_equal=t text_equal=f hash_equal=f';
+
+  -- First call and changed-scale retry for p_quantity.
+  v_first_result := public.execute_create_offer_v1(
+    '10000000-0000-4000-8000-000000000001',
+    'fixture-qa112-quantity-scale',
+    v_input_quantity,
+    'QA112 Quantity Numeric Scale Offer',
+    '50000000-0000-4000-8000-000000000019',
+    '40000000-0000-4000-8000-000000000001',
+    '30000000-0000-4000-8000-000000000001',
+    v_quantity_integer,
+    v_quantity_stable_price,
+    'USD',
+    NULL,
+    NULL,
+    NULL,
+    v_attributes_quantity
+  );
+  IF v_first_result ->> 'status' IS DISTINCT FROM 'succeeded' THEN
+    RAISE EXCEPTION 'QA112 p_quantity first request did not succeed: %', v_first_result;
+  END IF;
+
+  v_retry_result := NULL;
+  v_retry_error := NULL;
+  BEGIN
+    v_retry_result := public.execute_create_offer_v1(
+      '10000000-0000-4000-8000-000000000001',
+      'fixture-qa112-quantity-scale',
+      v_input_quantity,
+      'QA112 Quantity Numeric Scale Offer',
+      '50000000-0000-4000-8000-000000000019',
+      '40000000-0000-4000-8000-000000000001',
+      '30000000-0000-4000-8000-000000000001',
+      v_quantity_decimal,
+      v_quantity_stable_price,
+      'USD',
+      NULL,
+      NULL,
+      NULL,
+      v_attributes_quantity
+    );
+  EXCEPTION WHEN OTHERS THEN
+    v_retry_error := SQLERRM;
+  END;
+  IF v_retry_error IS NULL
+     OR position('IDEMPOTENCY_KEY_REUSE' IN v_retry_error) = 0 THEN
+    RAISE EXCEPTION 'QA112 p_quantity changed-scale retry was not rejected with IDEMPOTENCY_KEY_REUSE; error=% result=%', v_retry_error, v_retry_result;
+  END IF;
+
+  v_replay_result := public.execute_create_offer_v1(
+    '10000000-0000-4000-8000-000000000001',
+    'fixture-qa112-quantity-scale',
+    v_input_quantity,
+    'QA112 Quantity Numeric Scale Offer',
+    '50000000-0000-4000-8000-000000000019',
+    '40000000-0000-4000-8000-000000000001',
+    '30000000-0000-4000-8000-000000000001',
+    v_quantity_integer,
+    v_quantity_stable_price,
+    'USD',
+    NULL,
+    NULL,
+    NULL,
+    v_attributes_quantity
+  );
+  IF v_replay_result IS DISTINCT FROM v_first_result THEN
+    RAISE EXCEPTION 'QA112 p_quantity original replay did not preserve the first result';
+  END IF;
+
+  SELECT actor_id, request_hash, execution_id, result
+  INTO v_actor_id, v_request_hash, v_execution_id, v_result
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-qa112-quantity-scale'
+    AND status = 'COMPLETED';
+  IF v_actor_id IS DISTINCT FROM '30000000-0000-4000-8000-000000000001'::uuid
+     OR v_request_hash IS DISTINCT FROM md5(v_quantity_hash_integer::text)
+     OR v_result IS DISTINCT FROM v_first_result THEN
+    RAISE EXCEPTION 'QA112 p_quantity did not preserve the first actor, request hash and result';
+  END IF;
+  v_offer_id := (v_result ->> 'objectId')::uuid;
+
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-qa112-quantity-scale';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA112 p_quantity expected one idempotency row, found %', v_count;
+  END IF;
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND idempotency_key = 'fixture-qa112-quantity-scale'
+    AND status = 'COMPLETED';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA112 p_quantity expected one completed execution, found %', v_count;
+  END IF;
+  SELECT input INTO v_execution_input
+  FROM public.action_executions
+  WHERE id = v_execution_id
+    AND actor_id = '30000000-0000-4000-8000-000000000001'
+    AND result = v_result;
+  IF v_execution_input IS DISTINCT FROM v_input_quantity THEN
+    RAISE EXCEPTION 'QA112 p_quantity action execution input differs from the first request';
+  END IF;
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE name = 'QA112 Quantity Numeric Scale Offer';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA112 p_quantity expected exactly one offer, found %', v_count;
+  END IF;
+  SELECT quantity, price
+  INTO v_stored_quantity, v_stored_price
+  FROM public.offers
+  WHERE id = v_offer_id
+    AND demand_id = '50000000-0000-4000-8000-000000000019'
+    AND provider_actor_id = '30000000-0000-4000-8000-000000000001'
+    AND currency = 'USD'
+    AND attributes = v_attributes_quantity;
+  IF v_stored_quantity IS DISTINCT FROM v_quantity_integer
+     OR v_stored_quantity::text IS DISTINCT FROM v_quantity_integer::text
+     OR v_stored_price IS DISTINCT FROM v_quantity_stable_price
+     OR v_stored_price::text IS DISTINCT FROM v_quantity_stable_price::text THEN
+    RAISE EXCEPTION 'QA112 p_quantity stored offer did not preserve the first quantity/price representations';
+  END IF;
+  SELECT count(*) INTO v_count
+  FROM public.action_events
+  WHERE execution_id = v_execution_id
+    AND tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND event_type = 'ACTION_SUCCEEDED'
+    AND actor_id = '30000000-0000-4000-8000-000000000001'
+    AND object_id = v_offer_id
+    AND payload = v_result;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA112 p_quantity expected exactly one success event, found %', v_count;
+  END IF;
+
+  -- First call and changed-scale retry for p_price.
+  v_first_result := public.execute_create_offer_v1(
+    '10000000-0000-4000-8000-000000000001',
+    'fixture-qa112-price-scale',
+    v_input_price,
+    'QA112 Price Numeric Scale Offer',
+    '50000000-0000-4000-8000-000000000020',
+    '40000000-0000-4000-8000-000000000001',
+    '30000000-0000-4000-8000-000000000001',
+    v_price_stable_quantity,
+    v_price_integer,
+    'USD',
+    NULL,
+    NULL,
+    NULL,
+    v_attributes_price
+  );
+  IF v_first_result ->> 'status' IS DISTINCT FROM 'succeeded' THEN
+    RAISE EXCEPTION 'QA112 p_price first request did not succeed: %', v_first_result;
+  END IF;
+
+  v_retry_result := NULL;
+  v_retry_error := NULL;
+  BEGIN
+    v_retry_result := public.execute_create_offer_v1(
+      '10000000-0000-4000-8000-000000000001',
+      'fixture-qa112-price-scale',
+      v_input_price,
+      'QA112 Price Numeric Scale Offer',
+      '50000000-0000-4000-8000-000000000020',
+      '40000000-0000-4000-8000-000000000001',
+      '30000000-0000-4000-8000-000000000001',
+      v_price_stable_quantity,
+      v_price_scale2,
+      'USD',
+      NULL,
+      NULL,
+      NULL,
+      v_attributes_price
+    );
+  EXCEPTION WHEN OTHERS THEN
+    v_retry_error := SQLERRM;
+  END;
+  IF v_retry_error IS NULL
+     OR position('IDEMPOTENCY_KEY_REUSE' IN v_retry_error) = 0 THEN
+    RAISE EXCEPTION 'QA112 p_price changed-scale retry was not rejected with IDEMPOTENCY_KEY_REUSE; error=% result=%', v_retry_error, v_retry_result;
+  END IF;
+
+  v_replay_result := public.execute_create_offer_v1(
+    '10000000-0000-4000-8000-000000000001',
+    'fixture-qa112-price-scale',
+    v_input_price,
+    'QA112 Price Numeric Scale Offer',
+    '50000000-0000-4000-8000-000000000020',
+    '40000000-0000-4000-8000-000000000001',
+    '30000000-0000-4000-8000-000000000001',
+    v_price_stable_quantity,
+    v_price_integer,
+    'USD',
+    NULL,
+    NULL,
+    NULL,
+    v_attributes_price
+  );
+  IF v_replay_result IS DISTINCT FROM v_first_result THEN
+    RAISE EXCEPTION 'QA112 p_price original replay did not preserve the first result';
+  END IF;
+
+  SELECT actor_id, request_hash, execution_id, result
+  INTO v_actor_id, v_request_hash, v_execution_id, v_result
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-qa112-price-scale'
+    AND status = 'COMPLETED';
+  IF v_actor_id IS DISTINCT FROM '30000000-0000-4000-8000-000000000001'::uuid
+     OR v_request_hash IS DISTINCT FROM md5(v_price_hash_integer::text)
+     OR v_result IS DISTINCT FROM v_first_result THEN
+    RAISE EXCEPTION 'QA112 p_price did not preserve the first actor, request hash and result';
+  END IF;
+  v_offer_id := (v_result ->> 'objectId')::uuid;
+
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-qa112-price-scale';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA112 p_price expected one idempotency row, found %', v_count;
+  END IF;
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND idempotency_key = 'fixture-qa112-price-scale'
+    AND status = 'COMPLETED';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA112 p_price expected one completed execution, found %', v_count;
+  END IF;
+  SELECT input INTO v_execution_input
+  FROM public.action_executions
+  WHERE id = v_execution_id
+    AND actor_id = '30000000-0000-4000-8000-000000000001'
+    AND result = v_result;
+  IF v_execution_input IS DISTINCT FROM v_input_price THEN
+    RAISE EXCEPTION 'QA112 p_price action execution input differs from the first request';
+  END IF;
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE name = 'QA112 Price Numeric Scale Offer';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA112 p_price expected exactly one offer, found %', v_count;
+  END IF;
+  SELECT quantity, price
+  INTO v_stored_quantity, v_stored_price
+  FROM public.offers
+  WHERE id = v_offer_id
+    AND demand_id = '50000000-0000-4000-8000-000000000020'
+    AND provider_actor_id = '30000000-0000-4000-8000-000000000001'
+    AND currency = 'USD'
+    AND attributes = v_attributes_price;
+  IF v_stored_quantity IS DISTINCT FROM v_price_stable_quantity
+     OR v_stored_quantity::text IS DISTINCT FROM v_price_stable_quantity::text
+     OR v_stored_price IS DISTINCT FROM v_price_integer
+     OR v_stored_price::text IS DISTINCT FROM v_price_integer::text THEN
+    RAISE EXCEPTION 'QA112 p_price stored offer did not preserve the first quantity/price representations';
+  END IF;
+  SELECT count(*) INTO v_count
+  FROM public.action_events
+  WHERE execution_id = v_execution_id
+    AND tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND event_type = 'ACTION_SUCCEEDED'
+    AND actor_id = '30000000-0000-4000-8000-000000000001'
+    AND object_id = v_offer_id
+    AND payload = v_result;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA112 p_price expected exactly one success event, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key IN (
+      'fixture-qa112-quantity-scale',
+      'fixture-qa112-price-scale'
+    );
+  IF v_count <> 2 THEN
+    RAISE EXCEPTION 'QA112 expected exactly two idempotency rows, found %', v_count;
+  END IF;
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND idempotency_key IN (
+      'fixture-qa112-quantity-scale',
+      'fixture-qa112-price-scale'
+    );
+  IF v_count <> 2 THEN
+    RAISE EXCEPTION 'QA112 expected exactly two executions, found %', v_count;
+  END IF;
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE name IN (
+    'QA112 Quantity Numeric Scale Offer',
+    'QA112 Price Numeric Scale Offer'
+  );
+  IF v_count <> 2 THEN
+    RAISE EXCEPTION 'QA112 expected exactly two offers, found %', v_count;
+  END IF;
+  SELECT count(*) INTO v_count
+  FROM public.action_events e
+  JOIN public.action_executions x
+    ON x.id = e.execution_id
+   AND x.tenant_id = e.tenant_id
+  WHERE x.tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND x.idempotency_key IN (
+      'fixture-qa112-quantity-scale',
+      'fixture-qa112-price-scale'
+    )
+    AND e.event_type = 'ACTION_SUCCEEDED';
+  IF v_count <> 2 THEN
+    RAISE EXCEPTION 'QA112 expected exactly two success events, found %', v_count;
+  END IF;
+END
+$qa112$;
+SQL
+
+echo "CREATE_OFFER QA112 characterizes numeric scale in p_quantity and p_price: equal numeric values retain distinct JSONB text/hash representations, changed-scale same-key retries are rejected, and the first result persists without duplicates."
