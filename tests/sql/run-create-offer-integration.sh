@@ -1724,3 +1724,450 @@ $qa105$;
 SQL
 
 echo "CREATE_OFFER same-tenant distinct-key concurrency, independent replay and no-cross-result assertions passed."
+
+
+# QA106: different authenticated actors in one tenant must retain
+# independent tenant/key advisory locks and create independent offers.
+qa106_cleanup() {
+  psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 <<'SQL' >/dev/null 2>&1 || true
+DROP TRIGGER IF EXISTS qa106_delay_distinct_actor_offer_insert ON public.offers;
+DROP FUNCTION IF EXISTS public.qa106_delay_distinct_actor_offer_insert_fn();
+SQL
+}
+trap qa106_cleanup EXIT
+
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 <<'SQL'
+-- User/actor C is a synthetic second member of tenant A. This fixture only
+-- supplies the membership required by the RPC; it does not define product
+-- tenant-selection or business authorization policy.
+INSERT INTO public.dt_memberships (tenant_id, user_id, role)
+VALUES (
+  '10000000-0000-4000-8000-000000000001',
+  '20000000-0000-4000-8000-000000000003',
+  'member'
+);
+
+INSERT INTO public.profiles (id, name, actor_id, auth_user_id)
+VALUES (
+  '30000000-0000-4000-8000-000000000003',
+  'QA106 Provider C',
+  '30000000-0000-4000-8000-000000000003',
+  '20000000-0000-4000-8000-000000000003'
+);
+
+INSERT INTO public.demands (id, name, demand_status, requester_actor_id)
+VALUES
+  (
+    '50000000-0000-4000-8000-000000000007',
+    'QA106 Different Actor Demand A',
+    'published',
+    '30000000-0000-4000-8000-000000000001'
+  ),
+  (
+    '50000000-0000-4000-8000-000000000008',
+    'QA106 Different Actor Demand B',
+    'published',
+    '30000000-0000-4000-8000-000000000003'
+  );
+
+CREATE FUNCTION public.qa106_delay_distinct_actor_offer_insert_fn()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $qa106fn$
+BEGIN
+  IF current_setting('application_name', true) IN (
+    'qima-qa106-actor-a',
+    'qima-qa106-actor-b'
+  ) THEN
+    -- Keep both transactions inside the offer insert while each owns
+    -- its independent tenant/key advisory lock.
+    PERFORM pg_sleep(1.25);
+  END IF;
+  RETURN NEW;
+END;
+$qa106fn$;
+
+CREATE TRIGGER qa106_delay_distinct_actor_offer_insert
+BEFORE INSERT ON public.offers
+FOR EACH ROW
+EXECUTE FUNCTION public.qa106_delay_distinct_actor_offer_insert_fn();
+SQL
+
+qa106_call_a=$(cat <<'SQL'
+SET application_name = 'qima-qa106-actor-a';
+SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+SET ROLE authenticated;
+SELECT public.execute_create_offer_v1(
+  '10000000-0000-4000-8000-000000000001',
+  'fixture-qa106-distinct-actor-a',
+  '{"case":"qa106-distinct-actor-a"}'::jsonb,
+  'QA106 Distinct Actor Offer A',
+  '50000000-0000-4000-8000-000000000007',
+  '40000000-0000-4000-8000-000000000001',
+  '30000000-0000-4000-8000-000000000001',
+  5,
+  41,
+  'USD'
+);
+SQL
+)
+
+qa106_call_b=$(cat <<'SQL'
+SET application_name = 'qima-qa106-actor-b';
+SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000003';
+SET ROLE authenticated;
+SELECT public.execute_create_offer_v1(
+  '10000000-0000-4000-8000-000000000001',
+  'fixture-qa106-distinct-actor-b',
+  '{"case":"qa106-distinct-actor-b"}'::jsonb,
+  'QA106 Distinct Actor Offer B',
+  '50000000-0000-4000-8000-000000000008',
+  '40000000-0000-4000-8000-000000000001',
+  '30000000-0000-4000-8000-000000000003',
+  6,
+  42,
+  'USD'
+);
+SQL
+)
+
+# Start actor A and wait until it holds its tenant/key lock while sleeping.
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t -c "$qa106_call_a" > /tmp/qima-qa106-a.log 2>&1 &
+qa106_pid_a=$!
+
+qa106_first_snapshot=""
+for attempt in $(seq 1 200); do
+  qa106_first_snapshot=$(psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -At -c "
+    SELECT
+      count(DISTINCT a.application_name)::text || '|' ||
+      count(DISTINCT a.application_name) FILTER (
+        WHERE l.granted AND a.wait_event = 'PgSleep'
+      )::text
+    FROM pg_stat_activity a
+    JOIN pg_locks l ON l.pid = a.pid
+    WHERE a.application_name = 'qima-qa106-actor-a'
+      AND a.state = 'active'
+      AND l.locktype = 'advisory'
+      AND l.mode = 'ExclusiveLock'
+      AND l.granted;
+  " | tr -d '[:space:]')
+  if [[ "$qa106_first_snapshot" == "1|1" ]]; then
+    break
+  fi
+  sleep 0.025
+done
+
+if [[ "$qa106_first_snapshot" != "1|1" ]]; then
+  set +e
+  wait "$qa106_pid_a"
+  qa106_status_a=$?
+  set -e
+  echo "QA106 actor A did not expose its granted advisory lock during PgSleep (snapshot='$qa106_first_snapshot', exit=$qa106_status_a)." >&2
+  cat /tmp/qima-qa106-a.log >&2
+  exit 1
+fi
+
+# Start actor B only after A owns its lock. B belongs to the same tenant,
+# but has a different auth.uid(), provider actor, demand and idempotency key.
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t -c "$qa106_call_b" > /tmp/qima-qa106-b.log 2>&1 &
+qa106_pid_b=$!
+
+# Both actors must now hold separate granted locks while sleeping, with no
+# advisory waiter. This rejects accidental tenant-wide serialization.
+qa106_lock_snapshot=""
+for attempt in $(seq 1 200); do
+  qa106_lock_snapshot=$(psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -At -c "
+    SELECT
+      count(DISTINCT a.application_name)::text || '|' ||
+      count(DISTINCT a.application_name) FILTER (
+        WHERE l.granted AND a.wait_event = 'PgSleep'
+      )::text || '|' ||
+      count(DISTINCT a.application_name) FILTER (
+        WHERE NOT l.granted
+          AND a.wait_event_type = 'Lock'
+          AND a.wait_event = 'advisory'
+      )::text || '|' ||
+      count(DISTINCT (
+        l.classid::text || ':' || l.objid::text || ':' || l.objsubid::text
+      )) FILTER (WHERE l.granted)::text
+    FROM pg_stat_activity a
+    JOIN pg_locks l ON l.pid = a.pid
+    WHERE a.application_name IN (
+      'qima-qa106-actor-a',
+      'qima-qa106-actor-b'
+    )
+      AND a.state = 'active'
+      AND l.locktype = 'advisory'
+      AND l.mode = 'ExclusiveLock';
+  " | tr -d '[:space:]')
+  if [[ "$qa106_lock_snapshot" == "2|2|0|2" ]]; then
+    break
+  fi
+  sleep 0.025
+done
+
+set +e
+wait "$qa106_pid_a"
+qa106_status_a=$?
+wait "$qa106_pid_b"
+qa106_status_b=$?
+set -e
+
+if [[ "$qa106_status_a" -ne 0 || "$qa106_status_b" -ne 0 ]]; then
+  echo "QA106 expected both different actors in one tenant to succeed (A=$qa106_status_a, B=$qa106_status_b)." >&2
+  cat /tmp/qima-qa106-a.log /tmp/qima-qa106-b.log >&2
+  exit 1
+fi
+
+if [[ "$qa106_lock_snapshot" != "2|2|0|2" ]]; then
+  echo "Expected two same-tenant actors with two granted distinct advisory locks and zero waiters; observed '$qa106_lock_snapshot'." >&2
+  cat /tmp/qima-qa106-a.log /tmp/qima-qa106-b.log >&2
+  exit 1
+fi
+
+if [[ ! -s /tmp/qima-qa106-a.log || ! -s /tmp/qima-qa106-b.log ]]; then
+  echo "QA106 both actor-specific requests must return a JSONB result." >&2
+  cat /tmp/qima-qa106-a.log /tmp/qima-qa106-b.log >&2
+  exit 1
+fi
+
+if cmp -s /tmp/qima-qa106-a.log /tmp/qima-qa106-b.log; then
+  echo "QA106 different actor requests unexpectedly returned identical results." >&2
+  exit 1
+fi
+
+echo "QA106 observed two different authenticated actors in one tenant holding two distinct granted advisory locks concurrently (2|2|0|2)."
+
+# Remove the CI-only trigger before replay and verify its function is gone.
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 <<'SQL'
+DROP TRIGGER qa106_delay_distinct_actor_offer_insert ON public.offers;
+DROP FUNCTION public.qa106_delay_distinct_actor_offer_insert_fn();
+
+DO $qa106_cleanup$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_trigger
+    WHERE tgrelid = 'public.offers'::regclass
+      AND tgname = 'qa106_delay_distinct_actor_offer_insert'
+      AND NOT tgisinternal
+  ) THEN
+    RAISE EXCEPTION 'QA106 temporary trigger was not removed';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1
+    FROM pg_proc p
+    JOIN pg_namespace n ON n.oid = p.pronamespace
+    WHERE n.nspname = 'public'
+      AND p.proname = 'qa106_delay_distinct_actor_offer_insert_fn'
+  ) THEN
+    RAISE EXCEPTION 'QA106 temporary trigger function was not removed';
+  END IF;
+END
+$qa106_cleanup$;
+SQL
+trap - EXIT
+
+# Replay each request under its own authenticated identity.
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t -c "$qa106_call_a" > /tmp/qima-qa106-a-replay.log
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t -c "$qa106_call_b" > /tmp/qima-qa106-b-replay.log
+
+if ! cmp -s /tmp/qima-qa106-a.log /tmp/qima-qa106-a-replay.log; then
+  echo "QA106 actor A replay did not return its exact original result." >&2
+  diff -u /tmp/qima-qa106-a.log /tmp/qima-qa106-a-replay.log >&2 || true
+  exit 1
+fi
+if ! cmp -s /tmp/qima-qa106-b.log /tmp/qima-qa106-b-replay.log; then
+  echo "QA106 actor B replay did not return its exact original result." >&2
+  diff -u /tmp/qima-qa106-b.log /tmp/qima-qa106-b-replay.log >&2 || true
+  exit 1
+fi
+if cmp -s /tmp/qima-qa106-a-replay.log /tmp/qima-qa106-b.log ||
+   cmp -s /tmp/qima-qa106-b-replay.log /tmp/qima-qa106-a.log; then
+  echo "QA106 a replay crossed the two actor-specific idempotency results." >&2
+  exit 1
+fi
+
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t -c "
+  SELECT result::text
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-qa106-distinct-actor-a'
+    AND status = 'COMPLETED';
+" > /tmp/qima-qa106-a-stored-result.log
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t -c "
+  SELECT result::text
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-qa106-distinct-actor-b'
+    AND status = 'COMPLETED';
+" > /tmp/qima-qa106-b-stored-result.log
+
+if ! cmp -s /tmp/qima-qa106-a-replay.log /tmp/qima-qa106-a-stored-result.log; then
+  echo "QA106 actor A replay did not match its persisted result." >&2
+  exit 1
+fi
+if ! cmp -s /tmp/qima-qa106-b-replay.log /tmp/qima-qa106-b-stored-result.log; then
+  echo "QA106 actor B replay did not match its persisted result." >&2
+  exit 1
+fi
+
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 <<'SQL'
+DO $qa106$
+DECLARE
+  v_count integer;
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM public.dt_memberships m
+    JOIN public.profiles p ON p.auth_user_id = m.user_id
+    WHERE m.tenant_id = '10000000-0000-4000-8000-000000000001'
+      AND m.user_id = '20000000-0000-4000-8000-000000000001'
+      AND p.actor_id = '30000000-0000-4000-8000-000000000001'
+  ) OR NOT EXISTS (
+    SELECT 1
+    FROM public.dt_memberships m
+    JOIN public.profiles p ON p.auth_user_id = m.user_id
+    WHERE m.tenant_id = '10000000-0000-4000-8000-000000000001'
+      AND m.user_id = '20000000-0000-4000-8000-000000000003'
+      AND p.actor_id = '30000000-0000-4000-8000-000000000003'
+  ) THEN
+    RAISE EXCEPTION 'QA106 expected two distinct synthetic authenticated actors to belong to the same tenant';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key IN (
+      'fixture-qa106-distinct-actor-a',
+      'fixture-qa106-distinct-actor-b'
+    );
+  IF v_count <> 2 THEN
+    RAISE EXCEPTION 'QA106 expected exactly two idempotency rows, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key IN (
+      'fixture-qa106-distinct-actor-a',
+      'fixture-qa106-distinct-actor-b'
+    )
+    AND status = 'COMPLETED';
+  IF v_count <> 2 THEN
+    RAISE EXCEPTION 'QA106 expected two completed idempotency rows, found %', v_count;
+  END IF;
+
+  SELECT count(DISTINCT actor_id) INTO v_count
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key IN (
+      'fixture-qa106-distinct-actor-a',
+      'fixture-qa106-distinct-actor-b'
+    );
+  IF v_count <> 2 THEN
+    RAISE EXCEPTION 'QA106 expected two distinct idempotency actors, found %', v_count;
+  END IF;
+
+  SELECT count(DISTINCT request_hash) INTO v_count
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key IN (
+      'fixture-qa106-distinct-actor-a',
+      'fixture-qa106-distinct-actor-b'
+    );
+  IF v_count <> 2 THEN
+    RAISE EXCEPTION 'QA106 expected two distinct request hashes, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND idempotency_key IN (
+      'fixture-qa106-distinct-actor-a',
+      'fixture-qa106-distinct-actor-b'
+    )
+    AND status = 'COMPLETED';
+  IF v_count <> 2 THEN
+    RAISE EXCEPTION 'QA106 expected two completed executions, found %', v_count;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM public.action_executions x
+    JOIN public.idempotency_keys k
+      ON k.execution_id = x.id
+     AND k.tenant_id = x.tenant_id
+    WHERE x.tenant_id = '10000000-0000-4000-8000-000000000001'
+      AND x.idempotency_key = 'fixture-qa106-distinct-actor-a'
+      AND x.actor_id = '30000000-0000-4000-8000-000000000001'
+      AND k.actor_id = x.actor_id
+      AND x.result = k.result
+  ) OR NOT EXISTS (
+    SELECT 1
+    FROM public.action_executions x
+    JOIN public.idempotency_keys k
+      ON k.execution_id = x.id
+     AND k.tenant_id = x.tenant_id
+    WHERE x.tenant_id = '10000000-0000-4000-8000-000000000001'
+      AND x.idempotency_key = 'fixture-qa106-distinct-actor-b'
+      AND x.actor_id = '30000000-0000-4000-8000-000000000003'
+      AND k.actor_id = x.actor_id
+      AND x.result = k.result
+  ) THEN
+    RAISE EXCEPTION 'QA106 execution/idempotency actor ownership or result pairing is incorrect';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE name IN (
+    'QA106 Distinct Actor Offer A',
+    'QA106 Distinct Actor Offer B'
+  );
+  IF v_count <> 2 THEN
+    RAISE EXCEPTION 'QA106 expected exactly two actor-specific offers, found %', v_count;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM public.offers
+    WHERE name = 'QA106 Distinct Actor Offer A'
+      AND demand_id = '50000000-0000-4000-8000-000000000007'
+      AND provider_actor_id = '30000000-0000-4000-8000-000000000001'
+      AND quantity = 5 AND price = 41 AND currency = 'USD'
+  ) OR NOT EXISTS (
+    SELECT 1 FROM public.offers
+    WHERE name = 'QA106 Distinct Actor Offer B'
+      AND demand_id = '50000000-0000-4000-8000-000000000008'
+      AND provider_actor_id = '30000000-0000-4000-8000-000000000003'
+      AND quantity = 6 AND price = 42 AND currency = 'USD'
+  ) THEN
+    RAISE EXCEPTION 'QA106 offers do not retain their own actor, demand, quantity and price';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_events e
+  JOIN public.action_executions x
+    ON x.id = e.execution_id
+   AND x.tenant_id = e.tenant_id
+  JOIN public.idempotency_keys k
+    ON k.execution_id = x.id
+   AND k.tenant_id = x.tenant_id
+  WHERE x.tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND x.idempotency_key IN (
+      'fixture-qa106-distinct-actor-a',
+      'fixture-qa106-distinct-actor-b'
+    )
+    AND x.status = 'COMPLETED'
+    AND e.event_type = 'ACTION_SUCCEEDED'
+    AND e.actor_id = x.actor_id
+    AND e.object_id = x.object_id
+    AND e.payload = x.result
+    AND x.result = k.result;
+  IF v_count <> 2 THEN
+    RAISE EXCEPTION 'QA106 expected two correctly paired actor-specific success events, found %', v_count;
+  END IF;
+END
+$qa106$;
+SQL
+
+echo "CREATE_OFFER same-tenant distinct-actor concurrency, independent replay and actor/result ownership assertions passed."
