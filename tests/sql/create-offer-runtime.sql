@@ -12995,7 +12995,7 @@ BEGIN
     WHERE conrelid = 'public.action_executions'::regclass
       AND conname = 'qa100_force_execution_completion_rollback'
   ) THEN
-    RAISE EXCEPTION 'QA100 temporary action_events constraint was not removed';
+    RAISE EXCEPTION 'QA100 temporary action_executions constraint was not removed';
   END IF;
 END
 $qa100_constraint_cleanup$;
