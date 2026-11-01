@@ -3177,3 +3177,493 @@ $qa109$;
 SQL
 
 echo "CREATE_OFFER JSONB array ordering in p_input and p_attributes changes request hashes, rejects same-key reversed arrays, and preserves the original results without duplicates."
+
+
+# QA110: a JSONB property explicitly set to JSON null differs from an absent
+# property. Cover p_input and p_attributes independently with the same
+# idempotency key on each pair; the second payload must be rejected while the
+# first result, hash and offer remain unchanged.
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 <<'SQL'
+INSERT INTO public.demands (id, name, demand_status, requester_actor_id)
+VALUES
+  (
+    '50000000-0000-4000-8000-000000000013',
+    'QA110 Input Null Versus Absent Demand',
+    'published',
+    '30000000-0000-4000-8000-000000000001'
+  ),
+  (
+    '50000000-0000-4000-8000-000000000014',
+    'QA110 Attributes Null Versus Absent Demand',
+    'published',
+    '30000000-0000-4000-8000-000000000001'
+  );
+SQL
+
+qa110_input_call_present=$(cat <<'SQL'
+SET application_name = 'qima-qa110-input-explicit-null';
+SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+SET ROLE authenticated;
+SELECT public.execute_create_offer_v1(
+  '10000000-0000-4000-8000-000000000001',
+  'fixture-qa110-input-null-vs-absent',
+  '{"context":{"case":"input-null-vs-absent"},"optional":null}'::jsonb,
+  'QA110 Input Null Versus Absent Offer',
+  '50000000-0000-4000-8000-000000000013',
+  '40000000-0000-4000-8000-000000000001',
+  '30000000-0000-4000-8000-000000000001',
+  11,
+  47,
+  'USD',
+  NULL,
+  NULL,
+  NULL,
+  '{"metadata":{"source":"qa110","stable":true}}'::jsonb
+);
+SQL
+)
+
+qa110_input_call_absent=$(cat <<'SQL'
+SET application_name = 'qima-qa110-input-absent';
+SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+SET ROLE authenticated;
+SELECT public.execute_create_offer_v1(
+  '10000000-0000-4000-8000-000000000001',
+  'fixture-qa110-input-null-vs-absent',
+  '{"context":{"case":"input-null-vs-absent"}}'::jsonb,
+  'QA110 Input Null Versus Absent Offer',
+  '50000000-0000-4000-8000-000000000013',
+  '40000000-0000-4000-8000-000000000001',
+  '30000000-0000-4000-8000-000000000001',
+  11,
+  47,
+  'USD',
+  NULL,
+  NULL,
+  NULL,
+  '{"metadata":{"source":"qa110","stable":true}}'::jsonb
+);
+SQL
+)
+
+qa110_attributes_call_present=$(cat <<'SQL'
+SET application_name = 'qima-qa110-attributes-explicit-null';
+SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+SET ROLE authenticated;
+SELECT public.execute_create_offer_v1(
+  '10000000-0000-4000-8000-000000000001',
+  'fixture-qa110-attributes-null-vs-absent',
+  '{"context":{"case":"attributes-null-vs-absent"}}'::jsonb,
+  'QA110 Attributes Null Versus Absent Offer',
+  '50000000-0000-4000-8000-000000000014',
+  '40000000-0000-4000-8000-000000000001',
+  '30000000-0000-4000-8000-000000000001',
+  12,
+  48,
+  'USD',
+  NULL,
+  NULL,
+  NULL,
+  '{"metadata":{"source":"qa110","stable":true},"optional":null}'::jsonb
+);
+SQL
+)
+
+qa110_attributes_call_absent=$(cat <<'SQL'
+SET application_name = 'qima-qa110-attributes-absent';
+SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+SET ROLE authenticated;
+SELECT public.execute_create_offer_v1(
+  '10000000-0000-4000-8000-000000000001',
+  'fixture-qa110-attributes-null-vs-absent',
+  '{"context":{"case":"attributes-null-vs-absent"}}'::jsonb,
+  'QA110 Attributes Null Versus Absent Offer',
+  '50000000-0000-4000-8000-000000000014',
+  '40000000-0000-4000-8000-000000000001',
+  '30000000-0000-4000-8000-000000000001',
+  12,
+  48,
+  'USD',
+  NULL,
+  NULL,
+  NULL,
+  '{"metadata":{"source":"qa110","stable":true}}'::jsonb
+);
+SQL
+)
+
+expect_qa110_idempotency_reuse() {
+  local case_name="$1"
+  local sql="$2"
+  local log_file="$3"
+  local call_status
+
+  set +e
+  psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -q -A -t -c "$sql" > "$log_file" 2>&1
+  call_status=$?
+  set -e
+
+  if [[ "$call_status" -eq 0 ]] || ! grep -Fq "IDEMPOTENCY_KEY_REUSE" "$log_file"; then
+    echo "QA110 $case_name request without the explicit-null property was not rejected with IDEMPOTENCY_KEY_REUSE." >&2
+    cat "$log_file" >&2
+    exit 1
+  fi
+}
+
+# Case 1: p_input contains optional: JSON null; retry omits optional.
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t -c "$qa110_input_call_present" > /tmp/qima-qa110-input-first.log
+if [[ ! -s /tmp/qima-qa110-input-first.log ]]; then
+  echo "QA110 p_input explicit-null request returned no result." >&2
+  exit 1
+fi
+expect_qa110_idempotency_reuse "p_input absent-property" "$qa110_input_call_absent" /tmp/qima-qa110-input-absent.log
+
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t -c "$qa110_input_call_present" > /tmp/qima-qa110-input-replay.log
+if ! cmp -s /tmp/qima-qa110-input-first.log /tmp/qima-qa110-input-replay.log; then
+  echo "QA110 p_input explicit-null replay did not preserve the first result." >&2
+  diff -u /tmp/qima-qa110-input-first.log /tmp/qima-qa110-input-replay.log >&2 || true
+  exit 1
+fi
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t -c "
+  SELECT result::text
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-qa110-input-null-vs-absent'
+    AND status = 'COMPLETED';
+" > /tmp/qima-qa110-input-stored.log
+if ! cmp -s /tmp/qima-qa110-input-first.log /tmp/qima-qa110-input-stored.log; then
+  echo "QA110 p_input explicit-null response differs from the persisted result." >&2
+  diff -u /tmp/qima-qa110-input-first.log /tmp/qima-qa110-input-stored.log >&2 || true
+  exit 1
+fi
+
+# Case 2: p_attributes contains optional: JSON null; retry omits optional.
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t -c "$qa110_attributes_call_present" > /tmp/qima-qa110-attributes-first.log
+if [[ ! -s /tmp/qima-qa110-attributes-first.log ]]; then
+  echo "QA110 p_attributes explicit-null request returned no result." >&2
+  exit 1
+fi
+expect_qa110_idempotency_reuse "p_attributes absent-property" "$qa110_attributes_call_absent" /tmp/qima-qa110-attributes-absent.log
+
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t -c "$qa110_attributes_call_present" > /tmp/qima-qa110-attributes-replay.log
+if ! cmp -s /tmp/qima-qa110-attributes-first.log /tmp/qima-qa110-attributes-replay.log; then
+  echo "QA110 p_attributes explicit-null replay did not preserve the first result." >&2
+  diff -u /tmp/qima-qa110-attributes-first.log /tmp/qima-qa110-attributes-replay.log >&2 || true
+  exit 1
+fi
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t -c "
+  SELECT result::text
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-qa110-attributes-null-vs-absent'
+    AND status = 'COMPLETED';
+" > /tmp/qima-qa110-attributes-stored.log
+if ! cmp -s /tmp/qima-qa110-attributes-first.log /tmp/qima-qa110-attributes-stored.log; then
+  echo "QA110 p_attributes explicit-null response differs from the persisted result." >&2
+  diff -u /tmp/qima-qa110-attributes-first.log /tmp/qima-qa110-attributes-stored.log >&2 || true
+  exit 1
+fi
+
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 <<'SQL'
+DO $qa110$
+DECLARE
+  v_input_a jsonb := '{"context":{"case":"input-null-vs-absent"},"optional":null}'::jsonb;
+  v_input_b jsonb := '{"context":{"case":"input-null-vs-absent"}}'::jsonb;
+  v_input_attributes jsonb := '{"metadata":{"source":"qa110","stable":true}}'::jsonb;
+  v_attributes_input jsonb := '{"context":{"case":"attributes-null-vs-absent"}}'::jsonb;
+  v_attributes_a jsonb := '{"metadata":{"source":"qa110","stable":true},"optional":null}'::jsonb;
+  v_attributes_b jsonb := '{"metadata":{"source":"qa110","stable":true}}'::jsonb;
+  v_input_hash_a text;
+  v_input_hash_b text;
+  v_attributes_hash_a text;
+  v_attributes_hash_b text;
+  v_actor_id uuid;
+  v_request_hash text;
+  v_execution_id uuid;
+  v_result jsonb;
+  v_offer_id uuid;
+  v_execution_input jsonb;
+  v_offer_attributes jsonb;
+  v_count integer;
+BEGIN
+  IF NOT (v_input_a ? 'optional')
+     OR jsonb_typeof(v_input_a -> 'optional') IS DISTINCT FROM 'null' THEN
+    RAISE EXCEPTION 'QA110 p_input explicit JSON null property was not preserved';
+  END IF;
+  IF v_input_b ? 'optional' OR (v_input_b -> 'optional') IS NOT NULL THEN
+    RAISE EXCEPTION 'QA110 p_input absent property unexpectedly exists';
+  END IF;
+  IF v_input_a IS NOT DISTINCT FROM v_input_b THEN
+    RAISE EXCEPTION 'QA110 p_input explicit JSON null unexpectedly equals absent property';
+  END IF;
+
+  IF NOT (v_attributes_a ? 'optional')
+     OR jsonb_typeof(v_attributes_a -> 'optional') IS DISTINCT FROM 'null' THEN
+    RAISE EXCEPTION 'QA110 p_attributes explicit JSON null property was not preserved';
+  END IF;
+  IF v_attributes_b ? 'optional' OR (v_attributes_b -> 'optional') IS NOT NULL THEN
+    RAISE EXCEPTION 'QA110 p_attributes absent property unexpectedly exists';
+  END IF;
+  IF v_attributes_a IS NOT DISTINCT FROM v_attributes_b THEN
+    RAISE EXCEPTION 'QA110 p_attributes explicit JSON null unexpectedly equals absent property';
+  END IF;
+
+  v_input_hash_a := md5(jsonb_build_object(
+    'input', v_input_a,
+    'name', 'QA110 Input Null Versus Absent Offer',
+    'demandId', '50000000-0000-4000-8000-000000000013'::uuid,
+    'productMasterId', '40000000-0000-4000-8000-000000000001'::uuid,
+    'providerActorId', '30000000-0000-4000-8000-000000000001'::uuid,
+    'quantity', 11::numeric,
+    'price', 47::numeric,
+    'currency', 'USD',
+    'conditions', NULL::text,
+    'market', NULL::text,
+    'geography', NULL::text,
+    'attributes', coalesce(v_input_attributes, '{}'::jsonb),
+    'documentationStatus', NULL::text,
+    'lifecycle', NULL::text,
+    'offerType', NULL::text,
+    'pricingModel', NULL::text
+  )::text);
+  v_input_hash_b := md5(jsonb_build_object(
+    'input', v_input_b,
+    'name', 'QA110 Input Null Versus Absent Offer',
+    'demandId', '50000000-0000-4000-8000-000000000013'::uuid,
+    'productMasterId', '40000000-0000-4000-8000-000000000001'::uuid,
+    'providerActorId', '30000000-0000-4000-8000-000000000001'::uuid,
+    'quantity', 11::numeric,
+    'price', 47::numeric,
+    'currency', 'USD',
+    'conditions', NULL::text,
+    'market', NULL::text,
+    'geography', NULL::text,
+    'attributes', coalesce(v_input_attributes, '{}'::jsonb),
+    'documentationStatus', NULL::text,
+    'lifecycle', NULL::text,
+    'offerType', NULL::text,
+    'pricingModel', NULL::text
+  )::text);
+  IF v_input_hash_a = v_input_hash_b THEN
+    RAISE EXCEPTION 'QA110 p_input explicit null versus absent did not change the expected request hash';
+  END IF;
+
+  v_attributes_hash_a := md5(jsonb_build_object(
+    'input', v_attributes_input,
+    'name', 'QA110 Attributes Null Versus Absent Offer',
+    'demandId', '50000000-0000-4000-8000-000000000014'::uuid,
+    'productMasterId', '40000000-0000-4000-8000-000000000001'::uuid,
+    'providerActorId', '30000000-0000-4000-8000-000000000001'::uuid,
+    'quantity', 12::numeric,
+    'price', 48::numeric,
+    'currency', 'USD',
+    'conditions', NULL::text,
+    'market', NULL::text,
+    'geography', NULL::text,
+    'attributes', coalesce(v_attributes_a, '{}'::jsonb),
+    'documentationStatus', NULL::text,
+    'lifecycle', NULL::text,
+    'offerType', NULL::text,
+    'pricingModel', NULL::text
+  )::text);
+  v_attributes_hash_b := md5(jsonb_build_object(
+    'input', v_attributes_input,
+    'name', 'QA110 Attributes Null Versus Absent Offer',
+    'demandId', '50000000-0000-4000-8000-000000000014'::uuid,
+    'productMasterId', '40000000-0000-4000-8000-000000000001'::uuid,
+    'providerActorId', '30000000-0000-4000-8000-000000000001'::uuid,
+    'quantity', 12::numeric,
+    'price', 48::numeric,
+    'currency', 'USD',
+    'conditions', NULL::text,
+    'market', NULL::text,
+    'geography', NULL::text,
+    'attributes', coalesce(v_attributes_b, '{}'::jsonb),
+    'documentationStatus', NULL::text,
+    'lifecycle', NULL::text,
+    'offerType', NULL::text,
+    'pricingModel', NULL::text
+  )::text);
+  IF v_attributes_hash_a = v_attributes_hash_b THEN
+    RAISE EXCEPTION 'QA110 p_attributes explicit null versus absent did not change the expected request hash';
+  END IF;
+
+  SELECT actor_id, request_hash, execution_id, result
+  INTO v_actor_id, v_request_hash, v_execution_id, v_result
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-qa110-input-null-vs-absent'
+    AND status = 'COMPLETED';
+  IF v_actor_id IS DISTINCT FROM '30000000-0000-4000-8000-000000000001'::uuid
+     OR v_request_hash IS DISTINCT FROM v_input_hash_a
+     OR v_result ->> 'status' IS DISTINCT FROM 'succeeded'
+     OR v_result ->> 'objectType' IS DISTINCT FROM 'Offer' THEN
+    RAISE EXCEPTION 'QA110 p_input case did not preserve the first actor, hash and successful result';
+  END IF;
+  v_offer_id := (v_result ->> 'objectId')::uuid;
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-qa110-input-null-vs-absent';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA110 p_input case expected one idempotency row, found %', v_count;
+  END IF;
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND idempotency_key = 'fixture-qa110-input-null-vs-absent'
+    AND status = 'COMPLETED';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA110 p_input case expected one completed execution, found %', v_count;
+  END IF;
+  SELECT input INTO v_execution_input
+  FROM public.action_executions
+  WHERE id = v_execution_id
+    AND actor_id = '30000000-0000-4000-8000-000000000001'
+    AND result = v_result;
+  IF v_execution_input IS DISTINCT FROM v_input_a THEN
+    RAISE EXCEPTION 'QA110 p_input explicit null was not preserved in action_executions.input';
+  END IF;
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE name = 'QA110 Input Null Versus Absent Offer';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA110 p_input case expected exactly one offer, found %', v_count;
+  END IF;
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE id = v_offer_id
+    AND demand_id = '50000000-0000-4000-8000-000000000013'
+    AND provider_actor_id = '30000000-0000-4000-8000-000000000001'
+    AND quantity = 11
+    AND price = 47
+    AND currency = 'USD'
+    AND attributes = v_input_attributes;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA110 p_input offer fields or stable attributes differ from the first request';
+  END IF;
+  SELECT count(*) INTO v_count
+  FROM public.action_events
+  WHERE execution_id = v_execution_id
+    AND tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND event_type = 'ACTION_SUCCEEDED'
+    AND actor_id = '30000000-0000-4000-8000-000000000001'
+    AND object_id = v_offer_id
+    AND payload = v_result;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA110 p_input case expected exactly one success event, found %', v_count;
+  END IF;
+
+  SELECT actor_id, request_hash, execution_id, result
+  INTO v_actor_id, v_request_hash, v_execution_id, v_result
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-qa110-attributes-null-vs-absent'
+    AND status = 'COMPLETED';
+  IF v_actor_id IS DISTINCT FROM '30000000-0000-4000-8000-000000000001'::uuid
+     OR v_request_hash IS DISTINCT FROM v_attributes_hash_a
+     OR v_result ->> 'status' IS DISTINCT FROM 'succeeded'
+     OR v_result ->> 'objectType' IS DISTINCT FROM 'Offer' THEN
+    RAISE EXCEPTION 'QA110 p_attributes case did not preserve the first actor, hash and successful result';
+  END IF;
+  v_offer_id := (v_result ->> 'objectId')::uuid;
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-qa110-attributes-null-vs-absent';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA110 p_attributes case expected one idempotency row, found %', v_count;
+  END IF;
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND idempotency_key = 'fixture-qa110-attributes-null-vs-absent'
+    AND status = 'COMPLETED';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA110 p_attributes case expected one completed execution, found %', v_count;
+  END IF;
+  SELECT input INTO v_execution_input
+  FROM public.action_executions
+  WHERE id = v_execution_id
+    AND actor_id = '30000000-0000-4000-8000-000000000001'
+    AND result = v_result;
+  IF v_execution_input IS DISTINCT FROM v_attributes_input THEN
+    RAISE EXCEPTION 'QA110 p_attributes case did not preserve the first input';
+  END IF;
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE name = 'QA110 Attributes Null Versus Absent Offer';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA110 p_attributes case expected exactly one offer, found %', v_count;
+  END IF;
+  SELECT attributes INTO v_offer_attributes
+  FROM public.offers
+  WHERE id = v_offer_id
+    AND demand_id = '50000000-0000-4000-8000-000000000014'
+    AND provider_actor_id = '30000000-0000-4000-8000-000000000001'
+    AND quantity = 12
+    AND price = 48
+    AND currency = 'USD';
+  IF v_offer_attributes IS DISTINCT FROM v_attributes_a THEN
+    RAISE EXCEPTION 'QA110 p_attributes explicit null was not preserved in offers.attributes';
+  END IF;
+  SELECT count(*) INTO v_count
+  FROM public.action_events
+  WHERE execution_id = v_execution_id
+    AND tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND event_type = 'ACTION_SUCCEEDED'
+    AND actor_id = '30000000-0000-4000-8000-000000000001'
+    AND object_id = v_offer_id
+    AND payload = v_result;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA110 p_attributes case expected exactly one success event, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key IN (
+      'fixture-qa110-input-null-vs-absent',
+      'fixture-qa110-attributes-null-vs-absent'
+    );
+  IF v_count <> 2 THEN
+    RAISE EXCEPTION 'QA110 expected exactly two idempotency rows across isolated cases, found %', v_count;
+  END IF;
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND idempotency_key IN (
+      'fixture-qa110-input-null-vs-absent',
+      'fixture-qa110-attributes-null-vs-absent'
+    );
+  IF v_count <> 2 THEN
+    RAISE EXCEPTION 'QA110 expected exactly two executions across isolated cases, found %', v_count;
+  END IF;
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE name IN (
+    'QA110 Input Null Versus Absent Offer',
+    'QA110 Attributes Null Versus Absent Offer'
+  );
+  IF v_count <> 2 THEN
+    RAISE EXCEPTION 'QA110 expected exactly two offers across isolated cases, found %', v_count;
+  END IF;
+  SELECT count(*) INTO v_count
+  FROM public.action_events e
+  JOIN public.action_executions x
+    ON x.id = e.execution_id
+   AND x.tenant_id = e.tenant_id
+  WHERE x.tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND x.idempotency_key IN (
+      'fixture-qa110-input-null-vs-absent',
+      'fixture-qa110-attributes-null-vs-absent'
+    )
+    AND e.event_type = 'ACTION_SUCCEEDED';
+  IF v_count <> 2 THEN
+    RAISE EXCEPTION 'QA110 expected exactly two success events across isolated cases, found %', v_count;
+  END IF;
+END
+$qa110$;
+SQL
+
+echo "CREATE_OFFER distinguishes JSONB properties explicitly set to null from absent properties in p_input and p_attributes, rejects same-key changed payloads, and preserves the first results without duplicates."
