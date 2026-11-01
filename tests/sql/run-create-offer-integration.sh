@@ -5558,3 +5558,272 @@ $qa115$;
 SQL
 
 echo "CREATE_OFFER QA115 confirms SQL NULL p_input is rejected before persistence, while JSONB scalar null, array and object are accepted by the authenticated RPC and retain their exact stored shapes and replay results without duplicates."
+
+
+# QA116: characterize top-level JSONB shapes for p_attributes at the authenticated RPC.
+# QA113/QA114 already cover SQL NULL, {}, and JSONB scalar null. This test adds
+# arrays and JSONB string/number/boolean scalars, verifying the complete request
+# hash, stored offers.attributes value, exact replay, and one success event.
+# The HTTP route normalizes non-object attributes to {}, while this RPC test
+# records the behavior of the authenticated SQL contract without changing it.
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 <<'SQL'
+INSERT INTO public.demands (id, name, demand_status, requester_actor_id)
+VALUES
+  ('50000000-0000-4000-8000-000000000028','QA116 JSONB Array Attributes Demand','published','30000000-0000-4000-8000-000000000001'),
+  ('50000000-0000-4000-8000-000000000029','QA116 JSONB String Attributes Demand','published','30000000-0000-4000-8000-000000000001'),
+  ('50000000-0000-4000-8000-000000000030','QA116 JSONB Number Attributes Demand','published','30000000-0000-4000-8000-000000000001'),
+  ('50000000-0000-4000-8000-000000000031','QA116 JSONB Boolean Attributes Demand','published','30000000-0000-4000-8000-000000000001');
+SQL
+
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 <<'SQL'
+SET application_name = 'qima-qa116-attributes-jsonb-shapes';
+SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+SET ROLE authenticated;
+
+DO $qa116$
+DECLARE
+  v_case record;
+  v_input jsonb := '{"source":"qa116","case":"attributes-top-level-shape"}'::jsonb;
+  v_hash jsonb;
+  v_first_result jsonb;
+  v_replay_result jsonb;
+  v_actor_id uuid;
+  v_request_hash text;
+  v_execution_id uuid;
+  v_result jsonb;
+  v_stored_input jsonb;
+  v_stored_attributes jsonb;
+  v_offer_id uuid;
+  v_count integer;
+BEGIN
+  FOR v_case IN
+    SELECT *
+    FROM (VALUES
+      (
+        'array'::text,
+        'QA116 JSONB Array Attributes Offer'::text,
+        '50000000-0000-4000-8000-000000000028'::uuid,
+        '["attribute-a","attribute-b"]'::jsonb,
+        'array'::text,
+        21::numeric,
+        61::numeric,
+        'fixture-qa116-attributes-array'::text
+      ),
+      (
+        'string'::text,
+        'QA116 JSONB String Attributes Offer'::text,
+        '50000000-0000-4000-8000-000000000029'::uuid,
+        '"qa116-string"'::jsonb,
+        'string'::text,
+        22::numeric,
+        62::numeric,
+        'fixture-qa116-attributes-string'::text
+      ),
+      (
+        'number'::text,
+        'QA116 JSONB Number Attributes Offer'::text,
+        '50000000-0000-4000-8000-000000000030'::uuid,
+        '42'::jsonb,
+        'number'::text,
+        23::numeric,
+        63::numeric,
+        'fixture-qa116-attributes-number'::text
+      ),
+      (
+        'boolean'::text,
+        'QA116 JSONB Boolean Attributes Offer'::text,
+        '50000000-0000-4000-8000-000000000031'::uuid,
+        'true'::jsonb,
+        'boolean'::text,
+        24::numeric,
+        64::numeric,
+        'fixture-qa116-attributes-boolean'::text
+      )
+    ) AS cases(case_name, offer_name, demand_id, attributes_value, expected_type, quantity, price, idempotency_key)
+  LOOP
+    v_hash := jsonb_build_object(
+      'input', v_input,
+      'name', v_case.offer_name,
+      'demandId', v_case.demand_id,
+      'productMasterId', '40000000-0000-4000-8000-000000000001'::uuid,
+      'providerActorId', '30000000-0000-4000-8000-000000000001'::uuid,
+      'quantity', v_case.quantity,
+      'price', v_case.price,
+      'currency', 'USD',
+      'conditions', NULL::text,
+      'market', NULL::text,
+      'geography', NULL::text,
+      'attributes', coalesce(v_case.attributes_value, '{}'::jsonb),
+      'documentationStatus', NULL::text,
+      'lifecycle', NULL::text,
+      'offerType', NULL::text,
+      'pricingModel', NULL::text
+    );
+
+    v_first_result := public.execute_create_offer_v1(
+      '10000000-0000-4000-8000-000000000001',
+      v_case.idempotency_key,
+      v_input,
+      v_case.offer_name,
+      v_case.demand_id,
+      '40000000-0000-4000-8000-000000000001',
+      '30000000-0000-4000-8000-000000000001',
+      v_case.quantity,
+      v_case.price,
+      'USD',
+      NULL,
+      NULL,
+      NULL,
+      v_case.attributes_value
+    );
+    IF v_first_result ->> 'status' IS DISTINCT FROM 'succeeded' THEN
+      RAISE EXCEPTION 'QA116 % attributes first request was not accepted: %', v_case.case_name, v_first_result;
+    END IF;
+
+    v_replay_result := public.execute_create_offer_v1(
+      '10000000-0000-4000-8000-000000000001',
+      v_case.idempotency_key,
+      v_input,
+      v_case.offer_name,
+      v_case.demand_id,
+      '40000000-0000-4000-8000-000000000001',
+      '30000000-0000-4000-8000-000000000001',
+      v_case.quantity,
+      v_case.price,
+      'USD',
+      NULL,
+      NULL,
+      NULL,
+      v_case.attributes_value
+    );
+    IF v_replay_result IS DISTINCT FROM v_first_result THEN
+      RAISE EXCEPTION 'QA116 % exact replay did not return the first result', v_case.case_name;
+    END IF;
+
+    SELECT actor_id, request_hash, execution_id, result
+    INTO v_actor_id, v_request_hash, v_execution_id, v_result
+    FROM public.idempotency_keys
+    WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+      AND key = v_case.idempotency_key
+      AND status = 'COMPLETED';
+    IF v_actor_id IS DISTINCT FROM '30000000-0000-4000-8000-000000000001'::uuid
+       OR v_request_hash IS DISTINCT FROM md5(v_hash::text)
+       OR v_result IS DISTINCT FROM v_first_result
+       OR v_execution_id IS NULL THEN
+      RAISE EXCEPTION 'QA116 % owner/hash/result was not preserved', v_case.case_name;
+    END IF;
+
+    SELECT input INTO v_stored_input
+    FROM public.action_executions
+    WHERE id = v_execution_id
+      AND tenant_id = '10000000-0000-4000-8000-000000000001'
+      AND actor_id = '30000000-0000-4000-8000-000000000001'
+      AND idempotency_key = v_case.idempotency_key
+      AND status = 'COMPLETED'
+      AND result = v_first_result;
+    IF v_stored_input IS DISTINCT FROM v_input
+       OR jsonb_typeof(v_stored_input) IS DISTINCT FROM 'object' THEN
+      RAISE EXCEPTION 'QA116 % action execution input was not preserved', v_case.case_name;
+    END IF;
+
+    v_offer_id := (v_first_result ->> 'objectId')::uuid;
+    SELECT attributes INTO v_stored_attributes
+    FROM public.offers
+    WHERE id = v_offer_id
+      AND name = v_case.offer_name
+      AND demand_id = v_case.demand_id
+      AND provider_actor_id = '30000000-0000-4000-8000-000000000001'
+      AND quantity = v_case.quantity
+      AND price = v_case.price
+      AND currency = 'USD';
+    IF v_stored_attributes IS NULL
+       OR v_stored_attributes IS DISTINCT FROM v_case.attributes_value
+       OR jsonb_typeof(v_stored_attributes) IS DISTINCT FROM v_case.expected_type
+       OR v_stored_attributes::text IS DISTINCT FROM v_case.attributes_value::text THEN
+      RAISE EXCEPTION 'QA116 % attributes shape was not persisted exactly; expected type %, stored type %, expected %, stored %',
+        v_case.case_name, v_case.expected_type, jsonb_typeof(v_stored_attributes),
+        v_case.attributes_value::text, v_stored_attributes::text;
+    END IF;
+
+    SELECT count(*) INTO v_count
+    FROM public.action_events e
+    JOIN public.action_executions x
+      ON x.id = e.execution_id
+     AND x.tenant_id = e.tenant_id
+    WHERE x.tenant_id = '10000000-0000-4000-8000-000000000001'
+      AND x.idempotency_key = v_case.idempotency_key
+      AND e.event_type = 'ACTION_SUCCEEDED'
+      AND e.actor_id = '30000000-0000-4000-8000-000000000001'
+      AND e.object_id = v_offer_id
+      AND e.payload = v_first_result;
+    IF v_count <> 1 THEN
+      RAISE EXCEPTION 'QA116 % expected exactly one success event, found %', v_case.case_name, v_count;
+    END IF;
+
+    RAISE NOTICE 'QA116 % attributes accepted and persisted as JSONB type %, exact replay preserved',
+      v_case.case_name, v_case.expected_type;
+  END LOOP;
+
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key IN (
+      'fixture-qa116-attributes-array',
+      'fixture-qa116-attributes-string',
+      'fixture-qa116-attributes-number',
+      'fixture-qa116-attributes-boolean'
+    )
+    AND status = 'COMPLETED';
+  IF v_count <> 4 THEN
+    RAISE EXCEPTION 'QA116 expected exactly four completed idempotency rows, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND idempotency_key IN (
+      'fixture-qa116-attributes-array',
+      'fixture-qa116-attributes-string',
+      'fixture-qa116-attributes-number',
+      'fixture-qa116-attributes-boolean'
+    )
+    AND status = 'COMPLETED';
+  IF v_count <> 4 THEN
+    RAISE EXCEPTION 'QA116 expected exactly four completed executions, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE name IN (
+    'QA116 JSONB Array Attributes Offer',
+    'QA116 JSONB String Attributes Offer',
+    'QA116 JSONB Number Attributes Offer',
+    'QA116 JSONB Boolean Attributes Offer'
+  );
+  IF v_count <> 4 THEN
+    RAISE EXCEPTION 'QA116 expected exactly four offers, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_events e
+  JOIN public.action_executions x
+    ON x.id = e.execution_id
+   AND x.tenant_id = e.tenant_id
+  WHERE x.tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND x.idempotency_key IN (
+      'fixture-qa116-attributes-array',
+      'fixture-qa116-attributes-string',
+      'fixture-qa116-attributes-number',
+      'fixture-qa116-attributes-boolean'
+    )
+    AND e.event_type = 'ACTION_SUCCEEDED';
+  IF v_count <> 4 THEN
+    RAISE EXCEPTION 'QA116 expected exactly four success events, found %', v_count;
+  END IF;
+
+  RAISE NOTICE 'QA116 RPC: JSONB array, string, number and boolean attributes are accepted by the CI fixture, hashed, persisted with exact shapes and replayed without duplicates';
+END
+$qa116$;
+SQL
+
+echo "CREATE_OFFER QA116 characterizes JSONB array/string/number/boolean p_attributes at the authenticated RPC fixture: each shape is hashed, persisted, exactly replayed and represented by one offer/event."
