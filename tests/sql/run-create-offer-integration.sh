@@ -2171,3 +2171,297 @@ $qa106$;
 SQL
 
 echo "CREATE_OFFER same-tenant distinct-actor concurrency, independent replay and actor/result ownership assertions passed."
+
+# QA107: characterize one tenant-scoped idempotency key reused by two
+# different authenticated actors. The first actor owns the completed result;
+# the second actor's valid but different request must be rejected without
+# receiving the first actor's result or creating any additional rows.
+"${PSQL[@]}" <<'SQL'
+DO $qa107_preconditions$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM public.dt_memberships m
+    JOIN public.profiles p ON p.auth_user_id = m.user_id
+    WHERE m.tenant_id = '10000000-0000-4000-8000-000000000001'
+      AND m.user_id = '20000000-0000-4000-8000-000000000001'
+      AND p.actor_id = '30000000-0000-4000-8000-000000000001'
+  ) OR NOT EXISTS (
+    SELECT 1
+    FROM public.dt_memberships m
+    JOIN public.profiles p ON p.auth_user_id = m.user_id
+    WHERE m.tenant_id = '10000000-0000-4000-8000-000000000001'
+      AND m.user_id = '20000000-0000-4000-8000-000000000003'
+      AND p.actor_id = '30000000-0000-4000-8000-000000000003'
+  ) THEN
+    RAISE EXCEPTION 'QA107 requires two distinct synthetic actors with membership in the same tenant';
+  END IF;
+END
+$qa107_preconditions$;
+
+INSERT INTO public.demands (id, name, demand_status, requester_actor_id)
+VALUES
+  (
+    '50000000-0000-4000-8000-000000000009',
+    'QA107 First Actor Demand',
+    'published',
+    '30000000-0000-4000-8000-000000000001'
+  ),
+  (
+    '50000000-0000-4000-8000-000000000010',
+    'QA107 Second Actor Demand',
+    'published',
+    '30000000-0000-4000-8000-000000000003'
+  );
+
+qa107_call_a=$(cat <<'SQL'
+SET application_name = 'qima-qa107-actor-a';
+SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+SET ROLE authenticated;
+SELECT public.execute_create_offer_v1(
+  '10000000-0000-4000-8000-000000000001',
+  'fixture-qa107-shared-tenant-key',
+  '{"case":"qa107-shared-key-actor-a"}'::jsonb,
+  'QA107 Shared Key Offer A',
+  '50000000-0000-4000-8000-000000000009',
+  '40000000-0000-4000-8000-000000000001',
+  '30000000-0000-4000-8000-000000000001',
+  7,
+  43,
+  'USD'
+);
+SQL
+)
+
+qa107_call_b=$(cat <<'SQL'
+SET application_name = 'qima-qa107-actor-b';
+SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000003';
+SET ROLE authenticated;
+SELECT public.execute_create_offer_v1(
+  '10000000-0000-4000-8000-000000000001',
+  'fixture-qa107-shared-tenant-key',
+  '{"case":"qa107-shared-key-actor-b"}'::jsonb,
+  'QA107 Shared Key Offer B',
+  '50000000-0000-4000-8000-000000000010',
+  '40000000-0000-4000-8000-000000000001',
+  '30000000-0000-4000-8000-000000000003',
+  8,
+  44,
+  'USD'
+);
+SQL
+)
+
+# Actor A completes the tenant/key pair first and becomes its persisted owner.
+"${PSQL_TUPLE[@]}" -c "$qa107_call_a" > /tmp/qima-qa107-actor-a-first.log
+if [[ ! -s /tmp/qima-qa107-actor-a-first.log ]]; then
+  echo "QA107 first actor did not return its successful CREATE_OFFER result." >&2
+  exit 1
+fi
+
+# Actor B is a valid member with a valid provider_actor_id, but its effective
+# request hash differs (including providerActorId). It must not receive A's
+# completed result and must not create a second execution or offer.
+set +e
+"${PSQL_TUPLE[@]}" -v VERBOSITY=verbose -c "$qa107_call_b" > /tmp/qima-qa107-actor-b-reuse.log 2>&1
+qa107_actor_b_status=$?
+set -e
+
+if [[ "$qa107_actor_b_status" -eq 0 ]] ||
+   ! grep -Fq "IDEMPOTENCY_KEY_REUSE" /tmp/qima-qa107-actor-b-reuse.log; then
+  echo "QA107 second actor did not receive the expected IDEMPOTENCY_KEY_REUSE rejection." >&2
+  cat /tmp/qima-qa107-actor-b-reuse.log >&2
+  exit 1
+fi
+
+# The original actor must still be able to replay the exact persisted result.
+"${PSQL_TUPLE[@]}" -c "$qa107_call_a" > /tmp/qima-qa107-actor-a-replay.log
+if ! cmp -s /tmp/qima-qa107-actor-a-first.log /tmp/qima-qa107-actor-a-replay.log; then
+  echo "QA107 original actor replay did not return the exact first result." >&2
+  diff -u /tmp/qima-qa107-actor-a-first.log /tmp/qima-qa107-actor-a-replay.log >&2 || true
+  exit 1
+fi
+
+"${PSQL_TUPLE[@]}" -c "
+  SELECT result::text
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-qa107-shared-tenant-key'
+    AND status = 'COMPLETED';
+" > /tmp/qima-qa107-stored-result.log
+
+if ! cmp -s /tmp/qima-qa107-actor-a-first.log /tmp/qima-qa107-stored-result.log; then
+  echo "QA107 first actor result does not match the persisted idempotency result." >&2
+  diff -u /tmp/qima-qa107-actor-a-first.log /tmp/qima-qa107-stored-result.log >&2 || true
+  exit 1
+fi
+
+"${PSQL[@]}" <<'SQL'
+DO $qa107$
+DECLARE
+  v_count integer;
+  v_actor_id uuid;
+  v_request_hash text;
+  v_expected_actor_a_hash text;
+  v_expected_actor_b_hash text;
+  v_execution_id uuid;
+  v_result jsonb;
+  v_offer_id uuid;
+BEGIN
+  v_expected_actor_a_hash := md5(jsonb_build_object(
+    'input', '{"case":"qa107-shared-key-actor-a"}'::jsonb,
+    'name', 'QA107 Shared Key Offer A',
+    'demandId', '50000000-0000-4000-8000-000000000009'::uuid,
+    'productMasterId', '40000000-0000-4000-8000-000000000001'::uuid,
+    'providerActorId', '30000000-0000-4000-8000-000000000001'::uuid,
+    'quantity', 7::numeric,
+    'price', 43::numeric,
+    'currency', 'USD',
+    'conditions', NULL::text,
+    'market', NULL::text,
+    'geography', NULL::text,
+    'attributes', '{}'::jsonb,
+    'documentationStatus', NULL::text,
+    'lifecycle', NULL::text,
+    'offerType', NULL::text,
+    'pricingModel', NULL::text
+  )::text);
+
+  v_expected_actor_b_hash := md5(jsonb_build_object(
+    'input', '{"case":"qa107-shared-key-actor-b"}'::jsonb,
+    'name', 'QA107 Shared Key Offer B',
+    'demandId', '50000000-0000-4000-8000-000000000010'::uuid,
+    'productMasterId', '40000000-0000-4000-8000-000000000001'::uuid,
+    'providerActorId', '30000000-0000-4000-8000-000000000003'::uuid,
+    'quantity', 8::numeric,
+    'price', 44::numeric,
+    'currency', 'USD',
+    'conditions', NULL::text,
+    'market', NULL::text,
+    'geography', NULL::text,
+    'attributes', '{}'::jsonb,
+    'documentationStatus', NULL::text,
+    'lifecycle', NULL::text,
+    'offerType', NULL::text,
+    'pricingModel', NULL::text
+  )::text);
+
+  IF v_expected_actor_a_hash = v_expected_actor_b_hash THEN
+    RAISE EXCEPTION 'QA107 expected actor A and actor B request hashes to differ';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-qa107-shared-tenant-key';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA107 expected exactly one shared tenant/key row, found %', v_count;
+  END IF;
+
+  SELECT actor_id, request_hash, execution_id, result
+  INTO v_actor_id, v_request_hash, v_execution_id, v_result
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-qa107-shared-tenant-key'
+    AND status = 'COMPLETED';
+
+  IF v_actor_id IS DISTINCT FROM '30000000-0000-4000-8000-000000000001'::uuid THEN
+    RAISE EXCEPTION 'QA107 shared key owner is not the first authenticated actor';
+  END IF;
+  IF v_request_hash IS DISTINCT FROM v_expected_actor_a_hash THEN
+    RAISE EXCEPTION 'QA107 persisted request hash does not match the first actor payload';
+  END IF;
+  IF v_request_hash = v_expected_actor_b_hash THEN
+    RAISE EXCEPTION 'QA107 second actor request hash unexpectedly owns the shared key';
+  END IF;
+  IF v_result ->> 'status' IS DISTINCT FROM 'succeeded'
+     OR v_result ->> 'objectType' IS DISTINCT FROM 'Offer' THEN
+    RAISE EXCEPTION 'QA107 persisted result is not the first actor successful Offer result';
+  END IF;
+
+  v_offer_id := (v_result ->> 'objectId')::uuid;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND idempotency_key = 'fixture-qa107-shared-tenant-key';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA107 expected exactly one execution for the shared key, found %', v_count;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM public.action_executions
+    WHERE id = v_execution_id
+      AND tenant_id = '10000000-0000-4000-8000-000000000001'
+      AND idempotency_key = 'fixture-qa107-shared-tenant-key'
+      AND actor_id = '30000000-0000-4000-8000-000000000001'
+      AND status = 'COMPLETED'
+      AND object_id = v_offer_id
+      AND result = v_result
+  ) THEN
+    RAISE EXCEPTION 'QA107 execution does not preserve the first actor and result';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE name IN (
+    'QA107 Shared Key Offer A',
+    'QA107 Shared Key Offer B'
+  );
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA107 expected only the first actor offer to persist, found %', v_count;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM public.offers
+    WHERE id = v_offer_id
+      AND name = 'QA107 Shared Key Offer A'
+      AND demand_id = '50000000-0000-4000-8000-000000000009'
+      AND provider_actor_id = '30000000-0000-4000-8000-000000000001'
+      AND quantity = 7
+      AND price = 43
+      AND currency = 'USD'
+  ) OR EXISTS (
+    SELECT 1 FROM public.offers
+    WHERE name = 'QA107 Shared Key Offer B'
+  ) THEN
+    RAISE EXCEPTION 'QA107 persisted offer is not exclusively the first actor offer';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_events e
+  JOIN public.action_executions x
+    ON x.id = e.execution_id
+   AND x.tenant_id = e.tenant_id
+  WHERE x.tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND x.idempotency_key = 'fixture-qa107-shared-tenant-key'
+    AND e.event_type = 'ACTION_SUCCEEDED'
+    AND e.actor_id = '30000000-0000-4000-8000-000000000001'
+    AND e.object_id = v_offer_id
+    AND e.payload = v_result;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA107 expected exactly one success event for the first actor, found %', v_count;
+  END IF;
+
+  IF EXISTS (
+    SELECT 1
+    FROM public.action_executions
+    WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+      AND idempotency_key = 'fixture-qa107-shared-tenant-key'
+      AND actor_id = '30000000-0000-4000-8000-000000000003'
+  ) OR EXISTS (
+    SELECT 1
+    FROM public.action_events
+    WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+      AND actor_id = '30000000-0000-4000-8000-000000000003'
+      AND payload = v_result
+  ) THEN
+    RAISE EXCEPTION 'QA107 second actor unexpectedly owns an execution or success event';
+  END IF;
+END
+$qa107$;
+SQL
+
+echo "CREATE_OFFER same-tenant shared-key cross-actor reuse is rejected; first actor ownership, hash, result and exact replay remain intact."
