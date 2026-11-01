@@ -4733,6 +4733,51 @@ BEGIN
     'pricingModel', NULL::text
   );
 
+  -- Build the second direction's own expected hashes: its input, name and
+  -- demand intentionally differ from direction A, so the persisted first hash
+  -- must be compared against this complete payload rather than direction A's.
+  v_hash_sql_null_second := jsonb_build_object(
+    'input', v_input_json_null,
+    'name', 'QA114 JSONB Scalar Null First Offer',
+    'demandId', '50000000-0000-4000-8000-000000000023'::uuid,
+    'productMasterId', '40000000-0000-4000-8000-000000000001'::uuid,
+    'providerActorId', '30000000-0000-4000-8000-000000000001'::uuid,
+    'quantity', 17::numeric,
+    'price', 57::numeric,
+    'currency', 'USD',
+    'conditions', NULL::text,
+    'market', NULL::text,
+    'geography', NULL::text,
+    'attributes', coalesce(NULL::jsonb, '{}'::jsonb),
+    'documentationStatus', NULL::text,
+    'lifecycle', NULL::text,
+    'offerType', NULL::text,
+    'pricingModel', NULL::text
+  );
+  v_hash_json_null_first := jsonb_build_object(
+    'input', v_input_json_null,
+    'name', 'QA114 JSONB Scalar Null First Offer',
+    'demandId', '50000000-0000-4000-8000-000000000023'::uuid,
+    'productMasterId', '40000000-0000-4000-8000-000000000001'::uuid,
+    'providerActorId', '30000000-0000-4000-8000-000000000001'::uuid,
+    'quantity', 17::numeric,
+    'price', 57::numeric,
+    'currency', 'USD',
+    'conditions', NULL::text,
+    'market', NULL::text,
+    'geography', NULL::text,
+    'attributes', coalesce('null'::jsonb, '{}'::jsonb),
+    'documentationStatus', NULL::text,
+    'lifecycle', NULL::text,
+    'offerType', NULL::text,
+    'pricingModel', NULL::text
+  );
+
+  IF v_hash_sql_null_second IS NOT DISTINCT FROM v_hash_json_null_first
+     OR md5(v_hash_sql_null_second::text) IS NOT DISTINCT FROM md5(v_hash_json_null_first::text) THEN
+    RAISE EXCEPTION 'QA114 second direction SQL NULL and JSONB scalar null unexpectedly produced the same request hash';
+  END IF;
+
   IF coalesce(NULL::jsonb, '{}'::jsonb) IS DISTINCT FROM '{}'::jsonb THEN
     RAISE EXCEPTION 'QA113 SQL NULL attributes did not normalize to an empty JSONB object';
   END IF;
@@ -4910,6 +4955,8 @@ DECLARE
   v_input_json_null jsonb := '{"context":{"case":"qa114-jsonb-scalar-null-first"}}'::jsonb;
   v_hash_sql_null jsonb;
   v_hash_json_null jsonb;
+  v_hash_sql_null_second jsonb;
+  v_hash_json_null_first jsonb;
   v_first_result jsonb;
   v_retry_result jsonb;
   v_replay_result jsonb;
@@ -5145,9 +5192,9 @@ BEGIN
     AND key = 'fixture-qa114-jsonb-scalar-null-first'
     AND status = 'COMPLETED';
   IF v_actor_id IS DISTINCT FROM '30000000-0000-4000-8000-000000000001'::uuid
-     OR v_request_hash IS DISTINCT FROM md5(v_hash_json_null::text)
+     OR v_request_hash IS DISTINCT FROM md5(v_hash_json_null_first::text)
      OR v_result IS DISTINCT FROM v_first_result THEN
-    RAISE EXCEPTION 'QA114 JSONB scalar null first owner/hash/result was not preserved';
+    RAISE EXCEPTION 'QA114 JSONB scalar null first owner/hash/result was not preserved; actor=% hash=% expected_hash=% result_matches=%', v_actor_id, v_request_hash, md5(v_hash_json_null_first::text), v_result IS NOT DISTINCT FROM v_first_result;
   END IF;
   v_offer_id := (v_result ->> 'objectId')::uuid;
 
