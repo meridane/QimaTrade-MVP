@@ -12948,9 +12948,9 @@ BEGIN
   END;
 
   IF v_sqlstate IS DISTINCT FROM '23514'
-     OR v_table IS DISTINCT FROM 'action_events'
+     OR v_table IS DISTINCT FROM 'action_executions'
      OR v_constraint IS DISTINCT FROM 'qa100_force_execution_completion_rollback' THEN
-    RAISE EXCEPTION 'QA100 expected action_events.qa100_force_execution_completion_rollback SQLSTATE 23514, received state %, table %, constraint %',
+    RAISE EXCEPTION 'QA100 expected action_executions.qa100_force_execution_completion_rollback SQLSTATE 23514, received state %, table %, constraint %',
       v_sqlstate, v_table, v_constraint;
   END IF;
 
