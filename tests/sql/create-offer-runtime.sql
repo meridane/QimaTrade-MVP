@@ -11769,3 +11769,110 @@ $qa93_integrity$;
 COMMIT;
 
 SELECT 'CREATE_OFFER missing profile row validation precedes idempotency hash/status handling for COMPLETED, FAILED and IN_PROGRESS keys (3 retries); profile row restored; original records unchanged' AS result;
+
+
+-- OFFER-QA-94: prove that a constraint failure after the runtime has inserted
+-- its execution and idempotency row rolls back every write from the function.
+BEGIN;
+SET LOCAL request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+SET LOCAL ROLE authenticated;
+
+DO $qa94_atomicity$
+DECLARE
+  v_tenant_id uuid := '10000000-0000-4000-8000-000000000001';
+  v_key text := 'fixture-qa94-atomic-rollback-null-name';
+  v_before record;
+  v_after record;
+  v_sqlstate text;
+  v_table text;
+  v_column text;
+BEGIN
+  IF auth.uid() IS DISTINCT FROM '20000000-0000-4000-8000-000000000001'::uuid THEN
+    RAISE EXCEPTION 'QA94 requires authenticated provider A';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM public.idempotency_keys
+    WHERE tenant_id = v_tenant_id AND key = v_key
+  ) OR EXISTS (
+    SELECT 1 FROM public.action_executions
+    WHERE tenant_id = v_tenant_id AND idempotency_key = v_key
+  ) THEN
+    RAISE EXCEPTION 'QA94 atomic rollback fixture key already exists';
+  END IF;
+
+  SELECT
+    (SELECT count(*) FROM public.idempotency_keys) AS idempotency_count,
+    (SELECT count(*) FROM public.action_executions) AS execution_count,
+    (SELECT count(*) FROM public.offers) AS offer_count,
+    (SELECT count(*) FROM public.action_events) AS event_count
+  INTO v_before;
+
+  BEGIN
+    PERFORM public.execute_create_offer_v1(
+      p_tenant_id => v_tenant_id,
+      p_idempotency_key => v_key,
+      p_input => '{"case":"qa94-atomic-rollback-null-name"}'::jsonb,
+      p_name => NULL::text,
+      p_demand_id => '50000000-0000-4000-8000-000000000001',
+      p_product_master_id => '40000000-0000-4000-8000-000000000001',
+      p_provider_actor_id => '30000000-0000-4000-8000-000000000001',
+      p_quantity => 2,
+      p_price => 12,
+      p_currency => 'USD'
+    );
+
+    RAISE EXCEPTION 'QA94 expected offers.name NOT NULL violation (SQLSTATE 23502)';
+  EXCEPTION
+    WHEN not_null_violation THEN
+      GET STACKED DIAGNOSTICS
+        v_sqlstate = RETURNED_SQLSTATE,
+        v_table = TABLE_NAME,
+        v_column = COLUMN_NAME;
+  END;
+
+  IF v_sqlstate IS DISTINCT FROM '23502'
+     OR v_table IS DISTINCT FROM 'offers'
+     OR v_column IS DISTINCT FROM 'name' THEN
+    RAISE EXCEPTION 'QA94 expected offers.name SQLSTATE 23502, received state %, table %, column %',
+      v_sqlstate, v_table, v_column;
+  END IF;
+
+  SELECT
+    (SELECT count(*) FROM public.idempotency_keys) AS idempotency_count,
+    (SELECT count(*) FROM public.action_executions) AS execution_count,
+    (SELECT count(*) FROM public.offers) AS offer_count,
+    (SELECT count(*) FROM public.action_events) AS event_count
+  INTO v_after;
+
+  IF ROW(
+    v_before.idempotency_count,
+    v_before.execution_count,
+    v_before.offer_count,
+    v_before.event_count
+  ) IS DISTINCT FROM ROW(
+    v_after.idempotency_count,
+    v_after.execution_count,
+    v_after.offer_count,
+    v_after.event_count
+  ) THEN
+    RAISE EXCEPTION 'QA94 failed call left partial writes (before: %, %, %, %; after: %, %, %, %)',
+      v_before.idempotency_count, v_before.execution_count, v_before.offer_count, v_before.event_count,
+      v_after.idempotency_count, v_after.execution_count, v_after.offer_count, v_after.event_count;
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM public.idempotency_keys
+    WHERE tenant_id = v_tenant_id AND key = v_key
+  ) OR EXISTS (
+    SELECT 1 FROM public.action_executions
+    WHERE tenant_id = v_tenant_id AND idempotency_key = v_key
+  ) THEN
+    RAISE EXCEPTION 'QA94 failed call left an idempotency key or action execution';
+  END IF;
+END
+$qa94_atomicity$;
+
+COMMIT;
+
+SELECT 'CREATE_OFFER constraint failure on offers.name (SQLSTATE 23502) rolls back idempotency key, execution, offer and event writes' AS result;
