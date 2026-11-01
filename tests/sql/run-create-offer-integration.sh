@@ -3814,6 +3814,30 @@ BEGIN
     'pricingModel', NULL::text
   )::text);
 
+  IF v_input_integer IS DISTINCT FROM v_input_decimal
+     OR v_input_integer IS DISTINCT FROM v_input_scale2 THEN
+    RAISE EXCEPTION 'QA111 p_input numeric JSONB values 1, 1.0 and 1.00 were not semantically equal';
+  END IF;
+  IF v_input_integer::text = v_input_decimal::text
+     OR v_input_integer::text = v_input_scale2::text
+     OR v_input_decimal::text = v_input_scale2::text THEN
+    RAISE EXCEPTION 'QA111 p_input numeric scale was not preserved in JSONB text output';
+  END IF;
+  IF v_input_hash_integer = v_input_hash_decimal
+     OR v_input_hash_integer = v_input_hash_scale2 THEN
+    RAISE EXCEPTION 'QA111 p_input numeric scale did not produce distinct request hashes';
+  END IF;
+
+  IF v_attributes_decimal IS DISTINCT FROM v_attributes_scale2 THEN
+    RAISE EXCEPTION 'QA111 p_attributes numeric JSONB values 1.0 and 1.00 were not semantically equal';
+  END IF;
+  IF v_attributes_decimal::text = v_attributes_scale2::text THEN
+    RAISE EXCEPTION 'QA111 p_attributes numeric scale was not preserved in JSONB text output';
+  END IF;
+  IF v_attributes_hash_decimal = v_attributes_hash_scale2 THEN
+    RAISE EXCEPTION 'QA111 p_attributes numeric scale did not produce distinct request hashes';
+  END IF;
+
   RAISE NOTICE 'QA111 p_input 1 vs 1.0: jsonb_equal=%, text_equal=%, hash_equal=%; 1 vs 1.00: jsonb_equal=%, text_equal=%, hash_equal=%; representations=[%, %, %]',
     v_input_integer = v_input_decimal,
     v_input_integer::text = v_input_decimal::text,
@@ -3937,7 +3961,8 @@ BEGIN
   WHERE id = v_execution_id
     AND actor_id = '30000000-0000-4000-8000-000000000001'
     AND result = v_result;
-  IF v_execution_input IS DISTINCT FROM v_input_integer THEN
+  IF v_execution_input IS DISTINCT FROM v_input_integer
+     OR v_execution_input::text IS DISTINCT FROM v_input_integer::text THEN
     RAISE EXCEPTION 'QA111 p_input did not preserve the first numeric representation in action_executions.input';
   END IF;
   SELECT count(*) INTO v_count
@@ -4093,7 +4118,8 @@ BEGIN
     AND quantity = 14
     AND price = 50
     AND currency = 'USD';
-  IF v_offer_attributes IS DISTINCT FROM v_attributes_decimal THEN
+  IF v_offer_attributes IS DISTINCT FROM v_attributes_decimal
+     OR v_offer_attributes::text IS DISTINCT FROM v_attributes_decimal::text THEN
     RAISE EXCEPTION 'QA111 p_attributes did not preserve the first numeric representation in offers.attributes';
   END IF;
   SELECT count(*) INTO v_count
