@@ -4885,3 +4885,322 @@ $qa113$;
 SQL
 
 echo "CREATE_OFFER QA113 confirms p_attributes SQL NULL, explicit empty JSONB and the omitted '{}' default share one normalized request hash and replay result; one offer, execution and success event persist."
+
+
+# QA114: JSONB scalar null is distinct from SQL NULL and the empty object.
+# coalesce(p_attributes, '{}'::jsonb) only replaces SQL NULL. A non-SQL-NULL
+# JSONB scalar 'null' remains JSON null in the request hash and in the fixture
+# insert. Exercise both ownership directions with separate keys: SQL NULL first
+# then scalar JSON null, and scalar JSON null first then SQL NULL.
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 <<'SQL'
+INSERT INTO public.demands (id, name, demand_status, requester_actor_id)
+VALUES
+  ('50000000-0000-4000-8000-000000000022','QA114 SQL Null First Demand','published','30000000-0000-4000-8000-000000000001'),
+  ('50000000-0000-4000-8000-000000000023','QA114 JSONB Scalar Null First Demand','published','30000000-0000-4000-8000-000000000001');
+SQL
+
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 <<'SQL'
+SET application_name = 'qima-qa114-jsonb-scalar-null';
+SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+SET ROLE authenticated;
+
+DO $qa114$
+DECLARE
+  v_input_sql_null jsonb := '{"context":{"case":"qa114-sql-null-first"}}'::jsonb;
+  v_input_json_null jsonb := '{"context":{"case":"qa114-jsonb-scalar-null-first"}}'::jsonb;
+  v_hash_sql_null jsonb;
+  v_hash_json_null jsonb;
+  v_first_result jsonb;
+  v_retry_result jsonb;
+  v_replay_result jsonb;
+  v_retry_error text;
+  v_actor_id uuid;
+  v_request_hash text;
+  v_execution_id uuid;
+  v_result jsonb;
+  v_offer_id uuid;
+  v_offer_attributes jsonb;
+  v_count integer;
+BEGIN
+  -- Reproduce every effective hash field from the migration for both
+  -- representations. SQL NULL is coalesced to {}, while JSONB scalar null
+  -- remains a non-SQL-NULL JSONB value.
+  v_hash_sql_null := jsonb_build_object(
+    'input', v_input_sql_null,
+    'name', 'QA114 SQL Null First Offer',
+    'demandId', '50000000-0000-4000-8000-000000000022'::uuid,
+    'productMasterId', '40000000-0000-4000-8000-000000000001'::uuid,
+    'providerActorId', '30000000-0000-4000-8000-000000000001'::uuid,
+    'quantity', 16::numeric,
+    'price', 56::numeric,
+    'currency', 'USD',
+    'conditions', NULL::text,
+    'market', NULL::text,
+    'geography', NULL::text,
+    'attributes', coalesce(NULL::jsonb, '{}'::jsonb),
+    'documentationStatus', NULL::text,
+    'lifecycle', NULL::text,
+    'offerType', NULL::text,
+    'pricingModel', NULL::text
+  );
+  v_hash_json_null := jsonb_build_object(
+    'input', v_input_sql_null,
+    'name', 'QA114 SQL Null First Offer',
+    'demandId', '50000000-0000-4000-8000-000000000022'::uuid,
+    'productMasterId', '40000000-0000-4000-8000-000000000001'::uuid,
+    'providerActorId', '30000000-0000-4000-8000-000000000001'::uuid,
+    'quantity', 16::numeric,
+    'price', 56::numeric,
+    'currency', 'USD',
+    'conditions', NULL::text,
+    'market', NULL::text,
+    'geography', NULL::text,
+    'attributes', coalesce('null'::jsonb, '{}'::jsonb),
+    'documentationStatus', NULL::text,
+    'lifecycle', NULL::text,
+    'offerType', NULL::text,
+    'pricingModel', NULL::text
+  );
+
+  IF coalesce(NULL::jsonb, '{}'::jsonb) IS DISTINCT FROM '{}'::jsonb THEN
+    RAISE EXCEPTION 'QA114 SQL NULL did not normalize to an empty JSONB object';
+  END IF;
+  IF 'null'::jsonb IS NULL OR jsonb_typeof('null'::jsonb) IS DISTINCT FROM 'null' THEN
+    RAISE EXCEPTION 'QA114 JSONB scalar null was incorrectly treated as SQL NULL';
+  END IF;
+  IF coalesce('null'::jsonb, '{}'::jsonb) IS DISTINCT FROM 'null'::jsonb THEN
+    RAISE EXCEPTION 'QA114 COALESCE unexpectedly replaced JSONB scalar null';
+  END IF;
+  IF v_hash_sql_null IS NOT DISTINCT FROM v_hash_json_null
+     OR v_hash_sql_null::text IS NOT DISTINCT FROM v_hash_json_null::text
+     OR md5(v_hash_sql_null::text) IS NOT DISTINCT FROM md5(v_hash_json_null::text) THEN
+    RAISE EXCEPTION 'QA114 SQL NULL and JSONB scalar null unexpectedly produced the same request hash';
+  END IF;
+  RAISE NOTICE 'QA114 hash: sql_null_normalizes_to_empty=t jsonb_scalar_null_is_non_sql_null=t text_equal=f hash_equal=f';
+
+  -- Direction A: SQL NULL owns the key; JSONB scalar null must be rejected.
+  v_first_result := public.execute_create_offer_v1(
+    '10000000-0000-4000-8000-000000000001',
+    'fixture-qa114-sql-null-first',
+    v_input_sql_null,
+    'QA114 SQL Null First Offer',
+    '50000000-0000-4000-8000-000000000022',
+    '40000000-0000-4000-8000-000000000001',
+    '30000000-0000-4000-8000-000000000001',
+    16::numeric,
+    56::numeric,
+    'USD',
+    NULL,
+    NULL,
+    NULL,
+    NULL::jsonb
+  );
+  IF v_first_result ->> 'status' IS DISTINCT FROM 'succeeded' THEN
+    RAISE EXCEPTION 'QA114 SQL NULL first request did not succeed: %', v_first_result;
+  END IF;
+
+  v_retry_result := NULL;
+  v_retry_error := NULL;
+  BEGIN
+    v_retry_result := public.execute_create_offer_v1(
+      '10000000-0000-4000-8000-000000000001',
+      'fixture-qa114-sql-null-first',
+      v_input_sql_null,
+      'QA114 SQL Null First Offer',
+      '50000000-0000-4000-8000-000000000022',
+      '40000000-0000-4000-8000-000000000001',
+      '30000000-0000-4000-8000-000000000001',
+      16::numeric,
+      56::numeric,
+      'USD',
+      NULL,
+      NULL,
+      NULL,
+      'null'::jsonb
+    );
+  EXCEPTION WHEN OTHERS THEN
+    v_retry_error := SQLERRM;
+  END;
+  IF v_retry_error IS NULL
+     OR position('IDEMPOTENCY_KEY_REUSE' IN v_retry_error) = 0 THEN
+    RAISE EXCEPTION 'QA114 SQL NULL to JSONB scalar null retry was not rejected; error=% result=%', v_retry_error, v_retry_result;
+  END IF;
+
+  v_replay_result := public.execute_create_offer_v1(
+    '10000000-0000-4000-8000-000000000001',
+    'fixture-qa114-sql-null-first',
+    v_input_sql_null,
+    'QA114 SQL Null First Offer',
+    '50000000-0000-4000-8000-000000000022',
+    '40000000-0000-4000-8000-000000000001',
+    '30000000-0000-4000-8000-000000000001',
+    16::numeric,
+    56::numeric,
+    'USD',
+    NULL,
+    NULL,
+    NULL,
+    NULL::jsonb
+  );
+  IF v_replay_result IS DISTINCT FROM v_first_result THEN
+    RAISE EXCEPTION 'QA114 SQL NULL original replay did not preserve the first result';
+  END IF;
+
+  SELECT actor_id, request_hash, execution_id, result
+  INTO v_actor_id, v_request_hash, v_execution_id, v_result
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-qa114-sql-null-first'
+    AND status = 'COMPLETED';
+  IF v_actor_id IS DISTINCT FROM '30000000-0000-4000-8000-000000000001'::uuid
+     OR v_request_hash IS DISTINCT FROM md5(v_hash_sql_null::text)
+     OR v_result IS DISTINCT FROM v_first_result THEN
+    RAISE EXCEPTION 'QA114 SQL NULL first owner/hash/result was not preserved';
+  END IF;
+  v_offer_id := (v_result ->> 'objectId')::uuid;
+
+  SELECT attributes INTO v_offer_attributes
+  FROM public.offers
+  WHERE id = v_offer_id
+    AND name = 'QA114 SQL Null First Offer'
+    AND demand_id = '50000000-0000-4000-8000-000000000022'
+    AND provider_actor_id = '30000000-0000-4000-8000-000000000001';
+  IF v_offer_attributes IS DISTINCT FROM '{}'::jsonb
+     OR v_offer_attributes::text IS DISTINCT FROM '{}'::text THEN
+    RAISE EXCEPTION 'QA114 SQL NULL first offer did not persist normalized {} attributes';
+  END IF;
+
+  -- Direction B: JSONB scalar null owns a separate key; SQL NULL must be rejected.
+  v_first_result := public.execute_create_offer_v1(
+    '10000000-0000-4000-8000-000000000001',
+    'fixture-qa114-jsonb-scalar-null-first',
+    v_input_json_null,
+    'QA114 JSONB Scalar Null First Offer',
+    '50000000-0000-4000-8000-000000000023',
+    '40000000-0000-4000-8000-000000000001',
+    '30000000-0000-4000-8000-000000000001',
+    17::numeric,
+    57::numeric,
+    'USD',
+    NULL,
+    NULL,
+    NULL,
+    'null'::jsonb
+  );
+  IF v_first_result ->> 'status' IS DISTINCT FROM 'succeeded' THEN
+    RAISE EXCEPTION 'QA114 JSONB scalar null first request did not succeed: %', v_first_result;
+  END IF;
+
+  v_retry_result := NULL;
+  v_retry_error := NULL;
+  BEGIN
+    v_retry_result := public.execute_create_offer_v1(
+      '10000000-0000-4000-8000-000000000001',
+      'fixture-qa114-jsonb-scalar-null-first',
+      v_input_json_null,
+      'QA114 JSONB Scalar Null First Offer',
+      '50000000-0000-4000-8000-000000000023',
+      '40000000-0000-4000-8000-000000000001',
+      '30000000-0000-4000-8000-000000000001',
+      17::numeric,
+      57::numeric,
+      'USD',
+      NULL,
+      NULL,
+      NULL,
+      NULL::jsonb
+    );
+  EXCEPTION WHEN OTHERS THEN
+    v_retry_error := SQLERRM;
+  END;
+  IF v_retry_error IS NULL
+     OR position('IDEMPOTENCY_KEY_REUSE' IN v_retry_error) = 0 THEN
+    RAISE EXCEPTION 'QA114 JSONB scalar null to SQL NULL retry was not rejected; error=% result=%', v_retry_error, v_retry_result;
+  END IF;
+
+  v_replay_result := public.execute_create_offer_v1(
+    '10000000-0000-4000-8000-000000000001',
+    'fixture-qa114-jsonb-scalar-null-first',
+    v_input_json_null,
+    'QA114 JSONB Scalar Null First Offer',
+    '50000000-0000-4000-8000-000000000023',
+    '40000000-0000-4000-8000-000000000001',
+    '30000000-0000-4000-8000-000000000001',
+    17::numeric,
+    57::numeric,
+    'USD',
+    NULL,
+    NULL,
+    NULL,
+    'null'::jsonb
+  );
+  IF v_replay_result IS DISTINCT FROM v_first_result THEN
+    RAISE EXCEPTION 'QA114 JSONB scalar null original replay did not preserve the first result';
+  END IF;
+
+  SELECT actor_id, request_hash, execution_id, result
+  INTO v_actor_id, v_request_hash, v_execution_id, v_result
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-qa114-jsonb-scalar-null-first'
+    AND status = 'COMPLETED';
+  IF v_actor_id IS DISTINCT FROM '30000000-0000-4000-8000-000000000001'::uuid
+     OR v_request_hash IS DISTINCT FROM md5(v_hash_json_null::text)
+     OR v_result IS DISTINCT FROM v_first_result THEN
+    RAISE EXCEPTION 'QA114 JSONB scalar null first owner/hash/result was not preserved';
+  END IF;
+  v_offer_id := (v_result ->> 'objectId')::uuid;
+
+  SELECT attributes INTO v_offer_attributes
+  FROM public.offers
+  WHERE id = v_offer_id
+    AND name = 'QA114 JSONB Scalar Null First Offer'
+    AND demand_id = '50000000-0000-4000-8000-000000000023'
+    AND provider_actor_id = '30000000-0000-4000-8000-000000000001';
+  IF v_offer_attributes IS NULL
+     OR v_offer_attributes IS DISTINCT FROM 'null'::jsonb
+     OR jsonb_typeof(v_offer_attributes) IS DISTINCT FROM 'null'
+     OR v_offer_attributes::text IS DISTINCT FROM 'null' THEN
+    RAISE EXCEPTION 'QA114 JSONB scalar null first offer did not persist a JSONB null scalar';
+  END IF;
+
+  -- Assert exactly one key, execution, offer and success event per direction.
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key IN ('fixture-qa114-sql-null-first','fixture-qa114-jsonb-scalar-null-first');
+  IF v_count <> 2 THEN
+    RAISE EXCEPTION 'QA114 expected exactly two idempotency rows, found %', v_count;
+  END IF;
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND idempotency_key IN ('fixture-qa114-sql-null-first','fixture-qa114-jsonb-scalar-null-first')
+    AND status = 'COMPLETED';
+  IF v_count <> 2 THEN
+    RAISE EXCEPTION 'QA114 expected exactly two completed executions, found %', v_count;
+  END IF;
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE name IN ('QA114 SQL Null First Offer','QA114 JSONB Scalar Null First Offer');
+  IF v_count <> 2 THEN
+    RAISE EXCEPTION 'QA114 expected exactly two offers, found %', v_count;
+  END IF;
+  SELECT count(*) INTO v_count
+  FROM public.action_events e
+  JOIN public.action_executions x
+    ON x.id = e.execution_id
+   AND x.tenant_id = e.tenant_id
+  WHERE x.tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND x.idempotency_key IN ('fixture-qa114-sql-null-first','fixture-qa114-jsonb-scalar-null-first')
+    AND e.event_type = 'ACTION_SUCCEEDED';
+  IF v_count <> 2 THEN
+    RAISE EXCEPTION 'QA114 expected exactly two success events, found %', v_count;
+  END IF;
+
+  RAISE NOTICE 'QA114 RPC: SQL NULL and JSONB scalar null have distinct hashes; each first payload retains its own exact replay and persisted attributes without duplicates';
+END
+$qa114$;
+SQL
+
+echo "CREATE_OFFER QA114 confirms SQL NULL is coalesced to {}, while JSONB scalar null remains distinct in the hash and offers.attributes; both ownership directions reject changed same-key retries and preserve one original result without duplicates."
