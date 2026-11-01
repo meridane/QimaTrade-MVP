@@ -2465,7 +2465,7 @@ echo "CREATE_OFFER same-tenant shared-key cross-actor reuse is rejected; first a
 # The same tenant, actor, key and business values are replayed with reordered
 # keys in both p_input and p_attributes. JSONB semantics should canonicalize
 # the objects, preserving the hash and the exact persisted result.
-"\${PSQL[@]}" <<'SQL'
+"${PSQL[@]}" <<'SQL'
 INSERT INTO public.demands (id, name, demand_status, requester_actor_id)
 VALUES (
   '50000000-0000-4000-8000-000000000010',
@@ -2523,15 +2523,15 @@ SQL
 
 # The first request creates the offer. The reordered request must be treated
 # as the same JSONB value and return the already-persisted result.
-"\${PSQL_TUPLE[@]}" -c "$qa108_call_a" > /tmp/qima-qa108-first.log
-"\${PSQL_TUPLE[@]}" -c "$qa108_call_b" > /tmp/qima-qa108-reordered-replay.log
+"${PSQL_TUPLE[@]}" -c "$qa108_call_a" > /tmp/qima-qa108-first.log
+"${PSQL_TUPLE[@]}" -c "$qa108_call_b" > /tmp/qima-qa108-reordered-replay.log
 if ! cmp -s /tmp/qima-qa108-first.log /tmp/qima-qa108-reordered-replay.log; then
   echo "QA108 reordered JSONB request did not return the exact persisted result." >&2
   diff -u /tmp/qima-qa108-first.log /tmp/qima-qa108-reordered-replay.log >&2 || true
   exit 1
 fi
 
-"\${PSQL_TUPLE[@]}" -c "
+"${PSQL_TUPLE[@]}" -c "
   SELECT result::text
   FROM public.idempotency_keys
   WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
@@ -2544,7 +2544,7 @@ if ! cmp -s /tmp/qima-qa108-first.log /tmp/qima-qa108-stored-result.log; then
   exit 1
 fi
 
-"\${PSQL[@]}" <<'SQL'
+"${PSQL[@]}" <<'SQL'
 DO $qa108$
 DECLARE
   v_input_a jsonb := '{"alpha":1,"nested":{"left":"L","right":"R"},"omega":[1,2]}'::jsonb;
@@ -2652,6 +2652,13 @@ BEGIN
     AND result = v_result;
   IF v_execution_input IS DISTINCT FROM v_input_a THEN
     RAISE EXCEPTION 'QA108 persisted execution input does not match the canonical JSONB value';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE name = 'QA108 JSONB Canonicalization Offer';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA108 expected exactly one offer row for the canonical request, found %', v_count;
   END IF;
 
   SELECT count(*) INTO v_count
