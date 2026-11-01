@@ -490,6 +490,384 @@ SELECT 'CREATE_OFFER queued same-tenant request recovered after first rollback a
 SQL
 echo "CREATE_OFFER queued same-tenant failure-recovery assertions passed."
 
+# QA104: the first same-key request owns the advisory lock and rolls back;
+# a queued request with a different effective payload must become the winner.
+qa104_cleanup() {
+  "${PSQL[@]}" <<'SQL' >/dev/null 2>&1 || true
+DROP TRIGGER IF EXISTS qa104_reject_first_offer_insert ON public.offers;
+DROP FUNCTION IF EXISTS public.qa104_reject_first_offer_insert_fn();
+SQL
+}
+trap qa104_cleanup EXIT
+
+"${PSQL[@]}" <<'SQL'
+CREATE FUNCTION public.qa104_reject_first_offer_insert_fn()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $qa104fn$
+BEGIN
+  IF current_setting('application_name', true) = 'qima-qa104-first' THEN
+    -- Keep the first request's lock while the different-payload request queues.
+    PERFORM pg_sleep(1);
+    RAISE EXCEPTION USING
+      ERRCODE = '23514',
+      MESSAGE = 'QA104_FORCED_FIRST_ATTEMPT_FAILURE';
+  END IF;
+  RETURN NEW;
+END;
+$qa104fn$;
+
+CREATE TRIGGER qa104_reject_first_offer_insert
+BEFORE INSERT ON public.offers
+FOR EACH ROW
+EXECUTE FUNCTION public.qa104_reject_first_offer_insert_fn();
+SQL
+
+qa104_first_sql=$(cat <<'SQL'
+SET application_name = 'qima-qa104-first';
+SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+SET ROLE authenticated;
+SELECT public.execute_create_offer_v1(
+  '10000000-0000-4000-8000-000000000001',
+  'fixture-qa104-concurrent-payload-recovery',
+  '{"case":"qa104-concurrent-payload-recovery"}'::jsonb,
+  'QA104 Concurrent Payload Recovery Offer',
+  '50000000-0000-4000-8000-000000000001',
+  '40000000-0000-4000-8000-000000000001',
+  '30000000-0000-4000-8000-000000000001',
+  3,
+  23,
+  'USD'
+);
+SQL
+)
+
+qa104_second_sql=$(cat <<'SQL'
+SET application_name = 'qima-qa104-second';
+SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+SET ROLE authenticated;
+SELECT public.execute_create_offer_v1(
+  '10000000-0000-4000-8000-000000000001',
+  'fixture-qa104-concurrent-payload-recovery',
+  '{"case":"qa104-concurrent-payload-recovery"}'::jsonb,
+  'QA104 Concurrent Payload Recovery Offer',
+  '50000000-0000-4000-8000-000000000001',
+  '40000000-0000-4000-8000-000000000001',
+  '30000000-0000-4000-8000-000000000001',
+  3,
+  24,
+  'USD'
+);
+SQL
+)
+
+# Launch the first request and wait until it owns the advisory lock while the
+# temporary trigger sleeps. Only then launch the different-price request.
+"${PSQL_TUPLE[@]}" -v VERBOSITY=verbose -c "$qa104_first_sql" > /tmp/qima-qa104-first.log 2>&1 &
+qa104_first_pid=$!
+
+qa104_first_lock_snapshot=""
+for attempt in $(seq 1 200); do
+  qa104_first_lock_snapshot=$("${PSQL[@]}" -At -c "
+    SELECT
+      count(DISTINCT a.application_name)::text || '|' ||
+      count(*) FILTER (
+        WHERE l.granted AND a.wait_event = 'PgSleep'
+      )::text
+    FROM pg_stat_activity a
+    JOIN pg_locks l ON l.pid = a.pid
+    WHERE a.application_name = 'qima-qa104-first'
+      AND a.state = 'active'
+      AND l.locktype = 'advisory'
+      AND l.mode = 'ExclusiveLock';
+  " | tr -d '[:space:]')
+  if [[ "$qa104_first_lock_snapshot" == "1|1" ]]; then
+    break
+  fi
+  sleep 0.025
+done
+
+if [[ "$qa104_first_lock_snapshot" != "1|1" ]]; then
+  set +e
+  wait "$qa104_first_pid"
+  qa104_first_status=$?
+  set -e
+  echo "QA104 first request never exposed its granted advisory lock during PgSleep (snapshot='$qa104_first_lock_snapshot', exit=$qa104_first_status)." >&2
+  cat /tmp/qima-qa104-first.log >&2
+  exit 1
+fi
+
+"${PSQL_TUPLE[@]}" -c "$qa104_second_sql" > /tmp/qima-qa104-second.log 2>&1 &
+qa104_second_pid=$!
+
+# Observe the first request holding the lock and the second request waiting
+# on that exact tenant/key advisory lock before allowing the trigger to fail.
+qa104_lock_snapshot=""
+for attempt in $(seq 1 200); do
+  qa104_lock_snapshot=$("${PSQL[@]}" -At -c "
+    SELECT
+      count(DISTINCT a.application_name)::text || '|' ||
+      count(*) FILTER (
+        WHERE l.granted AND a.wait_event = 'PgSleep'
+      )::text || '|' ||
+      count(*) FILTER (
+        WHERE NOT l.granted
+          AND a.wait_event_type = 'Lock'
+          AND a.wait_event = 'advisory'
+      )::text || '|' ||
+      count(DISTINCT (
+        l.classid::text || ':' || l.objid::text || ':' || l.objsubid::text
+      ))::text
+    FROM pg_stat_activity a
+    JOIN pg_locks l ON l.pid = a.pid
+    WHERE a.application_name IN ('qima-qa104-first', 'qima-qa104-second')
+      AND a.state = 'active'
+      AND l.locktype = 'advisory'
+      AND l.mode = 'ExclusiveLock';
+  " | tr -d '[:space:]')
+  if [[ "$qa104_lock_snapshot" == "2|1|1|1" ]]; then
+    break
+  fi
+  sleep 0.025
+done
+
+set +e
+wait "$qa104_first_pid"
+qa104_first_status=$?
+wait "$qa104_second_pid"
+qa104_second_status=$?
+set -e
+
+if [[ "$qa104_first_status" -eq 0 || "$qa104_second_status" -ne 0 ]]; then
+  echo "Expected QA104 first request to fail and queued different-payload request to succeed (first=$qa104_first_status, second=$qa104_second_status)." >&2
+  cat /tmp/qima-qa104-first.log /tmp/qima-qa104-second.log >&2
+  exit 1
+fi
+
+if [[ "$qa104_lock_snapshot" != "2|1|1|1" ]]; then
+  echo "Expected QA104 one granted and one waiting advisory lock for one key; observed '$qa104_lock_snapshot'." >&2
+  cat /tmp/qima-qa104-first.log /tmp/qima-qa104-second.log >&2
+  exit 1
+fi
+
+if ! grep -Fq "QA104_FORCED_FIRST_ATTEMPT_FAILURE" /tmp/qima-qa104-first.log ||
+   ! grep -Fq "23514: QA104_FORCED_FIRST_ATTEMPT_FAILURE" /tmp/qima-qa104-first.log; then
+  echo "QA104 first request did not fail with the exact synthetic SQLSTATE 23514." >&2
+  cat /tmp/qima-qa104-first.log >&2
+  exit 1
+fi
+
+if [[ ! -s /tmp/qima-qa104-second.log ]]; then
+  echo "QA104 queued second request did not return a JSONB result." >&2
+  cat /tmp/qima-qa104-second.log >&2
+  exit 1
+fi
+
+echo "QA104 observed one granted and one waiting advisory lock; first payload rolled back and the queued different payload succeeded."
+
+# Remove the CI-only trigger before replay/conflict checks and verify cleanup.
+"${PSQL[@]}" <<'SQL'
+DROP TRIGGER qa104_reject_first_offer_insert ON public.offers;
+DROP FUNCTION public.qa104_reject_first_offer_insert_fn();
+
+DO $qa104_cleanup$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_trigger
+    WHERE tgrelid = 'public.offers'::regclass
+      AND tgname = 'qa104_reject_first_offer_insert'
+      AND NOT tgisinternal
+  ) THEN
+    RAISE EXCEPTION 'QA104 temporary trigger was not removed';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1
+    FROM pg_proc p
+    JOIN pg_namespace n ON n.oid = p.pronamespace
+    WHERE n.nspname = 'public'
+      AND p.proname = 'qa104_reject_first_offer_insert_fn'
+  ) THEN
+    RAISE EXCEPTION 'QA104 temporary trigger function was not removed';
+  END IF;
+END
+$qa104_cleanup$;
+SQL
+trap - EXIT
+
+qa104_second_replay_sql=$(cat <<'SQL'
+SET application_name = 'qima-qa104-second-replay';
+SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+SET ROLE authenticated;
+SELECT public.execute_create_offer_v1(
+  '10000000-0000-4000-8000-000000000001',
+  'fixture-qa104-concurrent-payload-recovery',
+  '{"case":"qa104-concurrent-payload-recovery"}'::jsonb,
+  'QA104 Concurrent Payload Recovery Offer',
+  '50000000-0000-4000-8000-000000000001',
+  '40000000-0000-4000-8000-000000000001',
+  '30000000-0000-4000-8000-000000000001',
+  3,
+  24,
+  'USD'
+);
+SQL
+)
+
+"${PSQL_TUPLE[@]}" -c "$qa104_second_replay_sql" > /tmp/qima-qa104-second-replay.log
+if ! cmp -s /tmp/qima-qa104-second.log /tmp/qima-qa104-second-replay.log; then
+  echo "QA104 replay of the winning second payload did not return its exact original result." >&2
+  diff -u /tmp/qima-qa104-second.log /tmp/qima-qa104-second-replay.log >&2 || true
+  exit 1
+fi
+
+"${PSQL_TUPLE[@]}" -c "
+  SELECT result::text
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-qa104-concurrent-payload-recovery'
+    AND status = 'COMPLETED';
+" > /tmp/qima-qa104-stored-result.log
+
+if ! cmp -s /tmp/qima-qa104-second-replay.log /tmp/qima-qa104-stored-result.log; then
+  echo "QA104 winning payload replay does not match the persisted idempotency result." >&2
+  diff -u /tmp/qima-qa104-second-replay.log /tmp/qima-qa104-stored-result.log >&2 || true
+  exit 1
+fi
+
+# Replaying the first (price 23) payload against the now-completed key must
+# be rejected, proving the queued second (price 24) payload owns the key.
+set +e
+"${PSQL_TUPLE[@]}" -v VERBOSITY=verbose -c "$qa104_first_sql" > /tmp/qima-qa104-first-payload-replay.log 2>&1
+qa104_first_replay_status=$?
+set -e
+
+if [[ "$qa104_first_replay_status" -eq 0 ]] ||
+   ! grep -Fq "IDEMPOTENCY_KEY_REUSE" /tmp/qima-qa104-first-payload-replay.log; then
+  echo "QA104 replay of the rolled-back first payload was not rejected with IDEMPOTENCY_KEY_REUSE." >&2
+  cat /tmp/qima-qa104-first-payload-replay.log >&2
+  exit 1
+fi
+
+"${PSQL[@]}" <<'SQL'
+DO $qa104$
+DECLARE
+  v_count integer;
+  v_price numeric;
+  v_request_hash text;
+  v_expected_second_hash text;
+  v_expected_first_hash text;
+  v_execution_id uuid;
+  v_result jsonb;
+  v_offer_id uuid;
+BEGIN
+  v_expected_second_hash := md5(jsonb_build_object(
+    'input', '{"case":"qa104-concurrent-payload-recovery"}'::jsonb,
+    'name', 'QA104 Concurrent Payload Recovery Offer',
+    'demandId', '50000000-0000-4000-8000-000000000001'::uuid,
+    'productMasterId', '40000000-0000-4000-8000-000000000001'::uuid,
+    'providerActorId', '30000000-0000-4000-8000-000000000001'::uuid,
+    'quantity', 3,
+    'price', 24,
+    'currency', 'USD',
+    'conditions', NULL,
+    'market', NULL,
+    'geography', NULL,
+    'attributes', '{}'::jsonb,
+    'documentationStatus', NULL,
+    'lifecycle', NULL,
+    'offerType', NULL,
+    'pricingModel', NULL
+  )::text);
+
+  v_expected_first_hash := md5(jsonb_build_object(
+    'input', '{"case":"qa104-concurrent-payload-recovery"}'::jsonb,
+    'name', 'QA104 Concurrent Payload Recovery Offer',
+    'demandId', '50000000-0000-4000-8000-000000000001'::uuid,
+    'productMasterId', '40000000-0000-4000-8000-000000000001'::uuid,
+    'providerActorId', '30000000-0000-4000-8000-000000000001'::uuid,
+    'quantity', 3,
+    'price', 23,
+    'currency', 'USD',
+    'conditions', NULL,
+    'market', NULL,
+    'geography', NULL,
+    'attributes', '{}'::jsonb,
+    'documentationStatus', NULL,
+    'lifecycle', NULL,
+    'offerType', NULL,
+    'pricingModel', NULL
+  )::text);
+
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-qa104-concurrent-payload-recovery';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA104 expected exactly one idempotency row, found %', v_count;
+  END IF;
+
+  SELECT request_hash, execution_id, result
+  INTO v_request_hash, v_execution_id, v_result
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-qa104-concurrent-payload-recovery'
+    AND status = 'COMPLETED';
+
+  IF v_request_hash IS DISTINCT FROM v_expected_second_hash THEN
+    RAISE EXCEPTION 'QA104 stored request hash does not belong to the winning second payload';
+  END IF;
+  IF v_request_hash = v_expected_first_hash THEN
+    RAISE EXCEPTION 'QA104 rolled-back first payload unexpectedly owns the idempotency key';
+  END IF;
+
+  v_offer_id := (v_result->>'objectId')::uuid;
+  SELECT count(*), max(price) INTO v_count, v_price
+  FROM public.offers
+  WHERE id = v_offer_id
+    AND name = 'QA104 Concurrent Payload Recovery Offer';
+  IF v_count <> 1 OR v_price IS DISTINCT FROM 24 THEN
+    RAISE EXCEPTION 'QA104 expected exactly one winning offer at price 24, found count %, price %', v_count, v_price;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE name = 'QA104 Concurrent Payload Recovery Offer';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA104 expected no residual offer from the first payload, found % offers', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND idempotency_key = 'fixture-qa104-concurrent-payload-recovery'
+    AND id = v_execution_id
+    AND status = 'COMPLETED'
+    AND result = v_result;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA104 expected exactly one completed execution matching the winning result, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_events e
+  JOIN public.action_executions x
+    ON x.id = e.execution_id
+   AND x.tenant_id = e.tenant_id
+  WHERE x.tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND x.idempotency_key = 'fixture-qa104-concurrent-payload-recovery'
+    AND e.event_type = 'ACTION_SUCCEEDED'
+    AND e.object_id = v_offer_id
+    AND e.payload = v_result;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA104 expected exactly one success event matching the winning result, found %', v_count;
+  END IF;
+END
+$qa104$;
+SQL
+
+echo "CREATE_OFFER queued different-payload recovery, winning-hash ownership, exact replay and IDEMPOTENCY_KEY_REUSE assertions passed."
+
+
 # Race the same key in two tenants at once, using distinct authenticated users
 # and provider actors. The fixture delay makes simultaneous advisory-lock
 # ownership observable without relying on elapsed-time thresholds.
