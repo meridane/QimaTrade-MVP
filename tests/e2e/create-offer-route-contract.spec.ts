@@ -331,19 +331,49 @@ test("CREATE_OFFER route rejects JSON primitive values as invalid request bodies
   }
 });
 
-test("CREATE_OFFER route normalizes non-object attributes and preserves optional defaults", async () => {
-  const result = await postCreateOffer("USD", { attributes: ["not", "an object"] });
+test("CREATE_OFFER route normalizes every non-object attributes value before the RPC", async () => {
+  const nonObjectAttributes: Array<{ label: string; value: unknown }> = [
+    { label: "array", value: ["not", "an object"] },
+    { label: "string", value: "plain text" },
+    { label: "number", value: 42 },
+    { label: "boolean", value: true },
+    { label: "JSON null", value: null },
+  ];
+
+  for (const { label, value } of nonObjectAttributes) {
+    const result = await postCreateOffer("USD", { attributes: value });
+
+    expect(result.status, label).toBe(200);
+    const executionCalls = result.requests.filter(
+      (request) => request.path === "/rest/v1/rpc/execute_create_offer_v1",
+    );
+    expect(executionCalls, label).toHaveLength(1);
+    expect(executionCalls[0].body?.p_attributes, label).toEqual({});
+    expect(executionCalls[0].body).toMatchObject({
+      p_pricing_model: "fixed",
+      p_lifecycle: "draft",
+      p_offer_type: "supplier_offer",
+    });
+  }
+});
+
+test("CREATE_OFFER route preserves valid object attributes including nested JSON values", async () => {
+  const attributes = {
+    category: "industrial",
+    rank: 42,
+    nested: {
+      enabled: true,
+      tags: ["a", "b"],
+      nullable: null,
+    },
+  };
+  const result = await postCreateOffer("USD", { attributes });
 
   expect(result.status, JSON.stringify({ body: result.body, requests: result.requests })).toBe(200);
   const executionCall = result.requests.find(
     (request) => request.path === "/rest/v1/rpc/execute_create_offer_v1",
   );
-  expect(executionCall?.body).toMatchObject({
-    p_attributes: {},
-    p_pricing_model: "fixed",
-    p_lifecycle: "draft",
-    p_offer_type: "supplier_offer",
-  });
+  expect(executionCall?.body?.p_attributes).toEqual(attributes);
 });
 
 test("CREATE_OFFER route trims an explicit idempotency key before the RPC", async () => {
