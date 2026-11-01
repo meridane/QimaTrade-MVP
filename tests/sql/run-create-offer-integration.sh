@@ -193,6 +193,303 @@ $qa62$;
 SELECT 'CREATE_OFFER identical same-tenant concurrency assertions passed' AS result;
 SQL
 
+
+# QA103: the first same-tenant request owns the advisory lock, then fails
+# during offer insertion. The identical second request must wake after rollback,
+# acquire the released lock, and complete with the same idempotency key.
+qa103_cleanup() {
+  "${PSQL[@]}" <<'SQL' >/dev/null 2>&1 || true
+DROP TRIGGER IF EXISTS qa103_reject_first_offer_insert ON public.offers;
+DROP FUNCTION IF EXISTS public.qa103_reject_first_offer_insert_fn();
+SQL
+}
+trap qa103_cleanup EXIT
+
+"${PSQL[@]}" <<'SQL'
+CREATE FUNCTION public.qa103_reject_first_offer_insert_fn()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $
+BEGIN
+  IF current_setting('application_name', true) = 'qima-qa103-first' THEN
+    -- Keep the first transaction's advisory lock while the second queues.
+    PERFORM pg_sleep(1);
+    RAISE EXCEPTION USING
+      ERRCODE = '23514',
+      MESSAGE = 'QA103_FORCED_FIRST_ATTEMPT_FAILURE';
+  END IF;
+  RETURN NEW;
+END;
+$;
+
+CREATE TRIGGER qa103_reject_first_offer_insert
+BEFORE INSERT ON public.offers
+FOR EACH ROW
+EXECUTE FUNCTION public.qa103_reject_first_offer_insert_fn();
+SQL
+
+qa103_first_sql=$(cat <<'SQL'
+SET application_name = 'qima-qa103-first';
+SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+SET ROLE authenticated;
+SELECT public.execute_create_offer_v1(
+  '10000000-0000-4000-8000-000000000001',
+  'fixture-qa103-concurrent-failure-recovery',
+  '{"case":"qa103-concurrent-failure-recovery"}'::jsonb,
+  'QA103 Concurrent Recovery Offer',
+  '50000000-0000-4000-8000-000000000001',
+  '40000000-0000-4000-8000-000000000001',
+  '30000000-0000-4000-8000-000000000001',
+  3,
+  23,
+  'USD'
+);
+SQL
+)
+
+qa103_second_sql=$(cat <<'SQL'
+SET application_name = 'qima-qa103-second';
+SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+SET ROLE authenticated;
+SELECT public.execute_create_offer_v1(
+  '10000000-0000-4000-8000-000000000001',
+  'fixture-qa103-concurrent-failure-recovery',
+  '{"case":"qa103-concurrent-failure-recovery"}'::jsonb,
+  'QA103 Concurrent Recovery Offer',
+  '50000000-0000-4000-8000-000000000001',
+  '40000000-0000-4000-8000-000000000001',
+  '30000000-0000-4000-8000-000000000001',
+  3,
+  23,
+  'USD'
+);
+SQL
+)
+
+# Start the first request and prove it owns the advisory lock while sleeping
+# before the trigger rejects its INSERT. Only then start the identical waiter.
+"${PSQL_TUPLE[@]}" -v VERBOSITY=verbose -c "$qa103_first_sql" > /tmp/qima-qa103-first.log 2>&1 &
+qa103_first_pid=$!
+
+qa103_first_lock_snapshot=""
+for attempt in $(seq 1 200); do
+  qa103_first_lock_snapshot=$("${PSQL[@]}" -At -c "
+    SELECT
+      count(DISTINCT a.application_name)::text || '|' ||
+      count(*) FILTER (
+        WHERE l.granted AND a.wait_event = 'PgSleep'
+      )::text
+    FROM pg_stat_activity a
+    JOIN pg_locks l ON l.pid = a.pid
+    WHERE a.application_name = 'qima-qa103-first'
+      AND a.state = 'active'
+      AND l.locktype = 'advisory'
+      AND l.mode = 'ExclusiveLock';
+  " | tr -d '[:space:]')
+  if [[ "$qa103_first_lock_snapshot" == "1|1" ]]; then
+    break
+  fi
+  sleep 0.025
+done
+
+if [[ "$qa103_first_lock_snapshot" != "1|1" ]]; then
+  set +e
+  wait "$qa103_first_pid"
+  qa103_first_status=$?
+  set -e
+  echo "QA103 first request never exposed its granted advisory lock during PgSleep (snapshot='$qa103_first_lock_snapshot', exit=$qa103_first_status)." >&2
+  cat /tmp/qima-qa103-first.log >&2
+  exit 1
+fi
+
+"${PSQL_TUPLE[@]}" -c "$qa103_second_sql" > /tmp/qima-qa103-second.log 2>&1 &
+qa103_second_pid=$!
+
+# Require the first request to hold the lock while the identical second
+# request is demonstrably waiting for that same tenant/key lock.
+qa103_lock_snapshot=""
+for attempt in $(seq 1 200); do
+  qa103_lock_snapshot=$("${PSQL[@]}" -At -c "
+    SELECT
+      count(DISTINCT a.application_name)::text || '|' ||
+      count(*) FILTER (
+        WHERE l.granted AND a.wait_event = 'PgSleep'
+      )::text || '|' ||
+      count(*) FILTER (
+        WHERE NOT l.granted
+          AND a.wait_event_type = 'Lock'
+          AND a.wait_event = 'advisory'
+      )::text || '|' ||
+      count(DISTINCT (
+        l.classid::text || ':' || l.objid::text || ':' || l.objsubid::text
+      ))::text
+    FROM pg_stat_activity a
+    JOIN pg_locks l ON l.pid = a.pid
+    WHERE a.application_name IN ('qima-qa103-first', 'qima-qa103-second')
+      AND a.state = 'active'
+      AND l.locktype = 'advisory'
+      AND l.mode = 'ExclusiveLock';
+  " | tr -d '[:space:]')
+  if [[ "$qa103_lock_snapshot" == "2|1|1|1" ]]; then
+    break
+  fi
+  sleep 0.025
+done
+
+set +e
+wait "$qa103_first_pid"
+qa103_first_status=$?
+wait "$qa103_second_pid"
+qa103_second_status=$?
+set -e
+
+if [[ "$qa103_first_status" -eq 0 || "$qa103_second_status" -ne 0 ]]; then
+  echo "Expected QA103 first request to fail and queued second request to succeed (first=$qa103_first_status, second=$qa103_second_status)." >&2
+  cat /tmp/qima-qa103-first.log /tmp/qima-qa103-second.log >&2
+  exit 1
+fi
+
+if [[ "$qa103_lock_snapshot" != "2|1|1|1" ]]; then
+  echo "Expected QA103 one granted and one waiting advisory lock for one key; observed '$qa103_lock_snapshot'." >&2
+  cat /tmp/qima-qa103-first.log /tmp/qima-qa103-second.log >&2
+  exit 1
+fi
+
+if ! grep -Fq "QA103_FORCED_FIRST_ATTEMPT_FAILURE" /tmp/qima-qa103-first.log ||
+   ! grep -Fq "SQL state: 23514" /tmp/qima-qa103-first.log; then
+  echo "QA103 first request did not fail with the exact synthetic CHECK-style SQLSTATE 23514." >&2
+  cat /tmp/qima-qa103-first.log >&2
+  exit 1
+fi
+
+if [[ ! -s /tmp/qima-qa103-second.log ]]; then
+  echo "QA103 queued second request did not return a JSONB result." >&2
+  cat /tmp/qima-qa103-second.log >&2
+  exit 1
+fi
+
+echo "QA103 observed one granted and one waiting advisory lock; first request rolled back with SQLSTATE 23514 and second request succeeded."
+
+# Remove the CI-only trigger before replay and verify that both temporary
+# database objects are gone. The EXIT trap remains as a failure-safe cleanup.
+"${PSQL[@]}" <<'SQL'
+DROP TRIGGER qa103_reject_first_offer_insert ON public.offers;
+DROP FUNCTION public.qa103_reject_first_offer_insert_fn();
+
+DO $qa103_cleanup$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM pg_trigger
+    WHERE tgrelid = 'public.offers'::regclass
+      AND tgname = 'qa103_reject_first_offer_insert'
+      AND NOT tgisinternal
+  ) THEN
+    RAISE EXCEPTION 'QA103 temporary trigger was not removed';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1
+    FROM pg_proc p
+    JOIN pg_namespace n ON n.oid = p.pronamespace
+    WHERE n.nspname = 'public'
+      AND p.proname = 'qa103_reject_first_offer_insert_fn'
+  ) THEN
+    RAISE EXCEPTION 'QA103 temporary trigger function was not removed';
+  END IF;
+END
+$qa103_cleanup$;
+SQL
+trap - EXIT
+
+qa103_replay_sql=$(cat <<'SQL'
+SET application_name = 'qima-qa103-replay';
+SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+SET ROLE authenticated;
+SELECT public.execute_create_offer_v1(
+  '10000000-0000-4000-8000-000000000001',
+  'fixture-qa103-concurrent-failure-recovery',
+  '{"case":"qa103-concurrent-failure-recovery"}'::jsonb,
+  'QA103 Concurrent Recovery Offer',
+  '50000000-0000-4000-8000-000000000001',
+  '40000000-0000-4000-8000-000000000001',
+  '30000000-0000-4000-8000-000000000001',
+  3,
+  23,
+  'USD'
+);
+SQL
+)
+
+"${PSQL_TUPLE[@]}" -c "$qa103_replay_sql" > /tmp/qima-qa103-replay.log
+if ! cmp -s /tmp/qima-qa103-second.log /tmp/qima-qa103-replay.log; then
+  echo "QA103 replay did not return the exact result produced by the queued second request." >&2
+  diff -u /tmp/qima-qa103-second.log /tmp/qima-qa103-replay.log >&2 || true
+  exit 1
+fi
+
+"${PSQL_TUPLE[@]}" -c "
+  SELECT result::text
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-qa103-concurrent-failure-recovery'
+    AND status = 'COMPLETED';
+" > /tmp/qima-qa103-stored-result.log
+
+if ! cmp -s /tmp/qima-qa103-replay.log /tmp/qima-qa103-stored-result.log; then
+  echo "QA103 replay result does not match the persisted idempotency result." >&2
+  diff -u /tmp/qima-qa103-replay.log /tmp/qima-qa103-stored-result.log >&2 || true
+  exit 1
+fi
+
+"${PSQL[@]}" <<'SQL'
+DO $qa103$
+DECLARE
+  v_count integer;
+BEGIN
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-qa103-concurrent-failure-recovery'
+    AND status = 'COMPLETED';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'Expected exactly one completed QA103 idempotency key, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND idempotency_key = 'fixture-qa103-concurrent-failure-recovery'
+    AND status = 'COMPLETED';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'Expected exactly one completed QA103 execution, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE name = 'QA103 Concurrent Recovery Offer';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'Expected exactly one QA103 offer after recovery, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_events e
+  JOIN public.action_executions x
+    ON x.id = e.execution_id
+   AND x.tenant_id = e.tenant_id
+  WHERE x.tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND x.idempotency_key = 'fixture-qa103-concurrent-failure-recovery'
+    AND e.event_type = 'ACTION_SUCCEEDED'
+    AND e.object_id = x.object_id;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'Expected exactly one QA103 ACTION_SUCCEEDED event, found %', v_count;
+  END IF;
+END
+$qa103$;
+SELECT 'CREATE_OFFER queued same-tenant request recovered after first rollback and replayed without duplicates' AS result;
+SQL
+echo "CREATE_OFFER queued same-tenant failure-recovery assertions passed."
+
 # Race the same key in two tenants at once, using distinct authenticated users
 # and provider actors. The fixture delay makes simultaneous advisory-lock
 # ownership observable without relying on elapsed-time thresholds.
