@@ -1345,3 +1345,381 @@ $qa61$;
 SQL
 
 echo "CREATE_OFFER same-tenant concurrent conflicting-hash assertions passed (winning price: $winner_price)."
+
+
+# QA105: two distinct idempotency keys in the same tenant must hold
+# independent advisory locks and progress concurrently.
+qa105_cleanup() {
+  psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 <<'SQL' >/dev/null 2>&1 || true
+DROP TRIGGER IF EXISTS qa105_delay_distinct_key_offer_insert ON public.offers;
+DROP FUNCTION IF EXISTS public.qa105_delay_distinct_key_offer_insert_fn();
+SQL
+}
+trap qa105_cleanup EXIT
+
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 <<'SQL'
+INSERT INTO public.demands (id, name, demand_status, requester_actor_id)
+VALUES
+  (
+    '50000000-0000-4000-8000-000000000005',
+    'QA105 Distinct Key Demand A',
+    'published',
+    '30000000-0000-4000-8000-000000000001'
+  ),
+  (
+    '50000000-0000-4000-8000-000000000006',
+    'QA105 Distinct Key Demand B',
+    'published',
+    '30000000-0000-4000-8000-000000000001'
+  );
+
+CREATE FUNCTION public.qa105_delay_distinct_key_offer_insert_fn()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $qa105fn$
+BEGIN
+  IF current_setting('application_name', true) IN (
+    'qima-qa105-distinct-key-a',
+    'qima-qa105-distinct-key-b'
+  ) THEN
+    -- Both transactions stay inside the offer insert while their separate
+    -- tenant/key advisory locks are held.
+    PERFORM pg_sleep(1);
+  END IF;
+  RETURN NEW;
+END;
+$qa105fn$;
+
+CREATE TRIGGER qa105_delay_distinct_key_offer_insert
+BEFORE INSERT ON public.offers
+FOR EACH ROW
+EXECUTE FUNCTION public.qa105_delay_distinct_key_offer_insert_fn();
+SQL
+
+qa105_call_a=$(cat <<'SQL'
+SET application_name = 'qima-qa105-distinct-key-a';
+SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+SET ROLE authenticated;
+SELECT public.execute_create_offer_v1(
+  '10000000-0000-4000-8000-000000000001',
+  'fixture-qa105-distinct-key-a',
+  '{"case":"qa105-distinct-key-a"}'::jsonb,
+  'QA105 Distinct Key Offer A',
+  '50000000-0000-4000-8000-000000000005',
+  '40000000-0000-4000-8000-000000000001',
+  '30000000-0000-4000-8000-000000000001',
+  2,
+  31,
+  'USD'
+);
+SQL
+)
+
+qa105_call_b=$(cat <<'SQL'
+SET application_name = 'qima-qa105-distinct-key-b';
+SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+SET ROLE authenticated;
+SELECT public.execute_create_offer_v1(
+  '10000000-0000-4000-8000-000000000001',
+  'fixture-qa105-distinct-key-b',
+  '{"case":"qa105-distinct-key-b"}'::jsonb,
+  'QA105 Distinct Key Offer B',
+  '50000000-0000-4000-8000-000000000006',
+  '40000000-0000-4000-8000-000000000001',
+  '30000000-0000-4000-8000-000000000001',
+  4,
+  32,
+  'USD'
+);
+SQL
+)
+
+# Start A first and wait until it owns its advisory lock while sleeping in
+# the temporary trigger. Then start B; it must acquire a different lock.
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t -c "$qa105_call_a" > /tmp/qima-qa105-a.log 2>&1 &
+qa105_pid_a=$!
+
+qa105_first_snapshot=""
+for attempt in $(seq 1 200); do
+  qa105_first_snapshot=$(psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -At -c "
+    SELECT
+      count(DISTINCT a.application_name)::text || '|' ||
+      count(DISTINCT a.application_name) FILTER (
+        WHERE l.granted AND a.wait_event = 'PgSleep'
+      )::text
+    FROM pg_stat_activity a
+    JOIN pg_locks l ON l.pid = a.pid
+    WHERE a.application_name = 'qima-qa105-distinct-key-a'
+      AND a.state = 'active'
+      AND l.locktype = 'advisory'
+      AND l.mode = 'ExclusiveLock'
+      AND l.granted;
+  " | tr -d '[:space:]')
+  if [[ "$qa105_first_snapshot" == "1|1" ]]; then
+    break
+  fi
+  sleep 0.025
+done
+
+if [[ "$qa105_first_snapshot" != "1|1" ]]; then
+  set +e
+  wait "$qa105_pid_a"
+  qa105_status_a=$?
+  set -e
+  echo "QA105 first request did not expose its granted advisory lock during PgSleep (snapshot='$qa105_first_snapshot', exit=$qa105_status_a)." >&2
+  cat /tmp/qima-qa105-a.log >&2
+  exit 1
+fi
+
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t -c "$qa105_call_b" > /tmp/qima-qa105-b.log 2>&1 &
+qa105_pid_b=$!
+
+# Require both same-tenant sessions to be inside PgSleep concurrently,
+# each holding a granted exclusive advisory lock, with no waiter and two
+# distinct lock keys. A tenant-wide lock would fail this assertion.
+qa105_lock_snapshot=""
+for attempt in $(seq 1 200); do
+  qa105_lock_snapshot=$(psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -At -c "
+    SELECT
+      count(DISTINCT a.application_name)::text || '|' ||
+      count(DISTINCT a.application_name) FILTER (
+        WHERE l.granted AND a.wait_event = 'PgSleep'
+      )::text || '|' ||
+      count(DISTINCT a.application_name) FILTER (
+        WHERE NOT l.granted
+          AND a.wait_event_type = 'Lock'
+          AND a.wait_event = 'advisory'
+      )::text || '|' ||
+      count(DISTINCT (
+        l.classid::text || ':' || l.objid::text || ':' || l.objsubid::text
+      )) FILTER (WHERE l.granted)::text
+    FROM pg_stat_activity a
+    JOIN pg_locks l ON l.pid = a.pid
+    WHERE a.application_name IN (
+      'qima-qa105-distinct-key-a',
+      'qima-qa105-distinct-key-b'
+    )
+      AND a.state = 'active'
+      AND l.locktype = 'advisory'
+      AND l.mode = 'ExclusiveLock';
+  " | tr -d '[:space:]')
+  if [[ "$qa105_lock_snapshot" == "2|2|0|2" ]]; then
+    break
+  fi
+  sleep 0.025
+done
+
+set +e
+wait "$qa105_pid_a"
+qa105_status_a=$?
+wait "$qa105_pid_b"
+qa105_status_b=$?
+set -e
+
+if [[ "$qa105_status_a" -ne 0 || "$qa105_status_b" -ne 0 ]]; then
+  echo "QA105 expected both distinct-key same-tenant requests to succeed (A=$qa105_status_a, B=$qa105_status_b)." >&2
+  cat /tmp/qima-qa105-a.log /tmp/qima-qa105-b.log >&2
+  exit 1
+fi
+
+if [[ "$qa105_lock_snapshot" != "2|2|0|2" ]]; then
+  echo "Expected two same-tenant sessions with two granted distinct advisory locks and zero waiters; observed '$qa105_lock_snapshot'." >&2
+  cat /tmp/qima-qa105-a.log /tmp/qima-qa105-b.log >&2
+  exit 1
+fi
+
+if [[ ! -s /tmp/qima-qa105-a.log || ! -s /tmp/qima-qa105-b.log ]]; then
+  echo "QA105 both distinct-key requests must return a JSONB result." >&2
+  cat /tmp/qima-qa105-a.log /tmp/qima-qa105-b.log >&2
+  exit 1
+fi
+
+if cmp -s /tmp/qima-qa105-a.log /tmp/qima-qa105-b.log; then
+  echo "QA105 distinct idempotency keys unexpectedly returned identical results." >&2
+  exit 1
+fi
+
+echo "QA105 observed two same-tenant sessions holding two distinct granted advisory locks concurrently (2|2|0|2)."
+
+# Remove the temporary trigger before replay checks and verify both temporary
+# database objects are gone.
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 <<'SQL'
+DROP TRIGGER qa105_delay_distinct_key_offer_insert ON public.offers;
+DROP FUNCTION public.qa105_delay_distinct_key_offer_insert_fn();
+
+DO $qa105_cleanup$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_trigger
+    WHERE tgrelid = 'public.offers'::regclass
+      AND tgname = 'qa105_delay_distinct_key_offer_insert'
+      AND NOT tgisinternal
+  ) THEN
+    RAISE EXCEPTION 'QA105 temporary trigger was not removed';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1
+    FROM pg_proc p
+    JOIN pg_namespace n ON n.oid = p.pronamespace
+    WHERE n.nspname = 'public'
+      AND p.proname = 'qa105_delay_distinct_key_offer_insert_fn'
+  ) THEN
+    RAISE EXCEPTION 'QA105 temporary trigger function was not removed';
+  END IF;
+END
+$qa105_cleanup$;
+SQL
+trap - EXIT
+
+# Each request must replay its own persisted result; cross-comparisons ensure
+# neither key can return the other request's offer.
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t -c "$qa105_call_a" > /tmp/qima-qa105-a-replay.log
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t -c "$qa105_call_b" > /tmp/qima-qa105-b-replay.log
+
+if ! cmp -s /tmp/qima-qa105-a.log /tmp/qima-qa105-a-replay.log; then
+  echo "QA105 key A replay did not return its exact original result." >&2
+  diff -u /tmp/qima-qa105-a.log /tmp/qima-qa105-a-replay.log >&2 || true
+  exit 1
+fi
+if ! cmp -s /tmp/qima-qa105-b.log /tmp/qima-qa105-b-replay.log; then
+  echo "QA105 key B replay did not return its exact original result." >&2
+  diff -u /tmp/qima-qa105-b.log /tmp/qima-qa105-b-replay.log >&2 || true
+  exit 1
+fi
+if cmp -s /tmp/qima-qa105-a-replay.log /tmp/qima-qa105-b.log ||
+   cmp -s /tmp/qima-qa105-b-replay.log /tmp/qima-qa105-a.log; then
+  echo "QA105 a replay crossed the two distinct idempotency results." >&2
+  exit 1
+fi
+
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t -c "
+  SELECT result::text
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-qa105-distinct-key-a'
+    AND status = 'COMPLETED';
+" > /tmp/qima-qa105-a-stored-result.log
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t -c "
+  SELECT result::text
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-qa105-distinct-key-b'
+    AND status = 'COMPLETED';
+" > /tmp/qima-qa105-b-stored-result.log
+
+if ! cmp -s /tmp/qima-qa105-a-replay.log /tmp/qima-qa105-a-stored-result.log; then
+  echo "QA105 key A replay did not match its persisted result." >&2
+  exit 1
+fi
+if ! cmp -s /tmp/qima-qa105-b-replay.log /tmp/qima-qa105-b-stored-result.log; then
+  echo "QA105 key B replay did not match its persisted result." >&2
+  exit 1
+fi
+
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 <<'SQL'
+DO $qa105$
+DECLARE
+  v_count integer;
+BEGIN
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key IN (
+      'fixture-qa105-distinct-key-a',
+      'fixture-qa105-distinct-key-b'
+    );
+  IF v_count <> 2 THEN
+    RAISE EXCEPTION 'QA105 expected exactly two idempotency rows, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key IN (
+      'fixture-qa105-distinct-key-a',
+      'fixture-qa105-distinct-key-b'
+    )
+    AND status = 'COMPLETED';
+  IF v_count <> 2 THEN
+    RAISE EXCEPTION 'QA105 expected two completed idempotency rows, found %', v_count;
+  END IF;
+
+  SELECT count(DISTINCT request_hash) INTO v_count
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key IN (
+      'fixture-qa105-distinct-key-a',
+      'fixture-qa105-distinct-key-b'
+    );
+  IF v_count <> 2 THEN
+    RAISE EXCEPTION 'QA105 expected two distinct request hashes, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND idempotency_key IN (
+      'fixture-qa105-distinct-key-a',
+      'fixture-qa105-distinct-key-b'
+    )
+    AND status = 'COMPLETED';
+  IF v_count <> 2 THEN
+    RAISE EXCEPTION 'QA105 expected two completed executions, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE name IN (
+    'QA105 Distinct Key Offer A',
+    'QA105 Distinct Key Offer B'
+  );
+  IF v_count <> 2 THEN
+    RAISE EXCEPTION 'QA105 expected two distinct offers, found %', v_count;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM public.offers
+    WHERE name = 'QA105 Distinct Key Offer A'
+      AND demand_id = '50000000-0000-4000-8000-000000000005'
+      AND provider_actor_id = '30000000-0000-4000-8000-000000000001'
+      AND quantity = 2
+      AND price = 31
+      AND currency = 'USD'
+  ) OR NOT EXISTS (
+    SELECT 1 FROM public.offers
+    WHERE name = 'QA105 Distinct Key Offer B'
+      AND demand_id = '50000000-0000-4000-8000-000000000006'
+      AND provider_actor_id = '30000000-0000-4000-8000-000000000001'
+      AND quantity = 4
+      AND price = 32
+      AND currency = 'USD'
+  ) THEN
+    RAISE EXCEPTION 'QA105 offers do not retain their own request parameters';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_events e
+  JOIN public.action_executions x
+    ON x.id = e.execution_id
+   AND x.tenant_id = e.tenant_id
+  JOIN public.idempotency_keys k
+    ON k.execution_id = x.id
+   AND k.tenant_id = x.tenant_id
+  WHERE x.tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND x.idempotency_key IN (
+      'fixture-qa105-distinct-key-a',
+      'fixture-qa105-distinct-key-b'
+    )
+    AND x.status = 'COMPLETED'
+    AND e.event_type = 'ACTION_SUCCEEDED'
+    AND e.object_id = x.object_id
+    AND e.payload = x.result
+    AND x.result = k.result;
+  IF v_count <> 2 THEN
+    RAISE EXCEPTION 'QA105 expected exactly two correctly paired success events, found %', v_count;
+  END IF;
+END
+$qa105$;
+
+echo "CREATE_OFFER same-tenant distinct-key concurrency, independent replay and no-cross-result assertions passed."
