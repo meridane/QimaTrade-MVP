@@ -11999,3 +11999,164 @@ $qa95_atomicity$;
 COMMIT;
 
 SELECT 'CREATE_OFFER CHECK failure on offers.fixture_force_rollback (SQLSTATE 23514) rolls back idempotency key, execution, offer and event writes' AS result;
+
+
+-- OFFER-QA-96: prove that a failure in the final ACTION_SUCCEEDED event
+-- insert rolls back the already-created offer and completed execution state.
+-- The NOT VALID constraint skips historical rows but rejects this new event.
+BEGIN;
+SET LOCAL request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+
+DO $qa96_constraint_guard$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conrelid = 'public.action_events'::regclass
+      AND conname = 'qa96_force_event_rollback'
+  ) THEN
+    RAISE EXCEPTION 'QA96 temporary event constraint already exists';
+  END IF;
+END
+$qa96_constraint_guard$;
+
+ALTER TABLE public.action_events
+  ADD CONSTRAINT qa96_force_event_rollback
+  CHECK (event_type <> 'ACTION_SUCCEEDED') NOT VALID;
+
+SET LOCAL ROLE authenticated;
+
+DO $qa96_atomicity$
+DECLARE
+  v_tenant_id uuid := '10000000-0000-4000-8000-000000000001';
+  v_key text := 'fixture-qa96-atomic-rollback-action-event';
+  v_before record;
+  v_after record;
+  v_sqlstate text;
+  v_table text;
+  v_constraint text;
+BEGIN
+  IF auth.uid() IS DISTINCT FROM '20000000-0000-4000-8000-000000000001'::uuid THEN
+    RAISE EXCEPTION 'QA96 requires authenticated provider A';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conrelid = 'public.action_events'::regclass
+      AND conname = 'qa96_force_event_rollback'
+      AND contype = 'c'
+      AND NOT convalidated
+      AND position('ACTION_SUCCEEDED' IN pg_get_constraintdef(oid)) > 0
+  ) THEN
+    RAISE EXCEPTION 'QA96 requires the NOT VALID action_events CHECK constraint';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM public.idempotency_keys
+    WHERE tenant_id = v_tenant_id AND key = v_key
+  ) OR EXISTS (
+    SELECT 1 FROM public.action_executions
+    WHERE tenant_id = v_tenant_id AND idempotency_key = v_key
+  ) OR EXISTS (
+    SELECT 1 FROM public.offers
+    WHERE name = 'QA96 Event Rollback Sentinel Offer'
+  ) THEN
+    RAISE EXCEPTION 'QA96 atomic rollback fixture data already exists';
+  END IF;
+
+  SELECT
+    (SELECT count(*) FROM public.idempotency_keys) AS idempotency_count,
+    (SELECT count(*) FROM public.action_executions) AS execution_count,
+    (SELECT count(*) FROM public.offers) AS offer_count,
+    (SELECT count(*) FROM public.action_events) AS event_count
+  INTO v_before;
+
+  BEGIN
+    PERFORM public.execute_create_offer_v1(
+      p_tenant_id => v_tenant_id,
+      p_idempotency_key => v_key,
+      p_input => '{"case":"qa96-atomic-rollback-action-event"}'::jsonb,
+      p_name => 'QA96 Event Rollback Sentinel Offer',
+      p_demand_id => '50000000-0000-4000-8000-000000000001',
+      p_product_master_id => '40000000-0000-4000-8000-000000000001',
+      p_provider_actor_id => '30000000-0000-4000-8000-000000000001',
+      p_quantity => 2,
+      p_price => 12,
+      p_currency => 'USD'
+    );
+
+    RAISE EXCEPTION 'QA96 expected action_events.qa96_force_event_rollback CHECK violation (SQLSTATE 23514)';
+  EXCEPTION
+    WHEN check_violation THEN
+      GET STACKED DIAGNOSTICS
+        v_sqlstate = RETURNED_SQLSTATE,
+        v_table = TABLE_NAME,
+        v_constraint = CONSTRAINT_NAME;
+  END;
+
+  IF v_sqlstate IS DISTINCT FROM '23514'
+     OR v_table IS DISTINCT FROM 'action_events'
+     OR v_constraint IS DISTINCT FROM 'qa96_force_event_rollback' THEN
+    RAISE EXCEPTION 'QA96 expected action_events.qa96_force_event_rollback SQLSTATE 23514, received state %, table %, constraint %',
+      v_sqlstate, v_table, v_constraint;
+  END IF;
+
+  SELECT
+    (SELECT count(*) FROM public.idempotency_keys) AS idempotency_count,
+    (SELECT count(*) FROM public.action_executions) AS execution_count,
+    (SELECT count(*) FROM public.offers) AS offer_count,
+    (SELECT count(*) FROM public.action_events) AS event_count
+  INTO v_after;
+
+  IF ROW(
+    v_before.idempotency_count,
+    v_before.execution_count,
+    v_before.offer_count,
+    v_before.event_count
+  ) IS DISTINCT FROM ROW(
+    v_after.idempotency_count,
+    v_after.execution_count,
+    v_after.offer_count,
+    v_after.event_count
+  ) THEN
+    RAISE EXCEPTION 'QA96 final event failure left partial writes (before: %, %, %, %; after: %, %, %, %)',
+      v_before.idempotency_count, v_before.execution_count, v_before.offer_count, v_before.event_count,
+      v_after.idempotency_count, v_after.execution_count, v_after.offer_count, v_after.event_count;
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM public.idempotency_keys
+    WHERE tenant_id = v_tenant_id AND key = v_key
+  ) OR EXISTS (
+    SELECT 1 FROM public.action_executions
+    WHERE tenant_id = v_tenant_id AND idempotency_key = v_key
+  ) OR EXISTS (
+    SELECT 1 FROM public.offers
+    WHERE name = 'QA96 Event Rollback Sentinel Offer'
+  ) THEN
+    RAISE EXCEPTION 'QA96 final event failure left an idempotency key, execution or offer';
+  END IF;
+END
+$qa96_atomicity$;
+
+RESET ROLE;
+ALTER TABLE public.action_events
+  DROP CONSTRAINT qa96_force_event_rollback;
+
+DO $qa96_constraint_cleanup$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conrelid = 'public.action_events'::regclass
+      AND conname = 'qa96_force_event_rollback'
+  ) THEN
+    RAISE EXCEPTION 'QA96 temporary action_events constraint was not removed';
+  END IF;
+END
+$qa96_constraint_cleanup$;
+
+COMMIT;
+
+SELECT 'CREATE_OFFER final ACTION_SUCCEEDED event failure on action_events (SQLSTATE 23514) rolls back idempotency key, execution, offer and event writes; temporary NOT VALID constraint removed' AS result;
