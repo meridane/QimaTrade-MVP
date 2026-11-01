@@ -12850,3 +12850,374 @@ $qa99_constraint_cleanup$;
 COMMIT;
 
 SELECT 'CREATE_OFFER action_executions COMPLETED update failure (SQLSTATE 23514) rolls back key, execution, offer and event writes' AS result;
+
+
+-- OFFER-QA-100: an execution completion failure must roll back completely, after which
+-- the same idempotency key and identical effective payload can succeed once.
+-- A subsequent identical replay must return the persisted result without
+-- creating another execution, offer or ACTION_SUCCEEDED event.
+BEGIN;
+SET LOCAL request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+
+DO $qa100_constraint_guard$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conrelid = 'public.action_executions'::regclass
+      AND conname = 'qa100_force_execution_completion_rollback'
+  ) THEN
+    RAISE EXCEPTION 'QA100 temporary execution constraint already exists';
+  END IF;
+END
+$qa100_constraint_guard$;
+
+ALTER TABLE public.action_executions
+  ADD CONSTRAINT qa100_force_execution_completion_rollback
+  CHECK (status <> 'COMPLETED') NOT VALID;
+
+SET LOCAL ROLE authenticated;
+
+DO $qa100_failed_attempt$
+DECLARE
+  v_tenant_id uuid := '10000000-0000-4000-8000-000000000001';
+  v_key text := 'fixture-qa100-retry-after-execution-completion-rollback';
+  v_name text := 'QA100 Retry After Execution Completion Rollback Offer';
+  v_before record;
+  v_after record;
+  v_sqlstate text;
+  v_table text;
+  v_constraint text;
+BEGIN
+  IF auth.uid() IS DISTINCT FROM '20000000-0000-4000-8000-000000000001'::uuid THEN
+    RAISE EXCEPTION 'QA100 requires authenticated provider A';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM public.idempotency_keys
+    WHERE tenant_id = v_tenant_id AND key = v_key
+  ) OR EXISTS (
+    SELECT 1 FROM public.action_executions
+    WHERE tenant_id = v_tenant_id AND idempotency_key = v_key
+  ) OR EXISTS (
+    SELECT 1 FROM public.offers WHERE name = v_name
+  ) THEN
+    RAISE EXCEPTION 'QA100 retry fixture data already exists';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conrelid = 'public.action_executions'::regclass
+      AND conname = 'qa100_force_execution_completion_rollback'
+      AND contype = 'c'
+      AND NOT convalidated
+      AND position('COMPLETED' IN pg_get_constraintdef(oid)) > 0
+  ) THEN
+    RAISE EXCEPTION 'QA100 requires the NOT VALID action_executions CHECK constraint';
+  END IF;
+
+  SELECT
+    (SELECT count(*) FROM public.idempotency_keys) AS idempotency_count,
+    (SELECT count(*) FROM public.action_executions) AS execution_count,
+    (SELECT count(*) FROM public.offers) AS offer_count,
+    (SELECT count(*) FROM public.action_events) AS event_count
+  INTO v_before;
+
+  BEGIN
+    PERFORM public.execute_create_offer_v1(
+      p_tenant_id => v_tenant_id,
+      p_idempotency_key => v_key,
+      p_input => '{"case":"qa100-retry-after-execution-completion-rollback"}'::jsonb,
+      p_name => v_name,
+      p_demand_id => '50000000-0000-4000-8000-000000000001',
+      p_product_master_id => '40000000-0000-4000-8000-000000000001',
+      p_provider_actor_id => '30000000-0000-4000-8000-000000000001',
+      p_quantity => 2,
+      p_price => 12,
+      p_currency => 'USD'
+    );
+
+    RAISE EXCEPTION 'QA100 expected the action_executions COMPLETED CHECK violation (SQLSTATE 23514)';
+  EXCEPTION
+    WHEN check_violation THEN
+      GET STACKED DIAGNOSTICS
+        v_sqlstate = RETURNED_SQLSTATE,
+        v_table = TABLE_NAME,
+        v_constraint = CONSTRAINT_NAME;
+  END;
+
+  IF v_sqlstate IS DISTINCT FROM '23514'
+     OR v_table IS DISTINCT FROM 'action_events'
+     OR v_constraint IS DISTINCT FROM 'qa100_force_execution_completion_rollback' THEN
+    RAISE EXCEPTION 'QA100 expected action_events.qa100_force_execution_completion_rollback SQLSTATE 23514, received state %, table %, constraint %',
+      v_sqlstate, v_table, v_constraint;
+  END IF;
+
+  SELECT
+    (SELECT count(*) FROM public.idempotency_keys) AS idempotency_count,
+    (SELECT count(*) FROM public.action_executions) AS execution_count,
+    (SELECT count(*) FROM public.offers) AS offer_count,
+    (SELECT count(*) FROM public.action_events) AS event_count
+  INTO v_after;
+
+  IF ROW(v_before.idempotency_count, v_before.execution_count, v_before.offer_count, v_before.event_count)
+     IS DISTINCT FROM
+     ROW(v_after.idempotency_count, v_after.execution_count, v_after.offer_count, v_after.event_count) THEN
+    RAISE EXCEPTION 'QA100 failed attempt left partial writes (before: %, %, %, %; after: %, %, %, %)',
+      v_before.idempotency_count, v_before.execution_count, v_before.offer_count, v_before.event_count,
+      v_after.idempotency_count, v_after.execution_count, v_after.offer_count, v_after.event_count;
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM public.idempotency_keys
+    WHERE tenant_id = v_tenant_id AND key = v_key
+  ) OR EXISTS (
+    SELECT 1 FROM public.action_executions
+    WHERE tenant_id = v_tenant_id AND idempotency_key = v_key
+  ) OR EXISTS (
+    SELECT 1 FROM public.offers WHERE name = v_name
+  ) THEN
+    RAISE EXCEPTION 'QA100 failed attempt left an idempotency key, execution or offer';
+  END IF;
+END
+$qa100_failed_attempt$;
+
+RESET ROLE;
+ALTER TABLE public.action_executions
+  DROP CONSTRAINT qa100_force_execution_completion_rollback;
+
+DO $qa100_constraint_cleanup$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conrelid = 'public.action_executions'::regclass
+      AND conname = 'qa100_force_execution_completion_rollback'
+  ) THEN
+    RAISE EXCEPTION 'QA100 temporary action_events constraint was not removed';
+  END IF;
+END
+$qa100_constraint_cleanup$;
+
+SET LOCAL ROLE authenticated;
+
+DO $qa100_retry_and_replay$
+DECLARE
+  v_tenant_id uuid := '10000000-0000-4000-8000-000000000001';
+  v_actor_id uuid := '30000000-0000-4000-8000-000000000001';
+  v_key text := 'fixture-qa100-retry-after-execution-completion-rollback';
+  v_name text := 'QA100 Retry After Execution Completion Rollback Offer';
+  v_first_result jsonb;
+  v_replay_result jsonb;
+  v_execution_id uuid;
+  v_offer_id uuid;
+  v_before record;
+  v_after_success record;
+  v_after_replay record;
+  v_count integer;
+BEGIN
+  IF auth.uid() IS DISTINCT FROM '20000000-0000-4000-8000-000000000001'::uuid THEN
+    RAISE EXCEPTION 'QA100 retry requires authenticated provider A';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conrelid = 'public.action_executions'::regclass
+      AND conname = 'qa100_force_execution_completion_rollback'
+  ) THEN
+    RAISE EXCEPTION 'QA100 retry must run after the temporary execution constraint is removed';
+  END IF;
+
+  SELECT
+    (SELECT count(*) FROM public.idempotency_keys) AS idempotency_count,
+    (SELECT count(*) FROM public.action_executions) AS execution_count,
+    (SELECT count(*) FROM public.offers) AS offer_count,
+    (SELECT count(*) FROM public.action_events) AS event_count
+  INTO v_before;
+
+  v_first_result := public.execute_create_offer_v1(
+    p_tenant_id => v_tenant_id,
+    p_idempotency_key => v_key,
+    p_input => '{"case":"qa100-retry-after-execution-completion-rollback"}'::jsonb,
+    p_name => v_name,
+    p_demand_id => '50000000-0000-4000-8000-000000000001',
+    p_product_master_id => '40000000-0000-4000-8000-000000000001',
+    p_provider_actor_id => v_actor_id,
+    p_quantity => 2,
+    p_price => 12,
+    p_currency => 'USD'
+  );
+
+  IF v_first_result IS NULL
+     OR v_first_result->>'status' IS DISTINCT FROM 'succeeded'
+     OR v_first_result->>'objectType' IS DISTINCT FROM 'Offer'
+     OR nullif(v_first_result->>'executionId', '') IS NULL
+     OR nullif(v_first_result->>'objectId', '') IS NULL THEN
+    RAISE EXCEPTION 'QA100 retry after rollback did not return a complete succeeded result: %',
+      coalesce(v_first_result::text, '<SQL NULL>');
+  END IF;
+
+  v_execution_id := (v_first_result->>'executionId')::uuid;
+  v_offer_id := (v_first_result->>'objectId')::uuid;
+
+  SELECT
+    (SELECT count(*) FROM public.idempotency_keys) AS idempotency_count,
+    (SELECT count(*) FROM public.action_executions) AS execution_count,
+    (SELECT count(*) FROM public.offers) AS offer_count,
+    (SELECT count(*) FROM public.action_events) AS event_count
+  INTO v_after_success;
+
+  IF ROW(
+    v_after_success.idempotency_count,
+    v_after_success.execution_count,
+    v_after_success.offer_count,
+    v_after_success.event_count
+  ) IS DISTINCT FROM ROW(
+    v_before.idempotency_count + 1,
+    v_before.execution_count + 1,
+    v_before.offer_count + 1,
+    v_before.event_count + 1
+  ) THEN
+    RAISE EXCEPTION 'QA100 successful retry must add exactly one key, execution, offer and event';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE tenant_id = v_tenant_id
+    AND key = v_key
+    AND status = 'COMPLETED'
+    AND execution_id = v_execution_id
+    AND result = v_first_result
+    AND completed_at IS NOT NULL;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA100 expected exactly one COMPLETED idempotency key with the returned result, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE tenant_id = v_tenant_id
+    AND id = v_execution_id
+    AND idempotency_key = v_key
+    AND actor_id = v_actor_id
+    AND status = 'COMPLETED'
+    AND object_type = 'Offer'
+    AND object_id = v_offer_id
+    AND result = v_first_result
+    AND completed_at IS NOT NULL;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA100 expected exactly one COMPLETED action execution matching the returned result, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE id = v_offer_id
+    AND name = v_name
+    AND demand_id = '50000000-0000-4000-8000-000000000001'
+    AND product_master_id = '40000000-0000-4000-8000-000000000001'
+    AND provider_actor_id = v_actor_id
+    AND quantity = 2
+    AND price = 12
+    AND currency = 'USD'
+    AND attributes = '{}'::jsonb;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA100 expected exactly one offer matching the successful retry result, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_events
+  WHERE execution_id = v_execution_id
+    AND tenant_id = v_tenant_id
+    AND event_type = 'ACTION_SUCCEEDED'
+    AND actor_id = v_actor_id
+    AND object_type = 'Offer'
+    AND object_id = v_offer_id
+    AND payload = v_first_result;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA100 expected exactly one ACTION_SUCCEEDED event matching the successful retry result, found %', v_count;
+  END IF;
+
+  v_replay_result := public.execute_create_offer_v1(
+    p_tenant_id => v_tenant_id,
+    p_idempotency_key => v_key,
+    p_input => '{"case":"qa100-retry-after-execution-completion-rollback"}'::jsonb,
+    p_name => v_name,
+    p_demand_id => '50000000-0000-4000-8000-000000000001',
+    p_product_master_id => '40000000-0000-4000-8000-000000000001',
+    p_provider_actor_id => v_actor_id,
+    p_quantity => 2,
+    p_price => 12,
+    p_currency => 'USD'
+  );
+
+  IF v_replay_result IS DISTINCT FROM v_first_result THEN
+    RAISE EXCEPTION 'QA100 identical replay must return the exact persisted result; first %, replay %',
+      v_first_result, v_replay_result;
+  END IF;
+
+  SELECT
+    (SELECT count(*) FROM public.idempotency_keys) AS idempotency_count,
+    (SELECT count(*) FROM public.action_executions) AS execution_count,
+    (SELECT count(*) FROM public.offers) AS offer_count,
+    (SELECT count(*) FROM public.action_events) AS event_count
+  INTO v_after_replay;
+
+  IF ROW(
+    v_after_replay.idempotency_count,
+    v_after_replay.execution_count,
+    v_after_replay.offer_count,
+    v_after_replay.event_count
+  ) IS DISTINCT FROM ROW(
+    v_after_success.idempotency_count,
+    v_after_success.execution_count,
+    v_after_success.offer_count,
+    v_after_success.event_count
+  ) THEN
+    RAISE EXCEPTION 'QA100 identical replay created or removed rows';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE tenant_id = v_tenant_id
+    AND key = v_key
+    AND status = 'COMPLETED'
+    AND execution_id = v_execution_id
+    AND result = v_first_result;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA100 idempotency key was not unique after replay';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE tenant_id = v_tenant_id
+    AND idempotency_key = v_key
+    AND id = v_execution_id
+    AND status = 'COMPLETED';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA100 action execution was not unique after replay';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE id = v_offer_id AND name = v_name;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA100 offer was not unique after replay';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_events
+  WHERE execution_id = v_execution_id
+    AND event_type = 'ACTION_SUCCEEDED'
+    AND payload = v_first_result;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA100 ACTION_SUCCEEDED event was not unique after replay';
+  END IF;
+END
+$qa100_retry_and_replay$;
+
+COMMIT;
+
+SELECT 'CREATE_OFFER execution completion failure rolls back fully; same key and identical payload then succeed once; identical replay returns the persisted result without duplicates' AS result;
+
+
