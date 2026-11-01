@@ -14,15 +14,17 @@ PSQL_TUPLE=(psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t)
 "${PSQL[@]}" -f "$ROOT/supabase/migrations/20261027100000_restrict_direct_create_offer_rpc.sql"
 "${PSQL[@]}" -f "$ROOT/tests/sql/create-offer-runtime.sql"
 
-# Race two first-time requests with the same tenant/key. The function's advisory
-# transaction lock should make the second request replay the first result.
-call_sql="
+# Race two first-time requests with the same tenant/key. Distinct application names
+# let the observer prove that one session owns the advisory lock while the other
+# is waiting for that exact lock during the fixture delay.
+call_sql_a=$(cat <<'SQL'
+SET application_name = 'qima-same-tenant-a';
 SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
 SET ROLE authenticated;
 SELECT public.execute_create_offer_v1(
   '10000000-0000-4000-8000-000000000001',
   'fixture-concurrent-first-insert',
-  '{\"case\":\"concurrent\"}'::jsonb,
+  '{"case":"concurrent"}'::jsonb,
   'Concurrent Fixture Offer',
   '50000000-0000-4000-8000-000000000001',
   '40000000-0000-4000-8000-000000000001',
@@ -31,14 +33,84 @@ SELECT public.execute_create_offer_v1(
   21,
   'USD'
 );
-"
-"${PSQL_TUPLE[@]}" -c "$call_sql" > /tmp/qima-concurrent-1.log &
-pid1=$!
-"${PSQL_TUPLE[@]}" -c "$call_sql" > /tmp/qima-concurrent-2.log &
-pid2=$!
-wait "$pid1"
-wait "$pid2"
+SQL
+)
 
+call_sql_b=$(cat <<'SQL'
+SET application_name = 'qima-same-tenant-b';
+SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+SET ROLE authenticated;
+SELECT public.execute_create_offer_v1(
+  '10000000-0000-4000-8000-000000000001',
+  'fixture-concurrent-first-insert',
+  '{"case":"concurrent"}'::jsonb,
+  'Concurrent Fixture Offer',
+  '50000000-0000-4000-8000-000000000001',
+  '40000000-0000-4000-8000-000000000001',
+  '30000000-0000-4000-8000-000000000001',
+  3,
+  21,
+  'USD'
+);
+SQL
+)
+
+"${PSQL_TUPLE[@]}" -c "$call_sql_a" > /tmp/qima-concurrent-1.log &
+pid1=$!
+"${PSQL_TUPLE[@]}" -c "$call_sql_b" > /tmp/qima-concurrent-2.log &
+pid2=$!
+
+# The first session should be inside the fixture's 0.5 s pg_sleep while
+# holding the tenant/key advisory lock; the second should be waiting for the
+# same lock. Require both sessions and the same lock key in one observation.
+lock_snapshot=""
+for attempt in $(seq 1 200); do
+  lock_snapshot=$("${PSQL[@]}" -At -c "
+    SELECT
+      count(DISTINCT a.application_name)::text || '|' ||
+      count(*) FILTER (
+        WHERE l.granted AND a.wait_event = 'PgSleep'
+      )::text || '|' ||
+      count(*) FILTER (
+        WHERE NOT l.granted
+          AND a.wait_event_type = 'Lock'
+          AND a.wait_event = 'advisory'
+      )::text || '|' ||
+      count(DISTINCT (
+        l.classid::text || ':' || l.objid::text || ':' || l.objsubid::text
+      ))::text
+    FROM pg_stat_activity a
+    JOIN pg_locks l ON l.pid = a.pid
+    WHERE a.application_name IN ('qima-same-tenant-a', 'qima-same-tenant-b')
+      AND a.state = 'active'
+      AND l.locktype = 'advisory'
+      AND l.mode = 'ExclusiveLock';
+  " | tr -d '[:space:]')
+  if [[ "$lock_snapshot" == "2|1|1|1" ]]; then
+    break
+  fi
+  sleep 0.025
+done
+
+set +e
+wait "$pid1"
+status1=$?
+wait "$pid2"
+status2=$?
+set -e
+
+if [[ "$status1" -ne 0 || "$status2" -ne 0 ]]; then
+  echo "Same-tenant concurrent CREATE_OFFER calls failed (A=$status1, B=$status2)." >&2
+  cat /tmp/qima-concurrent-1.log /tmp/qima-concurrent-2.log >&2
+  exit 1
+fi
+
+if [[ "$lock_snapshot" != "2|1|1|1" ]]; then
+  echo "Expected two same-tenant sessions with one granted and one waiting on the same advisory lock; observed '$lock_snapshot'." >&2
+  cat /tmp/qima-concurrent-1.log /tmp/qima-concurrent-2.log >&2
+  exit 1
+fi
+echo "Observed one granted and one waiting same-tenant advisory lock on the same tenant/key."
 if [[ ! -s /tmp/qima-concurrent-1.log || ! -s /tmp/qima-concurrent-2.log ]]; then
   echo "Both identical concurrent CREATE_OFFER calls must return a JSONB result." >&2
   cat /tmp/qima-concurrent-1.log /tmp/qima-concurrent-2.log >&2
