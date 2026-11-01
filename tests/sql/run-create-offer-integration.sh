@@ -209,7 +209,7 @@ trap qa103_cleanup EXIT
 CREATE FUNCTION public.qa103_reject_first_offer_insert_fn()
 RETURNS trigger
 LANGUAGE plpgsql
-AS $
+AS $qa103fn$
 BEGIN
   IF current_setting('application_name', true) = 'qima-qa103-first' THEN
     -- Keep the first transaction's advisory lock while the second queues.
@@ -220,7 +220,7 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$;
+$qa103fn$;
 
 CREATE TRIGGER qa103_reject_first_offer_insert
 BEFORE INSERT ON public.offers
