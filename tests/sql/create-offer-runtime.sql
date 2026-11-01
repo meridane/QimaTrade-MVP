@@ -11876,3 +11876,126 @@ $qa94_atomicity$;
 COMMIT;
 
 SELECT 'CREATE_OFFER constraint failure on offers.name (SQLSTATE 23502) rolls back idempotency key, execution, offer and event writes' AS result;
+
+
+
+-- OFFER-QA-95: prove that a CHECK constraint failure after the runtime has
+-- inserted its execution and idempotency row rolls back every write.
+BEGIN;
+SET LOCAL request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+SET LOCAL ROLE authenticated;
+
+DO $qa95_atomicity$
+DECLARE
+  v_tenant_id uuid := '10000000-0000-4000-8000-000000000001';
+  v_key text := 'fixture-qa95-atomic-rollback-check-name';
+  v_before record;
+  v_after record;
+  v_sqlstate text;
+  v_table text;
+  v_constraint text;
+BEGIN
+  IF auth.uid() IS DISTINCT FROM '20000000-0000-4000-8000-000000000001'::uuid THEN
+    RAISE EXCEPTION 'QA95 requires authenticated provider A';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conrelid = 'public.offers'::regclass
+      AND conname = 'fixture_force_rollback'
+      AND contype = 'c'
+      AND convalidated
+      AND position('Fixture rollback failure' IN pg_get_constraintdef(oid)) > 0
+  ) THEN
+    RAISE EXCEPTION 'QA95 requires the validated fixture_force_rollback CHECK constraint on public.offers';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM public.idempotency_keys
+    WHERE tenant_id = v_tenant_id AND key = v_key
+  ) OR EXISTS (
+    SELECT 1 FROM public.action_executions
+    WHERE tenant_id = v_tenant_id AND idempotency_key = v_key
+  ) THEN
+    RAISE EXCEPTION 'QA95 atomic rollback fixture key already exists';
+  END IF;
+
+  SELECT
+    (SELECT count(*) FROM public.idempotency_keys) AS idempotency_count,
+    (SELECT count(*) FROM public.action_executions) AS execution_count,
+    (SELECT count(*) FROM public.offers) AS offer_count,
+    (SELECT count(*) FROM public.action_events) AS event_count
+  INTO v_before;
+
+  BEGIN
+    PERFORM public.execute_create_offer_v1(
+      p_tenant_id => v_tenant_id,
+      p_idempotency_key => v_key,
+      p_input => '{"case":"qa95-atomic-rollback-check-name"}'::jsonb,
+      p_name => 'Fixture rollback failure',
+      p_demand_id => '50000000-0000-4000-8000-000000000001',
+      p_product_master_id => '40000000-0000-4000-8000-000000000001',
+      p_provider_actor_id => '30000000-0000-4000-8000-000000000001',
+      p_quantity => 2,
+      p_price => 12,
+      p_currency => 'USD'
+    );
+
+    RAISE EXCEPTION 'QA95 expected offers.fixture_force_rollback CHECK violation (SQLSTATE 23514)';
+  EXCEPTION
+    WHEN check_violation THEN
+      GET STACKED DIAGNOSTICS
+        v_sqlstate = RETURNED_SQLSTATE,
+        v_table = TABLE_NAME,
+        v_constraint = CONSTRAINT_NAME;
+  END;
+
+  IF v_sqlstate IS DISTINCT FROM '23514'
+     OR v_table IS DISTINCT FROM 'offers'
+     OR v_constraint IS DISTINCT FROM 'fixture_force_rollback' THEN
+    RAISE EXCEPTION 'QA95 expected offers.fixture_force_rollback SQLSTATE 23514, received state %, table %, constraint %',
+      v_sqlstate, v_table, v_constraint;
+  END IF;
+
+  SELECT
+    (SELECT count(*) FROM public.idempotency_keys) AS idempotency_count,
+    (SELECT count(*) FROM public.action_executions) AS execution_count,
+    (SELECT count(*) FROM public.offers) AS offer_count,
+    (SELECT count(*) FROM public.action_events) AS event_count
+  INTO v_after;
+
+  IF ROW(
+    v_before.idempotency_count,
+    v_before.execution_count,
+    v_before.offer_count,
+    v_before.event_count
+  ) IS DISTINCT FROM ROW(
+    v_after.idempotency_count,
+    v_after.execution_count,
+    v_after.offer_count,
+    v_after.event_count
+  ) THEN
+    RAISE EXCEPTION 'QA95 failed call left partial writes (before: %, %, %, %; after: %, %, %, %)',
+      v_before.idempotency_count, v_before.execution_count, v_before.offer_count, v_before.event_count,
+      v_after.idempotency_count, v_after.execution_count, v_after.offer_count, v_after.event_count;
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM public.idempotency_keys
+    WHERE tenant_id = v_tenant_id AND key = v_key
+  ) OR EXISTS (
+    SELECT 1 FROM public.action_executions
+    WHERE tenant_id = v_tenant_id AND idempotency_key = v_key
+  ) OR EXISTS (
+    SELECT 1 FROM public.offers
+    WHERE name = 'Fixture rollback failure'
+  ) THEN
+    RAISE EXCEPTION 'QA95 failed call left an idempotency key, action execution or offer';
+  END IF;
+END
+$qa95_atomicity$;
+
+COMMIT;
+
+SELECT 'CREATE_OFFER CHECK failure on offers.fixture_force_rollback (SQLSTATE 23514) rolls back idempotency key, execution, offer and event writes' AS result;
