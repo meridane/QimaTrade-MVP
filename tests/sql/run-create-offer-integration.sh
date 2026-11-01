@@ -5251,3 +5251,310 @@ $qa114$;
 SQL
 
 echo "CREATE_OFFER QA114 confirms SQL NULL is coalesced to {}, while JSONB scalar null remains distinct in the hash and offers.attributes; both ownership directions reject changed same-key retries and preserve one original result without duplicates."
+
+
+
+# QA115: characterize top-level JSONB shapes for p_input at the authenticated RPC.
+# SQL NULL is rejected by the existing guard. JSONB scalar null, arrays and
+# objects are non-SQL-NULL values; record whether each is accepted, hashed,
+# stored in action_executions.input, and replayed without duplicate records.
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 <<'SQL'
+INSERT INTO public.demands (id, name, demand_status, requester_actor_id)
+VALUES
+  ('50000000-0000-4000-8000-000000000024','QA115 SQL NULL Input Rejected Demand','published','30000000-0000-4000-8000-000000000001'),
+  ('50000000-0000-4000-8000-000000000025','QA115 JSONB Scalar Null Input Demand','published','30000000-0000-4000-8000-000000000001'),
+  ('50000000-0000-4000-8000-000000000026','QA115 JSONB Array Input Demand','published','30000000-0000-4000-8000-000000000001'),
+  ('50000000-0000-4000-8000-000000000027','QA115 JSONB Object Input Demand','published','30000000-0000-4000-8000-000000000001');
+SQL
+
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 <<'SQL'
+SET application_name = 'qima-qa115-input-jsonb-shapes';
+SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+SET ROLE authenticated;
+
+DO $qa115$
+DECLARE
+  v_case record;
+  v_hash jsonb;
+  v_first_result jsonb;
+  v_replay_result jsonb;
+  v_sql_null_result jsonb;
+  v_sql_null_error text;
+  v_actor_id uuid;
+  v_request_hash text;
+  v_execution_id uuid;
+  v_result jsonb;
+  v_stored_input jsonb;
+  v_stored_attributes jsonb;
+  v_offer_id uuid;
+  v_count integer;
+BEGIN
+  -- SQL NULL is rejected before an idempotency or execution row is created.
+  v_sql_null_result := NULL;
+  v_sql_null_error := NULL;
+  BEGIN
+    v_sql_null_result := public.execute_create_offer_v1(
+      '10000000-0000-4000-8000-000000000001',
+      'fixture-qa115-sql-null-input',
+      NULL::jsonb,
+      'QA115 SQL NULL Input Rejected Offer',
+      '50000000-0000-4000-8000-000000000024',
+      '40000000-0000-4000-8000-000000000001',
+      '30000000-0000-4000-8000-000000000001',
+      18::numeric,
+      58::numeric,
+      'USD',
+      NULL,
+      NULL,
+      NULL,
+      NULL::jsonb
+    );
+  EXCEPTION WHEN OTHERS THEN
+    v_sql_null_error := SQLERRM;
+  END;
+
+  IF v_sql_null_error IS NULL
+     OR position('ACTION_INPUT_REQUIRED' IN v_sql_null_error) = 0 THEN
+    RAISE EXCEPTION 'QA115 SQL NULL p_input was not rejected with ACTION_INPUT_REQUIRED; error=% result=%', v_sql_null_error, v_sql_null_result;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-qa115-sql-null-input';
+  IF v_count <> 0 THEN
+    RAISE EXCEPTION 'QA115 SQL NULL p_input unexpectedly created % idempotency rows', v_count;
+  END IF;
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND idempotency_key = 'fixture-qa115-sql-null-input';
+  IF v_count <> 0 THEN
+    RAISE EXCEPTION 'QA115 SQL NULL p_input unexpectedly created % executions', v_count;
+  END IF;
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE name = 'QA115 SQL NULL Input Rejected Offer';
+  IF v_count <> 0 THEN
+    RAISE EXCEPTION 'QA115 SQL NULL p_input unexpectedly created an offer';
+  END IF;
+
+  RAISE NOTICE 'QA115 SQL NULL input: ACTION_INPUT_REQUIRED; no idempotency, execution or offer rows';
+
+  -- The RPC guard checks SQL NULL, not the JSONB top-level type. Exercise
+  -- scalar JSON null, an array and an object independently with exact replays.
+  FOR v_case IN
+    SELECT *
+    FROM (VALUES
+      (
+        'scalar-null'::text,
+        'QA115 JSONB Scalar Null Input Offer'::text,
+        '50000000-0000-4000-8000-000000000025'::uuid,
+        'null'::jsonb,
+        'null'::text,
+        18::numeric,
+        58::numeric,
+        'fixture-qa115-input-scalar-null'::text
+      ),
+      (
+        'array'::text,
+        'QA115 JSONB Array Input Offer'::text,
+        '50000000-0000-4000-8000-000000000026'::uuid,
+        '["qa115","array",1]'::jsonb,
+        'array'::text,
+        19::numeric,
+        59::numeric,
+        'fixture-qa115-input-array'::text
+      ),
+      (
+        'object'::text,
+        'QA115 JSONB Object Input Offer'::text,
+        '50000000-0000-4000-8000-000000000027'::uuid,
+        '{"context":{"case":"qa115-object"},"source":"rpc-shape"}'::jsonb,
+        'object'::text,
+        20::numeric,
+        60::numeric,
+        'fixture-qa115-input-object'::text
+      )
+    ) AS cases(case_name, offer_name, demand_id, input_value, expected_type, quantity, price, idempotency_key)
+  LOOP
+    v_hash := jsonb_build_object(
+      'input', v_case.input_value,
+      'name', v_case.offer_name,
+      'demandId', v_case.demand_id,
+      'productMasterId', '40000000-0000-4000-8000-000000000001'::uuid,
+      'providerActorId', '30000000-0000-4000-8000-000000000001'::uuid,
+      'quantity', v_case.quantity,
+      'price', v_case.price,
+      'currency', 'USD',
+      'conditions', NULL::text,
+      'market', NULL::text,
+      'geography', NULL::text,
+      'attributes', coalesce(NULL::jsonb, '{}'::jsonb),
+      'documentationStatus', NULL::text,
+      'lifecycle', NULL::text,
+      'offerType', NULL::text,
+      'pricingModel', NULL::text
+    );
+
+    v_first_result := public.execute_create_offer_v1(
+      '10000000-0000-4000-8000-000000000001',
+      v_case.idempotency_key,
+      v_case.input_value,
+      v_case.offer_name,
+      v_case.demand_id,
+      '40000000-0000-4000-8000-000000000001',
+      '30000000-0000-4000-8000-000000000001',
+      v_case.quantity,
+      v_case.price,
+      'USD',
+      NULL,
+      NULL,
+      NULL,
+      NULL::jsonb
+    );
+    IF v_first_result ->> 'status' IS DISTINCT FROM 'succeeded' THEN
+      RAISE EXCEPTION 'QA115 % first request was not accepted: %', v_case.case_name, v_first_result;
+    END IF;
+
+    v_replay_result := public.execute_create_offer_v1(
+      '10000000-0000-4000-8000-000000000001',
+      v_case.idempotency_key,
+      v_case.input_value,
+      v_case.offer_name,
+      v_case.demand_id,
+      '40000000-0000-4000-8000-000000000001',
+      '30000000-0000-4000-8000-000000000001',
+      v_case.quantity,
+      v_case.price,
+      'USD',
+      NULL,
+      NULL,
+      NULL,
+      NULL::jsonb
+    );
+    IF v_replay_result IS DISTINCT FROM v_first_result THEN
+      RAISE EXCEPTION 'QA115 % exact replay did not return the first result', v_case.case_name;
+    END IF;
+
+    SELECT actor_id, request_hash, execution_id, result
+    INTO v_actor_id, v_request_hash, v_execution_id, v_result
+    FROM public.idempotency_keys
+    WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+      AND key = v_case.idempotency_key
+      AND status = 'COMPLETED';
+    IF v_actor_id IS DISTINCT FROM '30000000-0000-4000-8000-000000000001'::uuid
+       OR v_request_hash IS DISTINCT FROM md5(v_hash::text)
+       OR v_result IS DISTINCT FROM v_first_result
+       OR v_execution_id IS NULL THEN
+      RAISE EXCEPTION 'QA115 % owner/hash/result was not preserved', v_case.case_name;
+    END IF;
+
+    SELECT input INTO v_stored_input
+    FROM public.action_executions
+    WHERE id = v_execution_id
+      AND tenant_id = '10000000-0000-4000-8000-000000000001'
+      AND actor_id = '30000000-0000-4000-8000-000000000001'
+      AND idempotency_key = v_case.idempotency_key
+      AND status = 'COMPLETED'
+      AND result = v_first_result;
+    IF v_stored_input IS NULL
+       OR v_stored_input IS DISTINCT FROM v_case.input_value
+       OR jsonb_typeof(v_stored_input) IS DISTINCT FROM v_case.expected_type
+       OR v_stored_input::text IS DISTINCT FROM v_case.input_value::text THEN
+      RAISE EXCEPTION 'QA115 % input shape was not persisted exactly; expected type %, stored %, expected %, stored text %',
+        v_case.case_name, v_case.expected_type, jsonb_typeof(v_stored_input), v_case.input_value::text, v_stored_input::text;
+    END IF;
+
+    v_offer_id := (v_first_result ->> 'objectId')::uuid;
+    SELECT attributes INTO v_stored_attributes
+    FROM public.offers
+    WHERE id = v_offer_id
+      AND name = v_case.offer_name
+      AND demand_id = v_case.demand_id
+      AND provider_actor_id = '30000000-0000-4000-8000-000000000001'
+      AND quantity = v_case.quantity
+      AND price = v_case.price
+      AND currency = 'USD';
+    IF v_stored_attributes IS DISTINCT FROM '{}'::jsonb THEN
+      RAISE EXCEPTION 'QA115 % offer did not persist the expected empty attributes', v_case.case_name;
+    END IF;
+
+    SELECT count(*) INTO v_count
+    FROM public.action_events e
+    JOIN public.action_executions x
+      ON x.id = e.execution_id
+     AND x.tenant_id = e.tenant_id
+    WHERE x.tenant_id = '10000000-0000-4000-8000-000000000001'
+      AND x.idempotency_key = v_case.idempotency_key
+      AND e.event_type = 'ACTION_SUCCEEDED'
+      AND e.actor_id = '30000000-0000-4000-8000-000000000001'
+      AND e.object_id = v_offer_id
+      AND e.payload = v_first_result;
+    IF v_count <> 1 THEN
+      RAISE EXCEPTION 'QA115 % expected exactly one success event, found %', v_case.case_name, v_count;
+    END IF;
+
+    RAISE NOTICE 'QA115 % accepted and persisted as JSONB type %, exact replay preserved', v_case.case_name, v_case.expected_type;
+  END LOOP;
+
+  -- SQL NULL creates no record; the three non-SQL-NULL shapes each create
+  -- exactly one key, execution, offer and success event.
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key IN (
+      'fixture-qa115-input-scalar-null',
+      'fixture-qa115-input-array',
+      'fixture-qa115-input-object'
+    );
+  IF v_count <> 3 THEN
+    RAISE EXCEPTION 'QA115 expected exactly three idempotency rows, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND idempotency_key IN (
+      'fixture-qa115-input-scalar-null',
+      'fixture-qa115-input-array',
+      'fixture-qa115-input-object'
+    )
+    AND status = 'COMPLETED';
+  IF v_count <> 3 THEN
+    RAISE EXCEPTION 'QA115 expected exactly three completed executions, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE name IN (
+    'QA115 JSONB Scalar Null Input Offer',
+    'QA115 JSONB Array Input Offer',
+    'QA115 JSONB Object Input Offer'
+  );
+  IF v_count <> 3 THEN
+    RAISE EXCEPTION 'QA115 expected exactly three offers, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_events e
+  JOIN public.action_executions x
+    ON x.id = e.execution_id
+   AND x.tenant_id = e.tenant_id
+  WHERE x.tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND x.idempotency_key IN (
+      'fixture-qa115-input-scalar-null',
+      'fixture-qa115-input-array',
+      'fixture-qa115-input-object'
+    )
+    AND e.event_type = 'ACTION_SUCCEEDED';
+  IF v_count <> 3 THEN
+    RAISE EXCEPTION 'QA115 expected exactly three success events, found %', v_count;
+  END IF;
+
+  RAISE NOTICE 'QA115 RPC: SQL NULL p_input is rejected; JSONB scalar null, array and object are accepted, hashed, persisted and exactly replayed without duplicates';
+END
+$qa115$;
+SQL
+
+echo "CREATE_OFFER QA115 confirms SQL NULL p_input is rejected before persistence, while JSONB scalar null, array and object are accepted by the authenticated RPC and retain their exact stored shapes and replay results without duplicates."
