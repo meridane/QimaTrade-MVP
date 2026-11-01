@@ -3667,3 +3667,492 @@ $qa110$;
 SQL
 
 echo "CREATE_OFFER distinguishes JSONB properties explicitly set to null from absent properties in p_input and p_attributes, rejects same-key changed payloads, and preserves the first results without duplicates."
+
+
+# QA111: characterize JSONB numeric scale in p_input and p_attributes.
+# Compare 1, 1.0 and 1.00 at the JSONB equality, ::text and request-hash
+# layers, then make the second same-key call follow the hash outcome observed
+# by PostgreSQL. The first result must remain the sole persisted result.
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 <<'SQL'
+INSERT INTO public.demands (id, name, demand_status, requester_actor_id)
+VALUES
+  (
+    '50000000-0000-4000-8000-000000000017',
+    'QA111 Input Numeric Scale Demand',
+    'published',
+    '30000000-0000-4000-8000-000000000001'
+  ),
+  (
+    '50000000-0000-4000-8000-000000000018',
+    'QA111 Attributes Numeric Scale Demand',
+    'published',
+    '30000000-0000-4000-8000-000000000001'
+  );
+SQL
+
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 <<'SQL'
+SET application_name = 'qima-qa111-numeric-scale';
+SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+SET ROLE authenticated;
+
+DO $qa111$
+DECLARE
+  v_input_integer jsonb := '{"context":{"case":"numeric-scale-input"},"measurement":{"value":1}}'::jsonb;
+  v_input_decimal jsonb := '{"context":{"case":"numeric-scale-input"},"measurement":{"value":1.0}}'::jsonb;
+  v_input_scale2 jsonb := '{"context":{"case":"numeric-scale-input"},"measurement":{"value":1.00}}'::jsonb;
+  v_input_attributes jsonb := '{"metadata":{"source":"qa111-input"}}'::jsonb;
+  v_attributes_input jsonb := '{"context":{"case":"numeric-scale-attributes"}}'::jsonb;
+  v_attributes_decimal jsonb := '{"metadata":{"source":"qa111-attributes"},"measurement":{"value":1.0}}'::jsonb;
+  v_attributes_scale2 jsonb := '{"metadata":{"source":"qa111-attributes"},"measurement":{"value":1.00}}'::jsonb;
+  v_input_hash_integer text;
+  v_input_hash_decimal text;
+  v_input_hash_scale2 text;
+  v_attributes_hash_decimal text;
+  v_attributes_hash_scale2 text;
+  v_first_result jsonb;
+  v_retry_result jsonb;
+  v_replay_result jsonb;
+  v_retry_error text;
+  v_actor_id uuid;
+  v_request_hash text;
+  v_execution_id uuid;
+  v_result jsonb;
+  v_offer_id uuid;
+  v_execution_input jsonb;
+  v_offer_attributes jsonb;
+  v_count integer;
+BEGIN
+  v_input_hash_integer := md5(jsonb_build_object(
+    'input', v_input_integer,
+    'name', 'QA111 Input Numeric Scale Offer',
+    'demandId', '50000000-0000-4000-8000-000000000017'::uuid,
+    'productMasterId', '40000000-0000-4000-8000-000000000001'::uuid,
+    'providerActorId', '30000000-0000-4000-8000-000000000001'::uuid,
+    'quantity', 13::numeric,
+    'price', 49::numeric,
+    'currency', 'USD',
+    'conditions', NULL::text,
+    'market', NULL::text,
+    'geography', NULL::text,
+    'attributes', v_input_attributes,
+    'documentationStatus', NULL::text,
+    'lifecycle', NULL::text,
+    'offerType', NULL::text,
+    'pricingModel', NULL::text
+  )::text);
+  v_input_hash_decimal := md5(jsonb_build_object(
+    'input', v_input_decimal,
+    'name', 'QA111 Input Numeric Scale Offer',
+    'demandId', '50000000-0000-4000-8000-000000000017'::uuid,
+    'productMasterId', '40000000-0000-4000-8000-000000000001'::uuid,
+    'providerActorId', '30000000-0000-4000-8000-000000000001'::uuid,
+    'quantity', 13::numeric,
+    'price', 49::numeric,
+    'currency', 'USD',
+    'conditions', NULL::text,
+    'market', NULL::text,
+    'geography', NULL::text,
+    'attributes', v_input_attributes,
+    'documentationStatus', NULL::text,
+    'lifecycle', NULL::text,
+    'offerType', NULL::text,
+    'pricingModel', NULL::text
+  )::text);
+  v_input_hash_scale2 := md5(jsonb_build_object(
+    'input', v_input_scale2,
+    'name', 'QA111 Input Numeric Scale Offer',
+    'demandId', '50000000-0000-4000-8000-000000000017'::uuid,
+    'productMasterId', '40000000-0000-4000-8000-000000000001'::uuid,
+    'providerActorId', '30000000-0000-4000-8000-000000000001'::uuid,
+    'quantity', 13::numeric,
+    'price', 49::numeric,
+    'currency', 'USD',
+    'conditions', NULL::text,
+    'market', NULL::text,
+    'geography', NULL::text,
+    'attributes', v_input_attributes,
+    'documentationStatus', NULL::text,
+    'lifecycle', NULL::text,
+    'offerType', NULL::text,
+    'pricingModel', NULL::text
+  )::text);
+
+  v_attributes_hash_decimal := md5(jsonb_build_object(
+    'input', v_attributes_input,
+    'name', 'QA111 Attributes Numeric Scale Offer',
+    'demandId', '50000000-0000-4000-8000-000000000018'::uuid,
+    'productMasterId', '40000000-0000-4000-8000-000000000001'::uuid,
+    'providerActorId', '30000000-0000-4000-8000-000000000001'::uuid,
+    'quantity', 14::numeric,
+    'price', 50::numeric,
+    'currency', 'USD',
+    'conditions', NULL::text,
+    'market', NULL::text,
+    'geography', NULL::text,
+    'attributes', coalesce(v_attributes_decimal, '{}'::jsonb),
+    'documentationStatus', NULL::text,
+    'lifecycle', NULL::text,
+    'offerType', NULL::text,
+    'pricingModel', NULL::text
+  )::text);
+  v_attributes_hash_scale2 := md5(jsonb_build_object(
+    'input', v_attributes_input,
+    'name', 'QA111 Attributes Numeric Scale Offer',
+    'demandId', '50000000-0000-4000-8000-000000000018'::uuid,
+    'productMasterId', '40000000-0000-4000-8000-000000000001'::uuid,
+    'providerActorId', '30000000-0000-4000-8000-000000000001'::uuid,
+    'quantity', 14::numeric,
+    'price', 50::numeric,
+    'currency', 'USD',
+    'conditions', NULL::text,
+    'market', NULL::text,
+    'geography', NULL::text,
+    'attributes', coalesce(v_attributes_scale2, '{}'::jsonb),
+    'documentationStatus', NULL::text,
+    'lifecycle', NULL::text,
+    'offerType', NULL::text,
+    'pricingModel', NULL::text
+  )::text);
+
+  RAISE NOTICE 'QA111 p_input 1 vs 1.0: jsonb_equal=%, text_equal=%, hash_equal=%; 1 vs 1.00: jsonb_equal=%, text_equal=%, hash_equal=%; representations=[%, %, %]',
+    v_input_integer = v_input_decimal,
+    v_input_integer::text = v_input_decimal::text,
+    v_input_hash_integer = v_input_hash_decimal,
+    v_input_integer = v_input_scale2,
+    v_input_integer::text = v_input_scale2::text,
+    v_input_hash_integer = v_input_hash_scale2,
+    v_input_integer::text,
+    v_input_decimal::text,
+    v_input_scale2::text;
+  RAISE NOTICE 'QA111 p_attributes 1.0 vs 1.00: jsonb_equal=%, text_equal=%, hash_equal=%; representations=[%, %]',
+    v_attributes_decimal = v_attributes_scale2,
+    v_attributes_decimal::text = v_attributes_scale2::text,
+    v_attributes_hash_decimal = v_attributes_hash_scale2,
+    v_attributes_decimal::text,
+    v_attributes_scale2::text;
+
+  v_first_result := public.execute_create_offer_v1(
+    '10000000-0000-4000-8000-000000000001',
+    'fixture-qa111-input-numeric-scale',
+    v_input_integer,
+    'QA111 Input Numeric Scale Offer',
+    '50000000-0000-4000-8000-000000000017',
+    '40000000-0000-4000-8000-000000000001',
+    '30000000-0000-4000-8000-000000000001',
+    13,
+    49,
+    'USD',
+    NULL,
+    NULL,
+    NULL,
+    v_input_attributes
+  );
+  IF v_first_result ->> 'status' IS DISTINCT FROM 'succeeded' THEN
+    RAISE EXCEPTION 'QA111 p_input integer-scale first request did not succeed: %', v_first_result;
+  END IF;
+
+  v_retry_result := NULL;
+  v_retry_error := NULL;
+  BEGIN
+    v_retry_result := public.execute_create_offer_v1(
+      '10000000-0000-4000-8000-000000000001',
+      'fixture-qa111-input-numeric-scale',
+      v_input_decimal,
+      'QA111 Input Numeric Scale Offer',
+      '50000000-0000-4000-8000-000000000017',
+      '40000000-0000-4000-8000-000000000001',
+      '30000000-0000-4000-8000-000000000001',
+      13,
+      49,
+      'USD',
+      NULL,
+      NULL,
+      NULL,
+      v_input_attributes
+    );
+  EXCEPTION WHEN OTHERS THEN
+    v_retry_error := SQLERRM;
+  END;
+
+  IF v_input_hash_integer = v_input_hash_decimal THEN
+    IF v_retry_error IS NOT NULL OR v_retry_result IS DISTINCT FROM v_first_result THEN
+      RAISE EXCEPTION 'QA111 p_input retry did not replay when its calculated request hash was equal; error=% result=%', v_retry_error, v_retry_result;
+    END IF;
+  ELSE
+    IF v_retry_error IS NULL OR position('IDEMPOTENCY_KEY_REUSE' IN v_retry_error) = 0 THEN
+      RAISE EXCEPTION 'QA111 p_input retry did not reject the changed hash; error=% result=%', v_retry_error, v_retry_result;
+    END IF;
+  END IF;
+
+  v_replay_result := public.execute_create_offer_v1(
+    '10000000-0000-4000-8000-000000000001',
+    'fixture-qa111-input-numeric-scale',
+    v_input_integer,
+    'QA111 Input Numeric Scale Offer',
+    '50000000-0000-4000-8000-000000000017',
+    '40000000-0000-4000-8000-000000000001',
+    '30000000-0000-4000-8000-000000000001',
+    13,
+    49,
+    'USD',
+    NULL,
+    NULL,
+    NULL,
+    v_input_attributes
+  );
+  IF v_replay_result IS DISTINCT FROM v_first_result THEN
+    RAISE EXCEPTION 'QA111 p_input original replay did not preserve the first result';
+  END IF;
+
+  SELECT actor_id, request_hash, execution_id, result
+  INTO v_actor_id, v_request_hash, v_execution_id, v_result
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-qa111-input-numeric-scale'
+    AND status = 'COMPLETED';
+  IF v_actor_id IS DISTINCT FROM '30000000-0000-4000-8000-000000000001'::uuid
+     OR v_request_hash IS DISTINCT FROM v_input_hash_integer
+     OR v_result IS DISTINCT FROM v_first_result THEN
+    RAISE EXCEPTION 'QA111 p_input did not preserve the first actor, request hash and result';
+  END IF;
+  v_offer_id := (v_result ->> 'objectId')::uuid;
+
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-qa111-input-numeric-scale';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA111 p_input expected one idempotency row, found %', v_count;
+  END IF;
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND idempotency_key = 'fixture-qa111-input-numeric-scale'
+    AND status = 'COMPLETED';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA111 p_input expected one completed execution, found %', v_count;
+  END IF;
+  SELECT input INTO v_execution_input
+  FROM public.action_executions
+  WHERE id = v_execution_id
+    AND actor_id = '30000000-0000-4000-8000-000000000001'
+    AND result = v_result;
+  IF v_execution_input IS DISTINCT FROM v_input_integer THEN
+    RAISE EXCEPTION 'QA111 p_input did not preserve the first numeric representation in action_executions.input';
+  END IF;
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE name = 'QA111 Input Numeric Scale Offer';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA111 p_input expected exactly one offer, found %', v_count;
+  END IF;
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE id = v_offer_id
+    AND demand_id = '50000000-0000-4000-8000-000000000017'
+    AND provider_actor_id = '30000000-0000-4000-8000-000000000001'
+    AND quantity = 13
+    AND price = 49
+    AND currency = 'USD'
+    AND attributes = v_input_attributes;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA111 p_input offer fields or stable attributes differ from the first request';
+  END IF;
+  SELECT count(*) INTO v_count
+  FROM public.action_events
+  WHERE execution_id = v_execution_id
+    AND tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND event_type = 'ACTION_SUCCEEDED'
+    AND actor_id = '30000000-0000-4000-8000-000000000001'
+    AND object_id = v_offer_id
+    AND payload = v_result;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA111 p_input expected exactly one success event, found %', v_count;
+  END IF;
+
+  v_first_result := public.execute_create_offer_v1(
+    '10000000-0000-4000-8000-000000000001',
+    'fixture-qa111-attributes-numeric-scale',
+    v_attributes_input,
+    'QA111 Attributes Numeric Scale Offer',
+    '50000000-0000-4000-8000-000000000018',
+    '40000000-0000-4000-8000-000000000001',
+    '30000000-0000-4000-8000-000000000001',
+    14,
+    50,
+    'USD',
+    NULL,
+    NULL,
+    NULL,
+    v_attributes_decimal
+  );
+  IF v_first_result ->> 'status' IS DISTINCT FROM 'succeeded' THEN
+    RAISE EXCEPTION 'QA111 p_attributes decimal-scale first request did not succeed: %', v_first_result;
+  END IF;
+
+  v_retry_result := NULL;
+  v_retry_error := NULL;
+  BEGIN
+    v_retry_result := public.execute_create_offer_v1(
+      '10000000-0000-4000-8000-000000000001',
+      'fixture-qa111-attributes-numeric-scale',
+      v_attributes_input,
+      'QA111 Attributes Numeric Scale Offer',
+      '50000000-0000-4000-8000-000000000018',
+      '40000000-0000-4000-8000-000000000001',
+      '30000000-0000-4000-8000-000000000001',
+      14,
+      50,
+      'USD',
+      NULL,
+      NULL,
+      NULL,
+      v_attributes_scale2
+    );
+  EXCEPTION WHEN OTHERS THEN
+    v_retry_error := SQLERRM;
+  END;
+
+  IF v_attributes_hash_decimal = v_attributes_hash_scale2 THEN
+    IF v_retry_error IS NOT NULL OR v_retry_result IS DISTINCT FROM v_first_result THEN
+      RAISE EXCEPTION 'QA111 p_attributes retry did not replay when its calculated request hash was equal; error=% result=%', v_retry_error, v_retry_result;
+    END IF;
+  ELSE
+    IF v_retry_error IS NULL OR position('IDEMPOTENCY_KEY_REUSE' IN v_retry_error) = 0 THEN
+      RAISE EXCEPTION 'QA111 p_attributes retry did not reject the changed hash; error=% result=%', v_retry_error, v_retry_result;
+    END IF;
+  END IF;
+
+  v_replay_result := public.execute_create_offer_v1(
+    '10000000-0000-4000-8000-000000000001',
+    'fixture-qa111-attributes-numeric-scale',
+    v_attributes_input,
+    'QA111 Attributes Numeric Scale Offer',
+    '50000000-0000-4000-8000-000000000018',
+    '40000000-0000-4000-8000-000000000001',
+    '30000000-0000-4000-8000-000000000001',
+    14,
+    50,
+    'USD',
+    NULL,
+    NULL,
+    NULL,
+    v_attributes_decimal
+  );
+  IF v_replay_result IS DISTINCT FROM v_first_result THEN
+    RAISE EXCEPTION 'QA111 p_attributes original replay did not preserve the first result';
+  END IF;
+
+  SELECT actor_id, request_hash, execution_id, result
+  INTO v_actor_id, v_request_hash, v_execution_id, v_result
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-qa111-attributes-numeric-scale'
+    AND status = 'COMPLETED';
+  IF v_actor_id IS DISTINCT FROM '30000000-0000-4000-8000-000000000001'::uuid
+     OR v_request_hash IS DISTINCT FROM v_attributes_hash_decimal
+     OR v_result IS DISTINCT FROM v_first_result THEN
+    RAISE EXCEPTION 'QA111 p_attributes did not preserve the first actor, request hash and result';
+  END IF;
+  v_offer_id := (v_result ->> 'objectId')::uuid;
+
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-qa111-attributes-numeric-scale';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA111 p_attributes expected one idempotency row, found %', v_count;
+  END IF;
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND idempotency_key = 'fixture-qa111-attributes-numeric-scale'
+    AND status = 'COMPLETED';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA111 p_attributes expected one completed execution, found %', v_count;
+  END IF;
+  SELECT input INTO v_execution_input
+  FROM public.action_executions
+  WHERE id = v_execution_id
+    AND actor_id = '30000000-0000-4000-8000-000000000001'
+    AND result = v_result;
+  IF v_execution_input IS DISTINCT FROM v_attributes_input THEN
+    RAISE EXCEPTION 'QA111 p_attributes did not preserve the stable action input';
+  END IF;
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE name = 'QA111 Attributes Numeric Scale Offer';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA111 p_attributes expected exactly one offer, found %', v_count;
+  END IF;
+  SELECT attributes INTO v_offer_attributes
+  FROM public.offers
+  WHERE id = v_offer_id
+    AND demand_id = '50000000-0000-4000-8000-000000000018'
+    AND provider_actor_id = '30000000-0000-4000-8000-000000000001'
+    AND quantity = 14
+    AND price = 50
+    AND currency = 'USD';
+  IF v_offer_attributes IS DISTINCT FROM v_attributes_decimal THEN
+    RAISE EXCEPTION 'QA111 p_attributes did not preserve the first numeric representation in offers.attributes';
+  END IF;
+  SELECT count(*) INTO v_count
+  FROM public.action_events
+  WHERE execution_id = v_execution_id
+    AND tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND event_type = 'ACTION_SUCCEEDED'
+    AND actor_id = '30000000-0000-4000-8000-000000000001'
+    AND object_id = v_offer_id
+    AND payload = v_result;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA111 p_attributes expected exactly one success event, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key IN (
+      'fixture-qa111-input-numeric-scale',
+      'fixture-qa111-attributes-numeric-scale'
+    );
+  IF v_count <> 2 THEN
+    RAISE EXCEPTION 'QA111 expected exactly two idempotency rows across isolated cases, found %', v_count;
+  END IF;
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND idempotency_key IN (
+      'fixture-qa111-input-numeric-scale',
+      'fixture-qa111-attributes-numeric-scale'
+    );
+  IF v_count <> 2 THEN
+    RAISE EXCEPTION 'QA111 expected exactly two executions across isolated cases, found %', v_count;
+  END IF;
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE name IN (
+    'QA111 Input Numeric Scale Offer',
+    'QA111 Attributes Numeric Scale Offer'
+  );
+  IF v_count <> 2 THEN
+    RAISE EXCEPTION 'QA111 expected exactly two offers across isolated cases, found %', v_count;
+  END IF;
+  SELECT count(*) INTO v_count
+  FROM public.action_events e
+  JOIN public.action_executions x
+    ON x.id = e.execution_id
+   AND x.tenant_id = e.tenant_id
+  WHERE x.tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND x.idempotency_key IN (
+      'fixture-qa111-input-numeric-scale',
+      'fixture-qa111-attributes-numeric-scale'
+    )
+    AND e.event_type = 'ACTION_SUCCEEDED';
+  IF v_count <> 2 THEN
+    RAISE EXCEPTION 'QA111 expected exactly two success events across isolated cases, found %', v_count;
+  END IF;
+END
+$qa111$;
+SQL
+
+echo "CREATE_OFFER QA111 records PostgreSQL JSONB numeric-scale equality, text representation and request-hash behavior in p_input and p_attributes; same-key retries follow the calculated hash and preserve the first result without duplicates."
