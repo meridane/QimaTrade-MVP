@@ -1721,5 +1721,6 @@ BEGIN
   END IF;
 END
 $qa105$;
+SQL
 
 echo "CREATE_OFFER same-tenant distinct-key concurrency, independent replay and no-cross-result assertions passed."
