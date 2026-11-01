@@ -356,8 +356,8 @@ if [[ "$qa103_lock_snapshot" != "2|1|1|1" ]]; then
 fi
 
 if ! grep -Fq "QA103_FORCED_FIRST_ATTEMPT_FAILURE" /tmp/qima-qa103-first.log ||
-   ! grep -Fq "SQL state: 23514" /tmp/qima-qa103-first.log; then
-  echo "QA103 first request did not fail with the exact synthetic CHECK-style SQLSTATE 23514." >&2
+   ! grep -Fq "23514: QA103_FORCED_FIRST_ATTEMPT_FAILURE" /tmp/qima-qa103-first.log; then
+  echo "QA103 first request did not fail with the exact synthetic SQLSTATE 23514." >&2
   cat /tmp/qima-qa103-first.log >&2
   exit 1
 fi
