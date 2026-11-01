@@ -2700,3 +2700,480 @@ $qa108$;
 SQL
 
 echo "CREATE_OFFER JSONB object key reordering preserves request hash, persisted input/attributes and exact idempotent replay."
+
+# QA109: JSONB array element order is significant for request idempotency.
+# Two isolated cases cover arrays in p_input and p_attributes. Reversing an
+# array while keeping every other effective parameter unchanged must produce
+# a different request hash and IDEMPOTENCY_KEY_REUSE, preserving the first
+# successful result and offer.
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 <<'SQL'
+INSERT INTO public.demands (id, name, demand_status, requester_actor_id)
+VALUES
+  (
+    '50000000-0000-4000-8000-000000000011',
+    'QA109 Input Array Order Demand',
+    'published',
+    '30000000-0000-4000-8000-000000000001'
+  ),
+  (
+    '50000000-0000-4000-8000-000000000012',
+    'QA109 Attributes Array Order Demand',
+    'published',
+    '30000000-0000-4000-8000-000000000001'
+  );
+SQL
+
+qa109_input_call_a=$(cat <<'SQL'
+SET application_name = 'qima-qa109-input-array-a';
+SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+SET ROLE authenticated;
+SELECT public.execute_create_offer_v1(
+  '10000000-0000-4000-8000-000000000001',
+  'fixture-qa109-input-array-order',
+  '{"context":{"case":"input-array-order"},"steps":["A","B","C"]}'::jsonb,
+  'QA109 Input Array Order Offer',
+  '50000000-0000-4000-8000-000000000011',
+  '40000000-0000-4000-8000-000000000001',
+  '30000000-0000-4000-8000-000000000001',
+  9,
+  45,
+  'USD',
+  NULL,
+  NULL,
+  NULL,
+  '{"labels":["stable","order"],"metadata":{"source":"qa109"}}'::jsonb
+);
+SQL
+)
+
+qa109_input_call_b=$(cat <<'SQL'
+SET application_name = 'qima-qa109-input-array-b';
+SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+SET ROLE authenticated;
+SELECT public.execute_create_offer_v1(
+  '10000000-0000-4000-8000-000000000001',
+  'fixture-qa109-input-array-order',
+  '{"steps":["C","B","A"],"context":{"case":"input-array-order"}}'::jsonb,
+  'QA109 Input Array Order Offer',
+  '50000000-0000-4000-8000-000000000011',
+  '40000000-0000-4000-8000-000000000001',
+  '30000000-0000-4000-8000-000000000001',
+  9,
+  45,
+  'USD',
+  NULL,
+  NULL,
+  NULL,
+  '{"labels":["stable","order"],"metadata":{"source":"qa109"}}'::jsonb
+);
+SQL
+)
+
+qa109_attributes_call_a=$(cat <<'SQL'
+SET application_name = 'qima-qa109-attributes-array-a';
+SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+SET ROLE authenticated;
+SELECT public.execute_create_offer_v1(
+  '10000000-0000-4000-8000-000000000001',
+  'fixture-qa109-attributes-array-order',
+  '{"context":{"case":"attributes-array-order"}}'::jsonb,
+  'QA109 Attributes Array Order Offer',
+  '50000000-0000-4000-8000-000000000012',
+  '40000000-0000-4000-8000-000000000001',
+  '30000000-0000-4000-8000-000000000001',
+  10,
+  46,
+  'USD',
+  NULL,
+  NULL,
+  NULL,
+  '{"labels":["red","green","blue"],"metadata":{"source":"qa109"}}'::jsonb
+);
+SQL
+)
+
+qa109_attributes_call_b=$(cat <<'SQL'
+SET application_name = 'qima-qa109-attributes-array-b';
+SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+SET ROLE authenticated;
+SELECT public.execute_create_offer_v1(
+  '10000000-0000-4000-8000-000000000001',
+  'fixture-qa109-attributes-array-order',
+  '{"context":{"case":"attributes-array-order"}}'::jsonb,
+  'QA109 Attributes Array Order Offer',
+  '50000000-0000-4000-8000-000000000012',
+  '40000000-0000-4000-8000-000000000001',
+  '30000000-0000-4000-8000-000000000001',
+  10,
+  46,
+  'USD',
+  NULL,
+  NULL,
+  NULL,
+  '{"metadata":{"source":"qa109"},"labels":["blue","green","red"]}'::jsonb
+);
+SQL
+)
+
+expect_qa109_idempotency_reuse() {
+  local case_name="$1"
+  local sql="$2"
+  local log_file="$3"
+  local call_status
+
+  set +e
+  psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -q -A -t -c "$sql" > "$log_file" 2>&1
+  call_status=$?
+  set -e
+
+  if [[ "$call_status" -eq 0 ]] || ! grep -Fq "IDEMPOTENCY_KEY_REUSE" "$log_file"; then
+    echo "QA109 $case_name reversed-array request was not rejected with IDEMPOTENCY_KEY_REUSE." >&2
+    cat "$log_file" >&2
+    exit 1
+  fi
+}
+
+# Case 1: reverse only the array in p_input.
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t -c "$qa109_input_call_a" > /tmp/qima-qa109-input-first.log
+if [[ ! -s /tmp/qima-qa109-input-first.log ]]; then
+  echo "QA109 p_input first request returned no result." >&2
+  exit 1
+fi
+expect_qa109_idempotency_reuse "p_input" "$qa109_input_call_b" /tmp/qima-qa109-input-reversed.log
+
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t -c "$qa109_input_call_a" > /tmp/qima-qa109-input-replay.log
+if ! cmp -s /tmp/qima-qa109-input-first.log /tmp/qima-qa109-input-replay.log; then
+  echo "QA109 p_input original replay did not preserve the first result." >&2
+  diff -u /tmp/qima-qa109-input-first.log /tmp/qima-qa109-input-replay.log >&2 || true
+  exit 1
+fi
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t -c "
+  SELECT result::text
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-qa109-input-array-order'
+    AND status = 'COMPLETED';
+" > /tmp/qima-qa109-input-stored.log
+if ! cmp -s /tmp/qima-qa109-input-first.log /tmp/qima-qa109-input-stored.log; then
+  echo "QA109 p_input first response differs from the persisted result." >&2
+  diff -u /tmp/qima-qa109-input-first.log /tmp/qima-qa109-input-stored.log >&2 || true
+  exit 1
+fi
+
+# Case 2: reverse only the array in p_attributes.
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t -c "$qa109_attributes_call_a" > /tmp/qima-qa109-attributes-first.log
+if [[ ! -s /tmp/qima-qa109-attributes-first.log ]]; then
+  echo "QA109 p_attributes first request returned no result." >&2
+  exit 1
+fi
+expect_qa109_idempotency_reuse "p_attributes" "$qa109_attributes_call_b" /tmp/qima-qa109-attributes-reversed.log
+
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t -c "$qa109_attributes_call_a" > /tmp/qima-qa109-attributes-replay.log
+if ! cmp -s /tmp/qima-qa109-attributes-first.log /tmp/qima-qa109-attributes-replay.log; then
+  echo "QA109 p_attributes original replay did not preserve the first result." >&2
+  diff -u /tmp/qima-qa109-attributes-first.log /tmp/qima-qa109-attributes-replay.log >&2 || true
+  exit 1
+fi
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t -c "
+  SELECT result::text
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-qa109-attributes-array-order'
+    AND status = 'COMPLETED';
+" > /tmp/qima-qa109-attributes-stored.log
+if ! cmp -s /tmp/qima-qa109-attributes-first.log /tmp/qima-qa109-attributes-stored.log; then
+  echo "QA109 p_attributes first response differs from the persisted result." >&2
+  diff -u /tmp/qima-qa109-attributes-first.log /tmp/qima-qa109-attributes-stored.log >&2 || true
+  exit 1
+fi
+
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 <<'SQL'
+DO $qa109$
+DECLARE
+  v_input_a jsonb := '{"context":{"case":"input-array-order"},"steps":["A","B","C"]}'::jsonb;
+  v_input_b jsonb := '{"steps":["C","B","A"],"context":{"case":"input-array-order"}}'::jsonb;
+  v_input_attributes jsonb := '{"labels":["stable","order"],"metadata":{"source":"qa109"}}'::jsonb;
+  v_attributes_input jsonb := '{"context":{"case":"attributes-array-order"}}'::jsonb;
+  v_attributes_a jsonb := '{"labels":["red","green","blue"],"metadata":{"source":"qa109"}}'::jsonb;
+  v_attributes_b jsonb := '{"metadata":{"source":"qa109"},"labels":["blue","green","red"]}'::jsonb;
+  v_input_hash_a text;
+  v_input_hash_b text;
+  v_attributes_hash_a text;
+  v_attributes_hash_b text;
+  v_request_hash text;
+  v_actor_id uuid;
+  v_execution_id uuid;
+  v_result jsonb;
+  v_offer_id uuid;
+  v_execution_input jsonb;
+  v_offer_attributes jsonb;
+  v_count integer;
+BEGIN
+  IF v_input_a IS NOT DISTINCT FROM v_input_b THEN
+    RAISE EXCEPTION 'QA109 reversed p_input arrays unexpectedly compare equal as JSONB';
+  END IF;
+  IF v_attributes_a IS NOT DISTINCT FROM v_attributes_b THEN
+    RAISE EXCEPTION 'QA109 reversed p_attributes arrays unexpectedly compare equal as JSONB';
+  END IF;
+
+  v_input_hash_a := md5(jsonb_build_object(
+    'input', v_input_a,
+    'name', 'QA109 Input Array Order Offer',
+    'demandId', '50000000-0000-4000-8000-000000000011'::uuid,
+    'productMasterId', '40000000-0000-4000-8000-000000000001'::uuid,
+    'providerActorId', '30000000-0000-4000-8000-000000000001'::uuid,
+    'quantity', 9::numeric,
+    'price', 45::numeric,
+    'currency', 'USD',
+    'conditions', NULL::text,
+    'market', NULL::text,
+    'geography', NULL::text,
+    'attributes', v_input_attributes,
+    'documentationStatus', NULL::text,
+    'lifecycle', NULL::text,
+    'offerType', NULL::text,
+    'pricingModel', NULL::text
+  )::text);
+  v_input_hash_b := md5(jsonb_build_object(
+    'input', v_input_b,
+    'name', 'QA109 Input Array Order Offer',
+    'demandId', '50000000-0000-4000-8000-000000000011'::uuid,
+    'productMasterId', '40000000-0000-4000-8000-000000000001'::uuid,
+    'providerActorId', '30000000-0000-4000-8000-000000000001'::uuid,
+    'quantity', 9::numeric,
+    'price', 45::numeric,
+    'currency', 'USD',
+    'conditions', NULL::text,
+    'market', NULL::text,
+    'geography', NULL::text,
+    'attributes', v_input_attributes,
+    'documentationStatus', NULL::text,
+    'lifecycle', NULL::text,
+    'offerType', NULL::text,
+    'pricingModel', NULL::text
+  )::text);
+  IF v_input_hash_a = v_input_hash_b THEN
+    RAISE EXCEPTION 'QA109 reversed p_input array order did not change the expected request hash';
+  END IF;
+
+  v_attributes_hash_a := md5(jsonb_build_object(
+    'input', v_attributes_input,
+    'name', 'QA109 Attributes Array Order Offer',
+    'demandId', '50000000-0000-4000-8000-000000000012'::uuid,
+    'productMasterId', '40000000-0000-4000-8000-000000000001'::uuid,
+    'providerActorId', '30000000-0000-4000-8000-000000000001'::uuid,
+    'quantity', 10::numeric,
+    'price', 46::numeric,
+    'currency', 'USD',
+    'conditions', NULL::text,
+    'market', NULL::text,
+    'geography', NULL::text,
+    'attributes', v_attributes_a,
+    'documentationStatus', NULL::text,
+    'lifecycle', NULL::text,
+    'offerType', NULL::text,
+    'pricingModel', NULL::text
+  )::text);
+  v_attributes_hash_b := md5(jsonb_build_object(
+    'input', v_attributes_input,
+    'name', 'QA109 Attributes Array Order Offer',
+    'demandId', '50000000-0000-4000-8000-000000000012'::uuid,
+    'productMasterId', '40000000-0000-4000-8000-000000000001'::uuid,
+    'providerActorId', '30000000-0000-4000-8000-000000000001'::uuid,
+    'quantity', 10::numeric,
+    'price', 46::numeric,
+    'currency', 'USD',
+    'conditions', NULL::text,
+    'market', NULL::text,
+    'geography', NULL::text,
+    'attributes', v_attributes_b,
+    'documentationStatus', NULL::text,
+    'lifecycle', NULL::text,
+    'offerType', NULL::text,
+    'pricingModel', NULL::text
+  )::text);
+  IF v_attributes_hash_a = v_attributes_hash_b THEN
+    RAISE EXCEPTION 'QA109 reversed p_attributes array order did not change the expected request hash';
+  END IF;
+
+  SELECT actor_id, request_hash, execution_id, result
+  INTO v_actor_id, v_request_hash, v_execution_id, v_result
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-qa109-input-array-order'
+    AND status = 'COMPLETED';
+  IF v_actor_id IS DISTINCT FROM '30000000-0000-4000-8000-000000000001'::uuid
+     OR v_request_hash IS DISTINCT FROM v_input_hash_a
+     OR v_result ->> 'status' IS DISTINCT FROM 'succeeded'
+     OR v_result ->> 'objectType' IS DISTINCT FROM 'Offer' THEN
+    RAISE EXCEPTION 'QA109 p_input array case did not preserve the first actor, hash and successful result';
+  END IF;
+  v_offer_id := (v_result ->> 'objectId')::uuid;
+
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-qa109-input-array-order';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA109 p_input array case expected one idempotency row, found %', v_count;
+  END IF;
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND idempotency_key = 'fixture-qa109-input-array-order'
+    AND status = 'COMPLETED';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA109 p_input array case expected one completed execution, found %', v_count;
+  END IF;
+  SELECT input INTO v_execution_input
+  FROM public.action_executions
+  WHERE id = v_execution_id
+    AND actor_id = '30000000-0000-4000-8000-000000000001'
+    AND result = v_result;
+  IF v_execution_input IS DISTINCT FROM v_input_a THEN
+    RAISE EXCEPTION 'QA109 p_input array case did not preserve the first input array order';
+  END IF;
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE name = 'QA109 Input Array Order Offer';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA109 p_input array case expected exactly one offer, found %', v_count;
+  END IF;
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE id = v_offer_id
+    AND demand_id = '50000000-0000-4000-8000-000000000011'
+    AND provider_actor_id = '30000000-0000-4000-8000-000000000001'
+    AND quantity = 9
+    AND price = 45
+    AND currency = 'USD'
+    AND attributes = v_input_attributes;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA109 p_input array case offer fields or attributes differ from the first request';
+  END IF;
+  SELECT count(*) INTO v_count
+  FROM public.action_events
+  WHERE execution_id = v_execution_id
+    AND tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND event_type = 'ACTION_SUCCEEDED'
+    AND actor_id = '30000000-0000-4000-8000-000000000001'
+    AND object_id = v_offer_id
+    AND payload = v_result;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA109 p_input array case expected exactly one success event, found %', v_count;
+  END IF;
+
+  SELECT actor_id, request_hash, execution_id, result
+  INTO v_actor_id, v_request_hash, v_execution_id, v_result
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-qa109-attributes-array-order'
+    AND status = 'COMPLETED';
+  IF v_actor_id IS DISTINCT FROM '30000000-0000-4000-8000-000000000001'::uuid
+     OR v_request_hash IS DISTINCT FROM v_attributes_hash_a
+     OR v_result ->> 'status' IS DISTINCT FROM 'succeeded'
+     OR v_result ->> 'objectType' IS DISTINCT FROM 'Offer' THEN
+    RAISE EXCEPTION 'QA109 p_attributes array case did not preserve the first actor, hash and successful result';
+  END IF;
+  v_offer_id := (v_result ->> 'objectId')::uuid;
+
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-qa109-attributes-array-order';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA109 p_attributes array case expected one idempotency row, found %', v_count;
+  END IF;
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND idempotency_key = 'fixture-qa109-attributes-array-order'
+    AND status = 'COMPLETED';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA109 p_attributes array case expected one completed execution, found %', v_count;
+  END IF;
+  SELECT input INTO v_execution_input
+  FROM public.action_executions
+  WHERE id = v_execution_id
+    AND actor_id = '30000000-0000-4000-8000-000000000001'
+    AND result = v_result;
+  IF v_execution_input IS DISTINCT FROM v_attributes_input THEN
+    RAISE EXCEPTION 'QA109 p_attributes array case did not preserve the first input';
+  END IF;
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE name = 'QA109 Attributes Array Order Offer';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA109 p_attributes array case expected exactly one offer, found %', v_count;
+  END IF;
+  SELECT attributes INTO v_offer_attributes
+  FROM public.offers
+  WHERE id = v_offer_id
+    AND demand_id = '50000000-0000-4000-8000-000000000012'
+    AND provider_actor_id = '30000000-0000-4000-8000-000000000001'
+    AND quantity = 10
+    AND price = 46
+    AND currency = 'USD';
+  IF v_offer_attributes IS DISTINCT FROM v_attributes_a THEN
+    RAISE EXCEPTION 'QA109 p_attributes array case did not preserve the first attributes array order';
+  END IF;
+  SELECT count(*) INTO v_count
+  FROM public.action_events
+  WHERE execution_id = v_execution_id
+    AND tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND event_type = 'ACTION_SUCCEEDED'
+    AND actor_id = '30000000-0000-4000-8000-000000000001'
+    AND object_id = v_offer_id
+    AND payload = v_result;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA109 p_attributes array case expected exactly one success event, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key IN (
+      'fixture-qa109-input-array-order',
+      'fixture-qa109-attributes-array-order'
+    );
+  IF v_count <> 2 THEN
+    RAISE EXCEPTION 'QA109 expected exactly two idempotency rows across isolated array cases, found %', v_count;
+  END IF;
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND idempotency_key IN (
+      'fixture-qa109-input-array-order',
+      'fixture-qa109-attributes-array-order'
+    );
+  IF v_count <> 2 THEN
+    RAISE EXCEPTION 'QA109 expected exactly two executions across isolated array cases, found %', v_count;
+  END IF;
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE name IN (
+    'QA109 Input Array Order Offer',
+    'QA109 Attributes Array Order Offer'
+  );
+  IF v_count <> 2 THEN
+    RAISE EXCEPTION 'QA109 expected exactly two offers across isolated array cases, found %', v_count;
+  END IF;
+  SELECT count(*) INTO v_count
+  FROM public.action_events e
+  JOIN public.action_executions x
+    ON x.id = e.execution_id
+   AND x.tenant_id = e.tenant_id
+  WHERE x.tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND x.idempotency_key IN (
+      'fixture-qa109-input-array-order',
+      'fixture-qa109-attributes-array-order'
+    )
+    AND e.event_type = 'ACTION_SUCCEEDED';
+  IF v_count <> 2 THEN
+    RAISE EXCEPTION 'QA109 expected exactly two success events across isolated array cases, found %', v_count;
+  END IF;
+END
+$qa109$;
+SQL
+
+echo "CREATE_OFFER JSONB array ordering in p_input and p_attributes changes request hashes, rejects same-key reversed arrays, and preserves the original results without duplicates."
