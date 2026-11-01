@@ -4652,3 +4652,236 @@ $qa112$;
 SQL
 
 echo "CREATE_OFFER QA112 characterizes numeric scale in p_quantity and p_price: equal numeric values retain distinct JSONB text/hash representations, changed-scale same-key retries are rejected, and the first result persists without duplicates."
+
+
+# QA113: SQL NULL, explicit empty JSONB, and the p_attributes default.
+# The production migration coalesces p_attributes to '{}' in both the request
+# hash and the create_offer_v1 call. Verify explicit SQL NULL, explicit {},
+# and an omitted p_attributes argument (the declared default) all replay the
+# same completed request without creating duplicate records.
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 <<'SQL'
+INSERT INTO public.demands (id, name, demand_status, requester_actor_id)
+VALUES (
+  '50000000-0000-4000-8000-000000000021',
+  'QA113 Attributes Null Default Demand',
+  'published',
+  '30000000-0000-4000-8000-000000000001'
+);
+SQL
+
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 <<'SQL'
+SET application_name = 'qima-qa113-attributes-null-default';
+SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+SET ROLE authenticated;
+
+DO $qa113$
+DECLARE
+  v_input jsonb := '{"context":{"case":"qa113-attributes-null-default"}}'::jsonb;
+  v_hash_null jsonb;
+  v_hash_empty jsonb;
+  v_first_result jsonb;
+  v_explicit_empty_result jsonb;
+  v_omitted_default_result jsonb;
+  v_actor_id uuid;
+  v_request_hash text;
+  v_execution_id uuid;
+  v_result jsonb;
+  v_offer_id uuid;
+  v_execution_input jsonb;
+  v_offer_attributes jsonb;
+  v_stored_quantity numeric;
+  v_stored_price numeric;
+  v_count integer;
+BEGIN
+  -- Reproduce every effective request-hash field from the migration. Only
+  -- p_attributes differs at the SQL boundary; both sides are normalized by
+  -- coalesce(..., '{}'::jsonb) before the request JSONB is hashed.
+  v_hash_null := jsonb_build_object(
+    'input', v_input,
+    'name', 'QA113 Attributes Null Default Offer',
+    'demandId', '50000000-0000-4000-8000-000000000021'::uuid,
+    'productMasterId', '40000000-0000-4000-8000-000000000001'::uuid,
+    'providerActorId', '30000000-0000-4000-8000-000000000001'::uuid,
+    'quantity', 15::numeric,
+    'price', 55::numeric,
+    'currency', 'USD',
+    'conditions', NULL::text,
+    'market', NULL::text,
+    'geography', NULL::text,
+    'attributes', coalesce(NULL::jsonb, '{}'::jsonb),
+    'documentationStatus', NULL::text,
+    'lifecycle', NULL::text,
+    'offerType', NULL::text,
+    'pricingModel', NULL::text
+  );
+  v_hash_empty := jsonb_build_object(
+    'input', v_input,
+    'name', 'QA113 Attributes Null Default Offer',
+    'demandId', '50000000-0000-4000-8000-000000000021'::uuid,
+    'productMasterId', '40000000-0000-4000-8000-000000000001'::uuid,
+    'providerActorId', '30000000-0000-4000-8000-000000000001'::uuid,
+    'quantity', 15::numeric,
+    'price', 55::numeric,
+    'currency', 'USD',
+    'conditions', NULL::text,
+    'market', NULL::text,
+    'geography', NULL::text,
+    'attributes', coalesce('{}'::jsonb, '{}'::jsonb),
+    'documentationStatus', NULL::text,
+    'lifecycle', NULL::text,
+    'offerType', NULL::text,
+    'pricingModel', NULL::text
+  );
+
+  IF coalesce(NULL::jsonb, '{}'::jsonb) IS DISTINCT FROM '{}'::jsonb THEN
+    RAISE EXCEPTION 'QA113 SQL NULL attributes did not normalize to an empty JSONB object';
+  END IF;
+  IF v_hash_null IS DISTINCT FROM v_hash_empty
+     OR v_hash_null::text IS DISTINCT FROM v_hash_empty::text
+     OR md5(v_hash_null::text) IS DISTINCT FROM md5(v_hash_empty::text) THEN
+    RAISE EXCEPTION 'QA113 SQL NULL and explicit empty attributes produced different request hashes';
+  END IF;
+  RAISE NOTICE 'QA113 hash: sql_null_equal_to_empty=t text_equal=t hash_equal=t';
+
+  -- First request explicitly passes SQL NULL as p_attributes (14th argument).
+  v_first_result := public.execute_create_offer_v1(
+    '10000000-0000-4000-8000-000000000001',
+    'fixture-qa113-attributes-null-default',
+    v_input,
+    'QA113 Attributes Null Default Offer',
+    '50000000-0000-4000-8000-000000000021',
+    '40000000-0000-4000-8000-000000000001',
+    '30000000-0000-4000-8000-000000000001',
+    15::numeric,
+    55::numeric,
+    'USD',
+    NULL,
+    NULL,
+    NULL,
+    NULL::jsonb
+  );
+  IF v_first_result ->> 'status' IS DISTINCT FROM 'succeeded' THEN
+    RAISE EXCEPTION 'QA113 explicit SQL NULL first request did not succeed: %', v_first_result;
+  END IF;
+
+  -- Explicit '{}' must be the same effective request and therefore a replay.
+  v_explicit_empty_result := public.execute_create_offer_v1(
+    '10000000-0000-4000-8000-000000000001',
+    'fixture-qa113-attributes-null-default',
+    v_input,
+    'QA113 Attributes Null Default Offer',
+    '50000000-0000-4000-8000-000000000021',
+    '40000000-0000-4000-8000-000000000001',
+    '30000000-0000-4000-8000-000000000001',
+    15::numeric,
+    55::numeric,
+    'USD',
+    NULL,
+    NULL,
+    NULL,
+    '{}'::jsonb
+  );
+  IF v_explicit_empty_result IS DISTINCT FROM v_first_result THEN
+    RAISE EXCEPTION 'QA113 explicit empty JSONB retry did not replay the SQL NULL first result';
+  END IF;
+
+  -- Omit p_attributes entirely. It is the 14th argument and has a declared
+  -- '{}'::jsonb default; the call supplies only the first 13 arguments.
+  v_omitted_default_result := public.execute_create_offer_v1(
+    '10000000-0000-4000-8000-000000000001',
+    'fixture-qa113-attributes-null-default',
+    v_input,
+    'QA113 Attributes Null Default Offer',
+    '50000000-0000-4000-8000-000000000021',
+    '40000000-0000-4000-8000-000000000001',
+    '30000000-0000-4000-8000-000000000001',
+    15::numeric,
+    55::numeric,
+    'USD',
+    NULL,
+    NULL,
+    NULL
+  );
+  IF v_omitted_default_result IS DISTINCT FROM v_first_result THEN
+    RAISE EXCEPTION 'QA113 omitted p_attributes default did not replay the SQL NULL first result';
+  END IF;
+
+  SELECT actor_id, request_hash, execution_id, result
+  INTO v_actor_id, v_request_hash, v_execution_id, v_result
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-qa113-attributes-null-default'
+    AND status = 'COMPLETED';
+  IF v_actor_id IS DISTINCT FROM '30000000-0000-4000-8000-000000000001'::uuid
+     OR v_request_hash IS DISTINCT FROM md5(v_hash_null::text)
+     OR v_result IS DISTINCT FROM v_first_result THEN
+    RAISE EXCEPTION 'QA113 did not preserve the first actor, normalized request hash and result';
+  END IF;
+  v_offer_id := (v_result ->> 'objectId')::uuid;
+
+  SELECT input INTO v_execution_input
+  FROM public.action_executions
+  WHERE id = v_execution_id
+    AND tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND actor_id = '30000000-0000-4000-8000-000000000001'
+    AND idempotency_key = 'fixture-qa113-attributes-null-default'
+    AND status = 'COMPLETED'
+    AND result = v_result;
+  IF v_execution_input IS DISTINCT FROM v_input THEN
+    RAISE EXCEPTION 'QA113 action execution input differs from the first request';
+  END IF;
+
+  SELECT attributes, quantity, price
+  INTO v_offer_attributes, v_stored_quantity, v_stored_price
+  FROM public.offers
+  WHERE id = v_offer_id
+    AND name = 'QA113 Attributes Null Default Offer'
+    AND demand_id = '50000000-0000-4000-8000-000000000021'
+    AND provider_actor_id = '30000000-0000-4000-8000-000000000001'
+    AND currency = 'USD';
+  IF v_offer_attributes IS DISTINCT FROM '{}'::jsonb
+     OR v_offer_attributes::text IS DISTINCT FROM '{}'::text
+     OR v_stored_quantity IS DISTINCT FROM 15::numeric
+     OR v_stored_price IS DISTINCT FROM 55::numeric THEN
+    RAISE EXCEPTION 'QA113 offer did not persist normalized empty attributes and original business values';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-qa113-attributes-null-default';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA113 expected exactly one idempotency row, found %', v_count;
+  END IF;
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND idempotency_key = 'fixture-qa113-attributes-null-default'
+    AND status = 'COMPLETED';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA113 expected exactly one completed execution, found %', v_count;
+  END IF;
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE name = 'QA113 Attributes Null Default Offer';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA113 expected exactly one offer, found %', v_count;
+  END IF;
+  SELECT count(*) INTO v_count
+  FROM public.action_events
+  WHERE execution_id = v_execution_id
+    AND tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND event_type = 'ACTION_SUCCEEDED'
+    AND actor_id = '30000000-0000-4000-8000-000000000001'
+    AND object_id = v_offer_id
+    AND payload = v_result;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA113 expected exactly one success event, found %', v_count;
+  END IF;
+
+  RAISE NOTICE 'QA113 RPC: explicit SQL NULL, explicit {}, and omitted default all replay one result; stored attributes={}';
+END
+$qa113$;
+SQL
+
+echo "CREATE_OFFER QA113 confirms p_attributes SQL NULL, explicit empty JSONB and the omitted '{}' default share one normalized request hash and replay result; one offer, execution and success event persist."
