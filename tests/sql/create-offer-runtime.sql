@@ -12529,3 +12529,164 @@ $qa97_retry_and_replay$;
 COMMIT;
 
 SELECT 'CREATE_OFFER late event failure rolls back fully; same key and identical payload then succeed once; identical replay returns the persisted result without duplicates' AS result;
+
+
+-- OFFER-QA-98: a failed final idempotency completion update must roll back
+-- the execution and offer that were created earlier in the same function call.
+BEGIN;
+
+DO $qa98_constraint_guard$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conrelid = 'public.idempotency_keys'::regclass
+      AND conname = 'qa98_force_completion_rollback'
+  ) THEN
+    RAISE EXCEPTION 'QA98 temporary idempotency constraint already exists';
+  END IF;
+END
+$qa98_constraint_guard$;
+
+ALTER TABLE public.idempotency_keys
+  ADD CONSTRAINT qa98_force_completion_rollback
+  CHECK (status <> 'COMPLETED') NOT VALID;
+
+SET LOCAL ROLE authenticated;
+
+DO $qa98_completion_failure$
+DECLARE
+  v_tenant_id uuid := '10000000-0000-4000-8000-000000000001';
+  v_actor_id uuid := '30000000-0000-4000-8000-000000000001';
+  v_key text := 'fixture-qa98-idempotency-completion-rollback';
+  v_name text := 'QA98 Idempotency Completion Rollback Offer';
+  v_before record;
+  v_after record;
+  v_sqlstate text;
+  v_table text;
+  v_constraint text;
+BEGIN
+  IF auth.uid() IS DISTINCT FROM '20000000-0000-4000-8000-000000000001'::uuid THEN
+    RAISE EXCEPTION 'QA98 requires authenticated provider A';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1
+    FROM public.idempotency_keys
+    WHERE tenant_id = v_tenant_id AND key = v_key
+  ) OR EXISTS (
+    SELECT 1
+    FROM public.action_executions
+    WHERE tenant_id = v_tenant_id AND idempotency_key = v_key
+  ) OR EXISTS (
+    SELECT 1 FROM public.offers WHERE name = v_name
+  ) THEN
+    RAISE EXCEPTION 'QA98 fixture data already exists';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conrelid = 'public.idempotency_keys'::regclass
+      AND conname = 'qa98_force_completion_rollback'
+      AND contype = 'c'
+      AND NOT convalidated
+      AND position('COMPLETED' IN pg_get_constraintdef(oid)) > 0
+  ) THEN
+    RAISE EXCEPTION 'QA98 requires the NOT VALID idempotency_keys completion CHECK constraint';
+  END IF;
+
+  SELECT
+    (SELECT count(*) FROM public.idempotency_keys) AS idempotency_count,
+    (SELECT count(*) FROM public.action_executions) AS execution_count,
+    (SELECT count(*) FROM public.offers) AS offer_count,
+    (SELECT count(*) FROM public.action_events) AS event_count
+  INTO v_before;
+
+  BEGIN
+    PERFORM public.execute_create_offer_v1(
+      p_tenant_id => v_tenant_id,
+      p_idempotency_key => v_key,
+      p_input => '{"case":"qa98-idempotency-completion-rollback"}'::jsonb,
+      p_name => v_name,
+      p_demand_id => '50000000-0000-4000-8000-000000000001',
+      p_product_master_id => '40000000-0000-4000-8000-000000000001',
+      p_provider_actor_id => v_actor_id,
+      p_quantity => 2,
+      p_price => 12,
+      p_currency => 'USD'
+    );
+
+    RAISE EXCEPTION 'QA98 expected the idempotency_keys completion CHECK violation (SQLSTATE 23514)';
+  EXCEPTION
+    WHEN check_violation THEN
+      GET STACKED DIAGNOSTICS
+        v_sqlstate = RETURNED_SQLSTATE,
+        v_table = TABLE_NAME,
+        v_constraint = CONSTRAINT_NAME;
+  END;
+
+  IF v_sqlstate IS DISTINCT FROM '23514'
+     OR v_table IS DISTINCT FROM 'idempotency_keys'
+     OR v_constraint IS DISTINCT FROM 'qa98_force_completion_rollback' THEN
+    RAISE EXCEPTION 'QA98 expected idempotency_keys.qa98_force_completion_rollback SQLSTATE 23514, received state %, table %, constraint %',
+      v_sqlstate, v_table, v_constraint;
+  END IF;
+
+  SELECT
+    (SELECT count(*) FROM public.idempotency_keys) AS idempotency_count,
+    (SELECT count(*) FROM public.action_executions) AS execution_count,
+    (SELECT count(*) FROM public.offers) AS offer_count,
+    (SELECT count(*) FROM public.action_events) AS event_count
+  INTO v_after;
+
+  IF ROW(v_before.idempotency_count, v_before.execution_count, v_before.offer_count, v_before.event_count)
+     IS DISTINCT FROM
+     ROW(v_after.idempotency_count, v_after.execution_count, v_after.offer_count, v_after.event_count) THEN
+    RAISE EXCEPTION 'QA98 failed completion update left partial writes (before: %, %, %, %; after: %, %, %, %)',
+      v_before.idempotency_count, v_before.execution_count, v_before.offer_count, v_before.event_count,
+      v_after.idempotency_count, v_after.execution_count, v_after.offer_count, v_after.event_count;
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM public.idempotency_keys
+    WHERE tenant_id = v_tenant_id AND key = v_key
+  ) OR EXISTS (
+    SELECT 1 FROM public.action_executions
+    WHERE tenant_id = v_tenant_id AND idempotency_key = v_key
+  ) OR EXISTS (
+    SELECT 1 FROM public.offers WHERE name = v_name
+  ) OR EXISTS (
+    SELECT 1
+    FROM public.action_events e
+    JOIN public.action_executions x
+      ON x.id = e.execution_id
+     AND x.tenant_id = e.tenant_id
+    WHERE x.tenant_id = v_tenant_id
+      AND x.idempotency_key = v_key
+  ) THEN
+    RAISE EXCEPTION 'QA98 failed completion update left an idempotency key, execution, offer or event';
+  END IF;
+END
+$qa98_completion_failure$;
+
+RESET ROLE;
+ALTER TABLE public.idempotency_keys
+  DROP CONSTRAINT qa98_force_completion_rollback;
+
+DO $qa98_constraint_cleanup$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conrelid = 'public.idempotency_keys'::regclass
+      AND conname = 'qa98_force_completion_rollback'
+  ) THEN
+    RAISE EXCEPTION 'QA98 temporary idempotency_keys constraint was not removed';
+  END IF;
+END
+$qa98_constraint_cleanup$;
+
+COMMIT;
+
+SELECT 'CREATE_OFFER idempotency_keys COMPLETED update failure (SQLSTATE 23514) rolls back key, execution, offer and event writes' AS result;
