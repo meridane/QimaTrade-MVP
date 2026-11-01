@@ -2200,19 +2200,13 @@ END
 $qa107_preconditions$;
 
 INSERT INTO public.demands (id, name, demand_status, requester_actor_id)
-VALUES
-  (
-    '50000000-0000-4000-8000-000000000009',
-    'QA107 First Actor Demand',
-    'published',
-    '30000000-0000-4000-8000-000000000001'
-  ),
-  (
-    '50000000-0000-4000-8000-000000000010',
-    'QA107 Second Actor Demand',
-    'published',
-    '30000000-0000-4000-8000-000000000003'
-  );
+VALUES (
+  '50000000-0000-4000-8000-000000000009',
+  'QA107 Shared Actor Test Demand',
+  'published',
+  '30000000-0000-4000-8000-000000000001'
+);
+SQL
 
 qa107_call_a=$(cat <<'SQL'
 SET application_name = 'qima-qa107-actor-a';
@@ -2240,13 +2234,13 @@ SET ROLE authenticated;
 SELECT public.execute_create_offer_v1(
   '10000000-0000-4000-8000-000000000001',
   'fixture-qa107-shared-tenant-key',
-  '{"case":"qa107-shared-key-actor-b"}'::jsonb,
-  'QA107 Shared Key Offer B',
-  '50000000-0000-4000-8000-000000000010',
+  '{"case":"qa107-shared-key-actor-a"}'::jsonb,
+  'QA107 Shared Key Offer A',
+  '50000000-0000-4000-8000-000000000009',
   '40000000-0000-4000-8000-000000000001',
   '30000000-0000-4000-8000-000000000003',
-  8,
-  44,
+  7,
+  43,
   'USD'
 );
 SQL
@@ -2259,9 +2253,9 @@ if [[ ! -s /tmp/qima-qa107-actor-a-first.log ]]; then
   exit 1
 fi
 
-# Actor B is a valid member with a valid provider_actor_id, but its effective
-# request hash differs (including providerActorId). It must not receive A's
-# completed result and must not create a second execution or offer.
+# Actor B is a valid member with a valid provider_actor_id. Every effective
+# RPC parameter is identical except providerActorId, so the request hash must
+# differ solely because the authenticated actor owns a different provider actor.
 set +e
 "${PSQL_TUPLE[@]}" -v VERBOSITY=verbose -c "$qa107_call_b" > /tmp/qima-qa107-actor-b-reuse.log 2>&1
 qa107_actor_b_status=$?
@@ -2328,13 +2322,13 @@ BEGIN
   )::text);
 
   v_expected_actor_b_hash := md5(jsonb_build_object(
-    'input', '{"case":"qa107-shared-key-actor-b"}'::jsonb,
-    'name', 'QA107 Shared Key Offer B',
-    'demandId', '50000000-0000-4000-8000-000000000010'::uuid,
+    'input', '{"case":"qa107-shared-key-actor-a"}'::jsonb,
+    'name', 'QA107 Shared Key Offer A',
+    'demandId', '50000000-0000-4000-8000-000000000009'::uuid,
     'productMasterId', '40000000-0000-4000-8000-000000000001'::uuid,
     'providerActorId', '30000000-0000-4000-8000-000000000003'::uuid,
-    'quantity', 8::numeric,
-    'price', 44::numeric,
+    'quantity', 7::numeric,
+    'price', 43::numeric,
     'currency', 'USD',
     'conditions', NULL::text,
     'market', NULL::text,
