@@ -3277,3 +3277,13 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **Vercel Preview : SUCCESS** — [Preview](https://vercel.com/bmk1/qimatrade-mvp/5fkiUJiwh4BnSghVhtik2pNQJTC8). Preview uniquement, pas de déploiement production.
 - **État PR après QA139 :** ouverte, brouillon, non fusionnée et mergeable ; HEAD `f4f4eebda597540a97a0ec9476dd2dc18f09464d`, 532 commits en avance sur `main`, 0 en retard, 43 fichiers dans le diff. Le commit de test QA139 et le commit documentaire ont été avancés en fast-forward depuis la branche de travail.
 - **Conclusion :** QA139 est validée sur le HEAD documentaire : les trois nouvelles validations multipart répondent HTTP 400 avant toute initialisation du client Supabase. Aucune modification applicative n'a été requise.
+
+
+### Validation du commit de suivi QA139 — e16e055 (3 novembre 2026, KST)
+
+- **Commit de registre :** [e16e055cebf879e172788f7826904eba2e2e05fe](https://github.com/meridane/QimaTrade-MVP/commit/e16e055cebf879e172788f7826904eba2e2e05fe), qui consigne la validation du HEAD QA139 précédent.
+- **QIMA CI #640 : SUCCESS** — [run 41523686198](https://github.com/meridane/QimaTrade-MVP/actions/runs/41523686198) sur le commit e16e055. Job application SUCCESS : npm ci, audit npm et enforcement, TypeScript, build Next.js (compilation en 9.1 s), Chromium, **102/102 tests Playwright (4.7 s)** et téléversement des artefacts. Le JSON npm audit donne 0 info, 0 low, 0 moderate, 0 high et 0 critical (total 0). Job PostgreSQL SUCCESS : intégration/concurrence CREATE_OFFER et les deux suites RLS synthétiques, nettoyage des conteneurs inclus.
+- **CodeQL #598 : SUCCESS** — [run 41523685929](https://github.com/meridane/QimaTrade-MVP/actions/runs/41523685929), analyse JavaScript/TypeScript terminée.
+- **Vercel Preview : FAILURE — quota `build-rate-limit`** sur ce commit documentaire. Ce statut concerne le quota de Preview, pas le build GitHub Actions qui a réussi. Aucun contournement du quota ni déploiement de production.
+- **Conclusion :** le HEAD documentaire QA139 e16e055 a passé QIMA CI et CodeQL ; les trois tests QA139 restent inclus dans 102/102 Playwright réussis. Les tests PostgreSQL/RLS restent isolés et ne démontrent pas l'autorisation Supabase production.
+- **Garde-fous :** aucune donnée, migration, policy ou configuration Supabase production modifiée ; aucune fusion et aucune modification des protections de branche.
