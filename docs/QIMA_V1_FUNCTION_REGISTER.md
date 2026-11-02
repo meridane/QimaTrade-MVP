@@ -2895,3 +2895,13 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **Prochaine tâche OFFER-QA-127 :** couvrir un header Bearer vide ou composé uniquement d'espaces (Bearer suivi d'un espace, bEaReR suivi de quatre espaces) et vérifier HTTP 401 avant tout appel réseau. Cette petite régression complète les cas déjà testés (absence de header, Basic, Bearer valide et Bearer rejeté) sans toucher au code applicatif si le comportement reste correct.
 - **Garde-fous :** aucune donnée, migration, policy ou configuration Supabase production modifiée ; aucun déploiement de production, aucune fusion et aucune modification des protections de branche.
 
+### Validation du commit documentaire QA126
+
+- **Commit documentaire :** [75c70ce36d835a45a91d589923c4ce2f82f3001e](https://github.com/meridane/QimaTrade-MVP/commit/75c70ce36d835a45a91d589923c4ce2f82f3001e).
+- **QIMA CI #601 :** [run 41414429515](https://github.com/meridane/QimaTrade-MVP/actions/runs/41414429515) SUCCESS. Job application [125174713470](https://github.com/meridane/QimaTrade-MVP/actions/runs/41414429515/job/125174713470) SUCCESS : npm ci, npm audit au seuil high, TypeScript, build Next.js compilé en 12,1 s, Chromium et **65/65 Playwright** (5,7 s). Job PostgreSQL [125174713824](https://github.com/meridane/QimaTrade-MVP/actions/runs/41414429515/job/125174713824) SUCCESS : intégration CREATE_OFFER/concurrence et deux suites RLS synthétiques.
+- **Audit npm #601 :** résumé du journal info=0, low=0, moderate=0, high=0, critical=0, total=0 ; enforcement au seuil high SUCCESS.
+- **CodeQL #559 :** [run 41414429353](https://github.com/meridane/QimaTrade-MVP/actions/runs/41414429353) SUCCESS ; analyse JavaScript/TypeScript terminée, aucun nouvel alert signalé dans le code modifié par la PR.
+- **Vercel :** statut combiné SUCCESS ; check [Vercel Preview Comments](https://github.com/meridane/QimaTrade-MVP/runs/125175174882) SUCCESS. Aucun déploiement de production.
+- **Avertissements observés :** DEP0040 (punycode) et DEP0169 (url.parse()) ; avertissements de maintenance uniquement.
+- **État après le commit documentaire :** PR #26 ouverte, brouillon, non fusionnée et mergeable ; HEAD 75c70ce36d835a45a91d589923c4ce2f82f3001e, 488 commits en avance sur main, 0 en retard, 39 fichiers modifiés. QIMA CI #601, CodeQL #559 et Vercel sont SUCCESS.
+
