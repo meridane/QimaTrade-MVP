@@ -9,10 +9,12 @@ const currencies = new Set(["USD", "EUR", "KRW", "MAD", "CNY"]);
 export async function POST(request: Request) {
   try {
     const authHeader = request.headers.get("authorization");
-    if (!authHeader || !/^Bearer /i.test(authHeader)) return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
+    // RFC 6750 requires one or more SP characters between the Bearer scheme and credentials.
+    // Do not trim HTAB into a credential: that would accept a malformed separator.
+    const bearerMatch = authHeader?.match(/^Bearer +(\\S+)$/i);
+    if (!bearerMatch) return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
 
-    const token = authHeader.slice("Bearer ".length).trim();
-    if (!token) return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
+    const token = bearerMatch[1];
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
