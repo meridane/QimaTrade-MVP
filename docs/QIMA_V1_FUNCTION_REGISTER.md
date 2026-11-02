@@ -3287,3 +3287,17 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **Vercel Preview : FAILURE — quota `build-rate-limit`** sur ce commit documentaire. Ce statut concerne le quota de Preview, pas le build GitHub Actions qui a réussi. Aucun contournement du quota ni déploiement de production.
 - **Conclusion :** le HEAD documentaire QA139 e16e055 a passé QIMA CI et CodeQL ; les trois tests QA139 restent inclus dans 102/102 Playwright réussis. Les tests PostgreSQL/RLS restent isolés et ne démontrent pas l'autorisation Supabase production.
 - **Garde-fous :** aucune donnée, migration, policy ou configuration Supabase production modifiée ; aucune fusion et aucune modification des protections de branche.
+
+
+### OFFER-QA-140 — rejection of non-finite multipart numbers before Supabase (3 novembre 2026, KST)
+
+- **État initial vérifié :** PR #26 ouverte, brouillon, non fusionnée et mergeable ; branche `fix/create-offer-status-contract`, HEAD `7e1da78594f6404a093a809870873d59e48f1882`, 534 commits en avance sur `main`, 0 en retard, 43 fichiers dans le diff. Comparaison `main...fix/create-offer-status-contract` : `ahead`, 534/0. Les derniers workflows du HEAD initial sont QIMA CI #641 et CodeQL #599, tous deux SUCCESS ; les deux jobs CI (typecheck/audit/build/Playwright et PostgreSQL/RLS synthétiques) sont SUCCESS. Le statut combiné Vercel est FAILURE avec `build-rate-limit` ; cela concerne le quota Preview, pas le build GitHub Actions.
+- **Branche de travail :** `work/offer-qa-140-nonfinite-numbers-20261103-0643`, créée depuis le HEAD PR initial.
+- **Tests ajoutés :** trois scénarios dans `tests/e2e/legacy-offers-route-contract.spec.ts`, réutilisant `expectInvalidFormBeforeSupabase` :
+  1. `quantity: "Infinity"` → HTTP 400 et message existant `Please provide a valid offer name and quantity.`.
+  2. `price: "NaN"` → HTTP 400 et message existant `Price must be a valid positive number.`.
+  3. `price: "Infinity"` → HTTP 400 et message existant `Price must be a valid positive number.`.
+- **Assertions communes :** factory Supabase rejetante appelée 0 fois ; Auth, recherches profil/demande/Product Master et insertion d'offre à 0 ; payload d'insertion nul. Les tests caractérisent le contrôle `Number.isFinite` déjà présent dans `lib/offers/create-legacy-offer.ts` ; aucun changement applicatif n'est requis à ce stade.
+- **Commit de tests :** [09ea9bd78919bd94391c826867520a0e19834f1f](https://github.com/meridane/QimaTrade-MVP/commit/09ea9bd78919bd94391c826867520a0e19834f1f) sur la branche de travail. Le présent enregistrement précède le déclenchement CI sur la branche PR ; résultats CI QA140 non encore disponibles à cette consignation.
+- **Limites :** tests de handler avec factory/mocks injectés ; ils valident le chemin de code dans cette fixture, pas le comportement d'un client Supabase réel ni une vulnérabilité de production. Les tests PostgreSQL/RLS de CI sont isolés et ne prouvent pas les autorisations Supabase production.
+- **Garde-fous :** aucune donnée, migration, policy ou configuration Supabase production modifiée ; aucun déploiement de production, aucune fusion et aucune modification des protections de branche.
