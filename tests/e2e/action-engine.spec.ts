@@ -304,3 +304,51 @@ for (const actionKey of inheritedObjectPrototypeHandlerKeys) {
     expect(otherHandlerCalls).toBe(0);
   });
 }
+
+
+const invalidOwnHandlerValues: Array<{ label: string; value: unknown }> = [
+  { label: "string", value: "not-a-handler" },
+  { label: "object", value: { invoke: true } },
+  { label: "null", value: null },
+  { label: "undefined", value: undefined },
+];
+
+for (const invalidCase of invalidOwnHandlerValues) {
+  test(`executeAction rejects an own handler property with a ${invalidCase.label} value`, async () => {
+    const context: ActionContext = {
+      userId: "user-1",
+      tenantId: "tenant-1",
+      actionKey: "CREATE_OFFER",
+      actionVersion: 1,
+      objectType: "TestObject",
+      objectId: "object-1",
+      correlationId: "correlation-1",
+      idempotencyKey: "idempotency-1",
+    };
+    const input: ActionInput = { demandId: "demand-1" };
+    let definitionLookups = 0;
+    let otherHandlerCalls = 0;
+    const handlers = {
+      CREATE_OFFER: invalidCase.value,
+      REGISTERED_OTHER_ACTION: async () => {
+        otherHandlerCalls += 1;
+        return { executionId: "unexpected", status: "succeeded" as const };
+      },
+    } as unknown as Record<string, import("../../lib/actions/engine").ActionHandler>;
+
+    expect(Object.prototype.hasOwnProperty.call(handlers, "CREATE_OFFER")).toBe(true);
+
+    await expect(
+      executeAction(context, input, {
+        getDefinition: async (actionKey, version) => {
+          definitionLookups += 1;
+          return { actionKey, version, status: "published" };
+        },
+        handlers,
+      }),
+    ).rejects.toThrow("ACTION_HANDLER_NOT_FOUND");
+
+    expect(definitionLookups).toBe(1);
+    expect(otherHandlerCalls).toBe(0);
+  });
+}
