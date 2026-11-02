@@ -30,7 +30,14 @@ export async function executeAction(
   dependencies: ActionEngineDependencies,
 ): Promise<ActionResult> {
   const definition = await dependencies.getDefinition(context.actionKey, context.actionVersion);
-  if (!definition || definition.status !== "published") throw new Error("ACTION_NOT_PUBLISHED");
+  if (
+    !definition ||
+    definition.status !== "published" ||
+    definition.actionKey !== context.actionKey ||
+    definition.version !== context.actionVersion
+  ) {
+    throw new Error("ACTION_NOT_PUBLISHED");
+  }
 
   const handler = dependencies.handlers[context.actionKey];
   if (!handler) throw new Error("ACTION_HANDLER_NOT_FOUND");
