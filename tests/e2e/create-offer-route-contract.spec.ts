@@ -211,6 +211,22 @@ test("CREATE_OFFER route rejects Bearer schemes without a credential before any 
   }
 });
 
+test("CREATE_OFFER route rejects tab-separated Bearer credentials before any Supabase request", async () => {
+  // WHATWG Headers preserves an interior HTAB; it is not the required SP separator.
+  const invalidHeaders = [
+    { label: "HTAB separator", value: "Bearer\\tqima-route-test-token" },
+    { label: "SP followed by HTAB", value: "Bearer \\tqima-route-test-token" },
+  ];
+
+  for (const { label, value } of invalidHeaders) {
+    const result = await postCreateOffer("USD", {}, undefined, undefined, "succeeded", value);
+
+    expect(result.status, label).toBe(401);
+    expect(result.body, label).toMatchObject({ error: "UNAUTHENTICATED" });
+    expect(result.requests, label).toEqual([]);
+  }
+});
+
 test("CREATE_OFFER route returns HTTP 409 for a non-succeeded execution status", async () => {
   const result = await postCreateOffer("USD", {}, undefined, undefined, "failed");
 
