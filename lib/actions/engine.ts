@@ -39,11 +39,13 @@ export async function executeAction(
     throw new Error("ACTION_NOT_PUBLISHED");
   }
 
-  const hasOwnHandler = Object.prototype.hasOwnProperty.call(
-    dependencies.handlers,
-    context.actionKey,
-  );
-  const handler = hasOwnHandler ? dependencies.handlers[context.actionKey] : undefined;
+  const handlers = dependencies.handlers;
+  if (!handlers || typeof handlers !== "object" || Array.isArray(handlers)) {
+    throw new Error("ACTION_HANDLER_NOT_FOUND");
+  }
+
+  const hasOwnHandler = Object.prototype.hasOwnProperty.call(handlers, context.actionKey);
+  const handler = hasOwnHandler ? handlers[context.actionKey] : undefined;
   if (typeof handler !== "function") throw new Error("ACTION_HANDLER_NOT_FOUND");
 
   return handler(context, input);
