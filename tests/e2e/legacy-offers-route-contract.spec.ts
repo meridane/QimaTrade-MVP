@@ -517,3 +517,27 @@ test("legacy offers route returns HTTP 500 when Supabase client initialization r
   expect(calls.offerInsertCalls).toBe(0);
   expect(calls.insertPayload).toBeNull();
 });
+
+
+test("legacy offers route rejects invalid multipart quantity before invoking a rejecting Supabase factory", async () => {
+  const { calls } = createSupabaseMock();
+  let factoryCalls = 0;
+  const handler = createLegacyOfferHandler(async () => {
+    factoryCalls += 1;
+    throw new Error("Supabase client initialization failed");
+  });
+
+  const response = await handler(createFormRequest({ quantity: "0" }));
+
+  expect(response.status).toBe(400);
+  await expect(response.json()).resolves.toEqual({
+    error: "Please provide a valid offer name and quantity.",
+  });
+  expect(factoryCalls).toBe(0);
+  expect(calls.authGetUser).toBe(0);
+  expect(calls.profileLookups).toHaveLength(0);
+  expect(calls.demandLookups).toHaveLength(0);
+  expect(calls.productMasterLookups).toHaveLength(0);
+  expect(calls.offerInsertCalls).toBe(0);
+  expect(calls.insertPayload).toBeNull();
+});
