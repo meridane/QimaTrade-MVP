@@ -153,6 +153,30 @@ function createHandler(client: ReturnType<typeof createSupabaseMock>["client"]) 
   return createLegacyOfferHandler(async () => client as never);
 }
 
+async function expectInvalidFormBeforeSupabase(
+  fields: Record<string, string>,
+  expectedError: string,
+) {
+  const { calls } = createSupabaseMock();
+  let factoryCalls = 0;
+  const handler = createLegacyOfferHandler(async () => {
+    factoryCalls += 1;
+    throw new Error("Supabase client initialization failed");
+  });
+
+  const response = await handler(createFormRequest(fields));
+
+  expect(response.status).toBe(400);
+  await expect(response.json()).resolves.toEqual({ error: expectedError });
+  expect(factoryCalls).toBe(0);
+  expect(calls.authGetUser).toBe(0);
+  expect(calls.profileLookups).toHaveLength(0);
+  expect(calls.demandLookups).toHaveLength(0);
+  expect(calls.productMasterLookups).toHaveLength(0);
+  expect(calls.offerInsertCalls).toBe(0);
+  expect(calls.insertPayload).toBeNull();
+}
+
 test("legacy offers route derives provider_actor_id from the authenticated user's profile", async () => {
   const { client, calls } = createSupabaseMock();
   const handler = createHandler(client);
@@ -540,4 +564,26 @@ test("legacy offers route rejects invalid multipart quantity before invoking a r
   expect(calls.productMasterLookups).toHaveLength(0);
   expect(calls.offerInsertCalls).toBe(0);
   expect(calls.insertPayload).toBeNull();
+});
+
+
+test("legacy offers route rejects an empty offer name before invoking a rejecting Supabase factory", async () => {
+  await expectInvalidFormBeforeSupabase(
+    { name: "   " },
+    "Please provide a valid offer name and quantity.",
+  );
+});
+
+test("legacy offers route rejects a negative multipart price before invoking a rejecting Supabase factory", async () => {
+  await expectInvalidFormBeforeSupabase(
+    { price: "-1" },
+    "Price must be a valid positive number.",
+  );
+});
+
+test("legacy offers route rejects an unsupported multipart currency before invoking a rejecting Supabase factory", async () => {
+  await expectInvalidFormBeforeSupabase(
+    { price: "10", currency: "XYZ" },
+    "Please select a valid currency.",
+  );
 });
