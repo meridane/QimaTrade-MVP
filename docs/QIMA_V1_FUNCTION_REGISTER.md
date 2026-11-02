@@ -3092,6 +3092,38 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **Régressions ajoutées dans** `tests/e2e/legacy-offers-route-contract.spec.ts` : (1) un acteur falsifié dans les champs multipart `provider_actor_id` et `providerActorId` est ignoré ; l'insert utilise le `profile.actor_id` trouvé avec l'ID de l'utilisateur Auth ; (2) profil sans actor ; (3) profil absent ; (4) Auth rejetée ; (5) erreur de lecture du profil. Les quatre scénarios négatifs exigent zéro insert dans `offers`.
 - **Limite de preuve :** tests du handler avec un client Supabase simulé et injecté ; aucune connexion Supabase ni donnée réelle. Ils valident le câblage et les ordres d'appels du handler, pas les policies RLS ou l'autorisation demande/tenant en production.
 - **Décision métier toujours bloquée :** l'audit `docs/MKT-1.1_CREATE_OFFER_AUTHORIZATION_AUDIT.md` ne trouve pas de `tenant_id` dans `demands` ni de relation directe tenant-demande. Ne pas ajouter de garde de tenant, de statut de demande, ni consolider la route legacy avec le Universal Action Runtime tant que l'ownership/audience et la politique de brouillon sans prix ne sont pas validés.
-- **CI du commit applicatif :** à consigner après l'exécution complète des checks GitHub Actions. CodeQL et Vercel seront relus séparément ; un build Next.js GitHub Actions réussi ne vaut pas Preview Vercel.
+- **CI du commit applicatif :** validation finale consignée dans la section « Validation finale OFFER-QA-134 — HEAD 05ed3af » ci-dessous ; le résultat GitHub Actions, CodeQL et Vercel est distingué.
 - **Prochaine étape :** après validation CI, envisager des tests de non-régression pour les validations multipart et les chemins optionnels `demandId` / `productMasterId`, sans inventer de règle d'autorisation.
+- **Garde-fous :** aucune donnée, migration, policy ou configuration Supabase production modifiée ; aucun déploiement de production, aucune fusion et aucune modification des protections de branche.
+
+
+### Validation finale OFFER-QA-134 — HEAD 05ed3af (3 novembre 2026, KST)
+
+- **HEAD validé :** `05ed3af4c73253edf6850369f0eed436a2afe660`, commit `test(offers): cover legacy provider actor identity contract`.
+- **QIMA CI #623 :** [run 41485273291](https://github.com/meridane/QimaTrade-MVP/actions/runs/41485273291) SUCCESS. Job application [125413845924](https://github.com/meridane/QimaTrade-MVP/actions/runs/41485273291/job/125413845924) SUCCESS : installation depuis package-lock, npm audit au seuil high, TypeScript, build Next.js (compilation réussie en 9.1 s), Chromium et **85/85 tests Playwright (4.9 s)**. Job PostgreSQL [125413845382](https://github.com/meridane/QimaTrade-MVP/actions/runs/41485273291/job/125413845382) SUCCESS : intégration CREATE_OFFER/concurrence, tests synthétiques RLS messages et self-enrollment.
+- **CodeQL #581 :** [run 41485273256](https://github.com/meridane/QimaTrade-MVP/actions/runs/41485273256) SUCCESS ; job JavaScript/TypeScript terminé avec succès.
+- **Vercel Preview :** SUCCESS sur ce HEAD ; [Preview](https://vercel.com/bmk1/qimatrade-mvp/9pQSSTRSqd4TWYXAc6rxdGgsdcx5). Preview uniquement, aucun déploiement de production.
+- **Audit npm :** le contrôle au seuil high et l'application du seuil sont SUCCESS ; artefacts [npm-audit-report 13161741701](https://github.com/meridane/QimaTrade-MVP/actions/runs/41485273291/artifacts/13161741701) et [committed-package-lock 13162336096](https://github.com/meridane/QimaTrade-MVP/actions/runs/41485273291/artifacts/13162336096). Aucun nombre de findings n'est annoncé sans inspection du JSON contenu dans l'archive.
+- **Conclusion QA134 :** les tests de l'identité fournisseur et des refus Auth/profil sont validés dans le handler avec un client Supabase simulé. Ils ne prouvent pas les politiques RLS ni l'autorisation demande/tenant en production.
+
+## OFFER-QA-135 — validations multipart et références optionnelles de l'offre historique (3 novembre 2026, KST)
+
+- **État relu avant modification :** PR #26 ouverte, brouillon, non fusionnée et mergeable ; branche `fix/create-offer-status-contract` vers `main`. HEAD initial `05ed3af4c73253edf6850369f0eed436a2afe660`, 515 commits en avance sur `main`, 0 en retard, 43 fichiers dans le diff. QIMA CI #623 et CodeQL #581 sont SUCCESS ; Vercel Preview du HEAD initial est SUCCESS. Le registre, `lib/offers/create-legacy-offer.ts`, `tests/e2e/legacy-offers-route-contract.spec.ts` et l'adaptateur `app/api/offers/route.ts` ont été relus.
+- **Objectif :** étendre les tests injectés du handler historique sans modifier le comportement applicatif ni inventer de règle d'ownership demande/tenant.
+- **Mock de test étendu :** prise en charge contrôlée des lectures `demands` et `product_masters`, avec capture des colonnes et valeurs filtrées ; aucun client réel ni appel réseau Supabase.
+- **Neuf tests de régression ajoutés dans** `tests/e2e/legacy-offers-route-contract.spec.ts` :
+  1. `demandId` résout `target_market` et le `product_master_id` de `scope` lorsque l'identifiant produit du formulaire est absent ;
+  2. un `productMasterId` explicite prend priorité sur la valeur de fallback du scope de la demande ;
+  3. `productMasterId` fonctionne sans `demandId` ;
+  4. une demande absente arrête le traitement avant lecture produit et insertion ;
+  5. un Product Master indisponible/non actif arrête l'insertion ;
+  6. des attributs multipart JSON mal formés sont rejetés sans insertion ;
+  7. une quantité invalide est rejetée avant Auth ;
+  8. un prix négatif est rejeté avant Auth ;
+  9. une devise non prise en charge avec un prix renseigné est rejetée avant Auth.
+- **Code applicatif :** aucun changement de `lib/offers/create-legacy-offer.ts` ni de `app/api/offers/route.ts` ; les tests caractérisent le comportement déjà présent.
+- **Branche de travail :** `work/offer-qa-135-legacy-multipart-paths-20261103-0153`, créée depuis le HEAD initial `05ed3af4c73253edf6850369f0eed436a2afe660`.
+- **Commit tests :** [314492672ae1c5cbe8c62d1d9baf87ea1840bb87](https://github.com/meridane/QimaTrade-MVP/commit/314492672ae1c5cbe8c62d1d9baf87ea1840bb87). Validation CI à consigner après mise à jour de la branche PR.
+- **Limites :** ces tests utilisent un client Supabase simulé. Ils vérifient le mapping des références optionnelles et les sorties du handler ; ils ne démontrent pas l'existence de données correspondantes ni les autorisations RLS en production.
+- **Prochaine étape après validation :** vérifier les erreurs d'insertion d'offre et la redirection 303/URL créée, sans changer les statuts ou les règles de brouillon.
 - **Garde-fous :** aucune donnée, migration, policy ou configuration Supabase production modifiée ; aucun déploiement de production, aucune fusion et aucune modification des protections de branche.
