@@ -484,6 +484,40 @@ test("CREATE_OFFER route generates an idempotency UUID when the supplied key is 
 });
 
 
+test("CREATE_OFFER route ignores non-string idempotency keys and generates UUIDs before the RPC", async () => {
+  const invalidKeys: Array<{ label: string; value: unknown }> = [
+    { label: "number zero", value: 0 },
+    { label: "boolean false", value: false },
+    { label: "array", value: [] },
+    { label: "object", value: {} },
+    { label: "JSON null", value: null },
+  ];
+  const generatedKeys: string[] = [];
+  const uuidV4Pattern =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+  for (const { label, value } of invalidKeys) {
+    const result = await postCreateOffer("USD", { idempotencyKey: value });
+
+    expect(result.status, label).toBe(200);
+    const executionCalls = result.requests.filter(
+      (request) => request.path === "/rest/v1/rpc/execute_create_offer_v1",
+    );
+    expect(executionCalls, label).toHaveLength(1);
+
+    const rpcBody = executionCalls[0].body;
+    expect(
+      Object.prototype.hasOwnProperty.call(rpcBody, "p_idempotency_key"),
+      label,
+    ).toBe(true);
+    expect(typeof rpcBody?.p_idempotency_key, label).toBe("string");
+    expect(rpcBody?.p_idempotency_key, label).toMatch(uuidV4Pattern);
+    generatedKeys.push(rpcBody?.p_idempotency_key as string);
+  }
+
+  expect(new Set(generatedKeys).size).toBe(invalidKeys.length);
+});
+
 test("CREATE_OFFER route fails closed when the profile has no actor_id", async () => {
   const result = await postCreateOffer(
     "USD",
