@@ -333,10 +333,14 @@ test("CREATE_OFFER route rejects JSON primitive values as invalid request bodies
 
 test("CREATE_OFFER route normalizes every non-object attributes value before the RPC", async () => {
   const nonObjectAttributes: Array<{ label: string; value: unknown }> = [
-    { label: "array", value: ["not", "an object"] },
+    { label: "non-empty array", value: ["not", "an object"] },
+    { label: "empty array", value: [] },
     { label: "string", value: "plain text" },
+    { label: "empty string", value: "" },
     { label: "number", value: 42 },
+    { label: "zero", value: 0 },
     { label: "boolean", value: true },
+    { label: "false", value: false },
     { label: "JSON null", value: null },
   ];
 
@@ -348,11 +352,25 @@ test("CREATE_OFFER route normalizes every non-object attributes value before the
       (request) => request.path === "/rest/v1/rpc/execute_create_offer_v1",
     );
     expect(executionCalls, label).toHaveLength(1);
+    expect(
+      Object.prototype.hasOwnProperty.call(executionCalls[0].body, "p_attributes"),
+      label,
+    ).toBe(true);
     expect(executionCalls[0].body?.p_attributes, label).toEqual({});
+
+    const rpcInput = executionCalls[0].body?.p_input as Record<string, unknown> | undefined;
+    expect(rpcInput, label).toBeDefined();
+    expect(Object.prototype.hasOwnProperty.call(rpcInput, "attributes"), label).toBe(true);
+    expect(rpcInput?.attributes, label).toEqual({});
     expect(executionCalls[0].body).toMatchObject({
       p_pricing_model: "fixed",
       p_lifecycle: "draft",
       p_offer_type: "supplier_offer",
+    });
+    expect(rpcInput).toMatchObject({
+      pricingModel: "fixed",
+      lifecycle: "draft",
+      offerType: "supplier_offer",
     });
   }
 });
