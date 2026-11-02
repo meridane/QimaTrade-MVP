@@ -3213,3 +3213,17 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **Audit npm :** installation, audit au seuil high, enforcement et téléversement des artefacts SUCCESS. Artefacts : [npm-audit-report 13163952913](https://github.com/meridane/QimaTrade-MVP/actions/runs/41491596222/artifacts/13163952913) et [committed-package-lock 13163912990](https://github.com/meridane/QimaTrade-MVP/actions/runs/41491596222/artifacts/13163912990). Aucun nombre de findings n'est annoncé sans inspection du JSON.
 - **Conclusion :** les tests QA136 et les contrôles SQL isolés restent réussis ; ils ne démontrent pas l'ownership demande/tenant ni les policies Supabase production.
 - **État PR au commit validé :** ouverte, brouillon, non fusionnée et mergeable ; HEAD `15248081f5fe3a516bc7c181a9c37c8f33428a5c`, 524 commits en avance sur `main`, 0 en retard, 43 fichiers dans le diff.
+
+### OFFER-QA-137 — Supabase client factory rejection before authentication (3 novembre 2026, KST)
+
+- **Branche de travail :** `work/offer-qa-137-client-factory-rejection-20261103-0409`, créée depuis le HEAD PR `984ea95135653524cdde7f017d784c7aa546a41e`.
+- **Test :** ajout d'un scénario dans `tests/e2e/legacy-offers-route-contract.spec.ts` où la factory Supabase injectée rejette une fois avant de retourner un client.
+- **Comportement caractérisé :** la route retourne HTTP 500 et le message d'exception existant `Supabase client initialization failed`. Cette assertion documente le comportement actuel ; elle ne constitue pas une approbation de la politique de divulgation des messages d'erreur. Aucun changement de politique n'a été effectué.
+- **Ordre d'exécution :** la factory est appelée une fois ; Auth, recherche de profil, recherche de demande, recherche de Product Master et insertion d'offre restent à zéro. Aucun payload d'insertion n'est construit.
+- **Commit de test :** [502cef3db7b8ff582e384d29038c3fe0777fa9b0](https://github.com/meridane/QimaTrade-MVP/commit/502cef3db7b8ff582e384d29038c3fe0777fa9b0), poussé sur la branche de travail puis avancé en fast-forward sur la branche PR avec un lease attendu sur le HEAD précédent `984ea95135653524cdde7f017d784c7aa546a41e`.
+- **QIMA CI #633 :** [run 41507362287](https://github.com/meridane/QimaTrade-MVP/actions/runs/41507362287) — en cours au moment de cette entrée. Installation npm et audit npm ont réussi ; TypeScript, build, Playwright et PostgreSQL restent à terminer.
+- **CodeQL #591 :** [run 41507362398](https://github.com/meridane/QimaTrade-MVP/actions/runs/41507362398) — en cours au moment de cette entrée.
+- **Vercel Preview :** statut `pending` au moment de cette entrée ; aucune conclusion n'est annoncée.
+- **Limites :** le test utilise un client Supabase simulé et une factory injectée ; il ne vérifie ni l'initialisation réseau réelle, ni les secrets/configuration, ni Supabase production. Il ne constitue pas une preuve de vulnérabilité.
+- **Prochaine tâche OFFER-QA-138 :** vérifier qu'une requête multipart invalide (par exemple quantité égale à zéro) est rejetée avant l'appel de la factory Supabase, même si cette factory est configurée pour rejeter. Attendus : HTTP 400 du validateur existant, factory appelée zéro fois, Auth et insert zéro fois. Cela protège l'ordre de validation sans changer le contrat public.
+- **Garde-fous :** aucune donnée, migration, policy ou configuration Supabase production modifiée ; aucun déploiement de production, aucune fusion et aucune modification des protections de branche.
