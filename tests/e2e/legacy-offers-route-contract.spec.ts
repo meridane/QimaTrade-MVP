@@ -17,6 +17,8 @@ type MockConfig = {
   demandError?: { message: string } | null;
   productMaster?: { id: string } | null;
   productMasterError?: { message: string } | null;
+  offer?: { id: string } | null;
+  offerError?: { message: string } | null;
 };
 
 function createSupabaseMock(config: MockConfig = {}) {
@@ -34,6 +36,10 @@ function createSupabaseMock(config: MockConfig = {}) {
   const demand = config.demand === undefined ? null : config.demand;
   const productMaster =
     config.productMaster === undefined ? { id: PRODUCT_MASTER_ID } : config.productMaster;
+  const offer =
+    config.offer === undefined
+      ? { id: "70000000-0000-4000-8000-000000000101" }
+      : config.offer;
 
   const client = {
     auth: {
@@ -114,8 +120,8 @@ function createSupabaseMock(config: MockConfig = {}) {
               select() {
                 return {
                   single: async () => ({
-                    data: { id: "70000000-0000-4000-8000-000000000101" },
-                    error: null,
+                    data: offer,
+                    error: config.offerError ?? null,
                   }),
                 };
               },
@@ -405,4 +411,86 @@ test("legacy offers route rejects an unsupported multipart currency before authe
   expect(calls.authGetUser).toBe(0);
   expect(calls.profileLookups).toHaveLength(0);
   expect(calls.offerInsertCalls).toBe(0);
+});
+
+
+test("legacy offers route returns the Supabase insert error without redirecting", async () => {
+  const { client, calls } = createSupabaseMock({
+    offerError: { message: "Offer insert failed" },
+  });
+  const handler = createHandler(client);
+
+  const response = await handler(createFormRequest());
+
+  expect(response.status).toBe(500);
+  await expect(response.json()).resolves.toEqual({ error: "Offer insert failed" });
+  expect(response.headers.get("location")).toBeNull();
+  expect(calls.offerInsertCalls).toBe(1);
+  expect(calls.insertPayload).toMatchObject({
+    name: "Legacy draft offer",
+    provider_actor_id: PROFILE_ACTOR_ID,
+    price: null,
+    currency: null,
+    pricing_model: null,
+    lifecycle: "draft",
+    offer_type: "supplier_offer",
+  });
+});
+
+test("legacy offers route returns a stable error when insert returns no offer row", async () => {
+  const { client, calls } = createSupabaseMock({ offer: null });
+  const handler = createHandler(client);
+
+  const response = await handler(createFormRequest());
+
+  expect(response.status).toBe(500);
+  await expect(response.json()).resolves.toEqual({
+    error: "Unable to create the offer.",
+  });
+  expect(response.headers.get("location")).toBeNull();
+  expect(calls.offerInsertCalls).toBe(1);
+  expect(calls.insertPayload).toMatchObject({
+    lifecycle: "draft",
+    offer_type: "supplier_offer",
+    price: null,
+    currency: null,
+    pricing_model: null,
+  });
+});
+
+test("legacy offers route redirects to the ID returned by insert and preserves draft fields", async () => {
+  const createdOfferId = "70000000-0000-4000-8000-000000000202";
+  const { client, calls } = createSupabaseMock({
+    offer: { id: createdOfferId },
+  });
+  const handler = createHandler(client);
+
+  const response = await handler(
+    createFormRequest({
+      conditions: "Delivery within 14 days",
+      market: "South Korea",
+      geography: "Busan",
+      attributes: JSON.stringify({ grade: "A" }),
+    }),
+  );
+
+  expect(response.status).toBe(303);
+  expect(response.headers.get("location")).toBe(
+    `https://qima.test/offers?created=${createdOfferId}`,
+  );
+  expect(calls.offerInsertCalls).toBe(1);
+  expect(calls.insertPayload).toMatchObject({
+    name: "Legacy draft offer",
+    provider_actor_id: PROFILE_ACTOR_ID,
+    quantity: 2,
+    price: null,
+    currency: null,
+    pricing_model: null,
+    conditions: "Delivery within 14 days",
+    market: "South Korea",
+    geography: "Busan",
+    attributes: { grade: "A" },
+    lifecycle: "draft",
+    offer_type: "supplier_offer",
+  });
 });
