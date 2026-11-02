@@ -376,6 +376,73 @@ test("CREATE_OFFER route preserves valid object attributes including nested JSON
   expect(executionCall?.body?.p_attributes).toEqual(attributes);
 });
 
+test("CREATE_OFFER route treats omitted attributes and an explicit empty object identically before the RPC", async () => {
+  const cases = [
+    { label: "omitted attributes", overrides: {} },
+    { label: "explicit empty attributes", overrides: { attributes: {} } },
+  ];
+  const normalizedRpcPayloads: Array<Record<string, unknown>> = [];
+
+  for (const testCase of cases) {
+    const result = await postCreateOffer("USD", testCase.overrides);
+
+    expect(result.status, testCase.label).toBe(200);
+    const executionCalls = result.requests.filter(
+      (request) => request.path === "/rest/v1/rpc/execute_create_offer_v1",
+    );
+    expect(executionCalls, testCase.label).toHaveLength(1);
+
+    const rpcBody = executionCalls[0].body;
+    expect(rpcBody, testCase.label).toBeDefined();
+    expect(
+      Object.prototype.hasOwnProperty.call(rpcBody, "p_attributes"),
+      testCase.label,
+    ).toBe(true);
+    expect(rpcBody?.p_attributes, testCase.label).toEqual({});
+
+    const rpcInput = rpcBody?.p_input as Record<string, unknown> | undefined;
+    expect(rpcInput, testCase.label).toBeDefined();
+    expect(
+      Object.prototype.hasOwnProperty.call(rpcInput, "attributes"),
+      testCase.label,
+    ).toBe(true);
+    expect(rpcInput?.attributes, testCase.label).toEqual({});
+    expect(rpcBody).toMatchObject({
+      p_pricing_model: "fixed",
+      p_lifecycle: "draft",
+      p_offer_type: "supplier_offer",
+    });
+    expect(rpcInput).toMatchObject({
+      pricingModel: "fixed",
+      lifecycle: "draft",
+      offerType: "supplier_offer",
+    });
+
+    // Compare the complete business payload while excluding the per-request idempotency key.
+    normalizedRpcPayloads.push({
+      p_input: rpcBody?.p_input,
+      p_name: rpcBody?.p_name,
+      p_demand_id: rpcBody?.p_demand_id,
+      p_product_master_id: rpcBody?.p_product_master_id,
+      p_provider_actor_id: rpcBody?.p_provider_actor_id,
+      p_quantity: rpcBody?.p_quantity,
+      p_price: rpcBody?.p_price,
+      p_currency: rpcBody?.p_currency,
+      p_conditions: rpcBody?.p_conditions,
+      p_market: rpcBody?.p_market,
+      p_geography: rpcBody?.p_geography,
+      p_attributes: rpcBody?.p_attributes,
+      p_documentation_status: rpcBody?.p_documentation_status,
+      p_lifecycle: rpcBody?.p_lifecycle,
+      p_offer_type: rpcBody?.p_offer_type,
+      p_pricing_model: rpcBody?.p_pricing_model,
+    });
+  }
+
+  expect(normalizedRpcPayloads).toHaveLength(2);
+  expect(normalizedRpcPayloads[0]).toEqual(normalizedRpcPayloads[1]);
+});
+
 test("CREATE_OFFER route trims an explicit idempotency key before the RPC", async () => {
   const result = await postCreateOffer("USD", { idempotencyKey: "  client-key-123  " });
 
