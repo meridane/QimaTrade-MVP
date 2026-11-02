@@ -209,3 +209,56 @@ for (const invalidCase of invalidActionDefinitions) {
     expect(handlerCalls).toBe(0);
   });
 }
+
+const mismatchedActionDefinitions: Array<{ label: string; definition: ActionDefinition }> = [
+  {
+    label: "different action key",
+    definition: { actionKey: "PUBLISH_PRODUCT_REQUEST", version: 1, status: "published" },
+  },
+  {
+    label: "different action version",
+    definition: { actionKey: "CREATE_OFFER", version: 2, status: "published" },
+  },
+];
+
+for (const mismatchCase of mismatchedActionDefinitions) {
+  test(`executeAction rejects a published definition with a ${mismatchCase.label} before invoking a handler`, async () => {
+    const context: ActionContext = {
+      userId: "user-1",
+      tenantId: "tenant-1",
+      actionKey: "CREATE_OFFER",
+      actionVersion: 1,
+      objectType: "TestObject",
+      objectId: "object-1",
+      correlationId: "correlation-1",
+      idempotencyKey: "idempotency-1",
+    };
+    const input: ActionInput = { demandId: "demand-1", quantity: 3 };
+    let definitionLookups = 0;
+    let receivedLookup: { actionKey: string; version: number } | undefined;
+    let handlerCalls = 0;
+
+    await expect(
+      executeAction(context, input, {
+        getDefinition: async (actionKey, version) => {
+          definitionLookups += 1;
+          receivedLookup = { actionKey, version };
+          return mismatchCase.definition;
+        },
+        handlers: {
+          CREATE_OFFER: async () => {
+            handlerCalls += 1;
+            return { executionId: "unexpected", status: "succeeded" };
+          },
+        },
+      }),
+    ).rejects.toThrow("ACTION_NOT_PUBLISHED");
+
+    expect(definitionLookups).toBe(1);
+    expect(receivedLookup).toEqual({
+      actionKey: context.actionKey,
+      version: context.actionVersion,
+    });
+    expect(handlerCalls).toBe(0);
+  });
+}
