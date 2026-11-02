@@ -587,3 +587,25 @@ test("legacy offers route rejects an unsupported multipart currency before invok
     "Please select a valid currency.",
   );
 });
+
+
+test("legacy offers route rejects a non-finite multipart quantity before invoking a rejecting Supabase factory", async () => {
+  await expectInvalidFormBeforeSupabase(
+    { quantity: "Infinity" },
+    "Please provide a valid offer name and quantity.",
+  );
+});
+
+test("legacy offers route rejects a NaN multipart price before invoking a rejecting Supabase factory", async () => {
+  await expectInvalidFormBeforeSupabase(
+    { price: "NaN" },
+    "Price must be a valid positive number.",
+  );
+});
+
+test("legacy offers route rejects an infinite multipart price before invoking a rejecting Supabase factory", async () => {
+  await expectInvalidFormBeforeSupabase(
+    { price: "Infinity" },
+    "Price must be a valid positive number.",
+  );
+});
