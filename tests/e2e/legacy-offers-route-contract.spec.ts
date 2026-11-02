@@ -609,3 +609,36 @@ test("legacy offers route rejects an infinite multipart price before invoking a 
     "Price must be a valid positive number.",
   );
 });
+
+test("legacy offers route rejects an empty multipart quantity before invoking a rejecting Supabase factory", async () => {
+  await expectInvalidFormBeforeSupabase(
+    { quantity: "" },
+    "Please provide a valid offer name and quantity.",
+  );
+});
+
+test("legacy offers route rejects a whitespace-only multipart quantity before invoking a rejecting Supabase factory", async () => {
+  await expectInvalidFormBeforeSupabase(
+    { quantity: "   " },
+    "Please provide a valid offer name and quantity.",
+  );
+});
+
+test("legacy offers route keeps a whitespace-only optional price as an unpriced draft", async () => {
+  const { client, calls } = createSupabaseMock();
+  const handler = createHandler(client);
+
+  const response = await handler(createFormRequest({ price: "   " }));
+
+  expect(response.status).toBe(303);
+  expect(calls.offerInsertCalls).toBe(1);
+  expect(calls.insertPayload).toMatchObject({
+    name: "Legacy draft offer",
+    quantity: 2,
+    price: null,
+    currency: null,
+    pricing_model: null,
+    lifecycle: "draft",
+    offer_type: "supplier_offer",
+  });
+});
