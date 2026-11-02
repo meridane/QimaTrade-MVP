@@ -200,13 +200,14 @@ test("CREATE_OFFER route canonicalizes repeated spaces in Bearer headers for Aut
   expect(result.requests.some((request) => request.path === "/rest/v1/rpc/execute_create_offer_v1")).toBe(true);
 });
 
-test("CREATE_OFFER route rejects an empty Bearer credential before any Supabase request", async () => {
-  for (const authorizationHeader of ["Bearer ", "Bearer   "]) {
+test("CREATE_OFFER route rejects Bearer schemes without a credential before any Supabase request", async () => {
+  // Request/Headers trims trailing HTTP whitespace, so exercise the bare scheme directly.
+  for (const authorizationHeader of ["Bearer", "bEaReR"]) {
     const result = await postCreateOffer("USD", {}, undefined, undefined, "succeeded", authorizationHeader);
 
-    expect(result.status, JSON.stringify(authorizationHeader)).toBe(401);
-    expect(result.body, JSON.stringify(authorizationHeader)).toMatchObject({ error: "UNAUTHENTICATED" });
-    expect(result.requests, JSON.stringify(authorizationHeader)).toEqual([]);
+    expect(result.status, authorizationHeader).toBe(401);
+    expect(result.body, authorizationHeader).toMatchObject({ error: "UNAUTHENTICATED" });
+    expect(result.requests, authorizationHeader).toEqual([]);
   }
 });
 
