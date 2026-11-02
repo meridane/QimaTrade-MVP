@@ -39,8 +39,12 @@ export async function executeAction(
     throw new Error("ACTION_NOT_PUBLISHED");
   }
 
-  const handler = dependencies.handlers[context.actionKey];
-  if (!handler) throw new Error("ACTION_HANDLER_NOT_FOUND");
+  const hasOwnHandler = Object.prototype.hasOwnProperty.call(
+    dependencies.handlers,
+    context.actionKey,
+  );
+  const handler = hasOwnHandler ? dependencies.handlers[context.actionKey] : undefined;
+  if (typeof handler !== "function") throw new Error("ACTION_HANDLER_NOT_FOUND");
 
   return handler(context, input);
 }

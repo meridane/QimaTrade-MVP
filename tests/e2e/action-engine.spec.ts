@@ -262,3 +262,45 @@ for (const mismatchCase of mismatchedActionDefinitions) {
     expect(handlerCalls).toBe(0);
   });
 }
+
+
+const inheritedObjectPrototypeHandlerKeys = ["toString", "constructor"] as const;
+
+for (const actionKey of inheritedObjectPrototypeHandlerKeys) {
+  test(`executeAction rejects inherited Object.prototype handler key "${actionKey}"`, async () => {
+    const context: ActionContext = {
+      userId: "user-1",
+      tenantId: "tenant-1",
+      actionKey,
+      actionVersion: 1,
+      objectType: "TestObject",
+      objectId: "object-1",
+      correlationId: "correlation-1",
+      idempotencyKey: "idempotency-1",
+    };
+    const input: ActionInput = { sample: "value" };
+    let definitionLookups = 0;
+    let otherHandlerCalls = 0;
+    const handlers = {
+      REGISTERED_OTHER_ACTION: async () => {
+        otherHandlerCalls += 1;
+        return { executionId: "unexpected", status: "succeeded" as const };
+      },
+    };
+
+    expect(Object.prototype.hasOwnProperty.call(handlers, actionKey)).toBe(false);
+
+    await expect(
+      executeAction(context, input, {
+        getDefinition: async (requestedActionKey, version) => {
+          definitionLookups += 1;
+          return { actionKey: requestedActionKey, version, status: "published" };
+        },
+        handlers,
+      }),
+    ).rejects.toThrow("ACTION_HANDLER_NOT_FOUND");
+
+    expect(definitionLookups).toBe(1);
+    expect(otherHandlerCalls).toBe(0);
+  });
+}
