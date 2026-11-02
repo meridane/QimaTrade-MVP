@@ -11,7 +11,7 @@ export async function POST(request: Request) {
     const authHeader = request.headers.get("authorization");
     // RFC 6750 requires one or more SP characters between the Bearer scheme and credentials.
     // Do not trim HTAB into a credential: that would accept a malformed separator.
-    const bearerMatch = authHeader?.match(/^Bearer +(\\S+)$/i);
+    const bearerMatch = authHeader?.match(/^Bearer +(\S+)$/i);
     if (!bearerMatch) return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
 
     const token = bearerMatch[1];
