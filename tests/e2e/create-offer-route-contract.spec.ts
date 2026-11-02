@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { POST } from "../../app/api/actions/create-offer/route";
 
-type MockRequest = { path: string; body?: Record<string, unknown>; authorization?: string };
+type MockRequest = { path: string; query: string; body?: Record<string, unknown>; authorization?: string };
 
 test.describe.configure({ mode: "serial" });
 
@@ -54,7 +54,7 @@ async function postCreateOffer(
       }
     }
     const headers = new Headers(init?.headers ?? request?.headers);
-    requests.push({ path: url.pathname, body, authorization: headers.get("authorization") ?? undefined });
+    requests.push({ path: url.pathname, query: url.search, body, authorization: headers.get("authorization") ?? undefined });
 
     if (url.pathname === "/auth/v1/user") {
       if (authStatus !== 200) {
@@ -580,6 +580,42 @@ test("CREATE_OFFER route ignores a client-supplied providerActorId and uses the 
   expect(Object.prototype.hasOwnProperty.call(rpcInput, "providerActorId")).toBe(true);
   expect(rpcInput?.providerActorId).toBe(profileActorId);
   expect(rpcInput?.providerActorId).not.toBe(spoofedActorId);
+});
+
+test("CREATE_OFFER route scopes profile and membership lookups to the authenticated Supabase user, ignoring client userId", async () => {
+  const authenticatedUserId = "40000000-0000-4000-8000-000000000001";
+  const spoofedUserId = "90000000-0000-4000-8000-000000000009";
+  const profileActorId = "30000000-0000-4000-8000-000000000001";
+  const membershipTenantId = "20000000-0000-4000-8000-000000000001";
+  const result = await postCreateOffer("USD", { userId: spoofedUserId });
+
+  expect(result.status, JSON.stringify({ body: result.body, requests: result.requests })).toBe(200);
+
+  const authRequest = result.requests.find((request) => request.path === "/auth/v1/user");
+  expect(authRequest?.authorization).toBe("Bearer qima-route-test-token");
+
+  const profileRequest = result.requests.find((request) => request.path === "/rest/v1/profiles");
+  expect(profileRequest).toBeDefined();
+  const profileQuery = new URLSearchParams(profileRequest?.query ?? "");
+  expect(profileQuery.get("auth_user_id")).toBe(`eq.${authenticatedUserId}`);
+  expect(profileQuery.get("auth_user_id")).not.toBe(`eq.${spoofedUserId}`);
+
+  const membershipRequest = result.requests.find((request) => request.path === "/rest/v1/dt_memberships");
+  expect(membershipRequest).toBeDefined();
+  const membershipQuery = new URLSearchParams(membershipRequest?.query ?? "");
+  expect(membershipQuery.get("user_id")).toBe(`eq.${authenticatedUserId}`);
+  expect(membershipQuery.get("user_id")).not.toBe(`eq.${spoofedUserId}`);
+
+  const executionCalls = result.requests.filter(
+    (request) => request.path === "/rest/v1/rpc/execute_create_offer_v1",
+  );
+  expect(executionCalls).toHaveLength(1);
+  expect(executionCalls[0].body?.p_provider_actor_id).toBe(profileActorId);
+  expect(executionCalls[0].body?.p_tenant_id).toBe(membershipTenantId);
+
+  const rpcInput = executionCalls[0].body?.p_input as Record<string, unknown> | undefined;
+  expect(rpcInput).toBeDefined();
+  expect(Object.prototype.hasOwnProperty.call(rpcInput, "userId")).toBe(false);
 });
 
 test("CREATE_OFFER route fails closed when the profile has no actor_id", async () => {
