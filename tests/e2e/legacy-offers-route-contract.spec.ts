@@ -137,7 +137,7 @@ function createSupabaseMock(config: MockConfig = {}) {
   return { client, calls };
 }
 
-function createFormRequest(fields: Record<string, string> = {}) {
+function createFormRequest(fields: Record<string, string | File> = {}) {
   const form = new FormData();
   form.set("name", "Legacy draft offer");
   form.set("quantity", "2");
@@ -154,7 +154,7 @@ function createHandler(client: ReturnType<typeof createSupabaseMock>["client"]) 
 }
 
 async function expectInvalidFormBeforeSupabase(
-  fields: Record<string, string>,
+  fields: Record<string, string | File>,
   expectedError: string,
 ) {
   const { calls } = createSupabaseMock();
@@ -641,4 +641,14 @@ test("legacy offers route keeps a whitespace-only optional price as an unpriced 
     lifecycle: "draft",
     offer_type: "supplier_offer",
   });
+});
+
+
+test("legacy offers route rejects a file supplied as the offer name before invoking Supabase", async () => {
+  const file = new File(["not an offer name"], "offer.txt", { type: "text/plain" });
+
+  await expectInvalidFormBeforeSupabase(
+    { name: file },
+    "Please provide a valid offer name and quantity.",
+  );
 });
