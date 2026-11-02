@@ -3301,3 +3301,27 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **Commit de tests :** [09ea9bd78919bd94391c826867520a0e19834f1f](https://github.com/meridane/QimaTrade-MVP/commit/09ea9bd78919bd94391c826867520a0e19834f1f) sur la branche de travail. Le présent enregistrement précède le déclenchement CI sur la branche PR ; résultats CI QA140 non encore disponibles à cette consignation.
 - **Limites :** tests de handler avec factory/mocks injectés ; ils valident le chemin de code dans cette fixture, pas le comportement d'un client Supabase réel ni une vulnérabilité de production. Les tests PostgreSQL/RLS de CI sont isolés et ne prouvent pas les autorisations Supabase production.
 - **Garde-fous :** aucune donnée, migration, policy ou configuration Supabase production modifiée ; aucun déploiement de production, aucune fusion et aucune modification des protections de branche.
+
+### Validation finale OFFER-QA-140 — commit documentaire 179802d (3 novembre 2026, KST)
+
+- **HEAD vérifié :** `179802dd0149cd2a447cced15479969678d2f2d5` sur `fix/create-offer-status-contract` ; PR #26 ouverte, brouillon, non fusionnée et mergeable ; 536 commits en avance sur `main`, 0 en retard, 43 fichiers dans le diff.
+- **QIMA CI #642 : SUCCESS** — [run 41531180238](https://github.com/meridane/QimaTrade-MVP/actions/runs/41531180238). Job application SUCCESS : installation, audit npm au seuil high, TypeScript, build Next.js (compilation en 12,5 s), installation Chromium et **105/105 tests Playwright (6,1 s)**. Les trois cas QA140 (quantité Infinity, prix NaN et prix Infinity) figurent dans les tests réussis. Le job PostgreSQL SUCCESS : intégration/concurrence CREATE_OFFER et suites RLS messages/self-enrollment synthétiques, avec nettoyage des conteneurs terminé.
+- **CodeQL #600 : SUCCESS** — [run 41531180244](https://github.com/meridane/QimaTrade-MVP/actions/runs/41531180244).
+- **Vercel :** le statut combiné du commit documentaire `179802d` est SUCCESS. Cela ne doit pas être interprété comme un déploiement de production.
+- **Conclusion QA140 :** les trois valeurs non finies sont rejetées HTTP 400 avant l'initialisation Supabase dans les fixtures de handler ; aucun changement applicatif requis. Les tests synthétiques caractérisent le code testé et ne prouvent pas une vulnérabilité ni les permissions de production.
+- **Garde-fous :** aucune donnée, migration, policy ou configuration Supabase production modifiée ; aucun déploiement de production, aucune fusion et aucune modification des protections de branche.
+
+
+### OFFER-QA-141 — blank quantity and whitespace-only optional price (3 novembre 2026, KST)
+
+- **État initial vérifié :** PR #26 ouverte, brouillon, non fusionnée et mergeable ; HEAD `179802dd0149cd2a447cced15479969678d2f2d5`, 536 commits en avance sur `main`, 0 en retard, 43 fichiers dans le diff. QIMA CI #642 et CodeQL #600 étaient SUCCESS ; le statut Vercel du HEAD initial était SUCCESS.
+- **Branche de travail :** `work/offer-qa-141-blank-numeric-inputs-20261103-0745`, créée depuis le HEAD PR initial.
+- **Tests ajoutés** dans `tests/e2e/legacy-offers-route-contract.spec.ts` :
+  1. `quantity: ""` → HTTP 400 avec le message existant `Please provide a valid offer name and quantity.` ; factory Supabase, Auth, recherches profil/demande/Product Master et insertion à 0.
+  2. `quantity: "   "` → même rejet HTTP 400 avant toute initialisation Supabase.
+  3. `price: "   "` → création HTTP 303 d'un brouillon non tarifé ; `price`, `currency` et `pricing_model` restent `null` ; `lifecycle: "draft"` et `offer_type: "supplier_offer"` sont préservés.
+- **Commit de tests :** [f1f5ca79d44a27fedc197277ded013e0714f46fe](https://github.com/meridane/QimaTrade-MVP/commit/f1f5ca79d44a27fedc197277ded013e0714f46fe), poussé depuis la branche de travail puis avancé en fast-forward sur la branche de la PR avec un lease attendu sur `179802dd0149cd2a447cced15479969678d2f2d5`.
+- **Contrôles déclenchés sur le commit de tests :** QIMA CI #643 [run 41540047944](https://github.com/meridane/QimaTrade-MVP/actions/runs/41540047944) et CodeQL #601 [run 41540047915](https://github.com/meridane/QimaTrade-MVP/actions/runs/41540047915). À la date de cette consignation, les deux runs sont encore `in_progress` ; npm ci et audit npm sont SUCCESS, TypeScript est SUCCESS, les conteneurs PostgreSQL sont initialisés, mais build/Playwright et intégration PostgreSQL ne sont pas encore terminés. Aucun résultat QA141 n'est déclaré avant la fin de Playwright.
+- **Vercel :** le check `Vercel Preview Comments` du commit de tests est SUCCESS (aucun feedback non résolu). Ce check n'est pas une preuve de déploiement Preview fonctionnel.
+- **Limites :** tests de handler avec client Supabase mocké/factory injectée ; ils caractérisent l'ordre de validation et la normalisation d'un prix optionnel, pas le comportement d'un service Supabase réel, une autorisation de production ou une vulnérabilité confirmée. La règle commerciale sur le prix zéro n'est pas modifiée ni décidée par ces tests.
+- **Garde-fous :** aucun fichier applicatif, SQL ou migration modifié ; aucune donnée, policy ou configuration Supabase production modifiée ; aucun déploiement de production, aucune fusion et aucune modification des protections de branche.
