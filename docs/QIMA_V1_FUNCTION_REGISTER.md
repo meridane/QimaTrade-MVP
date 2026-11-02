@@ -3123,7 +3123,17 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
   9. une devise non prise en charge avec un prix renseigné est rejetée avant Auth.
 - **Code applicatif :** aucun changement de `lib/offers/create-legacy-offer.ts` ni de `app/api/offers/route.ts` ; les tests caractérisent le comportement déjà présent.
 - **Branche de travail :** `work/offer-qa-135-legacy-multipart-paths-20261103-0153`, créée depuis le HEAD initial `05ed3af4c73253edf6850369f0eed436a2afe660`.
-- **Commit tests :** [314492672ae1c5cbe8c62d1d9baf87ea1840bb87](https://github.com/meridane/QimaTrade-MVP/commit/314492672ae1c5cbe8c62d1d9baf87ea1840bb87). Validation CI à consigner après mise à jour de la branche PR.
+- **Commit tests :** [314492672ae1c5cbe8c62d1d9baf87ea1840bb87](https://github.com/meridane/QimaTrade-MVP/commit/314492672ae1c5cbe8c62d1d9baf87ea1840bb87). Validation du commit de tests : QIMA CI #624 SUCCESS, détaillée ci-dessous.
 - **Limites :** ces tests utilisent un client Supabase simulé. Ils vérifient le mapping des références optionnelles et les sorties du handler ; ils ne démontrent pas l'existence de données correspondantes ni les autorisations RLS en production.
 - **Prochaine étape après validation :** vérifier les erreurs d'insertion d'offre et la redirection 303/URL créée, sans changer les statuts ou les règles de brouillon.
 - **Garde-fous :** aucune donnée, migration, policy ou configuration Supabase production modifiée ; aucun déploiement de production, aucune fusion et aucune modification des protections de branche.
+
+
+### Validation finale OFFER-QA-135 — HEAD 7ad8792 (3 novembre 2026, KST)
+
+- **QIMA CI #624 :** [run 41486193667](https://github.com/meridane/QimaTrade-MVP/actions/runs/41486193667) SUCCESS. Job application [125417067282](https://github.com/meridane/QimaTrade-MVP/actions/runs/41486193667/job/125417067282) SUCCESS : npm ci, npm audit au seuil high, TypeScript, build Next.js (compilation réussie en 11.9 s), installation Chromium et **94/94 tests Playwright (5.9 s)**. Job PostgreSQL [125417066770](https://github.com/meridane/QimaTrade-MVP/actions/runs/41486193667/job/125417066770) SUCCESS : tests d'intégration/concurrence CREATE_OFFER, régression RLS synthétique des messages et régression RLS synthétique du self-enrollment.
+- **CodeQL #582 :** [run 41486193636](https://github.com/meridane/QimaTrade-MVP/actions/runs/41486193636) SUCCESS ; analyse JavaScript/TypeScript terminée.
+- **Vercel Preview :** statut combiné SUCCESS sur le HEAD QA135 ; [Preview](https://vercel.com/bmk1/qimatrade-mvp/H756KWsdYkLzytfttDenARRqBErt). Preview uniquement, aucun déploiement de production.
+- **npm audit :** résumé JSON du job : critical 0, high 0, moderate 0, low 0, info 0, total 0. Artefacts : [npm-audit-report 13162735201](https://github.com/meridane/QimaTrade-MVP/actions/runs/41486193667/artifacts/13162735201) et [committed-package-lock 13161447932](https://github.com/meridane/QimaTrade-MVP/actions/runs/41486193667/artifacts/13161447932).
+- **Conclusion :** les neuf nouveaux scénarios QA135 sont inclus dans les 94 tests Playwright réussis. Les tests d'insertion/références utilisent un client Supabase simulé ; les tests PostgreSQL/RLS s'exécutent dans des conteneurs isolés. Aucun de ces résultats ne prouve une autorisation demande/tenant en production.
+- **État PR après QA135 :** PR #26 ouverte, brouillon, non fusionnée et mergeable ; HEAD `7ad87925ee64e511c622c39474874e3931f6546e`, 517 commits en avance sur `main`, 0 en retard, 43 fichiers dans le diff. Branche de travail et branche PR identiques à ce HEAD avant le présent commit documentaire.
