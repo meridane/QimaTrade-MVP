@@ -10,7 +10,8 @@ export function createLegacyOfferHandler(
   return async function handleLegacyOffer(request: Request) {
     try {
       const form = await request.formData();
-      const name = String(form.get("name") ?? "").trim();
+      const nameValue = form.get("name");
+      const name = typeof nameValue === "string" ? nameValue.trim() : "";
       const quantity = Number(form.get("quantity") ?? "");
       const priceRaw = String(form.get("price") ?? "").trim();
       const price = priceRaw ? Number(priceRaw) : null;
