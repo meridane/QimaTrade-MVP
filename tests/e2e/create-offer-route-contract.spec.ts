@@ -546,6 +546,42 @@ test("CREATE_OFFER route generates distinct UUIDs when idempotencyKey is omitted
   expect(new Set(generatedKeys).size).toBe(2);
 });
 
+test("CREATE_OFFER route ignores a client-supplied providerActorId and uses the authenticated profile actor", async () => {
+  const profileActorId = "30000000-0000-4000-8000-000000000001";
+  const spoofedActorId = "90000000-0000-4000-8000-000000000009";
+  const result = await postCreateOffer(
+    "USD",
+    { providerActorId: spoofedActorId },
+    undefined,
+    undefined,
+    "succeeded",
+    "Bearer qima-route-test-token",
+    200,
+    200,
+    200,
+    profileActorId,
+  );
+
+  expect(result.status, JSON.stringify({ body: result.body, requests: result.requests })).toBe(200);
+  expect(result.requests.some((request) => request.path === "/rest/v1/profiles")).toBe(true);
+
+  const executionCalls = result.requests.filter(
+    (request) => request.path === "/rest/v1/rpc/execute_create_offer_v1",
+  );
+  expect(executionCalls).toHaveLength(1);
+
+  const rpcBody = executionCalls[0].body;
+  expect(Object.prototype.hasOwnProperty.call(rpcBody, "p_provider_actor_id")).toBe(true);
+  expect(rpcBody?.p_provider_actor_id).toBe(profileActorId);
+  expect(rpcBody?.p_provider_actor_id).not.toBe(spoofedActorId);
+
+  const rpcInput = rpcBody?.p_input as Record<string, unknown> | undefined;
+  expect(rpcInput).toBeDefined();
+  expect(Object.prototype.hasOwnProperty.call(rpcInput, "providerActorId")).toBe(true);
+  expect(rpcInput?.providerActorId).toBe(profileActorId);
+  expect(rpcInput?.providerActorId).not.toBe(spoofedActorId);
+});
+
 test("CREATE_OFFER route fails closed when the profile has no actor_id", async () => {
   const result = await postCreateOffer(
     "USD",
