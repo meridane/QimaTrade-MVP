@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { executeAction, type ActionDefinition, type ActionInput } from "../../lib/actions/engine";
+import { executeAction, type ActionDefinition, type ActionHandler, type ActionInput } from "../../lib/actions/engine";
 import type { ActionContext, ActionResult } from "../../lib/actions/types";
 
 test("executeAction rejects a published action when no handler is registered", async () => {
@@ -334,7 +334,7 @@ for (const invalidCase of invalidOwnHandlerValues) {
         otherHandlerCalls += 1;
         return { executionId: "unexpected", status: "succeeded" as const };
       },
-    } as unknown as Record<string, import("../../lib/actions/engine").ActionHandler>;
+    } as unknown as Record<string, ActionHandler>;
 
     expect(Object.prototype.hasOwnProperty.call(handlers, "CREATE_OFFER")).toBe(true);
 
