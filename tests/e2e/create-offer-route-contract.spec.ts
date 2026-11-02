@@ -871,3 +871,38 @@ test("CREATE_OFFER route rejects missing or unpublished action definitions befor
     ).toBe(false);
   }
 });
+
+test("CREATE_OFFER route normalizes a mixed-case Bearer header and forwards the same authenticated token to both RPCs", async () => {
+  const accessToken = "qima-route-test-token";
+  const result = await postCreateOffer(
+    "USD",
+    {},
+    undefined,
+    undefined,
+    "succeeded",
+    "bEaReR    qima-route-test-token",
+  );
+
+  expect(result.status, JSON.stringify({ body: result.body, requests: result.requests })).toBe(200);
+
+  const expectedPaths = [
+    "/auth/v1/user",
+    "/rest/v1/profiles",
+    "/rest/v1/dt_memberships",
+    "/rest/v1/rpc/get_action_definition_v1",
+    "/rest/v1/rpc/execute_create_offer_v1",
+  ];
+
+  for (const path of expectedPaths) {
+    const matchingRequests = result.requests.filter((request) => request.path === path);
+    expect(matchingRequests, path).toHaveLength(1);
+    expect(matchingRequests[0].authorization, path).toBe(`Bearer ${accessToken}`);
+  }
+
+  const rpcRequests = result.requests.filter((request) =>
+    request.path === "/rest/v1/rpc/get_action_definition_v1" ||
+    request.path === "/rest/v1/rpc/execute_create_offer_v1",
+  );
+  expect(rpcRequests).toHaveLength(2);
+  expect(rpcRequests.every((request) => request.authorization === `Bearer ${accessToken}`)).toBe(true);
+});
