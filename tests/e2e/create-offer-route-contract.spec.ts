@@ -214,8 +214,8 @@ test("CREATE_OFFER route rejects Bearer schemes without a credential before any 
 test("CREATE_OFFER route rejects tab-separated Bearer credentials before any Supabase request", async () => {
   // WHATWG Headers preserves an interior HTAB; it is not the required SP separator.
   const invalidHeaders = [
-    { label: "HTAB separator", value: "Bearer\\tqima-route-test-token" },
-    { label: "SP followed by HTAB", value: "Bearer \\tqima-route-test-token" },
+    { label: "HTAB separator", value: `Bearer${String.fromCharCode(9)}qima-route-test-token` },
+    { label: "SP followed by HTAB", value: `Bearer ${String.fromCharCode(9)}qima-route-test-token` },
   ];
 
   for (const { label, value } of invalidHeaders) {
