@@ -352,3 +352,94 @@ for (const invalidCase of invalidOwnHandlerValues) {
     expect(otherHandlerCalls).toBe(0);
   });
 }
+
+
+const malformedHandlerRegistries: Array<{ label: string; value: unknown }> = [
+  { label: "undefined", value: undefined },
+  { label: "null", value: null },
+  { label: "string", value: "not-a-handler-registry" },
+  {
+    label: "array with an own callable handler",
+    value: Object.assign([], {
+      CREATE_OFFER: async () => ({
+        executionId: "unexpected",
+        status: "succeeded" as const,
+      }),
+    }),
+  },
+];
+
+for (const malformedCase of malformedHandlerRegistries) {
+  test(`executeAction rejects a malformed handler registry: ${malformedCase.label}`, async () => {
+    const context: ActionContext = {
+      userId: "user-1",
+      tenantId: "tenant-1",
+      actionKey: "CREATE_OFFER",
+      actionVersion: 1,
+      objectType: "TestObject",
+      objectId: "object-1",
+      correlationId: "correlation-1",
+      idempotencyKey: "idempotency-1",
+    };
+    const input: ActionInput = { demandId: "demand-1" };
+    let definitionLookups = 0;
+    let handlerCalls = 0;
+    const invalidHandlers =
+      malformedCase.label === "array with an own callable handler"
+        ? Object.assign([], {
+            CREATE_OFFER: async () => {
+              handlerCalls += 1;
+              return { executionId: "unexpected", status: "succeeded" as const };
+            },
+          })
+        : malformedCase.value;
+
+    const dependencies = {
+      getDefinition: async (actionKey: string, version: number) => {
+        definitionLookups += 1;
+        return { actionKey, version, status: "published" as const };
+      },
+      handlers: invalidHandlers,
+    } as unknown as import("../../lib/actions/engine").ActionEngineDependencies;
+
+    await expect(executeAction(context, input, dependencies)).rejects.toThrow(
+      "ACTION_HANDLER_NOT_FOUND",
+    );
+
+    expect(definitionLookups).toBe(1);
+    expect(handlerCalls).toBe(0);
+  });
+}
+
+test("executeAction supports a valid null-prototype handler registry", async () => {
+  const context: ActionContext = {
+    userId: "user-1",
+    tenantId: "tenant-1",
+    actionKey: "CREATE_OFFER",
+    actionVersion: 1,
+    objectType: "TestObject",
+    objectId: "object-1",
+    correlationId: "correlation-1",
+    idempotencyKey: "idempotency-1",
+  };
+  const input: ActionInput = { demandId: "demand-1" };
+  const handlers = Object.create(null) as Record<string, ActionHandler>;
+  let handlerCalls = 0;
+
+  handlers.CREATE_OFFER = async () => {
+    handlerCalls += 1;
+    return { executionId: "execution-1", status: "succeeded" };
+  };
+
+  const result = await executeAction(context, input, {
+    getDefinition: async (actionKey, version) => ({
+      actionKey,
+      version,
+      status: "published",
+    }),
+    handlers,
+  });
+
+  expect(handlerCalls).toBe(1);
+  expect(result).toMatchObject({ executionId: "execution-1", status: "succeeded" });
+});
