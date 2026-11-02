@@ -149,21 +149,32 @@ test("CREATE_OFFER route rejects missing or non-Bearer authorization before data
   }
 });
 
-test("CREATE_OFFER route stops after Supabase rejects a well-formed Bearer token", async () => {
+test("CREATE_OFFER route fails closed after Auth rejects a normalized mixed-case Bearer token", async () => {
+  const rejectedToken = "syntactically-valid-but-rejected-token";
   const result = await postCreateOffer(
     "USD",
     {},
     undefined,
     undefined,
     "succeeded",
-    "Bearer syntactically-valid-but-rejected-token",
+    "bEaReR    syntactically-valid-but-rejected-token",
     401,
   );
 
   expect(result.status).toBe(401);
   expect(result.body).toMatchObject({ error: "UNAUTHENTICATED" });
-  expect(result.requests.some((request) => request.path === "/auth/v1/user")).toBe(true);
-  expect(result.requests.some((request) => request.path.startsWith("/rest/v1/"))).toBe(false);
+
+  const authRequests = result.requests.filter((request) => request.path === "/auth/v1/user");
+  expect(authRequests).toHaveLength(1);
+  expect(authRequests[0].authorization).toBe(`Bearer ${rejectedToken}`);
+
+  const profileRequests = result.requests.filter((request) => request.path === "/rest/v1/profiles");
+  const membershipRequests = result.requests.filter((request) => request.path === "/rest/v1/dt_memberships");
+  const rpcRequests = result.requests.filter((request) => request.path.startsWith("/rest/v1/rpc/"));
+  expect(profileRequests).toHaveLength(0);
+  expect(membershipRequests).toHaveLength(0);
+  expect(rpcRequests).toHaveLength(0);
+  expect(result.requests).toHaveLength(1);
 });
 
 test("CREATE_OFFER route accepts case-insensitive Bearer schemes", async () => {
