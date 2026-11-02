@@ -3056,3 +3056,13 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **État après QA132 :** PR #26 ouverte, brouillon, non fusionnée et mergeable ; HEAD bda82fd1afb9d2dae11ca7b650fd9edb627a86d7, 510 commits en avance sur main, 0 en retard, 40 fichiers dans le diff. La branche de travail et la branche de PR étaient identiques avant le commit de clôture documentaire.
 - **Prochaine tâche OFFER-QA-133 :** vérifier la résolution déterministe des erreurs du moteur pour les définitions invalides et les registres ordinaires ou à prototype nul, sans modifier le contrat public ni inventer de règles d'autorisation métier.
 - **Garde-fous :** aucune donnée, migration, policy ou configuration Supabase production modifiée ; aucun déploiement de production, aucune fusion et aucune modification des protections de branche.
+
+
+### Validation du commit documentaire QA132
+
+- **Commit documentaire :** [21e9b44cf72505873edd7f1e2f6c6021bd3c7916](https://github.com/meridane/QimaTrade-MVP/commit/21e9b44cf72505873edd7f1e2f6c6021bd3c7916), qui a consigné les résultats de QIMA CI #618 et QA132.
+- **QIMA CI #619 :** [run 41470522757](https://github.com/meridane/QimaTrade-MVP/actions/runs/41470522757) SUCCESS sur le commit documentaire. Job application [125362575602](https://github.com/meridane/QimaTrade-MVP/actions/runs/41470522757/job/125362575602) SUCCESS : npm ci, audit npm au seuil high, TypeScript, build Next.js (compilation réussie en 9.5s), Chromium et **79/79 Playwright (4.5s)**. Job PostgreSQL [125362574835](https://github.com/meridane/QimaTrade-MVP/actions/runs/41470522757/job/125362574835) SUCCESS : intégration CREATE_OFFER/concurrence et les deux suites RLS synthétiques.
+- **CodeQL #577 :** [run 41470522805](https://github.com/meridane/QimaTrade-MVP/actions/runs/41470522805) SUCCESS ; analyse JavaScript/TypeScript terminée.
+- **Vercel Preview :** SUCCESS sur le commit documentaire ; [Preview](https://vercel.com/bmk1/qimatrade-mvp/7uKBXpbs3zFZQF7qTvpLkScMR68n). Preview uniquement.
+- **Audit npm :** le contrôle npm audit au seuil high et l'application du seuil sont SUCCESS ; les rapports sont téléversés. Aucun décompte de findings n'est annoncé sans extraction du JSON.
+- **État après le commit 21e9b44 :** PR #26 ouverte, brouillon, non fusionnée et mergeable ; HEAD 21e9b44cf72505873edd7f1e2f6c6021bd3c7916, 511 commits en avance sur main, 0 en retard, 40 fichiers dans le diff. Branche de travail et branche PR identiques. Les trois fichiers modifiés par QA132 restent les seuls fichiers de cette tâche.
