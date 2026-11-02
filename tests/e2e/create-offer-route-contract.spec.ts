@@ -671,15 +671,41 @@ test("CREATE_OFFER route fails closed when tenant membership lookup returns an e
   expect(result.requests.some((request) => request.path.startsWith("/rest/v1/rpc/"))).toBe(false);
 });
 
-test("CREATE_OFFER route requires explicit tenant selection for multiple memberships", async () => {
-  const result = await postCreateOffer("USD", {}, undefined, [
-    { tenant_id: "20000000-0000-4000-8000-000000000001" },
-    { tenant_id: "20000000-0000-4000-8000-000000000002" },
+test("CREATE_OFFER route requires explicit tenant selection even when the client supplies one of multiple tenant IDs", async () => {
+  const firstTenantId = "20000000-0000-4000-8000-000000000001";
+  const secondTenantId = "20000000-0000-4000-8000-000000000002";
+  const result = await postCreateOffer("USD", { tenantId: firstTenantId }, undefined, [
+    { tenant_id: firstTenantId },
+    { tenant_id: secondTenantId },
   ]);
 
   expect(result.status).toBe(409);
   expect(result.body).toMatchObject({ error: "TENANT_SELECTION_REQUIRED" });
+  expect(result.requests.some((request) => request.path === "/rest/v1/dt_memberships")).toBe(true);
   expect(result.requests.some((request) => request.path.startsWith("/rest/v1/rpc/"))).toBe(false);
+});
+
+test("CREATE_OFFER route ignores a client-supplied tenantId when exactly one membership exists", async () => {
+  const membershipTenantId = "20000000-0000-4000-8000-000000000001";
+  const spoofedTenantId = "90000000-0000-4000-8000-000000000009";
+  const result = await postCreateOffer(
+    "USD",
+    { tenantId: spoofedTenantId },
+    undefined,
+    [{ tenant_id: membershipTenantId }],
+  );
+
+  expect(result.status, JSON.stringify({ body: result.body, requests: result.requests })).toBe(200);
+  const executionCalls = result.requests.filter(
+    (request) => request.path === "/rest/v1/rpc/execute_create_offer_v1",
+  );
+  expect(executionCalls).toHaveLength(1);
+  expect(executionCalls[0].body?.p_tenant_id).toBe(membershipTenantId);
+  expect(executionCalls[0].body?.p_tenant_id).not.toBe(spoofedTenantId);
+
+  const rpcInput = executionCalls[0].body?.p_input as Record<string, unknown> | undefined;
+  expect(rpcInput).toBeDefined();
+  expect(Object.prototype.hasOwnProperty.call(rpcInput, "tenantId")).toBe(false);
 });
 
 
