@@ -443,3 +443,44 @@ test("executeAction supports a valid null-prototype handler registry", async () 
   expect(handlerCalls).toBe(1);
   expect(result).toMatchObject({ executionId: "execution-1", status: "succeeded" });
 });
+
+
+test("executeAction rejects an inherited handler from a custom prototype", async () => {
+  const context: ActionContext = {
+    userId: "user-1",
+    tenantId: "tenant-1",
+    actionKey: "CREATE_OFFER",
+    actionVersion: 1,
+    objectType: "TestObject",
+    objectId: "object-1",
+    correlationId: "correlation-1",
+    idempotencyKey: "idempotency-1",
+  };
+  const input: ActionInput = { demandId: "demand-1" };
+  let definitionLookups = 0;
+  let inheritedHandlerCalls = 0;
+  const customPrototype = {
+    CREATE_OFFER: async () => {
+      inheritedHandlerCalls += 1;
+      return { executionId: "unexpected", status: "succeeded" as const };
+    },
+  };
+  const handlers = Object.create(customPrototype) as Record<string, ActionHandler>;
+
+  expect(Object.getPrototypeOf(handlers)).toBe(customPrototype);
+  expect(Object.prototype.hasOwnProperty.call(handlers, "CREATE_OFFER")).toBe(false);
+  expect(typeof handlers.CREATE_OFFER).toBe("function");
+
+  await expect(
+    executeAction(context, input, {
+      getDefinition: async (actionKey, version) => {
+        definitionLookups += 1;
+        return { actionKey, version, status: "published" };
+      },
+      handlers,
+    }),
+  ).rejects.toThrow("ACTION_HANDLER_NOT_FOUND");
+
+  expect(definitionLookups).toBe(1);
+  expect(inheritedHandlerCalls).toBe(0);
+});
