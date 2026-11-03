@@ -3353,3 +3353,17 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **Validation :** à compléter après le push fast-forward sur la branche PR et les runs CI/CodeQL du nouveau HEAD. Aucun résultat des runs précédents n'est présenté comme preuve pour QA143.
 - **Limites :** les tests sont des tests de handler avec factory injectée ; ils caractérisent le rejet de valeurs File dans les fixtures, sans prouver une vulnérabilité exploitable ni le comportement des permissions Supabase production. Aucun changement de règle métier, de schéma ou de migration.
 - **Garde-fous :** aucune donnée, migration, policy ou configuration Supabase production modifiée ; aucun déploiement de production, aucune fusion et aucune modification des protections de branche.
+
+### OFFER-QA-144 — caractériser la normalisation des attributs JSON (3 novembre 2026, KST)
+
+- **État initial vérifié :** PR #26 ouverte, brouillon, non fusionnée et mergeable ; branche `fix/create-offer-status-contract`, HEAD initial `2794fbb6ede0cc698d782515bf552049d1e99b0e`, 545 commits en avance sur `main`, 0 en retard, 43 fichiers dans le diff. QIMA CI #647 [run 41552195002](https://github.com/meridane/QimaTrade-MVP/actions/runs/41552195002) SUCCESS avec 118 tests Playwright réussis, jobs PostgreSQL, TypeScript, audit npm et build SUCCESS. Le rapport npm audit indique 0 finding pour les cinq niveaux de sévérité. CodeQL #605 [run 41552194968](https://github.com/meridane/QimaTrade-MVP/actions/runs/41552194968) SUCCESS. Le statut Vercel du HEAD est en échec `build-rate-limit` (quota Preview), distinct de la CI GitHub.
+- **Constat de code :** le handler parse `attributes` comme JSON. Pour un objet JSON, il conserve uniquement les valeurs chaîne non vides après trim ; les valeurs numériques, booléennes, nulles, imbriquées ou chaînes composées d'espaces sont omises. Une valeur absente ou blanche produit `{}`. Un JSON mal formé est rejeté avec HTTP 400 et `Invalid offer attributes.`.
+- **Tests ajoutés** dans `tests/e2e/legacy-offers-route-contract.spec.ts` :
+  1. objet JSON mixte : les chaînes non vides sont trimées et conservées ; les valeurs non textuelles, imbriquées ou blanches sont omises ;
+  2. champ `attributes` absent : l'insertion reçoit `{}` ;
+  3. champ `attributes` composé d'espaces : l'insertion reçoit `{}`.
+- **Point non tranché :** les valeurs JSON valides dont la racine n'est pas un objet (tableau, `null`, chaîne, nombre ou booléen) sont actuellement ignorées et laissent `attributes = {}`. Ce comportement est constaté dans le code, mais n'est pas présenté comme une règle produit approuvée. Une décision produit serait nécessaire pour choisir entre rejet HTTP 400 et normalisation en objet vide ; aucun changement n'est fait sur ce point.
+- **Branche de travail :** `work/offer-qa-144-attributes-json-contract-20261103-1015`, créée depuis le HEAD PR vérifié.
+- **Validation QA144 :** en attente du run CI déclenché après l'avancement fast-forward sur la branche PR. Les résultats CI #647 et CodeQL #605 décrivent uniquement le HEAD initial et ne valident pas les nouveaux tests.
+- **Limites :** tests de handler avec client Supabase mocké ; ils caractérisent la normalisation des attributs dans cette fixture et ne prouvent ni comportement de base réelle, ni vulnérabilité exploitable, ni permission de production.
+- **Garde-fous :** aucun changement applicatif, SQL, migration, donnée, policy ou configuration Supabase production ; aucun déploiement de production, aucune fusion et aucune modification des protections de branche.
