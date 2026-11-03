@@ -3918,3 +3918,25 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **Vercel Preview :** échec `build-rate-limit` sur ce HEAD documentaire (quota de déploiements Preview). La Preview du HEAD précédent `fe6c06d` était SUCCESS ; le quota Vercel n'affecte pas les résultats CI/CodeQL.
 - **Conclusion :** QA164 et son registre passent les contrôles GitHub Actions/CodeQL sur le HEAD `736fa42`. Aucun test échoué. Les avertissements de dépréciation `punycode`, `url.parse()` et Node.js 20 sont non bloquants.
 - **Validation du présent commit documentaire :** à vérifier après synchronisation ; ne pas attribuer automatiquement le succès #714 au commit documentaire suivant.
+
+#### OFFER-QA-164 — réconciliation finale du HEAD de la PR (4 novembre 2026)
+
+- **HEAD vérifié :** `ae13cd0f688e90bc100d3c2957401519429fe584`, PR #26 ouverte, brouillon, non fusionnée et mergeable ; 619 commits en avance sur `main`, 0 en retard, 43 fichiers dans le diff.
+- **QIMA CI #715** [run 41729736655](https://github.com/meridane/QimaTrade-MVP/actions/runs/41729736655) : **SUCCESS** ; les deux jobs sont terminés avec succès. Le journal Playwright confirme **180/180 tests réussis (5,2 s)**, dont QA164. Installation npm depuis le lockfile, audit dépendances (gate `--audit-level=high`), TypeScript, build Next.js, Chromium : SUCCESS. Les suites PostgreSQL CREATE_OFFER/concurrence/idempotence, RLS messages synthétique et self-enrollment synthétique : SUCCESS.
+- **CodeQL #672** [run 41729736644](https://github.com/meridane/QimaTrade-MVP/actions/runs/41729736644) : **SUCCESS**.
+- **Vercel Preview :** échec `build-rate-limit` sur ce HEAD documentaire (quota Preview). Ce statut ne remet pas en cause les contrôles GitHub Actions.
+- **Interprétation :** les erreurs `IDEMPOTENCY_KEY_REUSE` consignées par PostgreSQL sont des scénarios négatifs attendus dont les assertions passent ; elles ne prouvent pas une vulnérabilité.
+
+#### OFFER-QA-165 — valeurs File dans les champs multipart quantity dupliqués (4 novembre 2026)
+
+- **État initial relu :** PR #26 ouverte, brouillon, non fusionnée et mergeable ; HEAD `ae13cd0f688e90bc100d3c2957401519429fe584`, base `main` `0d35c13db81019867fe9929420b0a6916285fbf6`, 619 commits en avance, 0 en retard, 43 fichiers modifiés. Aucun review ni thread de review.
+- **Contrôles initiaux :** QIMA CI #715 [run 41729736655](https://github.com/meridane/QimaTrade-MVP/actions/runs/41729736655) SUCCESS avec **180/180 Playwright** et suites PostgreSQL/RLS synthétiques réussies ; CodeQL #672 [run 41729736644](https://github.com/meridane/QimaTrade-MVP/actions/runs/41729736644) SUCCESS.
+- **Branche de travail :** `work/offer-qa-165-quantity-file-duplicates-20261104-0721`, créée depuis le HEAD initial exact.
+- **Constat source :** le handler convertit la première occurrence de `quantity` avec `Number(form.get("quantity") ?? "")`. `FormData.get()` retourne la première valeur. Un `File` en première position est converti en valeur non numérique et doit être rejeté ; un texte numérique en première position reste la valeur utilisée même si un `File` suit.
+- **Deux tests ajoutés** dans `tests/e2e/legacy-offers-route-contract.spec.ts` :
+  1. première valeur `File`, deuxième valeur `"2"` : réponse attendue HTTP 400, message `Please provide a valid offer name and quantity.`, factory Supabase non appelée ;
+  2. première valeur `"2"`, deuxième valeur `File` : réponse attendue HTTP 303, une insertion simulée, payload `quantity: 2`, `lifecycle: "draft"`, `offer_type: "supplier_offer"`.
+- **Commit de tests :** `fc6715fa1447e45f39ec4beb30710bde353db482` (`test(qima): cover file values in duplicate multipart quantity`). Le diff ajoute 37 lignes uniquement dans le test E2E.
+- **Validation QA165 :** QIMA CI #716 [run 41730198373](https://github.com/meridane/QimaTrade-MVP/actions/runs/41730198373) et CodeQL #673 [run 41730198501](https://github.com/meridane/QimaTrade-MVP/actions/runs/41730198501) ont été déclenchés sur le HEAD de PR `fc6715f`. Au moment de cette entrée, les deux workflows sont **IN PROGRESS** ; le typecheck et les jobs PostgreSQL/CodeQL sont encore en cours. **182 tests Playwright attendus, aucun résultat final revendiqué.** Réconcilier les résultats après fin des jobs avant de déclarer QA165 validée.
+- **Limites :** ces tests utilisent un client Supabase simulé et caractérisent le parsing multipart ; ils ne prouvent pas une persistance distante ni une vulnérabilité.
+- **Garde-fous :** aucun code applicatif, SQL, migration, donnée, policy ou configuration Supabase production modifié ; aucun déploiement de production, aucune fusion et aucune modification des protections de branche.
