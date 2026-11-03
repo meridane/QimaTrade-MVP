@@ -3726,3 +3726,24 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **Résultat :** les deux nouveaux scénarios sont les tests 164 et 165 du cycle complet. Aucun échec Playwright n'est observé. Les journaux contiennent les erreurs forcées QA103/QA104 et `IDEMPOTENCY_KEY_REUSE` correspondant aux scénarios négatifs prévus ; elles ne sont pas présentées comme des vulnérabilités confirmées. Les avertissements de dépréciation Node.js 20 et `url.parse()` sont non bloquants et restent des sujets de maintenance.
 - **Limites :** tests du handler avec client Supabase simulé ; aucune preuve de persistance distante, d'accès aux données de production ou de vulnérabilité réelle.
 - **Garde-fous :** aucun code applicatif, SQL, migration, donnée, policy ou configuration Supabase production modifié ; aucun déploiement de production, aucune fusion et aucune modification des protections de branche.
+
+
+#### OFFER-QA-158 — validation finale des brouillons non tarifés (4 novembre 2026)
+
+- **Réconciliation des contrôles :** le HEAD documentaire `9d420738f8b812fb744f24349453f2af6a2aaeb6` a passé QIMA CI #692 [run 41662600598](https://github.com/meridane/QimaTrade-MVP/actions/runs/41662600598) : **SUCCESS**. Les deux jobs sont terminés avec succès : typecheck/audit/build/browser tests et PostgreSQL CREATE_OFFER/concurrence/idempotence/RLS synthétique. Les journaux Playwright confirment **165/165 tests réussis (6,6 s)**. CodeQL #650 [run 41662600587](https://github.com/meridane/QimaTrade-MVP/actions/runs/41662600587) : **SUCCESS**. Le statut combiné Vercel du HEAD retourne `failure` avec `build-rate-limit` (quota Preview), distinct des contrôles GitHub Actions.
+- **Conclusion QA158 : VALIDÉE** sur le HEAD documentaire exact `9d42073`. Les tests USD/KRW confirment que la devise choisie n'est pas persistée si le prix est absent : `price`, `currency` et `pricing_model` sont `null`, avec `lifecycle: "draft"`.
+- **Limites :** client Supabase simulé ; aucune preuve de persistance distante, de droits de production ou d'exploitabilité d'une vulnérabilité.
+
+#### OFFER-QA-159 — compléter la matrice des devises des brouillons non tarifés (4 novembre 2026)
+
+- **État initial relu avant modification :** PR #26 ouverte, brouillon, non fusionnée et mergeable ; HEAD initial `9d420738f8b812fb744f24349453f2af6a2aaeb6`, base `main` `0d35c13db81019867fe9929420b0a6916285fbf6`, comparaison `main...fix/create-offer-status-contract` : 595 commits en avance, 0 en retard et 43 fichiers dans le diff. QIMA CI #692 [run 41662600598](https://github.com/meridane/QimaTrade-MVP/actions/runs/41662600598) et CodeQL #650 [run 41662600587](https://github.com/meridane/QimaTrade-MVP/actions/runs/41662600587) : **SUCCESS** sur le HEAD initial ; les deux jobs CI et l'analyse CodeQL sont terminés avec succès. Les logs Playwright indiquent 165/165. Le statut combiné Vercel est `failure` avec `build-rate-limit`, sans incidence sur GitHub Actions.
+- **Branche de travail :** `work/offer-qa-159-unpriced-draft-currency-matrix-20261104-0122`, créée depuis le HEAD initial exact.
+- **Constat applicatif :** le handler `lib/offers/create-legacy-offer.ts` conserve la règle `price === null ? null : currency` pour le payload. Pour tout brouillon sans prix, la devise et le modèle de tarification sont donc normalisés à `null`, même si un code autorisé est envoyé.
+- **Trois tests ajoutés** dans `tests/e2e/legacy-offers-route-contract.spec.ts` :
+  1. prix absent, devise `EUR` : HTTP 303 ; insertion unique ; `price`, `currency`, `pricing_model` à `null`, `lifecycle: "draft"` ;
+  2. prix absent, devise `MAD` : mêmes assertions ;
+  3. prix absent, devise `CNY` : mêmes assertions.
+- **Commit de tests :** [`5eb3d3fca552fbd1a952777b0ee0bae90c59342a`](https://github.com/meridane/QimaTrade-MVP/commit/5eb3d3fca552fbd1a952777b0ee0bae90c59342a) (`test(qima): cover remaining unpriced draft currencies`). Créé sur la branche de travail puis avancé en fast-forward sur `fix/create-offer-status-contract` avec lease attendu sur le HEAD initial `9d420738`.
+- **Contrôles après le commit de tests :** la PR #26 a bien été synchronisée au commit `5eb3d3f`. La recherche des runs GitHub Actions associés à ce SHA n'a pas encore retourné de run au moment de la consignation ; le statut combiné exposait uniquement Vercel `pending`. Aucun résultat CI/Playwright n'est revendiqué pour QA159 à ce stade. Recontrôler les runs après le commit documentaire.
+- **Conclusion provisoire QA159 :** les tests caractérisent le payload du handler avec client Supabase simulé ; ils ne démontrent pas la persistance distante, les droits de production ni l'exploitabilité d'une vulnérabilité.
+- **Garde-fous :** aucun code applicatif, SQL, migration, donnée, policy ou configuration Supabase production modifié ; aucun déploiement de production, aucune fusion et aucune modification des protections de branche.
