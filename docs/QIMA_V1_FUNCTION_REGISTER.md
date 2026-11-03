@@ -3529,3 +3529,26 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - Sur le **premier commit documentaire** `f3110052c85ef3a3faf12869627aad92abd416b9), QIMA CI #667 [run 41601031677](https://github.com/meridane/QimaTrade-MVP/actions/runs/41601031677) était **pending** et CodeQL #625 [run 41601031640](https://github.com/meridane/QimaTrade-MVP/actions/runs/41601031640) était **in_progress**. Aucun résultat final n'est attribué à ces runs à ce relevé.
 - **Interprétation :** les succès du HEAD antérieur #665/#623 ne sont pas transférés à QA150. Ne déclarer QA150 validée qu'après un QIMA CI complet réussi sur un HEAD contenant les deux nouveaux tests et un HEAD documentaire final, avec Playwright et PostgreSQL réussis ; vérifier aussi CodeQL sur le HEAD final.
 
+
+#### OFFER-QA-150 — validation finale réconciliée (3 novembre 2026, 18:08 KST)
+
+- **État initial vérifié pour cette exécution :** PR #26 ouverte, brouillon, non fusionnée et mergeable ; HEAD initial 6b9ca3633daf924296a59a9a6f7eafec205c0332, base main 0d35c13db81019867fe9929420b0a6916285fbf6, 569 commits en avance, 0 en retard et 43 fichiers dans le diff.
+- **Correction du statut précédemment provisoire :** QIMA CI #666 [run 41600987576](https://github.com/meridane/QimaTrade-MVP/actions/runs/41600987576) a été **cancelled** avant la fin de l'étape Playwright ; ses succès partiels (installation, audit, TypeScript, build et PostgreSQL) ne sont pas traités comme validation complète. CodeQL #624 [run 41600987634](https://github.com/meridane/QimaTrade-MVP/actions/runs/41600987634) est **SUCCESS** sur le commit de tests QA150.
+- **Validation complète et faisant foi :** QIMA CI #668 [run 41601147054](https://github.com/meridane/QimaTrade-MVP/actions/runs/41601147054) est **SUCCESS** sur le HEAD documentaire exact 6b9ca3633daf924296a59a9a6f7eafec205c0332, qui contient les deux tests QA150. Le journal du job browser confirme **138 tests Playwright réussis (6,1 s)**, dont le scénario QA150 « non-finite first price » (test 137) et « second file after valid first price » (test 138). Installation depuis lockfile, audit npm (0 finding : info/low/moderate/high/critical), TypeScript, build Next.js et Chromium : SUCCESS. Les suites PostgreSQL CREATE_OFFER/concurrence/idempotence et les deux régressions RLS synthétiques : SUCCESS.
+- **CodeQL #626** [run 41601147317](https://github.com/meridane/QimaTrade-MVP/actions/runs/41601147317) : **SUCCESS** sur le même HEAD. Statut Vercel du HEAD : **SUCCESS**.
+- **Conclusion QA150 : VALIDÉE** sur le HEAD documentaire exact 6b9ca3633daf924296a59a9a6f7eafec205c0332. Cette validation remplace le statut provisoire consigné immédiatement après publication. Le run #666 annulé n'est pas utilisé comme preuve de réussite.
+- **Portée et limites :** les tests du handler utilisent un client Supabase simulé ; les tests PostgreSQL/RLS sont exécutés dans des bases isolées CI. Ils ne prouvent pas les permissions Supabase production ni l'exploitabilité d'une vulnérabilité.
+- **Garde-fous :** aucune donnée, migration, policy ou configuration Supabase production modifiée ; aucun déploiement de production, aucune fusion et aucune modification des protections de branche.
+
+#### OFFER-QA-151 — bornes numériques négatives et dépassement de capacité du prix (3 novembre 2026, 18:08 KST)
+
+- **État initial :** HEAD PR 6b9ca3633daf924296a59a9a6f7eafec205c0332 ; branche de travail work/offer-qa-151-price-boundaries-20261103-1808 créée depuis ce SHA.
+- **Constat applicatif relu :** le parcours brouillon facultatif convertit le premier champ price avec Number(...), puis rejette les valeurs non finies et les valeurs strictement négatives (price < 0). Aucun changement applicatif n'a été effectué.
+- **Trois tests ajoutés** dans tests/e2e/legacy-offers-route-contract.spec.ts :
+  1. price = "-0.01" : HTTP 400 avec le message existant ; la factory Supabase est appelée zéro fois.
+  2. price = "-Infinity" : HTTP 400 avant initialisation Supabase.
+  3. price = "1e309" (conversion numérique débordant vers Infinity) : HTTP 400 avant initialisation Supabase.
+- **Décision métier non inventée — prix zéro :** le handler du parcours brouillon accepte actuellement 0 car il ne rejette que price < 0, tandis que docs/MKT-1.0_CREATE_OFFER_PRICE_VALIDATION.md précise que l'acceptation de zéro dépend de la validité d'un devis à prix nul et demande une confirmation produit. Cette exécution ne change pas le code et n'ajoute pas de test qui figerait l'acceptation de zéro. Décision à obtenir avant d'aligner les contrats.
+- **Conclusion provisoire :** QA151 caractérise des entrées négatives fractionnaires, négatives infinies et une conversion en dépassement de capacité. Aucun constat de vulnérabilité n'est déduit de ces tests.
+- **Validation CI/CodeQL :** en attente sur le commit de tests et le HEAD documentaire final ; ne déclarer QA151 validée qu'après QIMA CI complet avec Playwright et PostgreSQL, puis CodeQL sur le HEAD final.
+- **Portée et garde-fous :** tests du handler avec client Supabase simulé ; aucune donnée, migration, policy ou configuration Supabase production modifiée ; aucun déploiement de production, aucune fusion et aucune modification des protections de branche.
