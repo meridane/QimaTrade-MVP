@@ -1742,3 +1742,22 @@ test("legacy offers route uses the first numeric quantity when a file is submitt
     offer_type: "supplier_offer",
   });
 });
+
+test("legacy offers route rejects a file as the first duplicated multipart price before invoking Supabase", async () => {
+  let factoryCalls = 0;
+  const handler = createLegacyOfferHandler(async () => {
+    factoryCalls += 1;
+    throw new Error("Supabase client initialization failed");
+  });
+  const file = new File(["10"], "price.txt", { type: "text/plain" });
+
+  const response = await handler(
+    createFormRequestWithDuplicateField("price", file, "10", { currency: "USD" }),
+  );
+
+  expect(response.status).toBe(400);
+  await expect(response.json()).resolves.toEqual({
+    error: "Invalid offer form fields.",
+  });
+  expect(factoryCalls).toBe(0);
+});
