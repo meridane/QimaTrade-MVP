@@ -1554,3 +1554,40 @@ test("legacy offers route rejects a file as the first duplicated currency value 
   });
   expect(factoryCalls).toBe(0);
 });
+
+test("legacy offers route rejects an empty first currency even when a supported duplicate follows before invoking Supabase", async () => {
+  let factoryCalls = 0;
+  const handler = createLegacyOfferHandler(async () => {
+    factoryCalls += 1;
+    throw new Error("Supabase client initialization failed");
+  });
+
+  const response = await handler(
+    createFormRequestWithDuplicateField("currency", "", "USD", { price: "10" }),
+  );
+
+  expect(response.status).toBe(400);
+  await expect(response.json()).resolves.toEqual({
+    error: "Please select a valid currency.",
+  });
+  expect(factoryCalls).toBe(0);
+});
+
+test("legacy offers route trims the first currency and ignores a supported duplicate that follows", async () => {
+  const { client, calls } = createSupabaseMock();
+  const handler = createHandler(client);
+
+  const response = await handler(
+    createFormRequestWithDuplicateField("currency", " USD ", "EUR", { price: "10" }),
+  );
+
+  expect(response.status).toBe(303);
+  expect(calls.offerInsertCalls).toBe(1);
+  expect(calls.insertPayload).toMatchObject({
+    price: 10,
+    currency: "USD",
+    pricing_model: "fixed",
+    lifecycle: "draft",
+    offer_type: "supplier_offer",
+  });
+});
