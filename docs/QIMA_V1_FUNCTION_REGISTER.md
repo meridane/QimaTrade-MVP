@@ -3941,3 +3941,22 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **Conclusion : QA165 VALIDÉE** sur le commit de tests `fc6715f`. Les deux tests confirment la précédence de la première valeur multipart, y compris lorsque cette valeur est un `File`. Les assertions utilisent un client Supabase simulé et ne prouvent pas une persistance distante.
 - **Limites :** ces tests utilisent un client Supabase simulé et caractérisent le parsing multipart ; ils ne prouvent pas une persistance distante ni une vulnérabilité.
 - **Garde-fous :** aucun code applicatif, SQL, migration, donnée, policy ou configuration Supabase production modifié ; aucun déploiement de production, aucune fusion et aucune modification des protections de branche.
+
+#### OFFER-QA-165 — validation du HEAD documentaire (4 novembre 2026)
+
+- **HEAD documentaire vérifié :** `1452c108662613e1726b49daa81df070062edd0e`, PR #26 ouverte, brouillon, non fusionnée et mergeable ; 622 commits en avance sur `main`, 0 en retard, 43 fichiers dans le diff. La branche de travail QA165 et la branche PR étaient identiques.
+- **QIMA CI #717** [run 41730492284](https://github.com/meridane/QimaTrade-MVP/actions/runs/41730492284) : **SUCCESS** sur les deux jobs ; Playwright confirme **182/182 tests réussis (6,8 s)**. npm audit : 0 info, 0 low, 0 moderate, 0 high, 0 critical ; TypeScript, build Next.js, Chromium : SUCCESS. CREATE_OFFER PostgreSQL/concurrence/idempotence et les deux suites RLS synthétiques : SUCCESS.
+- **CodeQL #674** [run 41730492718](https://github.com/meridane/QimaTrade-MVP/actions/runs/41730492718) : **SUCCESS**.
+- **Vercel Preview :** échec `build-rate-limit` sur le HEAD documentaire ; quota de déploiements Preview, distinct de GitHub Actions. Aucun déploiement de production.
+- **Conclusion :** QA165 et son registre sont validés sur le HEAD documentaire `1452c1`.
+
+#### OFFER-QA-166 — première valeur File dans un champ multipart price dupliqué (4 novembre 2026)
+
+- **État initial relu :** PR #26 ouverte, brouillon, non fusionnée et mergeable ; HEAD `1452c108662613e1726b49daa81df070062edd0e`, base `main` `0d35c13db81019867fe9929420b0a6916285fbf6`, 622 commits en avance, 0 en retard, 43 fichiers dans le diff.
+- **Contrôles initiaux :** QIMA CI #717 [run 41730492284](https://github.com/meridane/QimaTrade-MVP/actions/runs/41730492284) SUCCESS avec 182/182 Playwright et suites PostgreSQL/RLS synthétiques réussies ; CodeQL #674 [run 41730492718](https://github.com/meridane/QimaTrade-MVP/actions/runs/41730492718) SUCCESS.
+- **Branche de travail :** `work/offer-qa-166-first-file-price-20261104-0721`, créée depuis le HEAD initial exact.
+- **Constat source :** `price` figure dans `textFormFields`. Le contrôle `hasNonTextValue` inspecte la première occurrence via `FormData.get("price")` et renvoie HTTP 400 `Invalid offer form fields.` si cette valeur est un `File`, avant l'initialisation Supabase. Le scénario complémentaire où la première valeur est un prix texte et la seconde un fichier est déjà couvert et accepté avec la première valeur.
+- **Un test ajouté** dans `tests/e2e/legacy-offers-route-contract.spec.ts` : première valeur `File("10")`, seconde valeur texte `"10"`, devise USD ; réponse attendue HTTP 400, erreur `Invalid offer form fields.`, factory Supabase non appelée.
+- **Commit de tests :** `df6740cccc7ee68b4972745a39ea4a10ec7d8c48` (`test(qima): reject file as first duplicate multipart price`).
+- **Validation QA166 :** en attente de synchronisation sur la branche PR et de CI/CodeQL. **183 tests Playwright attendus** ; aucun résultat final revendiqué.
+- **Limites et garde-fous :** test du handler avec client Supabase simulé ; il caractérise le contrôle de type multipart, sans prouver une persistance distante ni une vulnérabilité. Aucun code applicatif, SQL, migration, donnée, policy ou configuration Supabase production modifié ; aucun déploiement de production, aucune fusion et aucune modification des protections de branche.
