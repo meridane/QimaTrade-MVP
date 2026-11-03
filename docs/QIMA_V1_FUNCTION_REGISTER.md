@@ -3606,3 +3606,13 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **Portée et garde-fous :** aucun code applicatif, SQL, migration, donnée, policy ou configuration Supabase production modifié ; aucun déploiement de production, aucune fusion et aucune modification des protections de branche.
 - **Prochaine étape :** obtenir la décision produit sur quantité entière/fractionnaire et grammaire numérique. En attendant, poursuivre uniquement la caractérisation non destructive des entrées multipart qui ne fige aucune règle métier.
 
+
+
+#### OFFER-QA-153 — validation du commit documentaire (3 novembre 2026)
+
+- **HEAD documentaire validé :** `b919d9fe8497965c9a66923271a9ef25ff36a015`, contenant les quatre tests QA153 et leurs résultats.
+- **QIMA CI #674** [run 41619002398](https://github.com/meridane/QimaTrade-MVP/actions/runs/41619002398) : **SUCCESS** sur le HEAD documentaire exact. Installation depuis lockfile, audit npm (0 finding : info 0, low 0, moderate 0, high 0, critical 0), TypeScript, build Next.js, Chromium et Playwright : SUCCESS. **148/148 tests Playwright réussis (5,3 s)** ; les tests 145 à 148 couvrent QA153. Les tests PostgreSQL CREATE_OFFER/concurrence/idempotence et les deux suites RLS synthétiques : SUCCESS ; conteneurs CI arrêtés.
+- **CodeQL #632** [run 41619002429](https://github.com/meridane/QimaTrade-MVP/actions/runs/41619002429) : **SUCCESS** sur le même HEAD.
+- **Vercel Preview : SUCCESS** ([Preview](https://vercel.com/bmk1/qimatrade-mvp/6bTMtWHF81BxJubXV76RKrWEguG1)). Aucun déploiement de production.
+- **Conclusion QA153 : VALIDÉE** sur le HEAD documentaire exact `b919d9f`. Cette validation complète celle du commit de tests `6f201741`. Les scénarios caractérisent le parsing JavaScript avec client Supabase simulé ; ils n'établissent pas la règle produit quantité entière/fractionnaire ni l'exploitabilité d'une vulnérabilité.
+
