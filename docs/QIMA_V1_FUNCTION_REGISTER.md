@@ -3845,3 +3845,11 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **Interprétation :** ces tests caractérisent le comportement actuel de Number() ; ils ne décident pas si les notations signées sont souhaitables dans le contrat métier. Les tests de route utilisent un client Supabase simulé et ne prouvent pas la persistance distante ni un comportement de production.
 - **Garde-fous :** aucun code applicatif, SQL, migration, donnée, policy ou configuration Supabase production modifié ; aucun déploiement de production, aucune fusion et aucune modification des protections de branche.
 - **Validation du présent commit documentaire :** à renseigner après exécution de la CI déclenchée par ce commit ; ne pas confondre ces contrôles avec ceux du commit de tests ci-dessus.
+
+#### OFFER-QA-163 — réconciliation du HEAD documentaire (4 novembre 2026)
+
+- **HEAD documentaire validé :** c42584ea5c17c9e0ad909fc1635cc5b369ebe7c8, PR #26 toujours ouverte, brouillon, non fusionnée et mergeable ; 609 commits en avance sur main, 0 en retard, 43 fichiers dans le diff.
+- **QIMA CI #706** [run 41714609981](https://github.com/meridane/QimaTrade-MVP/actions/runs/41714609981) : **SUCCESS** ; les deux jobs sont terminés avec succès. Le journal Playwright confirme **178 tests réussis (9,4 s)**, dont les tests QA163 176–178. npm audit : 0 vulnérabilité rapportée (info 0, low 0, moderate 0, high 0, critical 0) ; TypeScript, build Next.js, Chromium : SUCCESS. Les suites PostgreSQL CREATE_OFFER/concurrence/idempotence et les deux suites RLS synthétiques : SUCCESS.
+- **CodeQL #663** [run 41714609788](https://github.com/meridane/QimaTrade-MVP/actions/runs/41714609788) : **SUCCESS**.
+- **Vercel Preview :** échec de quota build-rate-limit sur ce HEAD documentaire ; la Preview du commit de tests QA163 79db739 était SUCCESS. Le quota Vercel est distinct de GitHub Actions et ne constitue pas un échec du build CI.
+- **Conclusion :** QA163 reste validée sur le commit de tests 79db739 ; le HEAD documentaire c42584e passe également les 178 tests et tous les contrôles GitHub Actions/CodeQL.
