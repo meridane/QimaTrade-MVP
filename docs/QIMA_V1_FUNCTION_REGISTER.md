@@ -3578,3 +3578,11 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **Conclusion QA152 : VALIDÉE sur le commit de tests `958c593`**. La validation du commit documentaire qui ajoute cette entrée doit être vérifiée séparément après sa publication.
 - **Portée et limites :** tests du handler avec client Supabase simulé ; ils caractérisent le parsing JavaScript et le payload de la fixture, mais ne prouvent ni vulnérabilité exploitable ni permissions réelles Supabase.
 - **Garde-fous :** aucun changement applicatif, SQL, migration, donnée, policy ou configuration Supabase production ; aucun déploiement de production, aucune fusion et aucune modification des protections de branche.
+
+#### OFFER-QA-152 — validation du commit documentaire (3 novembre 2026, 18:19 KST)
+
+- **HEAD documentaire validé :** `86f43c3937a7e1dbdde36f78b83a40cec40d680f`, contenant les trois tests QA152 et leur résultat sur le commit de code.
+- **QIMA CI #671** [run 41610639018](https://github.com/meridane/QimaTrade-MVP/actions/runs/41610639018) : **SUCCESS** sur le HEAD documentaire exact. Installation, audit npm (0 finding), TypeScript, build Next.js, Chromium, Playwright et PostgreSQL : SUCCESS ; **144/144 tests Playwright réussis (6,9 s)**. Les tests 142 à 144 sont les trois scénarios QA152. Les suites CREATE_OFFER/concurrence/idempotence et les deux suites RLS synthétiques ont réussi ; conteneurs arrêtés.
+- **CodeQL #629** [run 41610639245](https://github.com/meridane/QimaTrade-MVP/actions/runs/41610639245) : **SUCCESS** sur le même HEAD.
+- **Vercel Preview : échec `build-rate-limit`** sur ce HEAD (limite de déploiements Preview), distinct de GitHub Actions. Aucun déploiement de production.
+- **Conclusion QA152 : VALIDÉE** sur le HEAD documentaire `86f43c3`. Les tests caractérisent le comportement du handler ; l'acceptation de la notation hexadécimale n'est pas approuvée comme règle métier. La grammaire monétaire reste à confirmer avant toute modification du parsing.
