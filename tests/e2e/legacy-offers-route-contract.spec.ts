@@ -674,3 +674,51 @@ for (const field of fileBackedTextFields) {
     await expectInvalidFormBeforeSupabase(fields, "Invalid offer form fields.");
   });
 }
+
+test("legacy offers route trims string-valued JSON attributes and ignores non-string values", async () => {
+  const { client, calls } = createSupabaseMock();
+  const handler = createHandler(client);
+
+  const response = await handler(
+    createFormRequest({
+      attributes: JSON.stringify({
+        grade: " A ",
+        color: " Blue ",
+        empty: "   ",
+        quantity: 5,
+        enabled: true,
+        nested: { label: "ignored" },
+        missing: null,
+      }),
+    }),
+  );
+
+  expect(response.status).toBe(303);
+  expect(calls.offerInsertCalls).toBe(1);
+  expect(calls.insertPayload?.attributes).toEqual({
+    grade: "A",
+    color: "Blue",
+  });
+});
+
+test("legacy offers route defaults omitted optional JSON attributes to an empty object", async () => {
+  const { client, calls } = createSupabaseMock();
+  const handler = createHandler(client);
+
+  const response = await handler(createFormRequest());
+
+  expect(response.status).toBe(303);
+  expect(calls.offerInsertCalls).toBe(1);
+  expect(calls.insertPayload?.attributes).toEqual({});
+});
+
+test("legacy offers route defaults whitespace-only optional JSON attributes to an empty object", async () => {
+  const { client, calls } = createSupabaseMock();
+  const handler = createHandler(client);
+
+  const response = await handler(createFormRequest({ attributes: "   " }));
+
+  expect(response.status).toBe(303);
+  expect(calls.offerInsertCalls).toBe(1);
+  expect(calls.insertPayload?.attributes).toEqual({});
+});
