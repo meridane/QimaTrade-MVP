@@ -1312,3 +1312,42 @@ test("legacy offers route keeps an unpriced draft when an unsupported currency i
     offer_type: "supplier_offer",
   });
 });
+
+test("legacy offers route trims surrounding whitespace from the USD currency code", async () => {
+  const { client, calls } = createSupabaseMock();
+  const handler = createHandler(client);
+
+  const response = await handler(createFormRequest({ price: "10", currency: " USD " }));
+
+  expect(response.status).toBe(303);
+  expect(calls.offerInsertCalls).toBe(1);
+  expect(calls.insertPayload).toMatchObject({
+    price: 10,
+    currency: "USD",
+    pricing_model: "fixed",
+    lifecycle: "draft",
+  });
+});
+
+test("legacy offers route rejects a lowercase currency code before invoking Supabase", async () => {
+  await expectInvalidFormBeforeSupabase(
+    { price: "10", currency: "usd" },
+    "Please select a valid currency.",
+  );
+});
+
+test("legacy offers route trims surrounding whitespace from the EUR currency code", async () => {
+  const { client, calls } = createSupabaseMock();
+  const handler = createHandler(client);
+
+  const response = await handler(createFormRequest({ price: "10", currency: " EUR " }));
+
+  expect(response.status).toBe(303);
+  expect(calls.offerInsertCalls).toBe(1);
+  expect(calls.insertPayload).toMatchObject({
+    price: 10,
+    currency: "EUR",
+    pricing_model: "fixed",
+    lifecycle: "draft",
+  });
+});
