@@ -3977,3 +3977,11 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **CodeQL #676** [run 41731095257](https://github.com/meridane/QimaTrade-MVP/actions/runs/41731095257) : **SUCCESS**.
 - **Vercel Preview :** statut `build-rate-limit` sur ce HEAD documentaire ; quota Preview distinct de GitHub Actions. Aucun déploiement de production.
 - **Conclusion : QA166 et le registre sont validés sur le HEAD documentaire `7d2dfff`.** Aucun test échoué.
+
+#### OFFER-QA-166 — contrôle du dernier HEAD du registre (4 novembre 2026)
+
+- **HEAD vérifié :** `09a7dc1b50fd0be29838ee3763e3a19180998aa4`, PR #26 ouverte, brouillon, non fusionnée et mergeable ; 626 commits en avance sur `main`, 0 en retard, 43 fichiers dans le diff.
+- **QIMA CI #720** [run 41731411598](https://github.com/meridane/QimaTrade-MVP/actions/runs/41731411598) : **SUCCESS** sur les deux jobs ; Playwright confirme **183/183 tests réussis (5,3 s)**. npm audit : 0 info, 0 low, 0 moderate, 0 high, 0 critical ; TypeScript, build Next.js, Chromium : SUCCESS. CREATE_OFFER PostgreSQL/concurrence/idempotence et les deux suites RLS synthétiques : SUCCESS.
+- **CodeQL #677** [run 41731411757](https://github.com/meridane/QimaTrade-MVP/actions/runs/41731411757) : **SUCCESS**.
+- **Vercel Preview :** échec `build-rate-limit` sur ce HEAD ; quota quotidien Preview, distinct de GitHub Actions. Aucun déploiement de production.
+- **Conclusion :** QA166 et le registre sont validés sur le HEAD `09a7dc1`. Aucun test échoué.
