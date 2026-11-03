@@ -652,3 +652,25 @@ test("legacy offers route rejects a file supplied as the offer name before invok
     "Please provide a valid offer name and quantity.",
   );
 });
+
+const fileBackedTextFields = [
+  "price",
+  "currency",
+  "conditions",
+  "documentation",
+  "market",
+  "geography",
+  "demandId",
+  "productMasterId",
+  "attributes",
+] as const;
+
+for (const field of fileBackedTextFields) {
+  test(`legacy offers route rejects a file supplied as ${field} before invoking Supabase`, async () => {
+    const file = new File([`unexpected ${field}`], `${field}.txt`, { type: "text/plain" });
+    const fields: Record<string, string | File> = { [field]: file };
+    if (field === "currency") fields.price = "10";
+
+    await expectInvalidFormBeforeSupabase(fields, "Invalid offer form fields.");
+  });
+}
