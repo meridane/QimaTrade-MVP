@@ -4009,3 +4009,10 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **CodeQL #680** [run 41732598484](https://github.com/meridane/QimaTrade-MVP/actions/runs/41732598484) : **SUCCESS**.
 - **Vercel Preview :** échec `build-rate-limit` sur ce HEAD documentaire (quota quotidien Preview), distinct de GitHub Actions. La Preview du HEAD précédent `2f4536e` était SUCCESS.
 - **Conclusion :** QA166 reste validée ; le présent commit documentaire passe CI et CodeQL. Aucun test échoué.
+
+#### OFFER-QA-166 — réconciliation du dernier cycle CI (4 novembre 2026)
+
+- **HEAD validé :** `38b6d3244c2c9c809867b22148be23e3e5da9deb`. QIMA CI #724 [run 41732926249](https://github.com/meridane/QimaTrade-MVP/actions/runs/41732926249) : **SUCCESS** sur les deux jobs ; Playwright confirme **183/183 tests réussis (7,4 s)**. npm audit : 0 info, 0 low, 0 moderate, 0 high, 0 critical ; TypeScript, build Next.js, Chromium : SUCCESS. CREATE_OFFER PostgreSQL/concurrence/idempotence et les deux suites RLS synthétiques : SUCCESS.
+- **CodeQL #681** [run 41732926228](https://github.com/meridane/QimaTrade-MVP/actions/runs/41732926228) : **SUCCESS**.
+- **Vercel Preview :** échec `build-rate-limit` sur le HEAD `38b6d32` (quota quotidien Preview) ; distinct des contrôles GitHub Actions. La Preview du HEAD précédent `2f4536e` était SUCCESS.
+- **Conclusion :** le HEAD documentaire `38b6d32` et QA166 sont validés ; aucun test échoué. Les résultats PostgreSQL/RLS sont ceux des fixtures isolées/synthétiques et ne prouvent pas une vulnérabilité ni une propriété de la production.
