@@ -3616,3 +3616,22 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **Vercel Preview : SUCCESS** ([Preview](https://vercel.com/bmk1/qimatrade-mvp/6bTMtWHF81BxJubXV76RKrWEguG1)). Aucun déploiement de production.
 - **Conclusion QA153 : VALIDÉE** sur le HEAD documentaire exact `b919d9f`. Cette validation complète celle du commit de tests `6f201741`. Les scénarios caractérisent le parsing JavaScript avec client Supabase simulé ; ils n'établissent pas la règle produit quantité entière/fractionnaire ni l'exploitabilité d'une vulnérabilité.
 
+
+
+#### OFFER-QA-154 — caractériser les limites de précision numérique de quantity (3 novembre 2026)
+
+- **État initial relu avant modification :** PR #26 ouverte, brouillon, non fusionnée ; HEAD initial 30ee9985e844835620aec2e33d5e2402c276ec7e, base main 0d35c13db81019867fe9929420b0a6916285fbf6, 577 commits en avance, 0 en retard et 43 fichiers dans le diff. Le HEAD initial avait QIMA CI #675 et CodeQL #633 en SUCCESS. Le statut combiné Vercel était en échec build-rate-limit (quota Preview), sans rapport avec les jobs GitHub Actions.
+- **Branche de travail :** work/offer-qa-154-quantity-precision-boundaries-20261103-2028, créée depuis le HEAD initial exact.
+- **Constat applicatif :** lib/offers/create-legacy-offer.ts convertit la quantité via Number(form.get("quantity") ?? ""), puis contrôle seulement Number.isFinite(quantity) et quantity > 0. La conversion IEEE-754 peut donc arrondir les entiers non sûrs et les décimales de haute précision avant l'appel Supabase.
+- **Contexte du schéma de test uniquement :** tests/sql/fixtures/create-offer-schema.sql déclare offers.quantity numeric sans précision/échelle imposée. Cela décrit la fixture PostgreSQL isolée ; ce n'est ni une inspection ni une affirmation sur le schéma de production. Les tests QA154 utilisent le client Supabase simulé et ne vérifient pas la valeur réellement persistée par PostgreSQL.
+- **Cinq tests ajoutés** dans tests/e2e/legacy-offers-route-contract.spec.ts :
+  1. 9007199254740991 (maximum safe integer) : HTTP 303 ; la valeur est transmise sans arrondi ;
+  2. 9007199254740993 : HTTP 303 ; JavaScript Number() arrondit la valeur transmise à 9007199254740992, et Number.isSafeInteger est faux ;
+  3. 0.12345678901234567890 : HTTP 303 ; la valeur capturée dans le payload est arrondie à 0.12345678901234568 ;
+  4. 5e-324 (plus petite valeur positive représentable en Number) : HTTP 303 ; la valeur positive est conservée dans le payload simulé ;
+  5. 1e-324 (sous-flux vers zéro) : HTTP 400 ; expectInvalidFormBeforeSupabase confirme zéro initialisation client, authentification, lookup ou insertion Supabase.
+- **Commit de tests :** [fcd896e4ee5fd5e88a220e99dc403ad83bfec908](https://github.com/meridane/QimaTrade-MVP/commit/fcd896e4ee5fd5e88a220e99dc403ad83bfec908) (test(qima): characterize quantity precision boundaries). Créé sur la branche de travail, puis avancé en fast-forward sur fix/create-offer-status-contract avec lease attendu sur le HEAD initial 30ee998.
+- **Validation déclenchée après le commit de tests :** QIMA CI #676 [run 41628013952](https://github.com/meridane/QimaTrade-MVP/actions/runs/41628013952) et CodeQL #634 [run 41628013936](https://github.com/meridane/QimaTrade-MVP/actions/runs/41628013936) étaient in_progress au moment de cette entrée. Le job CI avait commencé l'installation des dépendances et l'initialisation PostgreSQL ; aucun résultat TypeScript/build/Playwright/PostgreSQL final n'est revendiqué ici. Vercel Preview était pending.
+- **Décision produit à ne pas inventer :** définir les bornes de quantité, la précision décimale et la résolution minimale autorisées (par unité de mesure). Les tests montrent un arrondi avant Supabase pour certaines entrées ; ils ne déterminent pas la règle commerciale ni l'effet de stockage PostgreSQL. Ne pas remplacer Number(), imposer Number.isSafeInteger ou ajouter une échelle décimale avant confirmation du contrat produit.
+- **Conclusion provisoire QA154 :** tests ajoutés et poussés ; validation CI en attente. Les fixtures simulées caractérisent le parsing JavaScript et le payload préparé, pas la persistance réelle, les permissions Supabase ni l'exploitabilité d'une vulnérabilité.
+- **Garde-fous :** aucun code applicatif, SQL, migration, donnée, policy ou configuration Supabase production modifié ; aucun déploiement de production, aucune fusion et aucune modification des protections de branche.
