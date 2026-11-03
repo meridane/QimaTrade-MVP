@@ -1093,3 +1093,54 @@ test("legacy offers route rejects an overflowing numeric multipart price before 
     "Price must be a valid positive number.",
   );
 });
+
+test("legacy offers route accepts a fractional decimal multipart price and preserves its numeric value", async () => {
+  const { client, calls } = createSupabaseMock();
+  const handler = createHandler(client);
+
+  const response = await handler(createFormRequest({ price: " 10.25 ", currency: "USD" }));
+
+  expect(response.status).toBe(303);
+  expect(calls.offerInsertCalls).toBe(1);
+  expect(calls.insertPayload).toMatchObject({
+    price: 10.25,
+    currency: "USD",
+    pricing_model: "fixed",
+    lifecycle: "draft",
+    offer_type: "supplier_offer",
+  });
+});
+
+test("legacy offers route accepts scientific notation for a multipart price using JavaScript Number parsing", async () => {
+  const { client, calls } = createSupabaseMock();
+  const handler = createHandler(client);
+
+  const response = await handler(createFormRequest({ price: "1e2", currency: "USD" }));
+
+  expect(response.status).toBe(303);
+  expect(calls.offerInsertCalls).toBe(1);
+  expect(calls.insertPayload).toMatchObject({
+    price: 100,
+    currency: "USD",
+    pricing_model: "fixed",
+    lifecycle: "draft",
+    offer_type: "supplier_offer",
+  });
+});
+
+test("legacy offers route currently accepts hexadecimal notation for a multipart price", async () => {
+  const { client, calls } = createSupabaseMock();
+  const handler = createHandler(client);
+
+  const response = await handler(createFormRequest({ price: "0x10", currency: "USD" }));
+
+  expect(response.status).toBe(303);
+  expect(calls.offerInsertCalls).toBe(1);
+  expect(calls.insertPayload).toMatchObject({
+    price: 16,
+    currency: "USD",
+    pricing_model: "fixed",
+    lifecycle: "draft",
+    offer_type: "supplier_offer",
+  });
+});
