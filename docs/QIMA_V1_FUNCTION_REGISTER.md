@@ -3864,3 +3864,8 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 
 - **HEAD vérifié :** b73d984ade722d9f10b84cbe43b68975163771b4. QIMA CI #708 [run 41715278567](https://github.com/meridane/QimaTrade-MVP/actions/runs/41715278567) : **SUCCESS** ; les deux jobs terminés avec succès. Le journal Playwright confirme **178/178 tests réussis (8,0 s)** ; npm audit : 0 finding ; TypeScript, build Next.js, Chromium, PostgreSQL CREATE_OFFER/concurrence/idempotence et les deux suites RLS synthétiques : SUCCESS. CodeQL #665 [run 41715278537](https://github.com/meridane/QimaTrade-MVP/actions/runs/41715278537) : **SUCCESS**.
 - **Vercel Preview :** build-rate-limit sur le HEAD documentaire, quota quotidien atteint ; la Preview du commit de tests QA163 79db739 était SUCCESS. Aucun déploiement de production.
+
+#### OFFER-QA-163 — réconciliation finale du dernier cycle CI (4 novembre 2026)
+
+- **HEAD vérifié :** 81b4425ca1a26e4417a5490f44f9755780a35402. QIMA CI #709 [run 41715610984](https://github.com/meridane/QimaTrade-MVP/actions/runs/41715610984) : **SUCCESS** ; les deux jobs sont terminés avec succès. Playwright confirme **178/178 tests réussis (8,4 s)** ; npm audit : 0 finding ; TypeScript, build Next.js, Chromium, PostgreSQL CREATE_OFFER/concurrence/idempotence et les deux suites RLS synthétiques : SUCCESS. CodeQL #666 [run 41715611039](https://github.com/meridane/QimaTrade-MVP/actions/runs/41715611039) : **SUCCESS**.
+- **Vercel Preview :** build-rate-limit sur ce HEAD documentaire ; le quota de déploiements Preview est atteint. Cette limite ne remet pas en cause les contrôles GitHub Actions.
