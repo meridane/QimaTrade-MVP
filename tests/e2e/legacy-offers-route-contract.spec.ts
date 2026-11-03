@@ -1445,3 +1445,55 @@ test("legacy offers route keeps an unpriced draft when KRW is explicitly selecte
     offer_type: "supplier_offer",
   });
 });
+
+
+test("legacy offers route keeps an unpriced draft when EUR is explicitly selected", async () => {
+  const { client, calls } = createSupabaseMock();
+  const handler = createHandler(client);
+
+  const response = await handler(createFormRequest({ currency: "EUR" }));
+
+  expect(response.status).toBe(303);
+  expect(calls.offerInsertCalls).toBe(1);
+  expect(calls.insertPayload).toMatchObject({
+    price: null,
+    currency: null,
+    pricing_model: null,
+    lifecycle: "draft",
+    offer_type: "supplier_offer",
+  });
+});
+
+test("legacy offers route keeps an unpriced draft when MAD is explicitly selected", async () => {
+  const { client, calls } = createSupabaseMock();
+  const handler = createHandler(client);
+
+  const response = await handler(createFormRequest({ currency: "MAD" }));
+
+  expect(response.status).toBe(303);
+  expect(calls.offerInsertCalls).toBe(1);
+  expect(calls.insertPayload).toMatchObject({
+    price: null,
+    currency: null,
+    pricing_model: null,
+    lifecycle: "draft",
+    offer_type: "supplier_offer",
+  });
+});
+
+test("legacy offers route keeps an unpriced draft when CNY is explicitly selected", async () => {
+  const { client, calls } = createSupabaseMock();
+  const handler = createHandler(client);
+
+  const response = await handler(createFormRequest({ currency: "CNY" }));
+
+  expect(response.status).toBe(303);
+  expect(calls.offerInsertCalls).toBe(1);
+  expect(calls.insertPayload).toMatchObject({
+    price: null,
+    currency: null,
+    pricing_model: null,
+    lifecycle: "draft",
+    offer_type: "supplier_offer",
+  });
+});
