@@ -722,3 +722,12 @@ test("legacy offers route defaults whitespace-only optional JSON attributes to a
   expect(calls.offerInsertCalls).toBe(1);
   expect(calls.insertPayload?.attributes).toEqual({});
 });
+
+test("legacy offers route rejects a file supplied as quantity before invoking Supabase", async () => {
+  const file = new File(["2"], "quantity.txt", { type: "text/plain" });
+
+  await expectInvalidFormBeforeSupabase(
+    { quantity: file },
+    "Please provide a valid offer name and quantity.",
+  );
+});
