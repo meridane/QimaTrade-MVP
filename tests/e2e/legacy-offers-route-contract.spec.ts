@@ -1034,3 +1034,42 @@ test("legacy offers route keeps an empty first price unpriced when a later price
     offer_type: "supplier_offer",
   });
 });
+
+test("legacy offers route rejects a non-finite first price even when a valid duplicate follows before invoking Supabase", async () => {
+  let factoryCalls = 0;
+  const handler = createLegacyOfferHandler(async () => {
+    factoryCalls += 1;
+    throw new Error("Supabase client initialization failed");
+  });
+
+  const response = await handler(
+    createFormRequestWithDuplicateField("price", "NaN", "10", { currency: "USD" }),
+  );
+
+  expect(response.status).toBe(400);
+  await expect(response.json()).resolves.toEqual({
+    error: "Price must be a valid positive number.",
+  });
+  expect(factoryCalls).toBe(0);
+});
+
+test("legacy offers route ignores a second file value after a valid first price", async () => {
+  const { client, calls } = createSupabaseMock();
+  const handler = createHandler(client);
+  const file = new File(["20"], "price.txt", { type: "text/plain" });
+
+  const response = await handler(
+    createFormRequestWithDuplicateField("price", "10", file, { currency: "USD" }),
+  );
+
+  expect(response.status).toBe(303);
+  expect(calls.offerInsertCalls).toBe(1);
+  expect(calls.insertPayload).toMatchObject({
+    price: 10,
+    currency: "USD",
+    pricing_model: "fixed",
+    lifecycle: "draft",
+    offer_type: "supplier_offer",
+  });
+});
+
