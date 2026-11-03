@@ -153,10 +153,12 @@ function createFormRequestWithDuplicateField(
   fieldName: string,
   first: string | File,
   second: string | File,
+  additionalFields: Record<string, string | File> = {},
 ) {
   const form = new FormData();
   form.set("name", "Legacy draft offer");
   form.set("quantity", "2");
+  for (const [key, value] of Object.entries(additionalFields)) form.set(key, value);
   form.delete(fieldName);
   form.append(fieldName, first);
   form.append(fieldName, second);
@@ -830,3 +832,94 @@ test("legacy offers route uses the first value when the offer name is submitted 
   });
 });
 
+
+
+test("legacy offers route uses the first value when currency is submitted twice", async () => {
+  const { client, calls } = createSupabaseMock();
+  const handler = createHandler(client);
+
+  const response = await handler(
+    createFormRequestWithDuplicateField("currency", "USD", "XYZ", { price: "10" }),
+  );
+
+  expect(response.status).toBe(303);
+  expect(calls.offerInsertCalls).toBe(1);
+  expect(calls.insertPayload).toMatchObject({
+    price: 10,
+    currency: "USD",
+    pricing_model: "fixed",
+    lifecycle: "draft",
+    offer_type: "supplier_offer",
+  });
+});
+
+test("legacy offers route uses the first JSON value when attributes are submitted twice", async () => {
+  const { client, calls } = createSupabaseMock();
+  const handler = createHandler(client);
+
+  const response = await handler(
+    createFormRequestWithDuplicateField(
+      "attributes",
+      JSON.stringify({ grade: "A" }),
+      JSON.stringify({ grade: "B" }),
+    ),
+  );
+
+  expect(response.status).toBe(303);
+  expect(calls.offerInsertCalls).toBe(1);
+  expect(calls.insertPayload?.attributes).toEqual({ grade: "A" });
+});
+
+test("legacy offers route uses the first reference when demandId is submitted twice", async () => {
+  const { client, calls } = createSupabaseMock({
+    demand: {
+      id: DEMAND_ID,
+      target_market: "South Korea",
+      scope: {},
+    },
+  });
+  const handler = createHandler(client);
+  const secondDemandId = "50000000-0000-4000-8000-000000000102";
+
+  const response = await handler(
+    createFormRequestWithDuplicateField("demandId", DEMAND_ID, secondDemandId),
+  );
+
+  expect(response.status).toBe(303);
+  expect(calls.demandLookups).toEqual([{ column: "id", value: DEMAND_ID }]);
+  expect(calls.offerInsertCalls).toBe(1);
+  expect(calls.insertPayload).toMatchObject({
+    demand_id: DEMAND_ID,
+    market: "South Korea",
+    lifecycle: "draft",
+    offer_type: "supplier_offer",
+  });
+});
+
+test("legacy offers route uses the first reference when productMasterId is submitted twice", async () => {
+  const { client, calls } = createSupabaseMock({
+    productMaster: { id: EXPLICIT_PRODUCT_MASTER_ID },
+  });
+  const handler = createHandler(client);
+  const secondProductMasterId = "60000000-0000-4000-8000-000000000103";
+
+  const response = await handler(
+    createFormRequestWithDuplicateField(
+      "productMasterId",
+      EXPLICIT_PRODUCT_MASTER_ID,
+      secondProductMasterId,
+    ),
+  );
+
+  expect(response.status).toBe(303);
+  expect(calls.productMasterLookups).toEqual([
+    { column: "id", value: EXPLICIT_PRODUCT_MASTER_ID },
+    { column: "status", value: "active" },
+  ]);
+  expect(calls.offerInsertCalls).toBe(1);
+  expect(calls.insertPayload).toMatchObject({
+    product_master_id: EXPLICIT_PRODUCT_MASTER_ID,
+    lifecycle: "draft",
+    offer_type: "supplier_offer",
+  });
+});
