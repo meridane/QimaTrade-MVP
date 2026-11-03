@@ -1497,3 +1497,60 @@ test("legacy offers route keeps an unpriced draft when CNY is explicitly selecte
     offer_type: "supplier_offer",
   });
 });
+
+test("legacy offers route rejects an unsupported first currency even when a supported duplicate follows before invoking Supabase", async () => {
+  let factoryCalls = 0;
+  const handler = createLegacyOfferHandler(async () => {
+    factoryCalls += 1;
+    throw new Error("Supabase client initialization failed");
+  });
+
+  const response = await handler(
+    createFormRequestWithDuplicateField("currency", "JPY", "USD", { price: "10" }),
+  );
+
+  expect(response.status).toBe(400);
+  await expect(response.json()).resolves.toEqual({
+    error: "Please select a valid currency.",
+  });
+  expect(factoryCalls).toBe(0);
+});
+
+test("legacy offers route uses the first currency when a file is submitted as the second duplicate value", async () => {
+  const { client, calls } = createSupabaseMock();
+  const handler = createHandler(client);
+  const file = new File(["EUR"], "currency.txt", { type: "text/plain" });
+
+  const response = await handler(
+    createFormRequestWithDuplicateField("currency", "USD", file, { price: "10" }),
+  );
+
+  expect(response.status).toBe(303);
+  expect(calls.offerInsertCalls).toBe(1);
+  expect(calls.insertPayload).toMatchObject({
+    price: 10,
+    currency: "USD",
+    pricing_model: "fixed",
+    lifecycle: "draft",
+    offer_type: "supplier_offer",
+  });
+});
+
+test("legacy offers route rejects a file as the first duplicated currency value before invoking Supabase", async () => {
+  let factoryCalls = 0;
+  const handler = createLegacyOfferHandler(async () => {
+    factoryCalls += 1;
+    throw new Error("Supabase client initialization failed");
+  });
+  const file = new File(["USD"], "currency.txt", { type: "text/plain" });
+
+  const response = await handler(
+    createFormRequestWithDuplicateField("currency", file, "USD", { price: "10" }),
+  );
+
+  expect(response.status).toBe(400);
+  await expect(response.json()).resolves.toEqual({
+    error: "Invalid offer form fields.",
+  });
+  expect(factoryCalls).toBe(0);
+});
