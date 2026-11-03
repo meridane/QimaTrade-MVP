@@ -814,6 +814,56 @@ test("legacy offers route rejects a file when it is the first duplicated quantit
   expect(calls.insertPayload).toBeNull();
 });
 
+test("legacy offers route rejects an empty first quantity even when a positive duplicate follows before invoking Supabase", async () => {
+  const { calls } = createSupabaseMock();
+  let factoryCalls = 0;
+  const handler = createLegacyOfferHandler(async () => {
+    factoryCalls += 1;
+    throw new Error("Supabase client initialization failed");
+  });
+
+  const response = await handler(
+    createFormRequestWithDuplicateField("quantity", "", "2"),
+  );
+
+  expect(response.status).toBe(400);
+  await expect(response.json()).resolves.toEqual({
+    error: "Please provide a valid offer name and quantity.",
+  });
+  expect(factoryCalls).toBe(0);
+  expect(calls.authGetUser).toBe(0);
+  expect(calls.profileLookups).toHaveLength(0);
+  expect(calls.demandLookups).toHaveLength(0);
+  expect(calls.productMasterLookups).toHaveLength(0);
+  expect(calls.offerInsertCalls).toBe(0);
+  expect(calls.insertPayload).toBeNull();
+});
+
+test("legacy offers route rejects a whitespace-only first quantity even when a positive duplicate follows before invoking Supabase", async () => {
+  const { calls } = createSupabaseMock();
+  let factoryCalls = 0;
+  const handler = createLegacyOfferHandler(async () => {
+    factoryCalls += 1;
+    throw new Error("Supabase client initialization failed");
+  });
+
+  const response = await handler(
+    createFormRequestWithDuplicateField("quantity", "   ", "2"),
+  );
+
+  expect(response.status).toBe(400);
+  await expect(response.json()).resolves.toEqual({
+    error: "Please provide a valid offer name and quantity.",
+  });
+  expect(factoryCalls).toBe(0);
+  expect(calls.authGetUser).toBe(0);
+  expect(calls.profileLookups).toHaveLength(0);
+  expect(calls.demandLookups).toHaveLength(0);
+  expect(calls.productMasterLookups).toHaveLength(0);
+  expect(calls.offerInsertCalls).toBe(0);
+  expect(calls.insertPayload).toBeNull();
+});
+
 test("legacy offers route uses the first value when the offer name is submitted twice", async () => {
   const { client, calls } = createSupabaseMock();
   const handler = createHandler(client);
