@@ -1705,3 +1705,40 @@ test("legacy offers route uses the first positive quantity when a negative dupli
     offer_type: "supplier_offer",
   });
 });
+
+test("legacy offers route rejects a file as the first duplicated multipart quantity before invoking Supabase", async () => {
+  let factoryCalls = 0;
+  const handler = createLegacyOfferHandler(async () => {
+    factoryCalls += 1;
+    throw new Error("Supabase client initialization failed");
+  });
+  const file = new File(["2"], "quantity.txt", { type: "text/plain" });
+
+  const response = await handler(
+    createFormRequestWithDuplicateField("quantity", file, "2"),
+  );
+
+  expect(response.status).toBe(400);
+  await expect(response.json()).resolves.toEqual({
+    error: "Please provide a valid offer name and quantity.",
+  });
+  expect(factoryCalls).toBe(0);
+});
+
+test("legacy offers route uses the first numeric quantity when a file is submitted as the second duplicate value", async () => {
+  const { client, calls } = createSupabaseMock();
+  const handler = createHandler(client);
+  const file = new File(["invalid"], "quantity.txt", { type: "text/plain" });
+
+  const response = await handler(
+    createFormRequestWithDuplicateField("quantity", "2", file),
+  );
+
+  expect(response.status).toBe(303);
+  expect(calls.offerInsertCalls).toBe(1);
+  expect(calls.insertPayload).toMatchObject({
+    quantity: 2,
+    lifecycle: "draft",
+    offer_type: "supplier_offer",
+  });
+});
