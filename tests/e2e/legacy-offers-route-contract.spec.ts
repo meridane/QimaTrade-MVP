@@ -1271,3 +1271,44 @@ test("legacy offers route rejects a positive multipart quantity that underflows 
     "Please provide a valid offer name and quantity.",
   );
 });
+
+test("legacy offers route defaults an omitted currency to USD for a priced draft", async () => {
+  const { client, calls } = createSupabaseMock();
+  const handler = createHandler(client);
+
+  const response = await handler(createFormRequest({ price: "10" }));
+
+  expect(response.status).toBe(303);
+  expect(calls.offerInsertCalls).toBe(1);
+  expect(calls.insertPayload).toMatchObject({
+    price: 10,
+    currency: "USD",
+    pricing_model: "fixed",
+    lifecycle: "draft",
+    offer_type: "supplier_offer",
+  });
+});
+
+test("legacy offers route rejects a whitespace-only currency for a priced draft before invoking Supabase", async () => {
+  await expectInvalidFormBeforeSupabase(
+    { price: "10", currency: "   " },
+    "Please select a valid currency.",
+  );
+});
+
+test("legacy offers route keeps an unpriced draft when an unsupported currency is submitted without a price", async () => {
+  const { client, calls } = createSupabaseMock();
+  const handler = createHandler(client);
+
+  const response = await handler(createFormRequest({ currency: "XYZ" }));
+
+  expect(response.status).toBe(303);
+  expect(calls.offerInsertCalls).toBe(1);
+  expect(calls.insertPayload).toMatchObject({
+    price: null,
+    currency: null,
+    pricing_model: null,
+    lifecycle: "draft",
+    offer_type: "supplier_offer",
+  });
+});
