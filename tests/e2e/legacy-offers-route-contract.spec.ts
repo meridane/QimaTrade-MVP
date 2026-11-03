@@ -1641,3 +1641,32 @@ test("legacy offers route trims the first currency and ignores a supported dupli
     offer_type: "supplier_offer",
   });
 });
+
+test("legacy offers route rejects a negative multipart quantity before invoking Supabase", async () => {
+  await expectInvalidFormBeforeSupabase(
+    { quantity: "-1" },
+    "Please provide a valid offer name and quantity.",
+  );
+});
+
+test("legacy offers route rejects negative zero as a multipart quantity before invoking Supabase", async () => {
+  await expectInvalidFormBeforeSupabase(
+    { quantity: "-0" },
+    "Please provide a valid offer name and quantity.",
+  );
+});
+
+test("legacy offers route accepts a leading plus sign for a positive multipart quantity using JavaScript Number parsing", async () => {
+  const { client, calls } = createSupabaseMock();
+  const handler = createHandler(client);
+
+  const response = await handler(createFormRequest({ quantity: "+2" }));
+
+  expect(response.status).toBe(303);
+  expect(calls.offerInsertCalls).toBe(1);
+  expect(calls.insertPayload).toMatchObject({
+    quantity: 2,
+    lifecycle: "draft",
+    offer_type: "supplier_offer",
+  });
+});
