@@ -3474,3 +3474,36 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **Avertissements :** les avertissements Node.js 20, `punycode` et `url.parse()` restent des sujets de maintenance. Les messages `IDEMPOTENCY_KEY_REUSE` sont issus des cas négatifs prévus dans les tests d'idempotence ; ils ne sont pas interprétés comme vulnérabilités confirmées.
 - **Garde-fous :** aucune donnée, migration, policy ou configuration Supabase production modifiée ; aucun déploiement de production, aucune fusion et aucune modification des protections de branche.
 - **Validation du présent commit documentaire :** ses propres checks CI/CodeQL doivent être vérifiés séparément après son push.
+
+### OFFER-QA-148 — validation finale du HEAD PR `36808fd383304d8d4b3cb994a5b8bfb4eabbcf06` (3 novembre 2026, 15:25 KST)
+
+- **État vérifié :** PR #26 ouverte, brouillon, non fusionnée et mergeable au début de QA149 ; HEAD `36808fd383304d8d4b3cb994a5b8bfb4eabbcf06`, 564 commits en avance sur `main`, 0 en retard et 43 fichiers dans le diff.
+- **QIMA CI #663** [run 41583218975](https://github.com/meridane/QimaTrade-MVP/actions/runs/41583218975) : **SUCCESS** sur le HEAD exact. Installation npm depuis le lockfile, audit npm, TypeScript, build Next.js, Chromium, **134 tests Playwright réussis (5,0 s)**, tests PostgreSQL CREATE_OFFER/concurrence et deux suites RLS synthétiques réussis ; nettoyage du conteneur terminé.
+- **CodeQL #621** [run 41583218976](https://github.com/meridane/QimaTrade-MVP/actions/runs/41583218976) : **SUCCESS** sur le même HEAD.
+- **Vercel :** statut combiné `build-rate-limit` sur ce HEAD (quota Preview), sans impact sur les contrôles GitHub Actions. Aucun déploiement de production.
+- **Conclusion QA148 :** les quatre tests restent validés sur le HEAD documentaire exact `36808fd`, qui revalide également les 134 tests Playwright.
+- **Limites et garde-fous :** les tests de handler utilisent un client Supabase simulé ; les suites PostgreSQL/RLS tournent dans un environnement CI isolé. Elles ne prouvent pas les permissions de Supabase production ni une vulnérabilité exploitable. Aucune donnée, migration, policy ou configuration Supabase production modifiée ; aucune fusion et aucune modification des protections de branche.
+
+### OFFER-QA-149 — caractériser les valeurs multipart dupliquées du prix (3 novembre 2026, 15:25 KST)
+
+- **État initial vérifié :** PR #26 ouverte, en brouillon, non fusionnée et mergeable ; HEAD initial `36808fd383304d8d4b3cb994a5b8bfb4eabbcf06`, 564 commits en avance sur `main`, 0 en retard et 43 fichiers dans le diff. QIMA CI #663 et CodeQL #621 étaient SUCCESS ; le statut Vercel du HEAD initial était `build-rate-limit` (quota Preview).
+- **Branche de travail :** `work/offer-qa-149-price-duplicates-20261103-1525`, créée depuis le HEAD PR initial exact.
+- **Constat :** le handler lit `price` avec `FormData.get("price")`. Comme les autres champs scalaires déjà caractérisés, seule la première occurrence est utilisée. Le prix est facultatif : une première valeur vide doit rester non tarifée même si une valeur ultérieure est présente. Aucun changement de règle commerciale n'est introduit.
+- **Deux tests ajoutés** dans `tests/e2e/legacy-offers-route-contract.spec.ts` :
+  1. `price = "10"` puis `"20"`, devise `USD` : HTTP 303 ; le payload conserve `price: 10`, `currency: "USD"`, `pricing_model: "fixed"`, `lifecycle: "draft"` et `offer_type: "supplier_offer"`.
+  2. `price = "   "` puis `"10"`, devise `USD` : HTTP 303 ; le premier champ vide est conservé et le payload reste non tarifé (`price`, `currency`, `pricing_model` à `null`), avec le brouillon et le type d'offre inchangés.
+- **Commit de tests :** [acd3a7f626ec2ecd0858e3447371f883b1802282](https://github.com/meridane/QimaTrade-MVP/commit/acd3a7f626ec2ecd0858e3447371f883b1802282) (`test(qima): characterize duplicate optional price values`). Commit créé sur la branche de travail puis avancé en fast-forward sur la branche PR avec un lease attendu sur le HEAD initial `36808fd`.
+- **QIMA CI #664** [run 41590016225](https://github.com/meridane/QimaTrade-MVP/actions/runs/41590016225) : **SUCCESS** sur le commit de tests exact `acd3a7f626ec2ecd0858e3447371f883b1802282`.
+  - Installation depuis le lockfile, audit npm et enforcement de l'audit : SUCCESS.
+  - TypeScript : SUCCESS.
+  - Build Next.js : SUCCESS (compilation en 11,4 s).
+  - Chromium : SUCCESS.
+  - Playwright : **136 tests réussis (6,7 s)** ; les deux nouveaux tests QA149 sont inclus.
+  - Tests PostgreSQL isolés CREATE_OFFER/concurrence/idempotence : SUCCESS.
+  - Régressions synthétiques messages-RLS et self-enrollment : SUCCESS ; nettoyage du conteneur terminé.
+- **CodeQL #622** [run 41590016227](https://github.com/meridane/QimaTrade-MVP/actions/runs/41590016227) : **SUCCESS** sur le même commit.
+- **Vercel Preview : SUCCESS** sur le commit de tests `acd3a7f` ([Preview](https://vercel.com/bmk1/qimatrade-mvp/4w5ZVbq2kGJxViKaeAqVk5JyQs8a)) ; aucune mise en production.
+- **Conclusion QA149 : VALIDÉE** pour le comportement observé dans le handler et les fixtures : le premier prix gagne ; un premier prix vide maintient un brouillon non tarifé. Aucun changement applicatif requis.
+- **Avertissements :** les avertissements Node.js 20, `punycode` et `url.parse()` restent des sujets de maintenance. Les erreurs SQL `QA103_FORCED_FIRST_ATTEMPT_FAILURE`, `QA104_FORCED_FIRST_ATTEMPT_FAILURE` et `IDEMPOTENCY_KEY_REUSE` sont émises par les scénarios négatifs attendus des tests d'intégration ; elles ne sont pas interprétées comme vulnérabilités confirmées.
+- **Portée et limites :** les tests de handler utilisent un client Supabase simulé ; les tests PostgreSQL et RLS sont isolés dans CI. Ils ne prouvent pas les autorisations de Supabase production ni une vulnérabilité exploitable. Aucune donnée, migration, policy ou configuration Supabase production modifiée ; aucun déploiement de production, aucune fusion et aucune modification des protections de branche.
+- **Validation du commit documentaire QA149 :** à vérifier séparément après le push de l'entrée qui consigne les résultats ci-dessus.
