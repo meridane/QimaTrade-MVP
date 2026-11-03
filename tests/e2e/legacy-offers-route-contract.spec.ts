@@ -149,6 +149,24 @@ function createFormRequest(fields: Record<string, string | File> = {}) {
   });
 }
 
+function createFormRequestWithDuplicateField(
+  fieldName: string,
+  first: string | File,
+  second: string | File,
+) {
+  const form = new FormData();
+  form.set("name", "Legacy draft offer");
+  form.set("quantity", "2");
+  form.delete(fieldName);
+  form.append(fieldName, first);
+  form.append(fieldName, second);
+
+  return new Request("https://qima.test/api/offers", {
+    method: "POST",
+    body: form,
+  });
+}
+
 function createHandler(client: ReturnType<typeof createSupabaseMock>["client"]) {
   return createLegacyOfferHandler(async () => client as never);
 }
@@ -731,3 +749,84 @@ test("legacy offers route rejects a file supplied as quantity before invoking Su
     "Please provide a valid offer name and quantity.",
   );
 });
+
+test("legacy offers route uses the first value when quantity is submitted twice", async () => {
+  const { client, calls } = createSupabaseMock();
+  const handler = createHandler(client);
+
+  const response = await handler(
+    createFormRequestWithDuplicateField("quantity", "2", "3"),
+  );
+
+  expect(response.status).toBe(303);
+  expect(calls.offerInsertCalls).toBe(1);
+  expect(calls.insertPayload).toMatchObject({
+    name: "Legacy draft offer",
+    quantity: 2,
+    lifecycle: "draft",
+    offer_type: "supplier_offer",
+  });
+});
+
+test("legacy offers route ignores a second file value after a valid quantity", async () => {
+  const { client, calls } = createSupabaseMock();
+  const handler = createHandler(client);
+  const file = new File(["invalid"], "quantity.txt", { type: "text/plain" });
+
+  const response = await handler(
+    createFormRequestWithDuplicateField("quantity", "2", file),
+  );
+
+  expect(response.status).toBe(303);
+  expect(calls.offerInsertCalls).toBe(1);
+  expect(calls.insertPayload).toMatchObject({
+    quantity: 2,
+    lifecycle: "draft",
+    offer_type: "supplier_offer",
+  });
+});
+
+test("legacy offers route rejects a file when it is the first duplicated quantity value", async () => {
+  const { calls } = createSupabaseMock();
+  let factoryCalls = 0;
+  const handler = createLegacyOfferHandler(async () => {
+    factoryCalls += 1;
+    throw new Error("Supabase client initialization failed");
+  });
+  const file = new File(["2"], "quantity.txt", { type: "text/plain" });
+
+  const response = await handler(
+    createFormRequestWithDuplicateField("quantity", file, "2"),
+  );
+
+  expect(response.status).toBe(400);
+  await expect(response.json()).resolves.toEqual({
+    error: "Please provide a valid offer name and quantity.",
+  });
+  expect(factoryCalls).toBe(0);
+  expect(calls.authGetUser).toBe(0);
+  expect(calls.profileLookups).toHaveLength(0);
+  expect(calls.demandLookups).toHaveLength(0);
+  expect(calls.productMasterLookups).toHaveLength(0);
+  expect(calls.offerInsertCalls).toBe(0);
+  expect(calls.insertPayload).toBeNull();
+});
+
+test("legacy offers route uses the first value when the offer name is submitted twice", async () => {
+  const { client, calls } = createSupabaseMock();
+  const handler = createHandler(client);
+
+  const response = await handler(
+    createFormRequestWithDuplicateField("name", "First offer name", "Second offer name"),
+  );
+
+  expect(response.status).toBe(303);
+  expect(calls.offerInsertCalls).toBe(1);
+  expect(calls.insertPayload).toMatchObject({
+    name: "First offer name",
+    quantity: 2,
+    lifecycle: "draft",
+    offer_type: "supplier_offer",
+  });
+});
+
