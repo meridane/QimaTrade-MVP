@@ -3853,3 +3853,9 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **CodeQL #663** [run 41714609788](https://github.com/meridane/QimaTrade-MVP/actions/runs/41714609788) : **SUCCESS**.
 - **Vercel Preview :** échec de quota build-rate-limit sur ce HEAD documentaire ; la Preview du commit de tests QA163 79db739 était SUCCESS. Le quota Vercel est distinct de GitHub Actions et ne constitue pas un échec du build CI.
 - **Conclusion :** QA163 reste validée sur le commit de tests 79db739 ; le HEAD documentaire c42584e passe également les 178 tests et tous les contrôles GitHub Actions/CodeQL.
+
+#### OFFER-QA-163 — réconciliation du contrôle après mise à jour du registre (4 novembre 2026)
+
+- **HEAD validé :** 018eeb8380acb0ee79040cdbf1a6f818174ddc9d. QIMA CI #707 [run 41714959387](https://github.com/meridane/QimaTrade-MVP/actions/runs/41714959387) : **SUCCESS** ; les deux jobs sont terminés avec succès. Playwright confirme **178/178 tests réussis (8,9 s)** ; npm audit : 0 finding ; TypeScript, build Next.js, Chromium, PostgreSQL CREATE_OFFER/concurrence/idempotence et les deux suites RLS synthétiques : SUCCESS. CodeQL #664 [run 41714959216](https://github.com/meridane/QimaTrade-MVP/actions/runs/41714959216) : **SUCCESS**.
+- **Vercel Preview :** build-rate-limit sur ce HEAD documentaire, dû au quota quotidien de déploiements ; distinct de GitHub Actions. La Preview du commit de tests 79db739 était SUCCESS.
+- **État PR relu :** ouverte, brouillon, non fusionnée et mergeable ; branche de travail identique à la branche de PR ; 610 commits en avance sur main, 0 en retard, 43 fichiers dans le diff ; aucun review ni thread de review.
