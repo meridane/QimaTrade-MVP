@@ -4016,3 +4016,18 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **CodeQL #681** [run 41732926228](https://github.com/meridane/QimaTrade-MVP/actions/runs/41732926228) : **SUCCESS**.
 - **Vercel Preview :** échec `build-rate-limit` sur le HEAD `38b6d32` (quota quotidien Preview) ; distinct des contrôles GitHub Actions. La Preview du HEAD précédent `2f4536e` était SUCCESS.
 - **Conclusion :** le HEAD documentaire `38b6d32` et QA166 sont validés ; aucun test échoué. Les résultats PostgreSQL/RLS sont ceux des fixtures isolées/synthétiques et ne prouvent pas une vulnérabilité ni une propriété de la production.
+
+
+#### OFFER-QA-167 — précédence des valeurs multipart name dupliquées (4 novembre 2026)
+
+- **État initial relu :** PR #26 ouverte, brouillon, non fusionnée et mergeable ; branche `fix/create-offer-status-contract` à `2ed8a990fc21dbcfc0a2fede54de850d20e5606a`, base `main` `0d35c13db81019867fe9929420b0a6916285fbf6`, 631 commits en avance, 0 en retard, 43 fichiers dans le diff. Aucun review ni thread de review.
+- **Contrôles initiaux :** QIMA CI #725 [run 41733243342](https://github.com/meridane/QimaTrade-MVP/actions/runs/41733243342) : SUCCESS sur les deux jobs ; Playwright 183/183, TypeScript, audit dépendances, build Next.js, PostgreSQL CREATE_OFFER/concurrence/idempotence et deux suites RLS synthétiques : SUCCESS. CodeQL #682 [run 41733243279](https://github.com/meridane/QimaTrade-MVP/actions/runs/41733243279) : SUCCESS. Le check Vercel du HEAD initial est en échec `build-rate-limit` (quota Preview), distinct de GitHub Actions.
+- **Branche de travail :** `work/offer-qa-167-name-duplicate-values-20261104-0813`, créée depuis le HEAD initial exact.
+- **Constat source :** le handler lit `form.get("name")`, vérifie que la première valeur est une chaîne puis applique `trim()`. Une première valeur vide doit donc être rejetée même si une deuxième valeur est valide. Si la première valeur est un texte valide et la deuxième un `File`, le handler continue d'utiliser le premier texte ; contrairement à certains autres champs, `name` n'est pas dans `textFormFields`. Ce test caractérise le comportement existant sans conclure que la valeur secondaire ignorée constitue une vulnérabilité.
+- **Deux tests ajoutés** dans `tests/e2e/legacy-offers-route-contract.spec.ts` :
+  1. première valeur `""`, deuxième valeur `"Offer valid"` : HTTP 400, message `Please provide a valid offer name and quantity.`, factory Supabase non appelée ;
+  2. première valeur `"First offer name"`, deuxième valeur `File` : HTTP 303, une insertion simulée, payload `name: "First offer name"`, `quantity: 2`, `lifecycle: "draft"`, `offer_type: "supplier_offer"`.
+- **Commit de tests :** `5337a39669b3e175ed366e8a5739980b779f238d` (`test(qima): cover duplicate multipart offer names`).
+- **Validation :** le nouveau commit de tests est synchronisé sur la branche de la PR avant cette mise à jour du registre ; son exécution CI/CodeQL sera vérifiée séparément. Le total attendu est 185 tests Playwright. Ne pas déclarer QA167 validée avant la fin des contrôles du HEAD documentaire.
+- **Limites :** tests du handler avec client Supabase simulé ; ils caractérisent le parsing multipart et l'absence d'initialisation Supabase dans le cas rejeté, sans prouver une persistance distante ni une vulnérabilité.
+- **Garde-fous :** aucun code applicatif, SQL, migration, donnée, policy ou configuration Supabase production modifié ; aucun déploiement de production, aucune fusion et aucune modification des protections de branche.
