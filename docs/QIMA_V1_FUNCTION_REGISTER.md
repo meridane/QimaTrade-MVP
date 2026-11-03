@@ -3523,3 +3523,9 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **Garde-fous :** aucun code applicatif, SQL, migration, donnée, policy ou configuration Supabase production modifié ; aucun déploiement de production, aucune fusion et aucune modification des protections de branche.
 - **Prochaine étape :** attendre les résultats QIMA CI/Playwright, PostgreSQL et CodeQL sur le commit de tests puis sur le commit documentaire exact. Ne marquer QA150 validée qu'après les contrôles complets réussis.
 
+#### OFFER-QA-150 — suivi des checks après publication initiale (3 novembre 2026, 17:06 KST)
+
+- Sur le **commit de tests** `5222fa14389c33e6bb3cc4c1a14cfa4e26ca4e89`, les runs ont été créés : QIMA CI #666 [run 41600987576](https://github.com/meridane/QimaTrade-MVP/actions/runs/41600987576) et CodeQL #624 [run 41600987634](https://github.com/meridane/QimaTrade-MVP/actions/runs/41600987634). Au dernier relevé, les deux étaient **in_progress**. Dans QIMA CI #666, installation npm, audit npm et TypeScript étaient SUCCESS ; build Next.js et les tests PostgreSQL étaient encore en cours, Playwright n'avait pas commencé.
+- Sur le **premier commit documentaire** `f3110052c85ef3a3faf12869627aad92abd416b9), QIMA CI #667 [run 41601031677](https://github.com/meridane/QimaTrade-MVP/actions/runs/41601031677) était **pending** et CodeQL #625 [run 41601031640](https://github.com/meridane/QimaTrade-MVP/actions/runs/41601031640) était **in_progress**. Aucun résultat final n'est attribué à ces runs à ce relevé.
+- **Interprétation :** les succès du HEAD antérieur #665/#623 ne sont pas transférés à QA150. Ne déclarer QA150 validée qu'après un QIMA CI complet réussi sur un HEAD contenant les deux nouveaux tests et un HEAD documentaire final, avec Playwright et PostgreSQL réussis ; vérifier aussi CodeQL sur le HEAD final.
+
