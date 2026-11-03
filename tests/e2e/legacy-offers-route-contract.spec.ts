@@ -1144,3 +1144,59 @@ test("legacy offers route currently accepts hexadecimal notation for a multipart
     offer_type: "supplier_offer",
   });
 });
+
+
+test("legacy offers route accepts a fractional decimal multipart quantity and preserves its numeric value", async () => {
+  const { client, calls } = createSupabaseMock();
+  const handler = createHandler(client);
+
+  const response = await handler(createFormRequest({ quantity: "1.5" }));
+
+  expect(response.status).toBe(303);
+  expect(calls.offerInsertCalls).toBe(1);
+  expect(calls.insertPayload).toMatchObject({
+    quantity: 1.5,
+    price: null,
+    currency: null,
+    pricing_model: null,
+    lifecycle: "draft",
+    offer_type: "supplier_offer",
+  });
+});
+
+test("legacy offers route accepts scientific notation for a multipart quantity using JavaScript Number parsing", async () => {
+  const { client, calls } = createSupabaseMock();
+  const handler = createHandler(client);
+
+  const response = await handler(createFormRequest({ quantity: "1e2" }));
+
+  expect(response.status).toBe(303);
+  expect(calls.offerInsertCalls).toBe(1);
+  expect(calls.insertPayload).toMatchObject({
+    quantity: 100,
+    lifecycle: "draft",
+    offer_type: "supplier_offer",
+  });
+});
+
+test("legacy offers route currently accepts hexadecimal notation for a multipart quantity", async () => {
+  const { client, calls } = createSupabaseMock();
+  const handler = createHandler(client);
+
+  const response = await handler(createFormRequest({ quantity: "0x10" }));
+
+  expect(response.status).toBe(303);
+  expect(calls.offerInsertCalls).toBe(1);
+  expect(calls.insertPayload).toMatchObject({
+    quantity: 16,
+    lifecycle: "draft",
+    offer_type: "supplier_offer",
+  });
+});
+
+test("legacy offers route rejects an overflowing numeric multipart quantity before invoking Supabase", async () => {
+  await expectInvalidFormBeforeSupabase(
+    { quantity: "1e309" },
+    "Please provide a valid offer name and quantity.",
+  );
+});
