@@ -923,3 +923,76 @@ test("legacy offers route uses the first reference when productMasterId is submi
     offer_type: "supplier_offer",
   });
 });
+
+
+test("legacy offers route uses the first value when conditions are submitted twice", async () => {
+  const { client, calls } = createSupabaseMock();
+  const handler = createHandler(client);
+
+  const response = await handler(
+    createFormRequestWithDuplicateField(
+      "conditions",
+      "Delivery within 7 days",
+      "Delivery within 30 days",
+    ),
+  );
+
+  expect(response.status).toBe(303);
+  expect(calls.offerInsertCalls).toBe(1);
+  expect(calls.insertPayload).toMatchObject({
+    conditions: "Delivery within 7 days",
+    lifecycle: "draft",
+    offer_type: "supplier_offer",
+  });
+});
+
+test("legacy offers route uses the first value when documentation is submitted twice", async () => {
+  const { client, calls } = createSupabaseMock();
+  const handler = createHandler(client);
+
+  const response = await handler(
+    createFormRequestWithDuplicateField("documentation", "", "safety-sheet.pdf"),
+  );
+
+  expect(response.status).toBe(303);
+  expect(calls.offerInsertCalls).toBe(1);
+  expect(calls.insertPayload).toMatchObject({
+    documentation_status: "incomplete",
+    lifecycle: "draft",
+    offer_type: "supplier_offer",
+  });
+});
+
+test("legacy offers route uses the first value when market is submitted twice", async () => {
+  const { client, calls } = createSupabaseMock();
+  const handler = createHandler(client);
+
+  const response = await handler(
+    createFormRequestWithDuplicateField("market", "South Korea", "Morocco"),
+  );
+
+  expect(response.status).toBe(303);
+  expect(calls.offerInsertCalls).toBe(1);
+  expect(calls.insertPayload).toMatchObject({
+    market: "South Korea",
+    lifecycle: "draft",
+    offer_type: "supplier_offer",
+  });
+});
+
+test("legacy offers route uses the first value when geography is submitted twice", async () => {
+  const { client, calls } = createSupabaseMock();
+  const handler = createHandler(client);
+
+  const response = await handler(
+    createFormRequestWithDuplicateField("geography", "Busan", "Casablanca"),
+  );
+
+  expect(response.status).toBe(303);
+  expect(calls.offerInsertCalls).toBe(1);
+  expect(calls.insertPayload).toMatchObject({
+    geography: "Busan",
+    lifecycle: "draft",
+    offer_type: "supplier_offer",
+  });
+});
