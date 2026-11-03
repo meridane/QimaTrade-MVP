@@ -1073,3 +1073,23 @@ test("legacy offers route ignores a second file value after a valid first price"
   });
 });
 
+test("legacy offers route rejects a negative fractional multipart price before invoking a rejecting Supabase factory", async () => {
+  await expectInvalidFormBeforeSupabase(
+    { price: "-0.01" },
+    "Price must be a valid positive number.",
+  );
+});
+
+test("legacy offers route rejects negative infinity as a multipart price before invoking a rejecting Supabase factory", async () => {
+  await expectInvalidFormBeforeSupabase(
+    { price: "-Infinity" },
+    "Price must be a valid positive number.",
+  );
+});
+
+test("legacy offers route rejects an overflowing numeric multipart price before invoking a rejecting Supabase factory", async () => {
+  await expectInvalidFormBeforeSupabase(
+    { price: "1e309" },
+    "Price must be a valid positive number.",
+  );
+});
