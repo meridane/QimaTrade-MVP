@@ -3415,3 +3415,23 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **Prochaine étape de validation :** vérifier les runs QIMA CI, PostgreSQL et CodeQL associés au HEAD final après cette entrée documentaire. Ne déclarer QA147 validée qu'après la fin réussie de Playwright et des jobs d'intégration sur le SHA exact.
 - **Portée et limites :** tests du handler avec client Supabase simulé ; ils caractérisent la lecture multipart et les valeurs transmises au payload. Ils ne valident ni les références en base réelle, ni les autorisations Supabase de production, ni le modèle métier d'appartenance demande/tenant.
 - **Garde-fous :** aucun code applicatif, SQL, migration, donnée, policy ou configuration Supabase production modifié ; aucun déploiement de production, aucune fusion et aucune modification des protections de branche. Le contrat d'autorisation `demandId` ↔ tenant reste une question métier distincte, non résolue.
+
+### OFFER-QA-147 — résultats définitifs sur le HEAD `f3aaefaea45a6e65b520876a27ba02d9b8868bc9` (3 novembre 2026, 13:23 KST)
+
+- **QIMA CI #659** [run 41577979222](https://github.com/meridane/QimaTrade-MVP/actions/runs/41577979222) : **SUCCESS** sur le HEAD documentaire final `f3aaefaea45a6e65b520876a27ba02d9b8868bc9`.
+  - Installation depuis le lockfile commité : SUCCESS.
+  - Audit npm et contrôle d'application du résultat d'audit : SUCCESS ; artefact `npm-audit-report` téléversé.
+  - TypeScript : SUCCESS.
+  - Build Next.js de production : SUCCESS.
+  - Installation Chromium : SUCCESS.
+  - Playwright : **130 tests réussis (5,0 s)**. Les quatre scénarios QA147 sont explicitement visibles comme tests 127 à 130 dans le journal.
+  - Tests PostgreSQL isolés CREATE_OFFER/concurrence : SUCCESS.
+  - Régressions synthétiques messages-RLS et self-enrollment : SUCCESS ; nettoyage du conteneur terminé.
+  - Artefact `committed-package-lock` téléversé avec succès.
+- **CodeQL #617** [run 41577979165](https://github.com/meridane/QimaTrade-MVP/actions/runs/41577979165) : **SUCCESS** sur le même HEAD.
+- **Vercel Preview : SUCCESS** sur le même HEAD ([détails](https://vercel.com/bmk1/qimatrade-mvp/CPFhCrBzP4G4feS5yEYeWKTdv5A2)) ; prévisualisation uniquement, aucun déploiement de production.
+- **Run intermédiaire :** QIMA CI #658 [run 41577937739](https://github.com/meridane/QimaTrade-MVP/actions/runs/41577937739), déclenché sur le commit de tests `4cfa0807cb6f2f66915d71ec7e65a64998eb6eef`, a été annulé lors de l'arrivée du commit documentaire suivant. Ses étapes applicatives (installation, audit, TypeScript, build et Playwright) avaient terminé avec succès et le job PostgreSQL avait exécuté ses trois suites avec succès avant l'annulation de nettoyage. **Le résultat de référence reste le run complet #659 sur le HEAD documentaire exact.**
+- **Interprétation des journaux PostgreSQL :** les messages `IDEMPOTENCY_KEY_REUSE` proviennent de cas négatifs attendus dans les tests de concurrence/idempotence. Ils ne sont pas interprétés comme une vulnérabilité confirmée.
+- **Conclusion QA147 : VALIDÉE pour le contrat observé dans le handler et les fixtures.** Le comportement « première valeur gagnante » est couvert pour `currency`, `attributes`, `demandId` et `productMasterId`. Cela ne tranche pas la politique produit/API applicable aux doublons et ne prouve pas les permissions de Supabase production.
+- **Garde-fous :** aucune modification applicative, SQL, migration, donnée, policy ou configuration Supabase production ; aucun déploiement de production, aucune fusion et aucune modification des protections de branche.
+- **Validation documentaire :** les checks du présent commit qui ajoute ces résultats doivent encore être vérifiés séparément sur son SHA final.
