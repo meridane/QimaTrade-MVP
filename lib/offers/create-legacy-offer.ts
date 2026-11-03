@@ -10,6 +10,25 @@ export function createLegacyOfferHandler(
   return async function handleLegacyOffer(request: Request) {
     try {
       const form = await request.formData();
+      const textFormFields = [
+        "price",
+        "currency",
+        "conditions",
+        "documentation",
+        "market",
+        "geography",
+        "demandId",
+        "productMasterId",
+        "attributes",
+      ] as const;
+      const hasNonTextValue = textFormFields.some((fieldName) => {
+        const value = form.get(fieldName);
+        return value !== null && typeof value !== "string";
+      });
+      if (hasNonTextValue) {
+        return NextResponse.json({ error: "Invalid offer form fields." }, { status: 400 });
+      }
+
       const nameValue = form.get("name");
       const name = typeof nameValue === "string" ? nameValue.trim() : "";
       const quantity = Number(form.get("quantity") ?? "");
