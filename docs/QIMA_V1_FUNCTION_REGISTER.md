@@ -3776,3 +3776,16 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **Commit de tests :** `bcd1f1445d853cdc8a964cd309ab35614c0bc02e` (`test(qima): cover duplicate multipart currency values`). Le commit est créé sur la branche de travail ; la validation CI du nouveau HEAD sera contrôlée après synchronisation avec la PR.
 - **Conclusion provisoire QA160 :** ces tests caractérisent la sémantique première-valeur de `FormData.get()` et le contrôle du type de la première valeur. Ils ne constituent pas une preuve de vulnérabilité ni de persistance distante.
 - **Garde-fous :** aucun code applicatif, SQL, migration, donnée, policy ou configuration Supabase production modifié ; aucun déploiement de production, aucune fusion et aucune modification des protections de branche.
+
+
+
+#### OFFER-QA-160 — réconciliation finale des contrôles (4 novembre 2026)
+
+- **HEAD validé :** `570c6b8a81b90a130c1b9501f3690264d480acf4`, PR #26 ouverte, brouillon, non fusionnée et mergeable ; comparaison `main...fix/create-offer-status-contract` : 600 commits en avance, 0 en retard, 43 fichiers dans le diff.
+- **QIMA CI #696** [run 41682766007](https://github.com/meridane/QimaTrade-MVP/actions/runs/41682766007) : **SUCCESS** ; les deux jobs sont terminés avec succès. Le journal Playwright confirme **171 tests réussis (5,4 s)**, sans échec. Installation npm, audit dépendances, TypeScript, build Next.js, installation Chromium et navigateur : SUCCESS. Les suites PostgreSQL CREATE_OFFER/concurrence/idempotence, RLS messages synthétique et self-enrollment synthétique : SUCCESS.
+- **CodeQL #654** [run 41682765911](https://github.com/meridane/QimaTrade-MVP/actions/runs/41682765911) : **SUCCESS**.
+- **Vercel Preview :** le statut combiné du HEAD est encore **pending** au moment de cette réconciliation ; aucune conclusion de déploiement Preview n'est revendiquée.
+- **Conclusion : QA160 VALIDÉE** sur le HEAD exact `570c6b8`. Les trois scénarios complètent la couverture multipart de `currency` : une première devise non prise en charge est rejetée même si une seconde valeur est valide ; une première valeur texte valide reste utilisée si une valeur File suit ; une première valeur File est rejetée même si une chaîne valide suit.
+- **Interprétation :** la sémantique testée est celle de `FormData.get()` (première occurrence) et de la validation de type appliquée à cette occurrence. Les erreurs PostgreSQL `QA103_FORCED_FIRST_ATTEMPT_FAILURE`, `QA104_FORCED_FIRST_ATTEMPT_FAILURE` et `IDEMPOTENCY_KEY_REUSE` dans les journaux sont les scénarios négatifs prévus par les tests d'intégration ; elles ne sont pas présentées comme des vulnérabilités confirmées. Les avertissements Node.js 20 et `url.parse()` sont non bloquants.
+- **Limites :** tests du handler avec client Supabase simulé ; les assertions de payload ne démontrent pas la persistance distante, les droits de production ou l'exploitabilité d'une vulnérabilité.
+- **Garde-fous :** aucun code applicatif, SQL, migration, donnée, policy ou configuration Supabase production modifié ; aucun déploiement de production, aucune fusion et aucune modification des protections de branche.
