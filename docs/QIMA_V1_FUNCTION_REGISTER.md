@@ -3909,3 +3909,12 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **Interprétation des journaux PostgreSQL :** `QA103_FORCED_FIRST_ATTEMPT_FAILURE`, `QA104_FORCED_FIRST_ATTEMPT_FAILURE` et `IDEMPOTENCY_KEY_REUSE` sont des scénarios négatifs attendus des tests isolés ; les assertions correspondantes réussissent. Ils ne sont pas présentés comme des vulnérabilités confirmées.
 - **Validation du présent commit documentaire :** une nouvelle exécution CI/CodeQL sera déclenchée par sa synchronisation sur la PR ; son statut sera relevé séparément et ne sera pas confondu avec les succès #713/#670.
 - **Garde-fous :** aucun code applicatif, SQL, migration, donnée, policy ou configuration Supabase production modifié ; aucun déploiement de production, aucune fusion et aucune modification des protections de branche.
+
+#### OFFER-QA-164 — contrôle du dernier HEAD documentaire (4 novembre 2026)
+
+- **HEAD vérifié :** `736fa42824a6326d6d12de770d025be34867d42b`, PR #26 ouverte, brouillon, non fusionnée et mergeable ; 618 commits en avance sur `main`, 0 en retard, 43 fichiers dans le diff.
+- **QIMA CI #714** [run 41729482227](https://github.com/meridane/QimaTrade-MVP/actions/runs/41729482227) : **SUCCESS** ; les deux jobs sont terminés avec succès. Le journal Playwright confirme **180 tests réussis (5,0 s)**. Installation npm depuis le lockfile, audit dépendances (gate `--audit-level=high`), TypeScript, build Next.js, Chromium et tests navigateur : SUCCESS. Les suites PostgreSQL CREATE_OFFER/concurrence/idempotence, RLS messages synthétique et self-enrollment synthétique : SUCCESS.
+- **CodeQL #671** [run 41729482207](https://github.com/meridane/QimaTrade-MVP/actions/runs/41729482207) : **SUCCESS**.
+- **Vercel Preview :** échec `build-rate-limit` sur ce HEAD documentaire (quota de déploiements Preview). La Preview du HEAD précédent `fe6c06d` était SUCCESS ; le quota Vercel n'affecte pas les résultats CI/CodeQL.
+- **Conclusion :** QA164 et son registre passent les contrôles GitHub Actions/CodeQL sur le HEAD `736fa42`. Aucun test échoué. Les avertissements de dépréciation `punycode`, `url.parse()` et Node.js 20 sont non bloquants.
+- **Validation du présent commit documentaire :** à vérifier après synchronisation ; ne pas attribuer automatiquement le succès #714 au commit documentaire suivant.
