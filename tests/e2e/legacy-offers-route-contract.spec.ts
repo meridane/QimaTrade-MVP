@@ -1200,3 +1200,74 @@ test("legacy offers route rejects an overflowing numeric multipart quantity befo
     "Please provide a valid offer name and quantity.",
   );
 });
+
+
+test("legacy offers route preserves the maximum safe integer multipart quantity", async () => {
+  const { client, calls } = createSupabaseMock();
+  const handler = createHandler(client);
+
+  const response = await handler(createFormRequest({ quantity: "9007199254740991" }));
+
+  expect(response.status).toBe(303);
+  expect(calls.offerInsertCalls).toBe(1);
+  expect(calls.insertPayload).toMatchObject({
+    quantity: 9007199254740991,
+    lifecycle: "draft",
+    offer_type: "supplier_offer",
+  });
+});
+
+test("legacy offers route currently accepts an unsafe integer multipart quantity after JavaScript Number rounding", async () => {
+  const { client, calls } = createSupabaseMock();
+  const handler = createHandler(client);
+
+  const response = await handler(createFormRequest({ quantity: "9007199254740993" }));
+
+  expect(response.status).toBe(303);
+  expect(calls.offerInsertCalls).toBe(1);
+  expect(calls.insertPayload).toMatchObject({
+    quantity: 9007199254740992,
+    lifecycle: "draft",
+    offer_type: "supplier_offer",
+  });
+  expect(Number.isSafeInteger(calls.insertPayload?.quantity as number)).toBe(false);
+});
+
+test("legacy offers route currently rounds a high-precision decimal multipart quantity to JavaScript Number precision", async () => {
+  const { client, calls } = createSupabaseMock();
+  const handler = createHandler(client);
+
+  const response = await handler(
+    createFormRequest({ quantity: "0.12345678901234567890" }),
+  );
+
+  expect(response.status).toBe(303);
+  expect(calls.offerInsertCalls).toBe(1);
+  expect(calls.insertPayload).toMatchObject({
+    quantity: 0.12345678901234568,
+    lifecycle: "draft",
+    offer_type: "supplier_offer",
+  });
+});
+
+test("legacy offers route accepts the smallest positive JavaScript Number multipart quantity", async () => {
+  const { client, calls } = createSupabaseMock();
+  const handler = createHandler(client);
+
+  const response = await handler(createFormRequest({ quantity: "5e-324" }));
+
+  expect(response.status).toBe(303);
+  expect(calls.offerInsertCalls).toBe(1);
+  expect(calls.insertPayload).toMatchObject({
+    quantity: 5e-324,
+    lifecycle: "draft",
+    offer_type: "supplier_offer",
+  });
+});
+
+test("legacy offers route rejects a positive multipart quantity that underflows to zero before invoking Supabase", async () => {
+  await expectInvalidFormBeforeSupabase(
+    { quantity: "1e-324" },
+    "Please provide a valid offer name and quantity.",
+  );
+});
