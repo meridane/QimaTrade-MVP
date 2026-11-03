@@ -3454,3 +3454,23 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **Portée et limites :** tests du handler avec client Supabase simulé ; ils caractérisent le parsing multipart et le payload de la fixture. Ils ne prouvent ni les autorisations réelles, ni le comportement de Supabase production, ni une vulnérabilité exploitable.
 - **Garde-fous :** aucun fichier applicatif, SQL, migration, donnée, policy ou configuration Supabase production modifié ; aucun déploiement de production, aucune fusion et aucune modification des protections de branche.
 - **Validation du commit documentaire QA148 :** à vérifier séparément après le commit qui consigne ces résultats.
+
+
+### OFFER-QA-148 — validation finale du HEAD documentaire `b479706a20803aa3656f1782b723ac89b6513491` (3 novembre 2026, 14:13 KST)
+
+- **QIMA CI #662** [run 41583038729](https://github.com/meridane/QimaTrade-MVP/actions/runs/41583038729) : **SUCCESS** sur le HEAD documentaire exact `b479706a20803aa3656f1782b723ac89b6513491`.
+  - Installation depuis le lockfile commité : SUCCESS.
+  - Audit npm : SUCCESS ; rapport JSON `{"info":0,"low":0,"moderate":0,"high":0,"critical":0,"total":0}`.
+  - TypeScript : SUCCESS.
+  - Build Next.js de production : SUCCESS.
+  - Installation Chromium : SUCCESS.
+  - Playwright : **134 tests réussis (6,2 s)** ; les quatre tests QA148 sont explicitement visibles aux numéros 131 à 134.
+  - Tests PostgreSQL isolés CREATE_OFFER et concurrence/idempotence : SUCCESS.
+  - Régressions synthétiques messages-RLS et self-enrollment : SUCCESS ; nettoyage du conteneur terminé.
+  - Artefacts `npm-audit-report` et `committed-package-lock` téléversés avec succès.
+- **CodeQL #620** [run 41583038722](https://github.com/meridane/QimaTrade-MVP/actions/runs/41583038722) : **SUCCESS** sur le même HEAD.
+- **Vercel Preview : SUCCESS** sur le même HEAD ([Preview](https://vercel.com/bmk1/qimatrade-mvp/9jef55PvZ5mwBeAVay2NcRzsWj1D)) ; Vercel Preview Comments SUCCESS, aucun commentaire non résolu. Prévisualisation uniquement, aucun déploiement de production.
+- **Conclusion QA148 : VALIDÉE** sur le commit de code `7f83ffe769585db53db71c5b74da29f17b24ea55` et revalidée par CI #662 sur le HEAD documentaire `b479706a20803aa3656f1782b723ac89b6513491`.
+- **Avertissements :** les avertissements Node.js 20, `punycode` et `url.parse()` restent des sujets de maintenance. Les messages `IDEMPOTENCY_KEY_REUSE` sont issus des cas négatifs prévus dans les tests d'idempotence ; ils ne sont pas interprétés comme vulnérabilités confirmées.
+- **Garde-fous :** aucune donnée, migration, policy ou configuration Supabase production modifiée ; aucun déploiement de production, aucune fusion et aucune modification des protections de branche.
+- **Validation du présent commit documentaire :** ses propres checks CI/CodeQL doivent être vérifiés séparément après son push.
