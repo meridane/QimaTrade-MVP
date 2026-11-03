@@ -3754,3 +3754,25 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **Commit de tests exact** `5eb3d3fca552fbd1a952777b0ee0bae90c59342a` : QIMA CI #693 [run 41673730364](https://github.com/meridane/QimaTrade-MVP/actions/runs/41673730364) était encore **in_progress** au dernier contrôle. Le job PostgreSQL a été **cancelled** lors du cycle de synchronisation suivant ; le job typecheck/audit/build/browser tests était encore en cours après installation, audit et TypeScript réussis. Aucun résultat complet Playwright ou PostgreSQL n'est revendiqué pour ce run. CodeQL #651 [run 41673730202](https://github.com/meridane/QimaTrade-MVP/actions/runs/41673730202) : **SUCCESS**. Vercel Preview sur le commit de tests : **SUCCESS**.
 - **HEAD documentaire exact** `81f38d2faf4d55212b273a1ad1bd41aebcc738a1` : QIMA CI #694 [run 41673859081](https://github.com/meridane/QimaTrade-MVP/actions/runs/41673859081) : **pending** au dernier relevé ; aucun job n'était encore créé. CodeQL #652 [run 41673858903](https://github.com/meridane/QimaTrade-MVP/actions/runs/41673858903) : **in_progress**, autobuild réussi et analyse finale en cours. Vercel Preview : **pending**. La validation QA159 reste provisoire jusqu'à un cycle CI complet sur un HEAD précis.
 - **Interprétation :** le job PostgreSQL annulé dans #693 n'est pas compté comme succès ni échec fonctionnel ; les contrôles doivent être réconciliés à partir du prochain cycle complet. Les tests restent des tests du handler avec client Supabase simulé et ne prouvent pas la persistance distante ni une vulnérabilité.
+
+
+#### OFFER-QA-159 — réconciliation finale des contrôles (4 novembre 2026)
+
+- **HEAD validé :** `3d87a4d0d8696c9b5df06f70b3c6fd6c7ecea6b9`, PR #26 toujours ouverte, brouillon, non fusionnée et mergeable ; base `main` `0d35c13db81019867fe9929420b0a6916285fbf6`, 598 commits en avance et 0 en retard, 43 fichiers dans le diff.
+- **Validation finale :** QIMA CI #695 [run 41674028771](https://github.com/meridane/QimaTrade-MVP/actions/runs/41674028771) : **SUCCESS** ; les deux jobs sont terminés avec succès. Le journal Playwright confirme **168 tests réussis (6,7 s)**. Installation npm, audit dépendances (étape réussie), TypeScript, build Next.js et Chromium : SUCCESS. Le job PostgreSQL isolé confirme les suites CREATE_OFFER/concurrence/idempotence et les deux suites RLS synthétiques : SUCCESS. CodeQL #653 [run 41674028955](https://github.com/meridane/QimaTrade-MVP/actions/runs/41674028955) : **SUCCESS**.
+- **Conclusion : QA159 VALIDÉE** sur le HEAD exact `3d87a4d`. Les trois tests EUR/MAD/CNY complètent les brouillons non tarifés USD/KRW ; dans chaque cas `price`, `currency` et `pricing_model` sont `null`, avec `lifecycle: "draft"`.
+- **Vercel Preview :** statut combiné en échec `build-rate-limit` (quota Preview), distinct de GitHub Actions ; aucun déploiement de production.
+- **Limites :** tests du handler avec client Supabase simulé ; ils ne démontrent pas la persistance distante, les droits de production ou l'exploitabilité d'une vulnérabilité.
+
+#### OFFER-QA-160 — valeurs multipart dupliquées pour la devise (4 novembre 2026)
+
+- **État initial relu :** PR #26 ouverte, brouillon, non fusionnée et mergeable ; HEAD `3d87a4d0d8696c9b5df06f70b3c6fd6c7ecea6b9`, base `main` `0d35c13db81019867fe9929420b0a6916285fbf6`, 598 commits en avance, 0 en retard, 43 fichiers dans le diff. QIMA CI #695 et CodeQL #653 : **SUCCESS** sur ce HEAD ; 168/168 Playwright confirmés.
+- **Branche de travail :** `work/offer-qa-160-currency-duplicate-fields-20261104-0215`, créée depuis le HEAD initial exact.
+- **Constat applicatif :** le handler lit `form.get("currency")` et la validation des champs texte vérifie également la première valeur retournée par `FormData.get()`. Le test existant couvre déjà la première devise valide suivie d'une devise non prise en charge. QA160 complète les ordres inverses et les types File.
+- **Trois tests ajoutés** dans `tests/e2e/legacy-offers-route-contract.spec.ts` :
+  1. première valeur `JPY`, seconde valeur `USD`, prix `10` : HTTP 400, erreur `Please select a valid currency.`, aucune initialisation Supabase ;
+  2. première valeur `USD`, seconde valeur File : HTTP 303 ; le payload conserve `currency: "USD"`, `price: 10`, `pricing_model: "fixed"` ;
+  3. première valeur File, seconde valeur `USD` : HTTP 400, erreur `Invalid offer form fields.`, aucune initialisation Supabase.
+- **Commit de tests :** `bcd1f1445d853cdc8a964cd309ab35614c0bc02e` (`test(qima): cover duplicate multipart currency values`). Le commit est créé sur la branche de travail ; la validation CI du nouveau HEAD sera contrôlée après synchronisation avec la PR.
+- **Conclusion provisoire QA160 :** ces tests caractérisent la sémantique première-valeur de `FormData.get()` et le contrôle du type de la première valeur. Ils ne constituent pas une preuve de vulnérabilité ni de persistance distante.
+- **Garde-fous :** aucun code applicatif, SQL, migration, donnée, policy ou configuration Supabase production modifié ; aucun déploiement de production, aucune fusion et aucune modification des protections de branche.
