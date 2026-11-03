@@ -1761,3 +1761,41 @@ test("legacy offers route rejects a file as the first duplicated multipart price
   });
   expect(factoryCalls).toBe(0);
 });
+
+
+test("legacy offers route rejects an empty first duplicated offer name even when a valid name follows before invoking Supabase", async () => {
+  let factoryCalls = 0;
+  const handler = createLegacyOfferHandler(async () => {
+    factoryCalls += 1;
+    throw new Error("Supabase client initialization failed");
+  });
+
+  const response = await handler(
+    createFormRequestWithDuplicateField("name", "", "Offer valid"),
+  );
+
+  expect(response.status).toBe(400);
+  await expect(response.json()).resolves.toEqual({
+    error: "Please provide a valid offer name and quantity.",
+  });
+  expect(factoryCalls).toBe(0);
+});
+
+test("legacy offers route uses the first text offer name when a file is submitted as the second duplicate value", async () => {
+  const { client, calls } = createSupabaseMock();
+  const handler = createHandler(client);
+  const file = new File(["ignored"], "offer-name.txt", { type: "text/plain" });
+
+  const response = await handler(
+    createFormRequestWithDuplicateField("name", "First offer name", file),
+  );
+
+  expect(response.status).toBe(303);
+  expect(calls.offerInsertCalls).toBe(1);
+  expect(calls.insertPayload).toMatchObject({
+    name: "First offer name",
+    quantity: 2,
+    lifecycle: "draft",
+    offer_type: "supplier_offer",
+  });
+});
