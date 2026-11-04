@@ -4329,3 +4329,14 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **Conclusion : QA181 VALIDÉE** sur le commit `f6d5b92` par CI #757 (200/200) et CodeQL #714. Aucun job ni test échoué dans ce cycle.
 - **Limites et garde-fous :** le test utilise un client Supabase simulé et confirme que le contrôle multipart rejette le fichier avant l'initialisation Supabase ; il ne constitue pas une preuve de vulnérabilité. Les tests PostgreSQL/RLS tournent dans des fixtures isolées. Aucun code applicatif, SQL, migration, donnée, policy ou configuration Supabase production modifié ; aucun déploiement de production, aucune fusion et aucune modification des protections de branche.
 
+
+
+#### OFFER-QA-182 — fichier en première valeur multipart demandId dupliquée (4 novembre 2026)
+
+- **État initial vérifié :** PR #26 ouverte, en brouillon, non fusionnée et mergeable ; branche `fix/create-offer-status-contract`, base `main`, HEAD initial `636452337fdf821e8efeb332a040dee83b238e2a`. Comparaison avec `main` : 671 commits en avance, 0 en retard, 43 fichiers modifiés. Aucun review ni thread de review. QIMA CI #758 et CodeQL #715 : SUCCESS ; QA181 validée à 200/200 Playwright.
+- **Branche de travail :** `work/offer-qa-182-file-first-demand-id-20261104-2224`, créée depuis le SHA exact `636452337fdf821e8efeb332a040dee83b238e2a`.
+- **Constat source :** `demandId` figure dans `textFormFields`. Avant l'initialisation du client Supabase, le handler lit la première valeur avec `FormData.get()` ; si cette valeur est un `File`, `hasNonTextValue` est vrai et le handler renvoie HTTP 400 avec `Invalid offer form fields.`. Une seconde référence textuelle valide ne remplace pas le fichier.
+- **Test QA182 ajouté :** première valeur multipart = fichier `demand.json` contenant la référence de demande ; seconde valeur = UUID textuel valide `50000000-0000-4000-8000-000000000102`. Assertions : HTTP 400, corps `{ error: "Invalid offer form fields." }` et compteur d'initialisation du client Supabase égal à zéro.
+- **Commit de test :** `d568dc3062220c29ef2dbe1257cb558c29ba77df` (`test(qima): reject file as first duplicate demandId`).
+- **Validation :** CI #759 / CodeQL #716 attendus après publication du HEAD documentaire ; total Playwright attendu : **201**. Ne pas déclarer QA182 validée avant la fin des contrôles.
+- **Limites et garde-fous :** le test utilise un client Supabase simulé et vérifie le rejet multipart avant son initialisation ; il ne prouve ni une persistance distante ni une vulnérabilité. Aucun code applicatif, SQL, migration, donnée, policy ou configuration Supabase production modifié ; aucun déploiement de production, aucune fusion et aucune modification des protections de branche.
