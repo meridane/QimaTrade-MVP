@@ -2132,3 +2132,28 @@ test("legacy offers route keeps only non-empty string JSON attributes and ignore
   });
   expect(calls.insertPayload?.attributes).toEqual({ grade: "A" });
 });
+
+test("legacy offers route rejects a file as the first duplicated attributes value even when valid JSON follows before invoking Supabase", async () => {
+  let factoryCalls = 0;
+  const handler = createLegacyOfferHandler(async () => {
+    factoryCalls += 1;
+    throw new Error("Supabase client initialization failed");
+  });
+  const file = new File([JSON.stringify({ grade: "A" })], "attributes.json", {
+    type: "application/json",
+  });
+
+  const response = await handler(
+    createFormRequestWithDuplicateField(
+      "attributes",
+      file,
+      JSON.stringify({ grade: "B" }),
+    ),
+  );
+
+  expect(response.status).toBe(400);
+  await expect(response.json()).resolves.toEqual({
+    error: "Invalid offer form fields.",
+  });
+  expect(factoryCalls).toBe(0);
+});
