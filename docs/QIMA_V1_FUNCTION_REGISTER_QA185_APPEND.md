@@ -81,3 +81,14 @@ The canonical register's QA184 tail was inspected from commit `0eca4833bae236f32
 - **CI status at this addendum revision:** not yet run on the isolated work branch. The repository's observed PR checks are triggered by pull-request commits; after fast-forwarding this tested change onto PR #26, record the resulting GitHub Actions and CodeQL run URLs and exact outcomes.
 - **Security interpretation:** this is a deterministic mocked-client input-validation regression test. It does not establish a production vulnerability, authorization bypass, or live database behavior.
 - **Safety:** no production Supabase data, production migration, policy, production deployment, merge, or branch-protection setting was changed.
+
+
+## QA188 — final validation reconciliation (5 November 2026, 04:36 KST)
+
+- **Test commit:** `249b3e23822164095e95c1b4ac38db7ca522b964`.
+- **Documentation commit:** pending in the current work branch at the time this entry was prepared.
+- **QIMA CI #774:** [run 41898283132](https://github.com/meridane/QimaTrade-MVP/actions/runs/41898283132) — **SUCCESS**; both jobs completed successfully. The browser job confirms **207/207 Playwright tests passed (5.4 s)**, including QA188. TypeScript, dependency audit, production build, Chromium, isolated PostgreSQL CREATE_OFFER integration/concurrency/idempotency tests, legacy-messages RLS, and participant self-enrollment RLS all succeeded.
+- **CodeQL #730:** [run 41898283153](https://github.com/meridane/QimaTrade-MVP/actions/runs/41898283153) — **SUCCESS**; JavaScript/TypeScript analysis completed.
+- **Vercel:** Preview remained **PENDING** on the validated HEAD; no Vercel failure was confirmed and no production deployment was attempted.
+- **Conclusion:** QA188 is validated by CI #774 (207/207), CodeQL #730, and the isolated PostgreSQL/RLS checks. The route-level request uses a mocked Supabase-client factory and proves only the handler's early input rejection in this test setup.
+- **Safety:** no production Supabase data, migration, policy, configuration, deployment, merge, or branch-protection setting was changed.

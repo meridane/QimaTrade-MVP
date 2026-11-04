@@ -4385,3 +4385,18 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **Validation du HEAD documentaire `c2a5b7b5c483c57f031c5761ede04cdd4bb86a28` :** QIMA CI #766 [run 41860733455](https://github.com/meridane/QimaTrade-MVP/actions/runs/41860733455) : **SUCCESS**, les deux jobs terminés avec succès. Dépendances, `npm audit`, TypeScript, build Next.js, Chromium, Playwright, PostgreSQL CREATE_OFFER/concurrence/idempotence et tests RLS : SUCCESS. CodeQL #723 [run 41860733448](https://github.com/meridane/QimaTrade-MVP/actions/runs/41860733448) : **SUCCESS**. Vercel Preview du HEAD documentaire : **SUCCESS / deployment completed** ([Preview](https://vercel.com/bmk1/qimatrade-mvp/2d2Rh1qjsmHCfrG5G3ywYyDfrVav)).
 - **Conclusion : QA184 VALIDÉE** sur le commit de test et sur le HEAD documentaire ; aucun job ni test échoué dans ces deux cycles. Le test est une caractérisation avec client Supabase simulé ; il ne prouve pas la persistance distante, l'autorisation d'accès ni une vulnérabilité.
 - **Garde-fous :** aucun code applicatif, SQL, migration, donnée, policy ou configuration Supabase production modifié ; aucun déploiement de production, aucune fusion et aucune modification des protections de branche.
+
+
+## QA188 — reject a file as the first duplicated productMasterId (5 November 2026)
+
+- **Test file:** `tests/e2e/legacy-offers-route-contract.spec.ts`.
+- **Test commit:** `249b3e23822164095e95c1b4ac38db7ca522b964`.
+- **Scenario:** the first multipart `productMasterId` entry is a `File` named `product-master.json`; a valid-looking `EXPLICIT_PRODUCT_MASTER_ID` string is supplied as the second occurrence.
+- **Assertions:** HTTP 400 with `Invalid offer form fields.`; the injected Supabase-client factory is called zero times. Therefore the handler performs no authentication, profile, demand, or product lookup and no offer insertion for this request.
+- **Implementation contract:** `productMasterId` is in `textFormFields`; the handler validates the first `FormData.get("productMasterId")` value before Supabase client initialization. A later duplicate does not replace the first file value.
+- **QIMA CI #774:** [run 41898283132](https://github.com/meridane/QimaTrade-MVP/actions/runs/41898283132) — **SUCCESS**; both jobs completed successfully. The browser job confirms **207/207 Playwright tests passed (5.4 s)**, including QA188. Dependency audit, TypeScript, Next.js production build, Chromium installation, isolated PostgreSQL CREATE_OFFER integration/concurrency/idempotency tests, legacy-messages RLS tests, and participant self-enrollment RLS tests all completed successfully.
+- **CodeQL #730:** [run 41898283153](https://github.com/meridane/QimaTrade-MVP/actions/runs/41898283153) — **SUCCESS**; JavaScript/TypeScript analysis completed.
+- **Vercel:** Preview status remained **PENDING** on HEAD `6b4775a8a0a1acf2d913e8326431d58c5168f976` when recorded. This does not affect the successful CI and CodeQL results; no production deployment was performed.
+- **Security interpretation:** this is a deterministic mocked-client input-validation regression test. It does not establish a production vulnerability, authorization bypass, or live database behavior.
+- **Related QA185–QA187 evidence:** see the append-only companion `docs/QIMA_V1_FUNCTION_REGISTER_QA185_APPEND.md`, which records their individual test and validation runs.
+- **Safety:** no production Supabase data, migration, policy, or configuration was changed; no production deployment, merge, or branch-protection change was performed.
