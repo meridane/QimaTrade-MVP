@@ -2372,3 +2372,28 @@ test("legacy offers route treats an empty first duplicated productMasterId as no
     offer_type: "supplier_offer",
   });
 });
+
+
+test("legacy offers route treats a whitespace-only first duplicated productMasterId as no association and ignores a valid reference that follows", async () => {
+  const { client, calls } = createSupabaseMock();
+  const handler = createHandler(client);
+  const secondProductMasterId = EXPLICIT_PRODUCT_MASTER_ID;
+
+  const response = await handler(
+    createFormRequestWithDuplicateField(
+      "productMasterId",
+      "   ",
+      secondProductMasterId,
+    ),
+  );
+
+  expect(response.status).toBe(303);
+  expect(calls.demandLookups).toHaveLength(0);
+  expect(calls.productMasterLookups).toHaveLength(0);
+  expect(calls.offerInsertCalls).toBe(1);
+  expect(calls.insertPayload).toMatchObject({
+    product_master_id: null,
+    lifecycle: "draft",
+    offer_type: "supplier_offer",
+  });
+});
