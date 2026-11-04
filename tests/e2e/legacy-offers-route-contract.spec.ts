@@ -2094,7 +2094,8 @@ test("legacy offers route preserves special JSON attribute keys as own data prop
     offer_type: "supplier_offer",
   });
 
-  const attributes = calls.insertPayload?.attributes;
+  const attributes = calls.insertPayload?.attributes as Record<string, unknown> | undefined;
+  expect(attributes).toBeDefined();
   expect(Object.getPrototypeOf(attributes)).toBe(Object.prototype);
   expect(Object.prototype.hasOwnProperty.call(attributes, "__proto__")).toBe(true);
   expect(attributes?.["__proto__"]).toBe("safe");
