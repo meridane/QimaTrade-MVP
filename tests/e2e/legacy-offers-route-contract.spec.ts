@@ -2423,3 +2423,38 @@ test("legacy offers route ignores a non-string product_master_id in demand scope
     offer_type: "supplier_offer",
   });
 });
+
+
+test("legacy offers route prefers an explicit productMasterId when the demand scope contains an empty product_master_id", async () => {
+  const { client, calls } = createSupabaseMock({
+    demand: {
+      id: DEMAND_ID,
+      target_market: "South Korea",
+      scope: { product_master_id: "" },
+    },
+    productMaster: { id: EXPLICIT_PRODUCT_MASTER_ID },
+  });
+  const handler = createHandler(client);
+
+  const response = await handler(
+    createFormRequest({
+      demandId: DEMAND_ID,
+      productMasterId: EXPLICIT_PRODUCT_MASTER_ID,
+    }),
+  );
+
+  expect(response.status).toBe(303);
+  expect(calls.demandLookups).toEqual([{ column: "id", value: DEMAND_ID }]);
+  expect(calls.productMasterLookups).toEqual([
+    { column: "id", value: EXPLICIT_PRODUCT_MASTER_ID },
+    { column: "status", value: "active" },
+  ]);
+  expect(calls.offerInsertCalls).toBe(1);
+  expect(calls.insertPayload).toMatchObject({
+    demand_id: DEMAND_ID,
+    product_master_id: EXPLICIT_PRODUCT_MASTER_ID,
+    market: "South Korea",
+    lifecycle: "draft",
+    offer_type: "supplier_offer",
+  });
+});
