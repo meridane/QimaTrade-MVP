@@ -4267,3 +4267,13 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **Test ajouté :** première valeur `JSON.stringify("grade")`, seconde valeur `JSON.stringify({ grade: "H" })`. Assertions : HTTP 303, une insertion via client Supabase simulé, lifecycle `draft`, type `supplier_offer` et `insertPayload.attributes` égal à `{}`.
 - **Validation :** commit de test publié sur la branche de travail ; total Playwright attendu **197**. La validation PR de QA178 reste en attente du fast-forward et des checks GitHub Actions/CodeQL sur le nouveau HEAD. Ne pas déclarer QA178 validée avant ces résultats.
 - **Limites et garde-fous :** test de route avec client Supabase simulé ; il caractérise le comportement de parsing sans prouver une persistance distante ni une vulnérabilité. Aucun code applicatif, SQL, migration, donnée, policy ou configuration Supabase production modifié ; aucun déploiement de production, aucune fusion et aucune modification des protections de branche.
+
+
+#### OFFER-QA-178 — validation du commit de test (4 novembre 2026)
+
+- **Commit de test validé :** `bf5cdbf36fa2d7ffb1591299cd7c19ad13cdacd1`, inclus dans le HEAD PR `a32ebc09939100e2c97da929631ad50367478ab3`.
+- **QIMA CI #749** [run 41816388253](https://github.com/meridane/QimaTrade-MVP/actions/runs/41816388253) : **SUCCESS**, les deux jobs terminés avec succès. Le journal navigateur confirme **197 tests Playwright réussis (4,4 s)**, dont QA178. Installation npm depuis lockfile, audit dépendances, TypeScript, build Next.js, Chromium/browser smoke tests : SUCCESS. Le job PostgreSQL isolé CREATE_OFFER/concurrence/idempotence et les deux régressions RLS messages/self-enrollment : SUCCESS.
+- **CodeQL #706** [run 41816388303](https://github.com/meridane/QimaTrade-MVP/actions/runs/41816388303) : **SUCCESS**.
+- **Vercel Preview :** statut **pending** sur le HEAD `a32ebc0` ([deployment](https://vercel.com/bmk1/qimatrade-mvp/GMLjbyavAyd8AZQQesdpKN5PSXyf)). Ce statut reste distinct de CI/CodeQL ; aucun déploiement manuel ni production n'a été effectué.
+- **Conclusion : QA178 VALIDÉE sur le commit de test** `bf5cdbf` pour CI #749 et CodeQL #706. Aucun test échoué dans ce cycle.
+- **Limites et garde-fous :** QA178 utilise un client Supabase simulé et vérifie le payload préparé, sans prouver la persistance distante ni une vulnérabilité. Les tests PostgreSQL/RLS tournent dans une base jetable isolée, pas sur Supabase production. Aucune donnée, migration, policy ou configuration Supabase production modifiée ; aucun déploiement de production, aucune fusion et aucune modification des protections de branche.
