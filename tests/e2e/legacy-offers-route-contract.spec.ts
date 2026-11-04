@@ -1856,3 +1856,29 @@ test("legacy offers route trims the first duplicated offer name and ignores a di
     offer_type: "supplier_offer",
   });
 });
+
+test("legacy offers route keeps the first JSON attributes when a file is submitted as the second duplicate value", async () => {
+  const { client, calls } = createSupabaseMock();
+  const handler = createHandler(client);
+  const file = new File([JSON.stringify({ grade: "B" })], "attributes.json", {
+    type: "application/json",
+  });
+
+  const response = await handler(
+    createFormRequestWithDuplicateField(
+      "attributes",
+      JSON.stringify({ grade: " A " }),
+      file,
+    ),
+  );
+
+  expect(response.status).toBe(303);
+  expect(calls.offerInsertCalls).toBe(1);
+  expect(calls.insertPayload).toMatchObject({
+    name: "Legacy draft offer",
+    quantity: 2,
+    lifecycle: "draft",
+    offer_type: "supplier_offer",
+  });
+  expect(calls.insertPayload?.attributes).toEqual({ grade: "A" });
+});
