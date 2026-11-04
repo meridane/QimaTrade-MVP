@@ -1882,3 +1882,27 @@ test("legacy offers route keeps the first JSON attributes when a file is submitt
   });
   expect(calls.insertPayload?.attributes).toEqual({ grade: "A" });
 });
+
+test("legacy offers route rejects malformed first JSON attributes even when a valid duplicate follows before inserting an offer", async () => {
+  const { client, calls } = createSupabaseMock();
+  const handler = createHandler(client);
+
+  const response = await handler(
+    createFormRequestWithDuplicateField(
+      "attributes",
+      "{invalid JSON",
+      JSON.stringify({ grade: "B" }),
+    ),
+  );
+
+  expect(response.status).toBe(400);
+  await expect(response.json()).resolves.toMatchObject({
+    error: "Invalid offer attributes.",
+  });
+  expect(calls.authGetUser).toBe(1);
+  expect(calls.profileLookups).toEqual([
+    { column: "auth_user_id", value: AUTH_USER_ID },
+  ]);
+  expect(calls.offerInsertCalls).toBe(0);
+  expect(calls.insertPayload).toBeNull();
+});
