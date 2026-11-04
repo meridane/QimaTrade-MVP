@@ -4307,3 +4307,12 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **Conclusion : QA180 VALIDÉE** sur le commit de test `15465e6` par CI #754 (199/199) et CodeQL #711. Aucun job ni test échoué dans ce cycle.
 - **Limites et garde-fous :** QA180 utilise un client Supabase simulé et vérifie le payload préparé ; elle ne prouve pas la persistance distante ni une vulnérabilité. Les tests PostgreSQL/RLS tournent dans des fixtures isolées, pas sur Supabase production. Aucun code applicatif, SQL, migration, donnée, policy ou configuration Supabase production modifié ; aucun déploiement de production, aucune fusion et aucune modification des protections de branche.
 
+#### OFFER-QA-180 — validation du HEAD documentaire (4 novembre 2026)
+
+- **HEAD documentaire vérifié :** `f87fcd6081f4ef841c11c2956921091e4ec703ec`, PR #26 ouverte, en brouillon, non fusionnée et mergeable ; comparaison avec `main` : 668 commits en avance, 0 en retard, 43 fichiers modifiés.
+- **QIMA CI #755** [run 41835850480](https://github.com/meridane/QimaTrade-MVP/actions/runs/41835850480) : **SUCCESS**, les deux jobs réussis. Le journal navigateur confirme **199 tests Playwright réussis (6,1 s)** sur le HEAD documentaire. Installation, audit dépendances, TypeScript, build Next.js, Chromium, tests navigateur, CREATE_OFFER PostgreSQL/concurrence/idempotence et régressions RLS : SUCCESS.
+- **CodeQL #712** [run 41835850759](https://github.com/meridane/QimaTrade-MVP/actions/runs/41835850759) : **SUCCESS**.
+- **Vercel Preview :** **SUCCESS / Ready** sur le HEAD documentaire [Preview](https://vercel.com/bmk1/qimatrade-mvp/CWobLKdcKvnBLMTiyfw6MB129Gv4). Aucun déploiement de production.
+- **Conclusion :** la validation QA180 est confirmée à la fois sur le commit de test `15465e6` (CI #754, CodeQL #711) et sur le HEAD documentaire `f87fcd6` (CI #755, CodeQL #712). Aucun job ni test échoué dans ces deux cycles.
+- **Limites :** les tests de route utilisent un client Supabase simulé ; les tests PostgreSQL/RLS utilisent une base isolée. Ils ne prouvent pas une persistance distante ni une vulnérabilité. Aucun changement de données, migration, policy ou configuration Supabase production ; aucune fusion, aucun déploiement de production et aucune modification des protections de branche.
+
