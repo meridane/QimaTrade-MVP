@@ -2247,3 +2247,41 @@ test("legacy offers route looks up the first unavailable duplicated demandId and
   expect(calls.offerInsertCalls).toBe(0);
   expect(calls.insertPayload).toBeNull();
 });
+
+
+test("legacy offers route stops when the first duplicated demandId lookup errors and ignores a valid reference that follows", async () => {
+  const { client, calls } = createSupabaseMock({
+    demand: {
+      id: DEMAND_ID,
+      target_market: "EU",
+      scope: {},
+    },
+    demandError: { message: "simulated demand lookup failure" },
+  });
+  const handler = createHandler(client);
+  const erroredFirstDemandId = "50000000-0000-4000-8000-000000000198";
+  const validSecondDemandId = DEMAND_ID;
+
+  const response = await handler(
+    createFormRequestWithDuplicateField(
+      "demandId",
+      erroredFirstDemandId,
+      validSecondDemandId,
+    ),
+  );
+
+  expect(response.status).toBe(400);
+  await expect(response.json()).resolves.toEqual({
+    error: "Demand not found or unavailable.",
+  });
+  expect(calls.authGetUser).toBe(1);
+  expect(calls.profileLookups).toEqual([
+    { column: "auth_user_id", value: AUTH_USER_ID },
+  ]);
+  expect(calls.demandLookups).toEqual([
+    { column: "id", value: erroredFirstDemandId },
+  ]);
+  expect(calls.productMasterLookups).toHaveLength(0);
+  expect(calls.offerInsertCalls).toBe(0);
+  expect(calls.insertPayload).toBeNull();
+});
