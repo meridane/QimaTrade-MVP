@@ -2320,3 +2320,30 @@ test("legacy offers route stops when the first duplicated productMasterId lookup
   expect(calls.offerInsertCalls).toBe(0);
   expect(calls.insertPayload).toBeNull();
 });
+
+
+test("legacy offers route rejects a file as the first duplicated productMasterId even when a valid reference follows before invoking Supabase", async () => {
+  let factoryCalls = 0;
+  const handler = createLegacyOfferHandler(async () => {
+    factoryCalls += 1;
+    throw new Error("Supabase client initialization failed");
+  });
+  const file = new File([PRODUCT_MASTER_ID], "product-master.json", {
+    type: "application/json",
+  });
+  const secondProductMasterId = EXPLICIT_PRODUCT_MASTER_ID;
+
+  const response = await handler(
+    createFormRequestWithDuplicateField(
+      "productMasterId",
+      file,
+      secondProductMasterId,
+    ),
+  );
+
+  expect(response.status).toBe(400);
+  await expect(response.json()).resolves.toEqual({
+    error: "Invalid offer form fields.",
+  });
+  expect(factoryCalls).toBe(0);
+});
