@@ -2103,3 +2103,32 @@ test("legacy offers route preserves special JSON attribute keys as own data prop
   expect(attributes?.constructor).toBe("value");
   expect(attributes?.grade).toBe("A");
 });
+
+test("legacy offers route keeps only non-empty string JSON attributes and ignores non-string values and a valid duplicate that follows", async () => {
+  const { client, calls } = createSupabaseMock();
+  const handler = createHandler(client);
+
+  const response = await handler(
+    createFormRequestWithDuplicateField(
+      "attributes",
+      JSON.stringify({
+        grade: " A ",
+        count: 2,
+        enabled: true,
+        nested: { source: "test" },
+        empty: "   ",
+      }),
+      JSON.stringify({ grade: "ignored", extra: "ignored" }),
+    ),
+  );
+
+  expect(response.status).toBe(303);
+  expect(calls.offerInsertCalls).toBe(1);
+  expect(calls.insertPayload).toMatchObject({
+    name: "Legacy draft offer",
+    quantity: 2,
+    lifecycle: "draft",
+    offer_type: "supplier_offer",
+  });
+  expect(calls.insertPayload?.attributes).toEqual({ grade: "A" });
+});
