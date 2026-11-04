@@ -2217,3 +2217,33 @@ test("legacy offers route treats a whitespace-only first duplicated demandId as 
     offer_type: "supplier_offer",
   });
 });
+
+test("legacy offers route looks up the first unavailable duplicated demandId and ignores a valid reference that follows", async () => {
+  const { client, calls } = createSupabaseMock({ demand: null });
+  const handler = createHandler(client);
+  const unavailableFirstDemandId = "50000000-0000-4000-8000-000000000199";
+  const validSecondDemandId = DEMAND_ID;
+
+  const response = await handler(
+    createFormRequestWithDuplicateField(
+      "demandId",
+      unavailableFirstDemandId,
+      validSecondDemandId,
+    ),
+  );
+
+  expect(response.status).toBe(400);
+  await expect(response.json()).resolves.toEqual({
+    error: "Demand not found or unavailable.",
+  });
+  expect(calls.authGetUser).toBe(1);
+  expect(calls.profileLookups).toEqual([
+    { column: "auth_user_id", value: AUTH_USER_ID },
+  ]);
+  expect(calls.demandLookups).toEqual([
+    { column: "id", value: unavailableFirstDemandId },
+  ]);
+  expect(calls.productMasterLookups).toHaveLength(0);
+  expect(calls.offerInsertCalls).toBe(0);
+  expect(calls.insertPayload).toBeNull();
+});
