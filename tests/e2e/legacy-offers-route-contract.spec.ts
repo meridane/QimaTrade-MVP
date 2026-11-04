@@ -1838,3 +1838,21 @@ test("legacy offers route rejects a whitespace-only first duplicated offer name 
   expect(factoryCalls).toBe(0);
 });
 
+
+test("legacy offers route trims the first duplicated offer name and ignores a different valid duplicate that follows", async () => {
+  const { client, calls } = createSupabaseMock();
+  const handler = createHandler(client);
+
+  const response = await handler(
+    createFormRequestWithDuplicateField("name", " First offer name ", "Second offer name"),
+  );
+
+  expect(response.status).toBe(303);
+  expect(calls.offerInsertCalls).toBe(1);
+  expect(calls.insertPayload).toMatchObject({
+    name: "First offer name",
+    quantity: 2,
+    lifecycle: "draft",
+    offer_type: "supplier_offer",
+  });
+});
