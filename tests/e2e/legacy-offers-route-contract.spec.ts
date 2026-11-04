@@ -2285,3 +2285,38 @@ test("legacy offers route stops when the first duplicated demandId lookup errors
   expect(calls.offerInsertCalls).toBe(0);
   expect(calls.insertPayload).toBeNull();
 });
+
+
+test("legacy offers route stops when the first duplicated productMasterId lookup errors and ignores a valid reference that follows", async () => {
+  const { client, calls } = createSupabaseMock({
+    productMaster: null,
+    productMasterError: { message: "simulated product master lookup failure" },
+  });
+  const handler = createHandler(client);
+  const erroredFirstProductMasterId = "50000000-0000-4000-8000-000000000299";
+  const validSecondProductMasterId = PRODUCT_MASTER_ID;
+
+  const response = await handler(
+    createFormRequestWithDuplicateField(
+      "productMasterId",
+      erroredFirstProductMasterId,
+      validSecondProductMasterId,
+    ),
+  );
+
+  expect(response.status).toBe(400);
+  await expect(response.json()).resolves.toEqual({
+    error: "PRODUCT_MASTER_NOT_FOUND",
+  });
+  expect(calls.authGetUser).toBe(1);
+  expect(calls.profileLookups).toEqual([
+    { column: "auth_user_id", value: AUTH_USER_ID },
+  ]);
+  expect(calls.demandLookups).toHaveLength(0);
+  expect(calls.productMasterLookups).toEqual([
+    { column: "id", value: erroredFirstProductMasterId },
+    { column: "status", value: "active" },
+  ]);
+  expect(calls.offerInsertCalls).toBe(0);
+  expect(calls.insertPayload).toBeNull();
+});
