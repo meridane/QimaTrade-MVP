@@ -2071,3 +2071,34 @@ test("legacy offers route ignores a first JSON string attributes value and does 
   });
   expect(calls.insertPayload?.attributes).toEqual({});
 });
+
+
+test("legacy offers route preserves special JSON attribute keys as own data properties without changing the attributes prototype and ignores a valid duplicate that follows", async () => {
+  const { client, calls } = createSupabaseMock();
+  const handler = createHandler(client);
+
+  const response = await handler(
+    createFormRequestWithDuplicateField(
+      "attributes",
+      '{"__proto__":"safe","constructor":"value","grade":" A "}',
+      JSON.stringify({ grade: "ignored" }),
+    ),
+  );
+
+  expect(response.status).toBe(303);
+  expect(calls.offerInsertCalls).toBe(1);
+  expect(calls.insertPayload).toMatchObject({
+    name: "Legacy draft offer",
+    quantity: 2,
+    lifecycle: "draft",
+    offer_type: "supplier_offer",
+  });
+
+  const attributes = calls.insertPayload?.attributes;
+  expect(Object.getPrototypeOf(attributes)).toBe(Object.prototype);
+  expect(Object.prototype.hasOwnProperty.call(attributes, "__proto__")).toBe(true);
+  expect(attributes?.["__proto__"]).toBe("safe");
+  expect(Object.prototype.hasOwnProperty.call(attributes, "constructor")).toBe(true);
+  expect(attributes?.constructor).toBe("value");
+  expect(attributes?.grade).toBe("A");
+});
