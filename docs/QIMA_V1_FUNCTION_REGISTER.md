@@ -4201,3 +4201,12 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **Vercel Preview :** statut encore `pending` lors de cette réconciliation ; ce statut est distinct des deux workflows GitHub réussis. Aucun déploiement de production.
 - **Conclusion : QA175 VALIDÉE sur le commit de tests** `54ab668` pour les contrôles GitHub Actions et CodeQL. Aucun test échoué dans CI #743. Les tests de route utilisent un client Supabase simulé et ne prouvent pas une persistance distante ni une vulnérabilité.
 - **Garde-fous :** aucun code applicatif, SQL, migration, donnée, policy ou configuration Supabase production modifié ; aucun déploiement de production, aucune fusion et aucune modification des protections de branche.
+
+#### OFFER-QA-175 — validation du HEAD documentaire (4 novembre 2026)
+
+- **HEAD validé :** `33ef95549554716c14bc57bf2d991bf84100ac77`, incluant le test QA175 et la réconciliation de QA174/QA175 dans ce registre.
+- **QIMA CI #744** [run 41795919462](https://github.com/meridane/QimaTrade-MVP/actions/runs/41795919462) : **SUCCESS**, les deux jobs sont réussis. Le journal navigateur confirme **194/194 tests Playwright réussis (6,6 s)**. Installation npm depuis lockfile, audit dépendances, TypeScript, build Next.js, installation Chromium et browser smoke tests : SUCCESS. Les tests PostgreSQL isolés CREATE_OFFER/concurrence/idempotence, RLS messages et self-enrollment : SUCCESS.
+- **CodeQL #701** [run 41795919365](https://github.com/meridane/QimaTrade-MVP/actions/runs/41795919365) : **SUCCESS**.
+- **Vercel Preview : SUCCESS** sur le HEAD documentaire `33ef955` ([Preview](https://vercel.com/bmk1/qimatrade-mvp/HtKUhof5tbk9nsmUx2kzTf7kaKD5)).
+- **Conclusion : QA175 VALIDÉE** sur le HEAD documentaire `33ef955`. Aucun test échoué dans CI #744. Le scénario confirme uniquement le comportement de parsing avec client Supabase simulé ; il ne prouve pas une persistance distante ni une vulnérabilité.
+- **Garde-fous :** aucun code applicatif, SQL, migration, donnée, policy ou configuration Supabase production modifié ; aucun déploiement de production, aucune fusion et aucune modification des protections de branche.
