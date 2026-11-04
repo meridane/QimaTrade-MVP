@@ -1799,3 +1799,23 @@ test("legacy offers route uses the first text offer name when a file is submitte
     offer_type: "supplier_offer",
   });
 });
+
+
+test("legacy offers route rejects a file as the first duplicated offer name even when a valid text name follows before invoking Supabase", async () => {
+  let factoryCalls = 0;
+  const handler = createLegacyOfferHandler(async () => {
+    factoryCalls += 1;
+    throw new Error("Supabase client initialization failed");
+  });
+  const file = new File(["Offer valid"], "offer-name.txt", { type: "text/plain" });
+
+  const response = await handler(
+    createFormRequestWithDuplicateField("name", file, "Offer valid"),
+  );
+
+  expect(response.status).toBe(400);
+  await expect(response.json()).resolves.toEqual({
+    error: "Please provide a valid offer name and quantity.",
+  });
+  expect(factoryCalls).toBe(0);
+});
