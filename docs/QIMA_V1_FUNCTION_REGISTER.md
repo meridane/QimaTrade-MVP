@@ -4210,3 +4210,21 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **Vercel Preview : SUCCESS** sur le HEAD documentaire `33ef955` ([Preview](https://vercel.com/bmk1/qimatrade-mvp/HtKUhof5tbk9nsmUx2kzTf7kaKD5)).
 - **Conclusion : QA175 VALIDÉE** sur le HEAD documentaire `33ef955`. Aucun test échoué dans CI #744. Le scénario confirme uniquement le comportement de parsing avec client Supabase simulé ; il ne prouve pas une persistance distante ni une vulnérabilité.
 - **Garde-fous :** aucun code applicatif, SQL, migration, donnée, policy ou configuration Supabase production modifié ; aucun déploiement de production, aucune fusion et aucune modification des protections de branche.
+
+
+#### OFFER-QA-175 — réconciliation du HEAD PR (4 novembre 2026)
+
+- **État vérifié avant QA176 :** PR #26 ouverte, en brouillon, non fusionnée et mergeable ; branche `fix/create-offer-status-contract`, base `main`, HEAD `d0c5a3a6b18284ec4ee5bb381dd4b605a46d6d1c` ; comparaison avec `main` : 655 commits en avance, 0 en retard, 43 fichiers modifiés. Aucun review ni thread de review.
+- **QIMA CI #745** [run 41796128504](https://github.com/meridane/QimaTrade-MVP/actions/runs/41796128504) : **SUCCESS**, deux jobs réussis. Le journal du job navigateur confirme **194/194 tests Playwright réussis (6,5 s)**. Installation npm depuis lockfile, audit dépendances, TypeScript, build Next.js, installation Chromium et browser smoke tests : SUCCESS. Le job PostgreSQL isolé confirme les tests CREATE_OFFER/concurrence/idempotence, RLS messages et self-enrollment : SUCCESS.
+- **CodeQL #702** [run 41796128491](https://github.com/meridane/QimaTrade-MVP/actions/runs/41796128491) : **SUCCESS**. Le statut combiné du HEAD rapporte également **Vercel : SUCCESS**.
+- **Conclusion : QA175 et le HEAD documentaire `d0c5a3a` sont validés** par CI #745 et CodeQL #702. Aucun échec de test dans ce cycle. Les erreurs PostgreSQL `QA103_FORCED_FIRST_ATTEMPT_FAILURE`, `QA104_FORCED_FIRST_ATTEMPT_FAILURE` et `IDEMPOTENCY_KEY_REUSE` sont émises dans des scénarios négatifs/récupération intentionnels dont les assertions passent ; elles ne sont pas qualifiées de vulnérabilités confirmées.
+- **Garde-fous :** aucun code applicatif, SQL, migration, donnée, policy ou configuration Supabase production modifié ; aucun déploiement de production, aucune fusion et aucune modification des protections de branche.
+
+#### OFFER-QA-176 — booléen JSON false en première valeur attributes dupliquée (4 novembre 2026)
+
+- **État initial :** PR #26 HEAD `d0c5a3a6b18284ec4ee5bb381dd4b605a46d6d1c`, ouverte, en brouillon, non fusionnée et mergeable ; comparaison `main...fix/create-offer-status-contract` : 655 commits en avance, 0 en retard. CI #745, CodeQL #702 et le statut Vercel du HEAD initial sont SUCCESS.
+- **Branche de travail :** `work/offer-qa-176-false-first-duplicate-attributes-20261104-1754`, créée depuis le SHA exact `d0c5a3a6b18284ec4ee5bb381dd4b605a46d6d1c`.
+- **Constat source :** le handler lit la première occurrence de `attributes`, la parse avec `JSON.parse`, puis ne l'affecte que si le résultat est un objet non-tableau. La valeur JSON `false` ne satisfait pas cette condition ; `attributes = {}` reste inchangé et une deuxième valeur objet valide n'est pas consultée.
+- **Test ajouté :** première valeur `JSON.stringify(false)`, seconde valeur `JSON.stringify({ grade: "F" })`. Assertions : HTTP 303, une insertion via client Supabase simulé, lifecycle `draft`, type `supplier_offer` et `insertPayload.attributes` égal à `{}`.
+- **Commit de test sur la branche de travail :** `768dd20f9b547fc317c23638b36d7189b70c6824`. La validation PR de ce nouveau test reste en attente de publication sur la branche PR et des checks déclenchés sur son nouveau HEAD. Total Playwright attendu : **195**. Ne pas déclarer QA176 validée avant CI complète et CodeQL.
+- **Limites et garde-fous :** test de route avec client Supabase simulé ; il caractérise le parsing/normalisation et ne prouve ni persistance distante ni vulnérabilité. Aucun code applicatif, SQL, migration, donnée, policy ou configuration Supabase production modifié ; aucun déploiement de production, aucune fusion et aucune modification des protections de branche.
