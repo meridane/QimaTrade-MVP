@@ -2178,3 +2178,23 @@ test("legacy offers route rejects a file as the first duplicated demandId even w
   });
   expect(factoryCalls).toBe(0);
 });
+
+
+test("legacy offers route treats an empty first duplicated demandId as no association and ignores a valid reference that follows", async () => {
+  const { client, calls } = createSupabaseMock();
+  const handler = createHandler(client);
+  const secondDemandId = "50000000-0000-4000-8000-000000000102";
+
+  const response = await handler(
+    createFormRequestWithDuplicateField("demandId", "", secondDemandId),
+  );
+
+  expect(response.status).toBe(303);
+  expect(calls.demandLookups).toHaveLength(0);
+  expect(calls.offerInsertCalls).toBe(1);
+  expect(calls.insertPayload).toMatchObject({
+    demand_id: null,
+    lifecycle: "draft",
+    offer_type: "supplier_offer",
+  });
+});
