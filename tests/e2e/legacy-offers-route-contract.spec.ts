@@ -2000,3 +2000,27 @@ test("legacy offers route ignores a first JSON boolean attributes value and does
   });
   expect(calls.insertPayload?.attributes).toEqual({});
 });
+
+
+test("legacy offers route ignores a first JSON false attributes value and does not use a valid object duplicate that follows", async () => {
+  const { client, calls } = createSupabaseMock();
+  const handler = createHandler(client);
+
+  const response = await handler(
+    createFormRequestWithDuplicateField(
+      "attributes",
+      JSON.stringify(false),
+      JSON.stringify({ grade: "F" }),
+    ),
+  );
+
+  expect(response.status).toBe(303);
+  expect(calls.offerInsertCalls).toBe(1);
+  expect(calls.insertPayload).toMatchObject({
+    name: "Legacy draft offer",
+    quantity: 2,
+    lifecycle: "draft",
+    offer_type: "supplier_offer",
+  });
+  expect(calls.insertPayload?.attributes).toEqual({});
+});
