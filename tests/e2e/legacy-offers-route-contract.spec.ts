@@ -1906,3 +1906,27 @@ test("legacy offers route rejects malformed first JSON attributes even when a va
   expect(calls.offerInsertCalls).toBe(0);
   expect(calls.insertPayload).toBeNull();
 });
+
+
+test("legacy offers route treats a whitespace-only first duplicated attributes value as empty and ignores a valid JSON duplicate that follows", async () => {
+  const { client, calls } = createSupabaseMock();
+  const handler = createHandler(client);
+
+  const response = await handler(
+    createFormRequestWithDuplicateField(
+      "attributes",
+      "   ",
+      JSON.stringify({ grade: "B" }),
+    ),
+  );
+
+  expect(response.status).toBe(303);
+  expect(calls.offerInsertCalls).toBe(1);
+  expect(calls.insertPayload).toMatchObject({
+    name: "Legacy draft offer",
+    quantity: 2,
+    lifecycle: "draft",
+    offer_type: "supplier_offer",
+  });
+  expect(calls.insertPayload?.attributes).toEqual({});
+});
