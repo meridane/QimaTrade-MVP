@@ -2157,3 +2157,24 @@ test("legacy offers route rejects a file as the first duplicated attributes valu
   });
   expect(factoryCalls).toBe(0);
 });
+
+
+test("legacy offers route rejects a file as the first duplicated demandId even when a valid reference follows before invoking Supabase", async () => {
+  let factoryCalls = 0;
+  const handler = createLegacyOfferHandler(async () => {
+    factoryCalls += 1;
+    throw new Error("Supabase client initialization failed");
+  });
+  const file = new File([DEMAND_ID], "demand.json", { type: "application/json" });
+  const secondDemandId = "50000000-0000-4000-8000-000000000102";
+
+  const response = await handler(
+    createFormRequestWithDuplicateField("demandId", file, secondDemandId),
+  );
+
+  expect(response.status).toBe(400);
+  await expect(response.json()).resolves.toEqual({
+    error: "Invalid offer form fields.",
+  });
+  expect(factoryCalls).toBe(0);
+});
