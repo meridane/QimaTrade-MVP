@@ -4446,3 +4446,27 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **CI status:** pending promotion of this code-bearing commit to PR #26. The expected browser suite is **209 tests**: 207 previously validated tests plus QA189 and QA190. Record the actual CI and CodeQL results after the PR checks complete.
 - **Security interpretation:** this route-level regression uses a mocked Supabase client and characterizes normalization only; it does not establish production authorization behavior or a confirmed vulnerability.
 - **Safety:** no production Supabase data, migration, policy, configuration, deployment, merge, or branch-protection setting was changed.
+
+
+
+## QA189–QA190 — final validation reconciliation (5 November 2026, 06:10 KST)
+
+- **Validated PR HEAD:** `ee11b26a16477c4186d47537fa5fb0714f0c5ff2`; PR #26 remains open and draft, based on `main`. Git comparison: 696 commits ahead, 0 behind.
+- **QIMA CI #779:** [run 41899458921](https://github.com/meridane/QimaTrade-MVP/actions/runs/41899458921) — **SUCCESS**, both jobs completed successfully. The browser log confirms **209/209 Playwright tests passed (6.6 s)**. This suite includes QA189 (empty first duplicated `productMasterId`) and QA190 (whitespace-only first duplicated `productMasterId`). Dependency installation/audit, TypeScript, Next.js production build, Chromium, and browser tests succeeded. The isolated PostgreSQL CREATE_OFFER integration/concurrency/idempotency job and both legacy-messages RLS and participant self-enrollment regression scripts succeeded.
+- **QIMA CodeQL #735:** [run 41899458607](https://github.com/meridane/QimaTrade-MVP/actions/runs/41899458607) — **SUCCESS**; JavaScript/TypeScript analysis completed.
+- **Vercel:** the combined status for this PR HEAD reports **FAILURE** with target `build-rate-limit` (free-plan deployment quota). This is independent of the successful CI and CodeQL runs; no quota workaround or production deployment was attempted.
+- **Conclusion:** QA189 and QA190 are now validated as part of CI #779 (209/209). The earlier cancellation of CI #776 remains accurately recorded as a cancelled run, superseded for validation by the successful complete suite in #779.
+- **Security interpretation:** these route tests use a mocked Supabase client. The successful tests characterize handler behavior only; they do not establish production database behavior, authorization correctness, or a confirmed vulnerability.
+- **Safety:** no production Supabase data, migration, policy, or configuration was changed; no production deployment, merge, or branch-protection setting was changed.
+
+
+## QA191 — non-string product_master_id in demand scope (5 November 2026)
+
+- **Test file:** `tests/e2e/legacy-offers-route-contract.spec.ts`.
+- **Test commit:** `b534e356f8bbac2cb2b14078f3866e51832940a5`.
+- **Scenario:** submit a valid `demandId`; the mocked demand returns `scope: { product_master_id: 42 }`, with no explicit `productMasterId` form field.
+- **Expected assertions:** HTTP 303; exactly one demand lookup using the supplied demand ID; no product-master lookup; exactly one offer insertion; inserted `demand_id` remains the demand ID, `product_master_id: null`, `market: "South Korea"`, `lifecycle: "draft"`, and `offer_type: "supplier_offer"`.
+- **Implementation contract:** the handler only accepts a string `scope.product_master_id` for fallback; a numeric value is normalized to `null` and is not passed to the product-master lookup.
+- **CI status:** pending promotion of this test commit to PR #26. The expected browser suite is **210 tests** (209 previously validated plus QA191); record actual CI and CodeQL results after checks complete.
+- **Security interpretation:** deterministic mocked-client regression for defensive scope-value handling; not evidence of a production vulnerability or authorization bypass.
+- **Safety:** no production Supabase data, migration, policy, or configuration was changed; no production deployment, merge, or branch-protection setting was changed.
