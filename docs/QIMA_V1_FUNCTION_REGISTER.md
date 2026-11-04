@@ -4192,3 +4192,12 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **Commit de tests :** `5f4ab082af03e84561252bfa43ed858d0b343dbe` (`test(qima): cover first boolean duplicate offer attributes`), 24 lignes ajoutées.
 - **Validation :** le commit de tests est publié sur la branche de travail. La branche de la PR doit être avancée en fast-forward avant de considérer les checks PR comme déclenchés. Ne pas déclarer QA175 validée avant CI complète, CodeQL et vérification du dernier HEAD documentaire.
 - **Limites et garde-fous :** test de route avec client Supabase simulé ; il caractérise la normalisation JSON et ne prouve ni persistance distante ni vulnérabilité. Aucun code applicatif, SQL, migration, donnée, policy ou configuration Supabase production modifié ; aucun déploiement de production, aucune fusion et aucune modification des protections de branche.
+
+#### OFFER-QA-175 — validation du commit de tests (4 novembre 2026)
+
+- **Commit de tests validé :** `5f4ab082af03e84561252bfa43ed858d0b343dbe`, inclus dans le HEAD PR `54ab66857324c822377529b2b433b8ebb64ea6f8`.
+- **QIMA CI #743** [run 41795690261](https://github.com/meridane/QimaTrade-MVP/actions/runs/41795690261) : **SUCCESS**, les deux jobs sont réussis. Le journal navigateur confirme **194/194 tests Playwright réussis (7,9 s)**. Installation npm depuis lockfile, audit dépendances, TypeScript, build Next.js, installation Chromium et browser smoke tests : SUCCESS. Le job PostgreSQL isolé CREATE_OFFER/concurrence/idempotence ainsi que les régressions RLS messages et self-enrollment : SUCCESS.
+- **CodeQL #700** [run 41795690324](https://github.com/meridane/QimaTrade-MVP/actions/runs/41795690324) : **SUCCESS**.
+- **Vercel Preview :** statut encore `pending` lors de cette réconciliation ; ce statut est distinct des deux workflows GitHub réussis. Aucun déploiement de production.
+- **Conclusion : QA175 VALIDÉE sur le commit de tests** `54ab668` pour les contrôles GitHub Actions et CodeQL. Aucun test échoué dans CI #743. Les tests de route utilisent un client Supabase simulé et ne prouvent pas une persistance distante ni une vulnérabilité.
+- **Garde-fous :** aucun code applicatif, SQL, migration, donnée, policy ou configuration Supabase production modifié ; aucun déploiement de production, aucune fusion et aucune modification des protections de branche.
