@@ -80,7 +80,11 @@ export function createLegacyOfferHandler(
         fallbackMarket = market || demand.target_market || "";
         if (!productMasterId) {
           const scope = typeof demand.scope === "object" && demand.scope !== null ? demand.scope as Record<string, unknown> : {};
-          productMasterId = typeof scope.product_master_id === "string" ? scope.product_master_id : null;
+          const scopeProductMasterId =
+            typeof scope.product_master_id === "string"
+              ? scope.product_master_id.trim()
+              : "";
+          productMasterId = scopeProductMasterId || null;
         }
       }
 
