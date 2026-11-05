@@ -133,6 +133,7 @@ async function postCreateOffer(
     return {
       status: response.status,
       body: (await response.json()) as Record<string, unknown>,
+      wwwAuthenticate: response.headers.get("www-authenticate"),
       requests,
     };
   } finally {
@@ -178,6 +179,36 @@ test("CREATE_OFFER route fails closed after Auth rejects a normalized mixed-case
   expect(membershipRequests).toHaveLength(0);
   expect(rpcRequests).toHaveLength(0);
   expect(result.requests).toHaveLength(1);
+});
+
+test("CREATE_OFFER 401 responses include an RFC 6750 challenge without changing the JSON contract", async () => {
+  const missingCredential = await postCreateOffer("USD", {}, undefined, undefined, "succeeded", null);
+  expect(missingCredential.status).toBe(401);
+  expect(missingCredential.body).toEqual({ error: "UNAUTHENTICATED" });
+  expect(missingCredential.wwwAuthenticate).toBe('Bearer realm="qimatrade"');
+  expect(missingCredential.requests).toEqual([]);
+
+  const malformedCredential = await postCreateOffer("USD", {}, undefined, undefined, "succeeded", "Basic invalid-token");
+  expect(malformedCredential.status).toBe(401);
+  expect(malformedCredential.body).toEqual({ error: "UNAUTHENTICATED" });
+  expect(malformedCredential.wwwAuthenticate).toBe('Bearer realm="qimatrade"');
+  expect(malformedCredential.requests).toEqual([]);
+
+  const rejectedCredential = await postCreateOffer(
+    "USD",
+    {},
+    undefined,
+    undefined,
+    "succeeded",
+    "Bearer syntactically-valid-but-rejected-token",
+    401,
+  );
+  expect(rejectedCredential.status).toBe(401);
+  expect(rejectedCredential.body).toEqual({ error: "UNAUTHENTICATED" });
+  expect(rejectedCredential.wwwAuthenticate).toBe(
+    'Bearer realm="qimatrade", error="invalid_token"',
+  );
+  expect(rejectedCredential.requests.map((request) => request.path)).toEqual(["/auth/v1/user"]);
 });
 
 test("CREATE_OFFER route accepts case-insensitive Bearer schemes", async () => {

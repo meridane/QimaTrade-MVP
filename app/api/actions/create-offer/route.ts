@@ -6,6 +6,17 @@ import { executeUniversalAction } from "../../../../lib/actions/runtime";
 export const dynamic = "force-dynamic";
 const currencies = new Set(["USD", "EUR", "KRW", "MAD", "CNY"]);
 
+function unauthenticatedResponse(invalidToken = false) {
+  const challenge = invalidToken
+    ? 'Bearer realm="qimatrade", error="invalid_token"'
+    : 'Bearer realm="qimatrade"';
+
+  return NextResponse.json(
+    { error: "UNAUTHENTICATED" },
+    { status: 401, headers: { "WWW-Authenticate": challenge } },
+  );
+}
+
 // Only exact, documented CREATE_OFFER domain codes may cross the API boundary.
 // Supabase/PostgREST messages and unexpected exception text remain server-side.
 const publicCreateOfferErrorCodes = new Set([
@@ -32,7 +43,7 @@ export async function POST(request: Request) {
     // RFC 6750 requires SP separators and a b64token credential with optional trailing padding.
     // Reject punctuation and misplaced padding before forwarding malformed credentials to Auth.
     const bearerMatch = authHeader?.match(/^Bearer +([-A-Za-z0-9._~+\/]+={0,})$/i);
-    if (!bearerMatch) return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
+    if (!bearerMatch) return unauthenticatedResponse();
 
     const token = bearerMatch[1];
     const supabase = createClient(
@@ -42,7 +53,9 @@ export async function POST(request: Request) {
     );
 
     const { data: { user }, error: userError } = await supabase.auth.getUser(token);
-    if (userError || !user) return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
+    if (userError || !user) {
+      return unauthenticatedResponse(!user || userError?.status === 401);
+    }
 
     let body: Record<string, unknown>;
     try {
