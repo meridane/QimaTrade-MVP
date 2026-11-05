@@ -230,6 +230,43 @@ test("CREATE_OFFER route rejects tab-separated Bearer credentials before any Sup
   }
 });
 
+test("CREATE_OFFER route enforces RFC 6750 b64token syntax before any Supabase request", async () => {
+  const invalidCredentials = [
+    "qima,route-test-token",
+    "qima:route-test-token",
+    "qima=route=test-token",
+  ];
+
+  for (const credential of invalidCredentials) {
+    const result = await postCreateOffer(
+      "USD",
+      {},
+      undefined,
+      undefined,
+      "succeeded",
+      \`Bearer \${credential}\`,
+    );
+
+    expect(result.status, credential).toBe(401);
+    expect(result.body, credential).toMatchObject({ error: "UNAUTHENTICATED" });
+    expect(result.requests, credential).toEqual([]);
+  }
+
+  const validToken = "qima.route_test~token+value/segment==";
+  const validResult = await postCreateOffer(
+    "USD",
+    {},
+    undefined,
+    undefined,
+    "succeeded",
+    \`Bearer \${validToken}\`,
+  );
+
+  expect(validResult.status).toBe(200);
+  const authRequest = validResult.requests.find((request) => request.path === "/auth/v1/user");
+  expect(authRequest?.authorization).toBe(\`Bearer \${validToken}\`);
+});
+
 test("CREATE_OFFER route returns HTTP 409 for a non-succeeded execution status", async () => {
   const result = await postCreateOffer("USD", {}, undefined, undefined, "failed");
 

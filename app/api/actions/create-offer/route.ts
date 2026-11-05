@@ -29,9 +29,9 @@ const publicCreateOfferErrorCodes = new Set([
 export async function POST(request: Request) {
   try {
     const authHeader = request.headers.get("authorization");
-    // RFC 6750 requires one or more SP characters between the Bearer scheme and credentials.
-    // Do not trim HTAB into a credential: that would accept a malformed separator.
-    const bearerMatch = authHeader?.match(/^Bearer +(\S+)$/i);
+    // RFC 6750 requires SP separators and a b64token credential with optional trailing padding.
+    // Reject punctuation and misplaced padding before forwarding malformed credentials to Auth.
+    const bearerMatch = authHeader?.match(/^Bearer +([-A-Za-z0-9._~+\/]+={0,})$/i);
     if (!bearerMatch) return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
 
     const token = bearerMatch[1];
