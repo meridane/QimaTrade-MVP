@@ -2628,3 +2628,39 @@ test("legacy offers route treats an array demand scope as an object without a pr
     offer_type: "supplier_offer",
   });
 });
+
+test("legacy offers route does not fall back to demand scope when an explicit productMasterId lookup fails", async () => {
+  const { client, calls } = createSupabaseMock({
+    demand: {
+      id: DEMAND_ID,
+      target_market: "South Korea",
+      scope: { product_master_id: PRODUCT_MASTER_ID },
+    },
+    productMaster: null,
+    productMasterError: { message: "simulated product master lookup failure" },
+  });
+  const handler = createHandler(client);
+
+  const response = await handler(
+    createFormRequest({
+      demandId: DEMAND_ID,
+      productMasterId: EXPLICIT_PRODUCT_MASTER_ID,
+    }),
+  );
+
+  expect(response.status).toBe(400);
+  await expect(response.json()).resolves.toEqual({
+    error: "PRODUCT_MASTER_NOT_FOUND",
+  });
+  expect(calls.authGetUser).toBe(1);
+  expect(calls.profileLookups).toEqual([
+    { column: "auth_user_id", value: AUTH_USER_ID },
+  ]);
+  expect(calls.demandLookups).toEqual([{ column: "id", value: DEMAND_ID }]);
+  expect(calls.productMasterLookups).toEqual([
+    { column: "id", value: EXPLICIT_PRODUCT_MASTER_ID },
+    { column: "status", value: "active" },
+  ]);
+  expect(calls.offerInsertCalls).toBe(0);
+  expect(calls.insertPayload).toBeNull();
+});
