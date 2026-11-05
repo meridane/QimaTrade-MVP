@@ -264,7 +264,7 @@ for (const mismatchCase of mismatchedActionDefinitions) {
 }
 
 
-const inheritedObjectPrototypeHandlerKeys = ["toString", "constructor"] as const;
+const inheritedObjectPrototypeHandlerKeys = ["toString", "constructor", "__proto__", "hasOwnProperty"] as const;
 
 for (const actionKey of inheritedObjectPrototypeHandlerKeys) {
   test(`executeAction rejects inherited Object.prototype handler key "${actionKey}"`, async () => {
