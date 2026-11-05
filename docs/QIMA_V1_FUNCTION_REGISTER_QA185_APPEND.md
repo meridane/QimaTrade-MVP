@@ -553,3 +553,15 @@ The canonical register's QA184 tail was inspected from commit `0eca4833bae236f32
 - **Conclusion:** the QA204 browser regressions are confirmed **222/222**, the isolated PostgreSQL/RLS job passed, and CodeQL #756 passed. A full successful CI conclusion for the current documentation HEAD is still pending; do not label the cancelled CI #800 as SUCCESS.
 - **Security interpretation:** deterministic route/RPC mocks verify exact error-code allowlisting and generic fallback behavior only. They do not prove a production disclosure, exploitation, or confirmed vulnerability.
 - **Safety:** no production Supabase data, migration, policy, configuration, production deployment, merge, or branch-protection setting was changed.
+
+
+## QA204 — final validation on the complete code-and-documentation HEAD (5 November 2026, KST)
+
+- **Validated HEAD:** `dd14bb996bf2ad2a391234bea1409d225bbd4d78`; this documentation HEAD contains the QA204 route change and regression tests from parent commit `95bd82e2e19fb84e8ca0b85db656415e9c3475c3`.
+- **QIMA CI #801:** [run 42004885883](https://github.com/meridane/QimaTrade-MVP/actions/runs/42004885883) — **SUCCESS**, both jobs completed. Browser logs confirm **222/222 Playwright tests passed (5.9 s)**, including the two generic RPC error cases and exact allowlisted `INVALID_PRICE` case. npm install, npm audit, TypeScript, Next.js production build, Chromium/browser tests, isolated PostgreSQL CREATE_OFFER integration/concurrency/idempotency, legacy-messages RLS, and participant self-enrollment RLS all succeeded.
+- **QIMA CodeQL #757:** [run 42004885859](https://github.com/meridane/QimaTrade-MVP/actions/runs/42004885859) — **SUCCESS**; JavaScript/TypeScript analysis completed.
+- **Vercel combined status:** **SUCCESS** on this exact HEAD (Preview only; no production deployment).
+- **Conclusion:** QA204 is fully validated on the complete code-and-documentation HEAD by CI #801 (**222/222**), CodeQL #757, and the successful Preview status. CI #800 on the preceding code/test-only commit was cancelled after the documentation follow-up; its browser log still recorded 222/222 and its PostgreSQL job passed, but the full-success claim is based on CI #801.
+- **Latest documentation-only HEAD at reconciliation time:** `21128b5335215d173debe14d7b450795cae0d4fc`. QIMA CI #802 [run 42005174341](https://github.com/meridane/QimaTrade-MVP/actions/runs/42005174341) and CodeQL #758 [run 42005174331](https://github.com/meridane/QimaTrade-MVP/actions/runs/42005174331) were **IN PROGRESS**. On CI #802, npm audit and TypeScript had succeeded; production build and isolated PostgreSQL integration were still running. Vercel combined status was **FAILURE** with `api-deployments-free-per-day` / `build-rate-limit`; this is a Preview quota limit, not a compilation failure.
+- **Security interpretation:** deterministic route/RPC mocks verify the API error response contract only; they do not prove a production disclosure, exploitation, or confirmed vulnerability.
+- **Safety:** no production Supabase data, migration, policy, configuration, production deployment, merge, or branch-protection setting was changed.
