@@ -726,3 +726,26 @@ The canonical register's QA184 tail was inspected from commit `0eca4833bae236f32
 - **Scope:** one Playwright regression and append-only documentation. No application code, SQL migration, database, tenant authorization rule, or public API behavior is changed.
 - **Security interpretation:** this test uses a mocked Auth boundary and verifies ordering/response mapping only. It does not establish a production vulnerability, live Supabase availability behavior, or an authentication bypass.
 - **Safety:** no production Supabase data, migration, policy, configuration, production deployment, merge, or branch-protection setting was changed.
+
+
+## QA210 — final validation (6 November 2026, 01:56 KST)
+
+- **Validated HEAD:** `f3650b16075e3dbfbdebacd19d794afee1489daf`. PR #26 remains open, draft, unmerged and mergeable; branch is 753 commits ahead of `main`, 0 behind, with 44 files in the overall diff.
+- **QIMA CI #814:** [run 42060060509](https://github.com/meridane/QimaTrade-MVP/actions/runs/42060060509) — **SUCCESS**. The browser job log confirms **228/228 Playwright tests passed (5.6 s)**, including QA210. npm ci, dependency audit, TypeScript, Next.js production build, Chromium, isolated PostgreSQL CREATE_OFFER integration/concurrency/idempotency, legacy-message RLS and participant self-enrollment RLS all succeeded.
+- **QIMA CodeQL #770:** [run 42060060400](https://github.com/meridane/QimaTrade-MVP/actions/runs/42060060400) — **SUCCESS**.
+- **Vercel combined status:** **SUCCESS** on this HEAD (Preview only; no production deployment).
+- **Conclusion:** QA210 is validated on `f3650b1` by 228/228 Playwright, full PostgreSQL/RLS CI, CodeQL and successful Preview status. No failure is reported on this HEAD.
+- **Security interpretation:** the mocked request proves the route's ordering and response mapping only; it does not establish a production vulnerability or live Supabase behavior.
+- **Safety:** no production Supabase data, migration, policy, configuration, production deployment, merge, or branch-protection setting was changed.
+
+
+## QA211 — authenticated malformed JSON stops before profile and tenant access (6 November 2026, 02:00 KST)
+
+- **Starting PR state:** PR #26 is open, draft, unmerged and mergeable. Branch `fix/create-offer-status-contract` is 753 commits ahead of `main`, 0 behind, with 44 files in the overall PR diff. Starting HEAD: `f3650b16075e3dbfbdebacd19d794afee1489daf`.
+- **Baseline checks:** QIMA CI #814 [run 42060060509](https://github.com/meridane/QimaTrade-MVP/actions/runs/42060060509) completed successfully. The browser job log confirms **228/228 Playwright tests passed (5.6 s)**. npm ci, dependency audit, TypeScript, Next.js production build, Chromium, isolated PostgreSQL CREATE_OFFER integration/concurrency/idempotency, legacy-message RLS and participant self-enrollment RLS all succeeded. QIMA CodeQL #770 [run 42060060400](https://github.com/meridane/QimaTrade-MVP/actions/runs/42060060400) succeeded. The combined Vercel status on the starting HEAD is success (Preview only).
+- **Change:** strengthen the existing authenticated malformed-JSON regression. It now asserts HTTP 400 with the exact body `{ error: "INVALID_REQUEST_BODY" }`, no `WWW-Authenticate` challenge, exactly one request to `/auth/v1/user`, and forwarding of the normalized Bearer token. No profile, membership, or RPC request may occur.
+- **Ordering contract:** QA210 covers malformed JSON with no credential and expects zero Supabase requests. QA211 complements it with a valid mocked credential and proves authentication occurs once before body parsing, while profile/tenant/RPC access does not begin after parsing fails.
+- **Expected browser suite:** remains **228 tests**; QA211 strengthens one existing test rather than adding another. Validation is pending until GitHub Actions completes on the published QA211 HEAD.
+- **Scope:** one existing Playwright test and append-only updates to both function registers. No application code, SQL migration, database, tenant authorization rule, or public API behavior is changed.
+- **Security interpretation:** this is a mocked route-ordering regression, not evidence of an authentication bypass, data exposure, or confirmed production vulnerability.
+- **Safety:** no production Supabase data, migration, policy, configuration, production deployment, merge, or branch-protection setting was changed.
