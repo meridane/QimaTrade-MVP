@@ -2519,3 +2519,34 @@ test("legacy offers route falls back to demand scope product_master_id when expl
     offer_type: "supplier_offer",
   });
 });
+
+
+test("legacy offers route trims surrounding whitespace from demand scope product_master_id before lookup", async () => {
+  const paddedProductMasterId = `  ${PRODUCT_MASTER_ID}  `;
+  const { client, calls } = createSupabaseMock({
+    demand: {
+      id: DEMAND_ID,
+      target_market: "South Korea",
+      scope: { product_master_id: paddedProductMasterId },
+    },
+    productMaster: { id: PRODUCT_MASTER_ID },
+  });
+  const handler = createHandler(client);
+
+  const response = await handler(createFormRequest({ demandId: DEMAND_ID }));
+
+  expect(response.status).toBe(303);
+  expect(calls.demandLookups).toEqual([{ column: "id", value: DEMAND_ID }]);
+  expect(calls.productMasterLookups).toEqual([
+    { column: "id", value: PRODUCT_MASTER_ID },
+    { column: "status", value: "active" },
+  ]);
+  expect(calls.offerInsertCalls).toBe(1);
+  expect(calls.insertPayload).toMatchObject({
+    demand_id: DEMAND_ID,
+    product_master_id: PRODUCT_MASTER_ID,
+    market: "South Korea",
+    lifecycle: "draft",
+    offer_type: "supplier_offer",
+  });
+});
