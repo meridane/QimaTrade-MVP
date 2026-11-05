@@ -78,14 +78,30 @@ async function postCreateOffer(
     }
     if (url.pathname === "/rest/v1/profiles") {
       if (profileStatus !== 200) {
-        return Response.json({ message: "Profile lookup failed", code: "XX000" }, { status: profileStatus });
+        return Response.json(
+          {
+            message: "Profile lookup failed: PROFILE_LOOKUP_PRIVATE_SENTINEL",
+            code: "XX000",
+            details: "PROFILE_DETAILS_PRIVATE_SENTINEL",
+            hint: "PROFILE_HINT_PRIVATE_SENTINEL",
+          },
+          { status: profileStatus },
+        );
       }
       if (profileMissing) return Response.json(null);
       return Response.json(profileActorId ? { actor_id: profileActorId } : {});
     }
     if (url.pathname === "/rest/v1/dt_memberships") {
       if (membershipStatus !== 200) {
-        return Response.json({ message: "Membership lookup failed", code: "XX000" }, { status: membershipStatus });
+        return Response.json(
+          {
+            message: "Membership lookup failed: MEMBERSHIP_LOOKUP_PRIVATE_SENTINEL",
+            code: "XX000",
+            details: "MEMBERSHIP_DETAILS_PRIVATE_SENTINEL",
+            hint: "MEMBERSHIP_HINT_PRIVATE_SENTINEL",
+          },
+          { status: membershipStatus },
+        );
       }
       return Response.json(membershipRows);
     }
@@ -769,7 +785,7 @@ test("CREATE_OFFER route fails closed when the profile has no actor_id", async (
   expect(result.requests.some((request) => request.path.startsWith("/rest/v1/rpc/"))).toBe(false);
 });
 
-test("CREATE_OFFER route fails closed when profile lookup returns an error", async () => {
+test("CREATE_OFFER route masks profile lookup diagnostics and stops before tenant or RPC access", async () => {
   const result = await postCreateOffer(
     "USD",
     {},
@@ -783,10 +799,14 @@ test("CREATE_OFFER route fails closed when profile lookup returns an error", asy
   );
 
   expect(result.status).toBe(403);
-  expect(result.body).toMatchObject({ error: "PROFILE_ACTOR_NOT_FOUND" });
-  expect(result.requests.some((request) => request.path === "/rest/v1/profiles")).toBe(true);
-  expect(result.requests.some((request) => request.path === "/rest/v1/dt_memberships")).toBe(false);
-  expect(result.requests.some((request) => request.path.startsWith("/rest/v1/rpc/"))).toBe(false);
+  expect(result.body).toEqual({ error: "PROFILE_ACTOR_NOT_FOUND" });
+  expect(JSON.stringify(result.body)).not.toMatch(/PROFILE_(?:LOOKUP|DETAILS|HINT)_PRIVATE_SENTINEL|XX000|Profile lookup failed/i);
+  expect(result.wwwAuthenticate).toBeNull();
+  expect(result.requests.map((request) => request.path)).toEqual([
+    "/auth/v1/user",
+    "/rest/v1/profiles",
+  ]);
+  expect(result.requests.every((request) => request.authorization === "Bearer qima-route-test-token")).toBe(true);
 });
 
 test("CREATE_OFFER route fails closed when the profile row is absent", async () => {
@@ -819,7 +839,7 @@ test("CREATE_OFFER route rejects missing tenant membership before calling RPC", 
   expect(result.requests.some((request) => request.path.startsWith("/rest/v1/rpc/"))).toBe(false);
 });
 
-test("CREATE_OFFER route fails closed when tenant membership lookup returns an error", async () => {
+test("CREATE_OFFER route masks tenant membership lookup diagnostics and stops before RPC access", async () => {
   const result = await postCreateOffer(
     "USD",
     {},
@@ -832,9 +852,15 @@ test("CREATE_OFFER route fails closed when tenant membership lookup returns an e
   );
 
   expect(result.status).toBe(403);
-  expect(result.body).toMatchObject({ error: "TENANT_MEMBERSHIP_REQUIRED" });
-  expect(result.requests.some((request) => request.path === "/rest/v1/dt_memberships")).toBe(true);
-  expect(result.requests.some((request) => request.path.startsWith("/rest/v1/rpc/"))).toBe(false);
+  expect(result.body).toEqual({ error: "TENANT_MEMBERSHIP_REQUIRED" });
+  expect(JSON.stringify(result.body)).not.toMatch(/MEMBERSHIP_(?:LOOKUP|DETAILS|HINT)_PRIVATE_SENTINEL|XX000|Membership lookup failed/i);
+  expect(result.wwwAuthenticate).toBeNull();
+  expect(result.requests.map((request) => request.path)).toEqual([
+    "/auth/v1/user",
+    "/rest/v1/profiles",
+    "/rest/v1/dt_memberships",
+  ]);
+  expect(result.requests.every((request) => request.authorization === "Bearer qima-route-test-token")).toBe(true);
 });
 
 test("CREATE_OFFER route requires explicit tenant selection even when the client supplies one of multiple tenant IDs", async () => {
