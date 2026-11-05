@@ -427,12 +427,14 @@ test("CREATE_OFFER authenticates before parsing malformed JSON request bodies", 
   expect(result.requests).toEqual([]);
 });
 
-test("CREATE_OFFER route rejects malformed JSON with a stable error before database access", async () => {
+test("CREATE_OFFER route rejects authenticated malformed JSON before profile and tenant lookups", async () => {
   const result = await postCreateOffer("USD", {}, '{"name":');
 
   expect(result.status).toBe(400);
-  expect(result.body).toMatchObject({ error: "INVALID_REQUEST_BODY" });
-  expect(result.requests.some((request) => request.path.startsWith("/rest/v1/"))).toBe(false);
+  expect(result.body).toEqual({ error: "INVALID_REQUEST_BODY" });
+  expect(result.wwwAuthenticate).toBeNull();
+  expect(result.requests.map((request) => request.path)).toEqual(["/auth/v1/user"]);
+  expect(result.requests[0].authorization).toBe("Bearer qima-route-test-token");
 });
 
 test("CREATE_OFFER route rejects a JSON array as an invalid request body", async () => {
