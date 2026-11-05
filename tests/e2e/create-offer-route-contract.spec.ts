@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { readFileSync } from "node:fs";
 import { POST } from "../../app/api/actions/create-offer/route";
 
 type MockRequest = { path: string; query: string; body?: Record<string, unknown>; authorization?: string };
@@ -1071,4 +1072,46 @@ test("CREATE_OFFER route exposes exact SQL domain errors and masks internal hand
   expect(dispatchFailure.status).toBe(500);
   expect(dispatchFailure.body).toEqual({ error: "ACTION_FAILED" });
   expect(JSON.stringify(dispatchFailure.body)).not.toContain("ACTION_HANDLER_NOT_FOUND");
+});
+
+
+test("CREATE_OFFER public error allowlist stays aligned with SQL and action-engine contracts", () => {
+  const routeSource = readFileSync("app/api/actions/create-offer/route.ts", "utf8");
+  const engineSource = readFileSync("lib/actions/engine.ts", "utf8");
+  const migrationSource = readFileSync(
+    "supabase/migrations/20261027090000_fix_create_offer_action_status_contract.sql",
+    "utf8",
+  );
+  const lowLevelFixtureSource = readFileSync(
+    "tests/sql/fixtures/create-offer-schema.sql",
+    "utf8",
+  );
+
+  const allowlistMatch = routeSource.match(
+    /const publicCreateOfferErrorCodes = new Set\\(\\[([\\s\\S]*?)\\]\\);/,
+  );
+  if (!allowlistMatch) throw new Error("CREATE_OFFER public error allowlist declaration was not found");
+
+  const publicCodes = [...allowlistMatch[1].matchAll(/"([A-Z][A-Z0-9_]+)"/g)]
+    .map((match) => match[1])
+    .sort();
+  const extractSqlCodes = (source: string) =>
+    [...new Set([...source.matchAll(/RAISE\\s+EXCEPTION\\s+'([A-Z][A-Z0-9_]+)'/gi)].map((match) => match[1]))]
+      .sort();
+
+  const migrationCodes = extractSqlCodes(migrationSource);
+  const fixtureCodes = extractSqlCodes(lowLevelFixtureSource);
+  const engineCodes = [...engineSource.matchAll(/throw new Error\\("([A-Z][A-Z0-9_]+)"\\)/g)]
+    .map((match) => match[1]);
+
+  expect(new Set(publicCodes).size).toBe(publicCodes.length);
+  expect(migrationCodes.length).toBeGreaterThan(0);
+  expect(publicCodes).toEqual(migrationCodes);
+  expect(fixtureCodes.length).toBeGreaterThan(0);
+  expect(fixtureCodes.every((code) => migrationCodes.includes(code))).toBe(true);
+
+  expect(engineCodes).toContain("ACTION_NOT_PUBLISHED");
+  expect(engineCodes).toContain("ACTION_HANDLER_NOT_FOUND");
+  expect(publicCodes).toContain("ACTION_NOT_PUBLISHED");
+  expect(publicCodes).not.toContain("ACTION_HANDLER_NOT_FOUND");
 });

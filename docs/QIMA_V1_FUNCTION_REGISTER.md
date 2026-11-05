@@ -4867,3 +4867,25 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **Expected browser suite:** **224 tests** (223 previously validated + QA206). Validation on the new HEAD is pending; do not claim a pass until CI logs confirm it.
 - **Security interpretation:** the matrix uses deterministic RPC mocks and source-level inventory. It validates public error classification, not live Supabase behavior or a confirmed production vulnerability.
 - **Safety:** no production Supabase data, migration, policy, configuration, production deployment, merge, or branch-protection setting was changed.
+
+
+## QA206 — final validation on canonical PR HEAD (5 November 2026, 21:46 KST)
+
+- **Validated PR HEAD:** `1c699c13a2031bdc6e61b0eb2e14e0ea08a79f39`; PR #26 remains open and draft, based on `main`, **743 commits ahead and 0 behind**, mergeable. No submitted reviews or unresolved inline review threads were present at this check.
+- **QIMA CI #805:** [run 42018291242](https://github.com/meridane/QimaTrade-MVP/actions/runs/42018291242) — **SUCCESS**, both jobs completed. Browser job log confirms **224/224 Playwright tests passed (7.1 s)**, including the QA206 15-code SQL-domain matrix and internal `ACTION_HANDLER_NOT_FOUND` masking case. Dependency installation from the committed lockfile, npm audit, TypeScript, Next.js production build, Chromium/browser tests, isolated PostgreSQL CREATE_OFFER integration/concurrency/idempotency, legacy-messages RLS, and participant self-enrollment RLS all succeeded.
+- **QIMA CodeQL #761:** [run 42018292063](https://github.com/meridane/QimaTrade-MVP/actions/runs/42018292063) — **SUCCESS**.
+- **Vercel combined status:** **SUCCESS** on this exact HEAD (Preview status only; no production deployment).
+- **Conclusion:** QA206 is validated on the actual PR HEAD by CI #805 (**224/224**), CodeQL #761, and successful Preview status.
+- **Security interpretation:** the SQL-code matrix uses source inspection and deterministic RPC mocks; the internal dispatch failure is simulated at the route boundary and separately covered by action-engine unit tests. This verifies classification and response behavior, not live production RPC behavior, exploitation, or a confirmed vulnerability.
+- **Safety:** no production Supabase data, migration, policy, configuration, production deployment, merge, or branch-protection setting was changed.
+
+
+## QA207 — add a source-level error-contract drift guard (5 November 2026, 21:46 KST)
+
+- **Starting PR HEAD:** `1c699c13a2031bdc6e61b0eb2e14e0ea08a79f39`; PR #26 is open/draft, based on `main`, **743 commits ahead and 0 behind**.
+- **Source review:** the public CREATE_OFFER allowlist in `app/api/actions/create-offer/route.ts` contains the 15 exact SQL domain codes. The migration `20261027090000_fix_create_offer_action_status_contract.sql` emits those codes; the isolated low-level `create_offer_v1` fixture emits an overlapping subset. The action engine separately emits `ACTION_NOT_PUBLISHED` and internal `ACTION_HANDLER_NOT_FOUND`.
+- **Planned regression:** add a Playwright source-contract test that parses the route allowlist, migration `RAISE EXCEPTION` codes, low-level SQL fixture codes, and action-engine error codes. Assert that the route allowlist equals the migration code set, fixture codes are a subset, `ACTION_NOT_PUBLISHED` remains public, and `ACTION_HANDLER_NOT_FOUND` remains internal.
+- **Expected browser suite:** **225 tests** (224 previously validated + QA207). Validation is pending until the new commit's CI logs confirm the result.
+- **Scope:** test-only change plus append-only documentation; no production migration or data change.
+- **Security interpretation:** this is a static source/fixture consistency guard. It does not establish live database behavior or a confirmed vulnerability.
+- **Safety:** no production Supabase data, migration, policy, configuration, production deployment, merge, or branch-protection setting was changed.
