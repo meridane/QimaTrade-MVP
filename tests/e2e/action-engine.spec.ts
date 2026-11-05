@@ -484,3 +484,73 @@ test("executeAction rejects an inherited handler from a custom prototype", async
   expect(definitionLookups).toBe(1);
   expect(inheritedHandlerCalls).toBe(0);
 });
+
+test("executeAction preserves an object rejection from getDefinition without invoking a handler", async () => {
+  const context: ActionContext = {
+    userId: "user-1",
+    tenantId: "tenant-1",
+    actionKey: "CREATE_OFFER",
+    actionVersion: 1,
+    objectType: "TestObject",
+    objectId: "object-1",
+    correlationId: "correlation-1",
+    idempotencyKey: "idempotency-1",
+  };
+  const input: ActionInput = { demandId: "demand-1", quantity: 3 };
+  const expectedRejection = { code: "DEFINITION_LOOKUP_REJECTED" };
+  let definitionLookups = 0;
+  let handlerCalls = 0;
+
+  await expect(
+    executeAction(context, input, {
+      getDefinition: async () => {
+        definitionLookups += 1;
+        throw expectedRejection;
+      },
+      handlers: {
+        CREATE_OFFER: async () => {
+          handlerCalls += 1;
+          return { executionId: "unexpected", status: "succeeded" };
+        },
+      },
+    }),
+  ).rejects.toBe(expectedRejection);
+
+  expect(definitionLookups).toBe(1);
+  expect(handlerCalls).toBe(0);
+});
+
+test("executeAction preserves a string rejection from a handler without retrying", async () => {
+  const context: ActionContext = {
+    userId: "user-1",
+    tenantId: "tenant-1",
+    actionKey: "CREATE_OFFER",
+    actionVersion: 1,
+    objectType: "TestObject",
+    objectId: "object-1",
+    correlationId: "correlation-1",
+    idempotencyKey: "idempotency-1",
+  };
+  const input: ActionInput = { demandId: "demand-1", quantity: 3 };
+  const expectedRejection = "CREATE_OFFER_HANDLER_REJECTED";
+  let definitionLookups = 0;
+  let handlerCalls = 0;
+
+  await expect(
+    executeAction(context, input, {
+      getDefinition: async (actionKey, version) => {
+        definitionLookups += 1;
+        return { actionKey, version, status: "published" };
+      },
+      handlers: {
+        CREATE_OFFER: async () => {
+          handlerCalls += 1;
+          throw expectedRejection;
+        },
+      },
+    }),
+  ).rejects.toBe(expectedRejection);
+
+  expect(definitionLookups).toBe(1);
+  expect(handlerCalls).toBe(1);
+});
