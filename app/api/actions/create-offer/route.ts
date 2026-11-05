@@ -6,6 +6,27 @@ import { executeUniversalAction } from "../../../../lib/actions/runtime";
 export const dynamic = "force-dynamic";
 const currencies = new Set(["USD", "EUR", "KRW", "MAD", "CNY"]);
 
+// Only exact, documented CREATE_OFFER domain codes may cross the API boundary.
+// Supabase/PostgREST messages and unexpected exception text remain server-side.
+const publicCreateOfferErrorCodes = new Set([
+  "ACTION_NOT_PUBLISHED",
+  "ACTION_HANDLER_NOT_FOUND",
+  "UNAUTHENTICATED",
+  "TENANT_REQUIRED",
+  "IDEMPOTENCY_KEY_REQUIRED",
+  "ACTION_INPUT_REQUIRED",
+  "TENANT_ACCESS_DENIED",
+  "PROFILE_ACTOR_NOT_FOUND",
+  "INVALID_PROVIDER_ACTOR",
+  "INVALID_QUANTITY",
+  "INVALID_PRICE",
+  "INVALID_CURRENCY",
+  "PRODUCT_MASTER_NOT_FOUND",
+  "DEMAND_NOT_FOUND",
+  "IDEMPOTENCY_KEY_REUSE",
+  "ACTION_ALREADY_RUNNING",
+]);
+
 export async function POST(request: Request) {
   try {
     const authHeader = request.headers.get("authorization");
@@ -100,7 +121,10 @@ export async function POST(request: Request) {
 
     return NextResponse.json(result, { status: result.status === "succeeded" ? 200 : 409 });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "ACTION_FAILED";
-    return NextResponse.json({ error: message }, { status: 400 });
+    const candidate = error instanceof Error ? error.message : "";
+    if (publicCreateOfferErrorCodes.has(candidate)) {
+      return NextResponse.json({ error: candidate }, { status: 400 });
+    }
+    return NextResponse.json({ error: "ACTION_FAILED" }, { status: 500 });
   }
 }

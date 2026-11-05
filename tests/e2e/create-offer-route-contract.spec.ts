@@ -24,6 +24,8 @@ async function postCreateOffer(
     version: 1,
     status: "published",
   },
+  createOfferRpcErrorMessage = "CREATE_OFFER RPC unavailable",
+  getActionDefinitionRpcErrorMessage = "Action definition lookup unavailable",
 ) {
   process.env.NEXT_PUBLIC_SUPABASE_URL ??= "https://example.supabase.co";
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??= "ci-placeholder-anon-key";
@@ -83,7 +85,7 @@ async function postCreateOffer(
     if (url.pathname === "/rest/v1/rpc/get_action_definition_v1") {
       if (getActionDefinitionRpcHttpStatus !== 200) {
         return Response.json(
-          { message: "Action definition lookup unavailable", code: "XX000", details: null, hint: null },
+          { message: getActionDefinitionRpcErrorMessage, code: "XX000", details: null, hint: null },
           { status: getActionDefinitionRpcHttpStatus },
         );
       }
@@ -92,7 +94,7 @@ async function postCreateOffer(
     if (url.pathname === "/rest/v1/rpc/execute_create_offer_v1") {
       if (createOfferRpcHttpStatus !== 200) {
         return Response.json(
-          { message: "CREATE_OFFER RPC unavailable", code: "XX000", details: null, hint: null },
+          { message: createOfferRpcErrorMessage, code: "XX000", details: null, hint: null },
           { status: createOfferRpcHttpStatus },
         );
       }
@@ -802,7 +804,7 @@ test("CREATE_OFFER route ignores null membership rows when one valid tenant rema
   expect(executionCall?.body?.p_tenant_id).toBe(tenantId);
 });
 
-test("CREATE_OFFER route preserves the current error response when the execution RPC returns HTTP 500", async () => {
+test("CREATE_OFFER route returns a generic error when the execution RPC fails", async () => {
   const result = await postCreateOffer(
     "USD",
     {},
@@ -818,8 +820,9 @@ test("CREATE_OFFER route preserves the current error response when the execution
     500,
   );
 
-  expect(result.status).toBe(400);
-  expect(result.body).toMatchObject({ error: "CREATE_OFFER RPC unavailable" });
+  expect(result.status).toBe(500);
+  expect(result.body).toEqual({ error: "ACTION_FAILED" });
+  expect(JSON.stringify(result.body)).not.toContain("CREATE_OFFER RPC unavailable");
   expect(
     result.requests.some((request) => request.path === "/rest/v1/rpc/get_action_definition_v1"),
   ).toBe(true);
@@ -828,7 +831,7 @@ test("CREATE_OFFER route preserves the current error response when the execution
   ).toBe(true);
 });
 
-test("CREATE_OFFER route stops before execution when action definition lookup returns HTTP 500", async () => {
+test("CREATE_OFFER route returns a generic error when action definition lookup fails", async () => {
   const result = await postCreateOffer(
     "USD",
     {},
@@ -845,8 +848,9 @@ test("CREATE_OFFER route stops before execution when action definition lookup re
     500,
   );
 
-  expect(result.status).toBe(400);
-  expect(result.body).toMatchObject({ error: "Action definition lookup unavailable" });
+  expect(result.status).toBe(500);
+  expect(result.body).toEqual({ error: "ACTION_FAILED" });
+  expect(JSON.stringify(result.body)).not.toContain("Action definition lookup unavailable");
   expect(
     result.requests.some((request) => request.path === "/rest/v1/rpc/get_action_definition_v1"),
   ).toBe(true);
@@ -855,6 +859,34 @@ test("CREATE_OFFER route stops before execution when action definition lookup re
   ).toBe(false);
 });
 
+
+
+
+test("CREATE_OFFER route preserves an exact allowlisted business error code from the execution RPC", async () => {
+  const result = await postCreateOffer(
+    "USD",
+    {},
+    undefined,
+    undefined,
+    "succeeded",
+    "Bearer qima-route-test-token",
+    200,
+    200,
+    200,
+    "30000000-0000-4000-8000-000000000001",
+    false,
+    400,
+    200,
+    undefined,
+    "INVALID_PRICE",
+  );
+
+  expect(result.status).toBe(400);
+  expect(result.body).toEqual({ error: "INVALID_PRICE" });
+  expect(
+    result.requests.some((request) => request.path === "/rest/v1/rpc/execute_create_offer_v1"),
+  ).toBe(true);
+});
 
 test("CREATE_OFFER route rejects missing or unpublished action definitions before execution", async () => {
   const invalidDefinitions = [
