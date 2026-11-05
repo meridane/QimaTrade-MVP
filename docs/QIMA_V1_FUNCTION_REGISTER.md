@@ -4652,3 +4652,25 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **Conclusion:** QA198's test is validated by CI #790 (217/217) and CodeQL #746. A documentation-only follow-up moved the PR to `f45df253b5ddd8f2bf914120041f41af372928e2`; at the time of this entry, CI #791 (run 41961286902) and CodeQL #747 (run 41961286844) were still in progress, and Vercel was pending on that newer documentation HEAD.
 - **Security interpretation:** deterministic mocked-client regression for array-scope property handling; it does not prove production database behavior, an authorization bypass, or a confirmed vulnerability.
 - **Safety:** no production Supabase data, migration, policy, configuration, production deployment, merge, or branch-protection setting was changed.
+
+## QA198 — final validation reconciliation on documentation HEAD (5 November 2026, 13:15 KST)
+
+- **Validated PR HEAD:** `34f1671f1390ca34044df1324da76958464b5de7`; PR #26 remains open, draft, mergeable, based on `main`, with 721 commits in the PR and no commits behind the base.
+- **QIMA CI #792:** [run 41961392938](https://github.com/meridane/QimaTrade-MVP/actions/runs/41961392938) — **SUCCESS**, both jobs completed. Dependency installation and audit, TypeScript, Next.js production build, Chromium/browser smoke tests, isolated PostgreSQL CREATE_OFFER integration/concurrency/idempotency, legacy-messages RLS, and participant self-enrollment RLS all succeeded. This documentation-only HEAD contains the same QA198 test code already explicitly confirmed as **217/217** by CI #790.
+- **QIMA CodeQL #748:** [run 41961392855](https://github.com/meridane/QimaTrade-MVP/actions/runs/41961392855) — **SUCCESS**; CodeQL reported no new alerts in code changed by the pull request.
+- **Vercel commit status:** **FAILURE**, with exact description `Deployment rate limited — retry in 24 hours.` This is a deployment-quota limit (`build-rate-limit`), not evidence of an application build failure. No Preview success is claimed for this HEAD.
+- **Conclusion:** QA198 remains validated by CI #790 (**217/217**) and CodeQL #746. The later documentation-only HEAD is also CI-clean under #792 and CodeQL-clean under #748; Vercel Preview remains blocked by quota.
+- **Security interpretation:** deterministic mocked-client regression only; not proof of production database behavior, an authorization bypass, or a confirmed vulnerability.
+- **Safety:** no production Supabase data, migration, policy, configuration, production deployment, merge, or branch-protection setting was changed.
+
+
+## QA199 — explicit productMasterId lookup failure does not fall back to demand scope (5 November 2026)
+
+- **Test file:** `tests/e2e/legacy-offers-route-contract.spec.ts`.
+- **Starting PR HEAD:** `34f1671f1390ca34044df1324da76958464b5de7`; PR #26 is open, draft, mergeable, based on `main`, 721 commits in the PR and 0 behind.
+- **Scenario:** submit a valid `demandId` and explicit `productMasterId = EXPLICIT_PRODUCT_MASTER_ID`; the mocked demand scope contains a different valid-looking `product_master_id = PRODUCT_MASTER_ID`, while the explicit product lookup returns a simulated error and no product.
+- **Expected behavior:** the explicit non-empty form value remains authoritative. The handler returns `PRODUCT_MASTER_NOT_FOUND` and must not retry or silently fall back to the different scope identifier.
+- **Assertions:** HTTP 400; one authenticated user lookup; one profile lookup; one demand lookup; product lookup only for the explicit ID followed by `status = active`; zero offer insertions; null insert payload.
+- **CI status:** pending for the QA199 test-bearing commit. Expected browser suite: **218 tests** (217 previously validated + QA199); record the exact GitHub Actions, CodeQL, and Vercel outcomes after completion.
+- **Security interpretation:** deterministic mocked-client regression for source precedence on lookup failure; it does not prove production database behavior, an authorization bypass, or a confirmed vulnerability.
+- **Safety:** no production Supabase data, migration, policy, configuration, production deployment, merge, or branch-protection setting was changed.
