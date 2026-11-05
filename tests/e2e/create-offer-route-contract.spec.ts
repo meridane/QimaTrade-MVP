@@ -418,6 +418,15 @@ test("CREATE_OFFER route rejects invalid quantity and price before database acce
 });
 
 
+test("CREATE_OFFER authenticates before parsing malformed JSON request bodies", async () => {
+  const result = await postCreateOffer("USD", {}, '{"name":', undefined, "succeeded", null);
+
+  expect(result.status).toBe(401);
+  expect(result.body).toEqual({ error: "UNAUTHENTICATED" });
+  expect(result.wwwAuthenticate).toBe('Bearer realm="qimatrade"');
+  expect(result.requests).toEqual([]);
+});
+
 test("CREATE_OFFER route rejects malformed JSON with a stable error before database access", async () => {
   const result = await postCreateOffer("USD", {}, '{"name":');
 
