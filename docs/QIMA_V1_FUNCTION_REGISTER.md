@@ -4959,3 +4959,14 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **Regression:** the existing QA209 test now includes a synthetic Auth 503 response. It verifies the route preserves its existing HTTP 401/JSON contract while omitting the `invalid_token` parameter. The mock returns a distinct `server_error` body for the 503 case.
 - **Expected browser suite:** remains 227 tests; the QA209 follow-up validation is pending on the new HEAD.
 - **Safety:** no production Supabase data, migration, policy, configuration, production deployment, merge, or branch-protection setting was changed.
+
+## QA209 — final validation of RFC 6750 challenge contract (5 November 2026, 23:43 KST)
+
+- **Validated HEAD:** `27fdc996fa2d37e3627194fc6ddd3207c6e1a2af`. PR #26 remains open, draft, unmerged and mergeable; branch is 751 commits ahead of `main`, 0 behind, with 44 files in the overall diff.
+- **QIMA CI #812:** [run 42047341098](https://github.com/meridane/QimaTrade-MVP/actions/runs/42047341098) — **SUCCESS**. Browser logs confirm **227/227 Playwright tests passed (4.9 s)**, including the QA209 missing/malformed credential, invalid-token 401 and synthetic Auth 503 challenge cases. npm ci, dependency audit, TypeScript, Next.js production build, Chromium, isolated PostgreSQL CREATE_OFFER integration/concurrency/idempotency, legacy-message RLS and participant self-enrollment RLS all succeeded.
+- **QIMA CodeQL #768:** [run 42047341068](https://github.com/meridane/QimaTrade-MVP/actions/runs/42047341068) — **SUCCESS**.
+- **Vercel combined status:** **SUCCESS** on this HEAD (Preview only; no production deployment).
+- **Final behavior:** missing or malformed credentials retain HTTP 401 and JSON `{ error: "UNAUTHENTICATED" }`, with `WWW-Authenticate: Bearer realm="qimatrade"`. A token rejected by Auth with status 401 receives the same JSON/status plus `error="invalid_token"`. A synthetic Auth 503 preserves the existing JSON/status and receives the realm-only challenge; it is not mislabeled as an invalid token.
+- **Conclusion:** QA209 and its Auth-error-classification follow-up are validated on `27fdc99` by 227/227 Playwright, full PostgreSQL/RLS CI, CodeQL and successful Preview status. No failure is reported on this final HEAD.
+- **Security interpretation:** tests use mocked Auth responses and verify route contract mapping; they do not establish live Supabase behavior, an authentication bypass, or a confirmed production vulnerability.
+- **Safety:** no production Supabase data, migration, policy, configuration, production deployment, merge, or branch-protection setting was changed.
