@@ -4821,3 +4821,25 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **Latest documentation-only HEAD at reconciliation time:** `21128b5335215d173debe14d7b450795cae0d4fc`. QIMA CI #802 [run 42005174341](https://github.com/meridane/QimaTrade-MVP/actions/runs/42005174341) and CodeQL #758 [run 42005174331](https://github.com/meridane/QimaTrade-MVP/actions/runs/42005174331) were **IN PROGRESS**. On CI #802, npm audit and TypeScript had succeeded; production build and isolated PostgreSQL integration were still running. Vercel combined status was **FAILURE** with `api-deployments-free-per-day` / `build-rate-limit`; this is a Preview quota limit, not a compilation failure.
 - **Security interpretation:** deterministic route/RPC mocks verify the API error response contract only; they do not prove a production disclosure, exploitation, or confirmed vulnerability.
 - **Safety:** no production Supabase data, migration, policy, configuration, production deployment, merge, or branch-protection setting was changed.
+
+
+## QA204 — final validation reconciliation on canonical PR HEAD (5 November 2026, 19:47 KST)
+
+- **Validated PR HEAD:** `18b1369087a4ce76f6dade6b4989d22dc4d2926c`; PR #26 remains open and draft, based on `main`, **741 commits ahead and 0 behind**.
+- **QIMA CI #803:** [run 42005382356](https://github.com/meridane/QimaTrade-MVP/actions/runs/42005382356) — **SUCCESS**, both jobs completed. The browser job log confirms **222/222 Playwright tests passed (7.9 s)**. Dependency installation from the committed lockfile, npm audit, TypeScript, Next.js production build, Chromium installation, browser tests, isolated PostgreSQL CREATE_OFFER integration/concurrency/idempotency, legacy-messages RLS, and participant self-enrollment RLS all succeeded.
+- **QIMA CodeQL #759:** [run 42005382202](https://github.com/meridane/QimaTrade-MVP/actions/runs/42005382202) — **SUCCESS**; JavaScript/TypeScript analysis completed.
+- **Vercel combined status:** **FAILURE** on this exact HEAD, target URL `upgradeToPro=build-rate-limit`; this is a Preview deployment quota limit, not evidence of a compilation failure. No successful Preview deployment is claimed for this exact HEAD.
+- **Conclusion:** QA204 is validated on the canonical PR HEAD by CI #803 (**222/222**), CodeQL #759, and the successful isolated PostgreSQL/RLS job. Vercel Preview is blocked by quota.
+- **Security interpretation:** the exact allowlist and generic fallback are verified by deterministic route/RPC mocks; these tests do not establish a production disclosure, exploitation, or confirmed vulnerability.
+- **Safety:** no production Supabase data, migration, policy, configuration, production deployment, merge, or branch-protection setting was changed.
+
+## QA205 — require exact CREATE_OFFER public error-code matches (5 November 2026, 19:47 KST)
+
+- **Starting PR HEAD:** `18b1369087a4ce76f6dade6b4989d22dc4d2926c`; PR #26 is open and draft, based on `main`, **741 commits ahead and 0 behind**.
+- **Test file:** `tests/e2e/create-offer-route-contract.spec.ts`.
+- **Scenario:** the mocked `execute_create_offer_v1` RPC returns HTTP 400 with each of these messages: `INVALID_PRICE: database constraint failed`, `INVALID_PRICE database constraint failed`, and `database constraint failed: INVALID_PRICE`.
+- **Expected behavior:** all three messages are rejected by the exact allowlist and produce HTTP 500 with exactly `{ error: "ACTION_FAILED" }`; no diagnostic/database suffix or prefix is returned. The existing exact `INVALID_PRICE` test remains the positive control and must continue to return HTTP 400 with `{ error: "INVALID_PRICE" }`.
+- **Regression coverage:** one new Playwright test containing three deterministic RPC-message variants. Expected browser suite: **223 tests** (222 previously validated + QA205).
+- **CI/CodeQL/Preview:** pending on the new QA205 test-bearing HEAD; record exact workflow IDs, job outcomes, and browser count after completion.
+- **Security interpretation:** this test verifies exact string matching in a mocked RPC failure path only. It does not prove that production RPCs emit these messages, that a disclosure was exploited, or that a confirmed vulnerability exists.
+- **Safety:** no production Supabase data, migration, policy, configuration, production deployment, merge, or branch-protection setting was changed.

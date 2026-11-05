@@ -888,6 +888,42 @@ test("CREATE_OFFER route preserves an exact allowlisted business error code from
   ).toBe(true);
 });
 
+test("CREATE_OFFER route rejects allowlisted codes when RPC messages include diagnostic text", async () => {
+  const messages = [
+    "INVALID_PRICE: database constraint failed",
+    "INVALID_PRICE database constraint failed",
+    "database constraint failed: INVALID_PRICE",
+  ];
+
+  for (const message of messages) {
+    const result = await postCreateOffer(
+      "USD",
+      {},
+      undefined,
+      undefined,
+      "succeeded",
+      "Bearer qima-route-test-token",
+      200,
+      200,
+      200,
+      "30000000-0000-4000-8000-000000000001",
+      false,
+      400,
+      200,
+      undefined,
+      message,
+    );
+
+    expect(result.status, message).toBe(500);
+    expect(result.body, message).toEqual({ error: "ACTION_FAILED" });
+    expect(JSON.stringify(result.body), message).not.toContain("database constraint failed");
+    expect(
+      result.requests.some((request) => request.path === "/rest/v1/rpc/execute_create_offer_v1"),
+      message,
+    ).toBe(true);
+  }
+});
+
 test("CREATE_OFFER route rejects missing or unpublished action definitions before execution", async () => {
   const invalidDefinitions = [
     { label: "missing definition", definition: null },
