@@ -4640,3 +4640,15 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **CI status:** pending for the QA198 test-bearing commit. Expected browser suite: **217 tests** (216 previously validated + QA198); record exact GitHub Actions, CodeQL, and Preview outcomes after completion.
 - **Security interpretation:** deterministic mocked-client regression for array-scope property handling; it does not prove production database behavior, an authorization bypass, or a confirmed vulnerability.
 - **Safety:** no production Supabase data, migration, policy, configuration, production deployment, merge, or branch-protection setting was changed.
+
+
+
+## QA198 — final validation on the test-bearing commit (5 November 2026, 12:23 KST)
+
+- **Test-bearing PR HEAD:** `31f9ccd564c7d628bdeb14601ce3e4ad81601a73`; this commit contains the QA198 array-scope regression test. PR #26 remained open and draft, based on `main`.
+- **QIMA CI #790:** [run 41961140475](https://github.com/meridane/QimaTrade-MVP/actions/runs/41961140475) — **SUCCESS**, both jobs completed. The browser job log confirms **217/217 Playwright tests passed (4.7 s)**; the log explicitly shows QA198 passing at `legacy-offers-route-contract.spec.ts:2607`. Dependency installation from the committed lockfile, dependency audit, TypeScript, Next.js production build, Chromium/browser tests, isolated PostgreSQL CREATE_OFFER integration/concurrency/idempotency, legacy-messages RLS, and participant self-enrollment RLS all succeeded.
+- **QIMA CodeQL #746:** [run 41961140471](https://github.com/meridane/QimaTrade-MVP/actions/runs/41961140471) — **SUCCESS**; JavaScript/TypeScript analysis completed.
+- **Vercel:** combined status on this exact test-bearing commit was **PENDING** when checked; no Preview success is claimed for this SHA.
+- **Conclusion:** QA198's test is validated by CI #790 (217/217) and CodeQL #746. A documentation-only follow-up moved the PR to `f45df253b5ddd8f2bf914120041f41af372928e2`; at the time of this entry, CI #791 (run 41961286902) and CodeQL #747 (run 41961286844) were still in progress, and Vercel was pending on that newer documentation HEAD.
+- **Security interpretation:** deterministic mocked-client regression for array-scope property handling; it does not prove production database behavior, an authorization bypass, or a confirmed vulnerability.
+- **Safety:** no production Supabase data, migration, policy, configuration, production deployment, merge, or branch-protection setting was changed.
