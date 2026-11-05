@@ -412,3 +412,33 @@ The canonical register's QA184 tail was inspected from commit `0eca4833bae236f32
 - **CI/CodeQL/Preview:** pending on the new test-bearing PR HEAD; record exact workflow IDs, outcomes, and the Preview status after completion.
 - **Security interpretation:** deterministic mocked-client regression for the scope fallback failure path; not proof of production database behavior, an authorization bypass, or a confirmed vulnerability.
 - **Safety:** no production Supabase data, migration, policy, configuration, production deployment, merge, or branch-protection setting was changed.
+
+
+## QA200 — final validation reconciliation (5 November 2026, 15:14 KST)
+
+- **Validated PR HEAD:** `07a737560ad3d7ca0f75f9ee6148c7b2708d3d9c`; PR #26 is open and draft, based on `main`, 727 commits ahead and 0 behind.
+- **QIMA CI #794:** [run 41972673845](https://github.com/meridane/QimaTrade-MVP/actions/runs/41972673845) — **SUCCESS**; both the browser/typecheck/audit/build job and isolated PostgreSQL CREATE_OFFER/concurrency/idempotency/RLS job completed successfully. The browser smoke-test step is successful; the exact aggregate Playwright count was not available from the fetched job metadata and is not asserted here.
+- **QIMA CodeQL #750:** [run 41972673848](https://github.com/meridane/QimaTrade-MVP/actions/runs/41972673848) — **SUCCESS**.
+- **Vercel combined status:** **SUCCESS** on this exact HEAD (Preview only; no production deployment).
+- **Conclusion:** QA200's test-bearing HEAD has successful QIMA CI, CodeQL, and Preview checks. This reconciliation supersedes the pending note in the initial QA200 entry.
+- **Security interpretation:** the route-level test uses a mocked Supabase client; it does not prove live database behavior, authorization correctness, or a confirmed vulnerability.
+- **Safety:** no production Supabase data, migration, policy, configuration, production deployment, merge, or branch-protection setting was changed.
+
+
+## QA201 — scope fallback product lookup error takes precedence over returned data (5 November 2026)
+
+- **Test file:** `tests/e2e/legacy-offers-route-contract.spec.ts`.
+- **Starting PR HEAD:** `07a737560ad3d7ca0f75f9ee6148c7b2708d3d9c`; PR #26 is open, draft, mergeable, based on `main`.
+- **Scenario:** submit a valid `demandId` without an explicit `productMasterId`; the mocked demand scope contains `PRODUCT_MASTER_ID`. The mocked product lookup deliberately returns a product-shaped `data` value together with a non-null simulated error, exercising the handler's `productError || !product` guard.
+- **Expected behavior:** HTTP 400 with `PRODUCT_MASTER_NOT_FOUND`; one demand lookup; one product lookup by the scope-derived ID followed by the `status = active` filter; no offer insertion.
+- **Assertions:** one authenticated-user lookup; one profile lookup; one demand lookup; exactly the expected product lookup filters; zero offer insertions; null insert payload.
+- **Expected browser suite:** 220 tests (the prior QA200 target of 219 plus QA201); this is an expectation, not a result.
+- **CI/CodeQL/Preview:** pending on the new test-bearing PR HEAD. Record exact run URLs, outcomes, and the exact browser test count after completion.
+- **Security interpretation:** this is a synthetic mocked-client test of error-precedence logic. The data-plus-error combination is intentionally defensive and does not establish that Supabase returns this combination in production, nor does it prove a vulnerability.
+- **Safety:** no production Supabase data, migration, policy, configuration, production deployment, merge, or branch-protection setting was changed.
+
+## Canonical register retrieval limitation — 5 November 2026
+
+- The canonical `docs/QIMA_V1_FUNCTION_REGISTER.md` blob at the starting PR HEAD is `3dba1d25ecc73ddff31d9d48143c18e4200b41d1`. The GitHub file connector returned its blob metadata but an empty content body for both UTF-8 and base64 retrieval because the file is over 1 MiB.
+- A raw-file fetch and a read-only container clone were also unavailable in this run. The canonical file was therefore not rewritten: doing so without its complete original content could truncate its history.
+- QA200 reconciliation and QA201 are recorded in this append-only companion register. The canonical register remains unchanged pending a safe full-content retrieval path.
