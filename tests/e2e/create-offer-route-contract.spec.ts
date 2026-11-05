@@ -1211,3 +1211,47 @@ test("CREATE_OFFER public error allowlist stays aligned with SQL and action-engi
   expect(publicCodes).toContain("ACTION_NOT_PUBLISHED");
   expect(publicCodes).not.toContain("ACTION_HANDLER_NOT_FOUND");
 });
+
+
+test("CREATE_OFFER route authenticates before rejecting semantically invalid input without profile or tenant access", async () => {
+  const invalidCases = [
+    {
+      label: "blank offer name",
+      currency: "USD",
+      overrides: { name: " " },
+      expectedError: "NAME_AND_DEMAND_REQUIRED",
+    },
+    {
+      label: "zero quantity",
+      currency: "USD",
+      overrides: { quantity: 0 },
+      expectedError: "INVALID_QUANTITY",
+    },
+    {
+      label: "negative price",
+      currency: "USD",
+      overrides: { price: -1 },
+      expectedError: "INVALID_PRICE",
+    },
+    {
+      label: "unsupported currency",
+      currency: "GBP",
+      overrides: {},
+      expectedError: "INVALID_CURRENCY",
+    },
+  ];
+
+  for (const invalidCase of invalidCases) {
+    const result = await postCreateOffer(invalidCase.currency, invalidCase.overrides);
+
+    expect(result.status, invalidCase.label).toBe(400);
+    expect(result.body, invalidCase.label).toEqual({ error: invalidCase.expectedError });
+    expect(
+      result.requests.map((request) => request.path),
+      invalidCase.label,
+    ).toEqual(["/auth/v1/user"]);
+    expect(result.requests[0].authorization, invalidCase.label).toBe(
+      "Bearer qima-route-test-token",
+    );
+  }
+});
