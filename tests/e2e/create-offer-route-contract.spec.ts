@@ -1369,3 +1369,86 @@ test("CREATE_OFFER route preserves non-disclosing profile and membership errors 
     expect(membershipFailure.requests.every((request) => request.authorization === bearer)).toBe(true);
   }
 });
+test("CREATE_OFFER route masks action-definition RPC errors across upstream HTTP statuses", async () => {
+  const bearer = "Bearer qima-route-test-token";
+
+  for (const upstreamStatus of [400, 401, 403, 500]) {
+    const label = "definition RPC HTTP " + upstreamStatus;
+    const sentinel = "GET_ACTION_DEFINITION_PRIVATE_SENTINEL_" + upstreamStatus;
+    const result = await postCreateOffer(
+      "USD",
+      {},
+      undefined,
+      undefined,
+      "succeeded",
+      bearer,
+      200,
+      200,
+      200,
+      "30000000-0000-4000-8000-000000000001",
+      false,
+      200,
+      upstreamStatus,
+      undefined,
+      undefined,
+      sentinel,
+    );
+
+    expect(result.status, label).toBe(500);
+    expect(result.body, label).toEqual({ error: "ACTION_FAILED" });
+    expect(JSON.stringify(result.body), label).not.toContain(sentinel);
+    expect(result.wwwAuthenticate, label).toBeNull();
+    expect(result.requests.map((request) => request.path), label).toEqual([
+      "/auth/v1/user",
+      "/rest/v1/profiles",
+      "/rest/v1/dt_memberships",
+      "/rest/v1/rpc/get_action_definition_v1",
+    ]);
+    expect(
+      result.requests.every((request) => request.authorization === bearer),
+      label,
+    ).toBe(true);
+  }
+});
+
+test("CREATE_OFFER route masks execution RPC errors across upstream HTTP statuses", async () => {
+  const bearer = "Bearer qima-route-test-token";
+
+  for (const upstreamStatus of [400, 401, 403, 500]) {
+    const label = "execution RPC HTTP " + upstreamStatus;
+    const sentinel = "EXECUTE_CREATE_OFFER_PRIVATE_SENTINEL_" + upstreamStatus;
+    const result = await postCreateOffer(
+      "USD",
+      {},
+      undefined,
+      undefined,
+      "succeeded",
+      bearer,
+      200,
+      200,
+      200,
+      "30000000-0000-4000-8000-000000000001",
+      false,
+      upstreamStatus,
+      200,
+      undefined,
+      sentinel,
+    );
+
+    expect(result.status, label).toBe(500);
+    expect(result.body, label).toEqual({ error: "ACTION_FAILED" });
+    expect(JSON.stringify(result.body), label).not.toContain(sentinel);
+    expect(result.wwwAuthenticate, label).toBeNull();
+    expect(result.requests.map((request) => request.path), label).toEqual([
+      "/auth/v1/user",
+      "/rest/v1/profiles",
+      "/rest/v1/dt_memberships",
+      "/rest/v1/rpc/get_action_definition_v1",
+      "/rest/v1/rpc/execute_create_offer_v1",
+    ]);
+    expect(
+      result.requests.every((request) => request.authorization === bearer),
+      label,
+    ).toBe(true);
+  }
+});
