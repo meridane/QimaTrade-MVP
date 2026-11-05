@@ -633,3 +633,12 @@ The canonical register's QA184 tail was inspected from commit `0eca4833bae236f32
 - **Scope:** test-only change plus append-only documentation; no production migration or data change.
 - **Security interpretation:** this is a static source/fixture consistency guard. It does not establish live database behavior or a confirmed vulnerability.
 - **Safety:** no production Supabase data, migration, policy, configuration, production deployment, merge, or branch-protection setting was changed.
+
+
+## QA207 — pre-CI regex correction (5 November 2026, 21:47 KST)
+
+- **Initial implementation commit:** `5474e212a0dd8d0876e9626e35d09161b7954c84`.
+- **Review finding:** source review caught over-escaped regular-expression literals in the newly added static contract test before any QA207 success was claimed. The follow-up replaces them with the intended whitespace/grouping expressions.
+- **Preflight:** the corrected extraction was checked against the current branch sources: 15 route allowlist codes, 15 migration codes, and 8 low-level fixture codes. Route/migration sets match exactly; all fixture codes are a subset; engine errors include `ACTION_NOT_PUBLISHED` and `ACTION_HANDLER_NOT_FOUND`.
+- **Validation:** QA207 remains pending until GitHub Actions confirms the complete browser suite (expected **225 tests**) on the corrected commit.
+- **Safety:** no production Supabase data, migration, policy, configuration, production deployment, merge, or branch-protection setting was changed.

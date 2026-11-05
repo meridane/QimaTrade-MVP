@@ -1088,7 +1088,7 @@ test("CREATE_OFFER public error allowlist stays aligned with SQL and action-engi
   );
 
   const allowlistMatch = routeSource.match(
-    /const publicCreateOfferErrorCodes = new Set\\(\\[([\\s\\S]*?)\\]\\);/,
+    /const publicCreateOfferErrorCodes = new Set\(\[([\s\S]*?)\]\);/,
   );
   if (!allowlistMatch) throw new Error("CREATE_OFFER public error allowlist declaration was not found");
 
@@ -1096,12 +1096,12 @@ test("CREATE_OFFER public error allowlist stays aligned with SQL and action-engi
     .map((match) => match[1])
     .sort();
   const extractSqlCodes = (source: string) =>
-    [...new Set([...source.matchAll(/RAISE\\s+EXCEPTION\\s+'([A-Z][A-Z0-9_]+)'/gi)].map((match) => match[1]))]
+    [...new Set([...source.matchAll(/RAISE\s+EXCEPTION\s+'([A-Z][A-Z0-9_]+)'/gi)].map((match) => match[1]))]
       .sort();
 
   const migrationCodes = extractSqlCodes(migrationSource);
   const fixtureCodes = extractSqlCodes(lowLevelFixtureSource);
-  const engineCodes = [...engineSource.matchAll(/throw new Error\\("([A-Z][A-Z0-9_]+)"\\)/g)]
+  const engineCodes = [...engineSource.matchAll(/throw new Error\("([A-Z][A-Z0-9_]+)"\)/g)]
     .map((match) => match[1]);
 
   expect(new Set(publicCodes).size).toBe(publicCodes.length);
