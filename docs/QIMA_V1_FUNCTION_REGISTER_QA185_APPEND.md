@@ -370,3 +370,21 @@ The canonical register's QA184 tail was inspected from commit `0eca4833bae236f32
 - **Conclusion:** QA198 is validated by CI #790 (217/217) and CodeQL #746. The later documentation-only HEAD `f45df253b5ddd8f2bf914120041f41af372928e2` had CI #791 and CodeQL #747 in progress when this entry was written.
 - **Security interpretation:** mocked-client regression only; not proof of production database behavior, authorization bypass, or a confirmed vulnerability.
 - **Safety:** no production Supabase data, migration, policy, configuration, production deployment, merge, or branch-protection setting was changed.
+
+## QA198 — final validation reconciliation on documentation HEAD (5 November 2026, 13:15 KST)
+
+- **Validated PR HEAD:** `34f1671f1390ca34044df1324da76958464b5de7`; PR #26 remains open and draft, based on `main`.
+- **QIMA CI #792:** [run 41961392938](https://github.com/meridane/QimaTrade-MVP/actions/runs/41961392938) — **SUCCESS**, both jobs completed. Dependency audit, TypeScript, Next.js build, Chromium/browser smoke tests, isolated PostgreSQL CREATE_OFFER integration/concurrency/idempotency, legacy-messages RLS, and participant self-enrollment RLS succeeded. The same QA198 test code was explicitly confirmed as **217/217** by CI #790.
+- **QIMA CodeQL #748:** [run 41961392855](https://github.com/meridane/QimaTrade-MVP/actions/runs/41961392855) — **SUCCESS**, no new alerts in PR-changed code.
+- **Vercel:** commit status **FAILURE** with `Deployment rate limited — retry in 24 hours.` This is the Preview deployment quota, not a confirmed build failure; no Preview success is claimed.
+- **Safety/security:** mocked tests do not establish production vulnerability; no production Supabase data, migration, policy, configuration, deployment, merge, or branch protection was changed.
+
+
+## QA199 — explicit product lookup failure must not fall back to demand scope (5 November 2026)
+
+- **Test:** `tests/e2e/legacy-offers-route-contract.spec.ts`.
+- **Scenario:** explicit `productMasterId` is non-empty and differs from a valid-looking `scope.product_master_id`; the explicit lookup is simulated as unavailable/erroring.
+- **Expected:** HTTP 400 with `PRODUCT_MASTER_NOT_FOUND`; only the explicit ID is looked up with `status = active`; no retry using the scope ID; no offer insertion.
+- **Expected suite size:** 218 Playwright tests after adding QA199 (217 previously validated + 1).
+- **CI/CodeQL/Preview:** pending on the new test-bearing PR HEAD.
+- **Interpretation:** mocked-client regression for precedence behavior only, not evidence of production vulnerability or authorization bypass.
