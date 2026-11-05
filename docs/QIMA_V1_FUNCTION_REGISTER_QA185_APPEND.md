@@ -833,3 +833,13 @@ The canonical register's QA184 tail was inspected from commit `0eca4833bae236f32
 - **Scope:** one Playwright test and append-only updates to the canonical and supplementary function registers. No application code, SQL migration, database, tenant authorization rule, or production API behavior is changed.
 - **Security interpretation:** all upstream errors and sentinel diagnostics are deterministic test fixtures. The assertions characterize response mapping and request boundaries only; they do not establish a live Supabase information disclosure, data exposure, or confirmed production vulnerability.
 - **Safety:** no production Supabase data, migration, policy, configuration, production deployment, merge, or branch-protection setting was changed.
+
+### QA215 final validation and CI reconciliation (6 November 2026, 05:55 KST)
+
+- **Validated test HEAD:** `3c140be11e92642d965ca1bd1ae2f8fc5f8f45f4`. PR #26 remains open, draft, unmerged and mergeable; branch `fix/create-offer-status-contract` is 766 commits ahead of `main`, 0 behind, with 44 files in the overall diff.
+- **QIMA CI #824:** [run 42108097852](https://github.com/meridane/QimaTrade-MVP/actions/runs/42108097852) — **SUCCESS**; both jobs completed successfully. Browser job logs confirm **231/231 Playwright tests passed (6.9 s)**, including QA215's six mocked upstream-status scenarios. npm installation, dependency audit, TypeScript, Next.js production build, Chromium, isolated PostgreSQL CREATE_OFFER integration/concurrency/idempotency, legacy-message RLS and participant self-enrollment RLS all succeeded.
+- **QIMA CodeQL #779:** [run 42108097854](https://github.com/meridane/QimaTrade-MVP/actions/runs/42108097854) — **SUCCESS**; JavaScript/TypeScript analysis completed.
+- **Vercel combined status:** **SUCCESS** on validated test HEAD `3c140be` (Preview only; no production deployment).
+- **Conclusion:** QA215 is validated on `3c140be` by 231/231 Playwright tests, complete isolated PostgreSQL/RLS CI, CodeQL and successful Preview status. The six profile/membership cases preserve the current HTTP 403 public mapping for simulated upstream 401, 403 and 500 responses.
+- **Security interpretation:** PostgREST diagnostic sentinels and upstream status codes are deterministic test fixtures. The tests characterize the handler's existing mapping and request boundaries only; they do not establish live Supabase behavior, an information disclosure, or a confirmed production vulnerability.
+- **Safety:** no production Supabase data, migration, policy, configuration, production deployment, merge, or branch-protection setting was changed.
