@@ -61,7 +61,10 @@ async function postCreateOffer(
 
     if (url.pathname === "/auth/v1/user") {
       if (authStatus !== 200) {
-        return Response.json({ message: "Invalid JWT", code: "bad_jwt" }, { status: authStatus });
+        const authError = authStatus === 401
+          ? { message: "Invalid JWT", code: "bad_jwt" }
+          : { message: "Auth service unavailable", code: "server_error" };
+        return Response.json(authError, { status: authStatus });
       }
       return Response.json({
         id: "40000000-0000-4000-8000-000000000001",
@@ -209,6 +212,20 @@ test("CREATE_OFFER 401 responses include an RFC 6750 challenge without changing 
     'Bearer realm="qimatrade", error="invalid_token"',
   );
   expect(rejectedCredential.requests.map((request) => request.path)).toEqual(["/auth/v1/user"]);
+
+  const authServiceFailure = await postCreateOffer(
+    "USD",
+    {},
+    undefined,
+    undefined,
+    "succeeded",
+    "Bearer syntactically-valid-token",
+    503,
+  );
+  expect(authServiceFailure.status).toBe(401);
+  expect(authServiceFailure.body).toEqual({ error: "UNAUTHENTICATED" });
+  expect(authServiceFailure.wwwAuthenticate).toBe('Bearer realm="qimatrade"');
+  expect(authServiceFailure.requests.map((request) => request.path)).toEqual(["/auth/v1/user"]);
 });
 
 test("CREATE_OFFER route accepts case-insensitive Bearer schemes", async () => {

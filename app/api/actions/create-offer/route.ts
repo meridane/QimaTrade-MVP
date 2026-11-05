@@ -54,7 +54,7 @@ export async function POST(request: Request) {
 
     const { data: { user }, error: userError } = await supabase.auth.getUser(token);
     if (userError || !user) {
-      return unauthenticatedResponse(!user || userError?.status === 401);
+      return unauthenticatedResponse(userError ? userError.status === 401 : !user);
     }
 
     let body: Record<string, unknown>;

@@ -694,3 +694,12 @@ The canonical register's QA184 tail was inspected from commit `0eca4833bae236f32
 - **Scope:** one route helper, response-header capture in the existing test helper, one regression test, and append-only documentation. No migration, database, tenant authorization, or public JSON/status contract change.
 - **Standards interpretation:** the challenge header is a protocol interoperability improvement. The mocked Auth response verifies route mapping only; it does not prove live Supabase token behavior or a production authentication vulnerability.
 - **Safety:** no production Supabase data, migration, policy, configuration, production deployment, merge, or branch-protection setting was changed.
+
+## QA209 — Auth error classification follow-up (5 November 2026, 23:38 KST)
+
+- **QA209 baseline result:** commit `7bc63ee604e97404ded3236ed3ad40f9caf0317d` passed QIMA CI #811 [run 42046693979](https://github.com/meridane/QimaTrade-MVP/actions/runs/42046693979), including **227/227 Playwright tests passed (7.6 s)**, npm ci, dependency audit, TypeScript, Next.js build, Chromium, isolated PostgreSQL CREATE_OFFER integration/concurrency/idempotency, legacy-message RLS and participant self-enrollment RLS. QIMA CodeQL #767 [run 42046694057](https://github.com/meridane/QimaTrade-MVP/actions/runs/42046694057) succeeded. Vercel combined Preview status was success.
+- **Review correction:** Supabase Auth can return `user = null` alongside an Auth error for statuses other than 401. The initial predicate `!user || userError?.status === 401` would therefore attach `error="invalid_token"` to a non-401 Auth service failure. This was a classification imprecision in the newly added challenge metadata, not evidence of a production authentication issue.
+- **Correction:** use `userError ? userError.status === 401 : !user`. The `invalid_token` challenge parameter is now emitted only for an Auth 401 (or a null user without an accompanying error); non-401 Auth service errors receive the generic Bearer realm challenge.
+- **Regression:** the existing QA209 test now includes a synthetic Auth 503 response. It verifies the route preserves its existing HTTP 401/JSON contract while omitting the `invalid_token` parameter. The mock returns a distinct `server_error` body for the 503 case.
+- **Expected browser suite:** remains 227 tests; the QA209 follow-up validation is pending on the new HEAD.
+- **Safety:** no production Supabase data, migration, policy, configuration, production deployment, merge, or branch-protection setting was changed.
