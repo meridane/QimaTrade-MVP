@@ -388,3 +388,27 @@ The canonical register's QA184 tail was inspected from commit `0eca4833bae236f32
 - **Expected suite size:** 218 Playwright tests after adding QA199 (217 previously validated + 1).
 - **CI/CodeQL/Preview:** pending on the new test-bearing PR HEAD.
 - **Interpretation:** mocked-client regression for precedence behavior only, not evidence of production vulnerability or authorization bypass.
+
+
+## QA199 — final validation reconciliation (5 November 2026, 14:12 KST)
+
+- **Validated PR HEAD:** `6baf40283312cc054751ea55c7c2faaf028e3c4b`; PR #26 is open, draft, mergeable, based on `main`, 724 commits ahead and 0 behind.
+- **QIMA CI #793:** [run 41966801129](https://github.com/meridane/QimaTrade-MVP/actions/runs/41966801129) — **SUCCESS**, both jobs completed. The browser job log confirms **218/218 Playwright tests passed (7.8 s)**, including QA199 at `legacy-offers-route-contract.spec.ts:2632`. Dependency installation, npm audit, TypeScript, Next.js production build, Chromium/browser tests, isolated PostgreSQL CREATE_OFFER integration/concurrency/idempotency, legacy-messages RLS, and participant self-enrollment RLS all succeeded.
+- **QIMA CodeQL #749:** [run 41966801169](https://github.com/meridane/QimaTrade-MVP/actions/runs/41966801169) — **SUCCESS**.
+- **Vercel combined status:** **SUCCESS** on this exact HEAD (Preview only; no production deployment).
+- **Conclusion:** QA199 is validated by CI #793 (218/218), CodeQL #749, and the Preview status. The earlier QA199 pending note is superseded by this entry.
+- **Security interpretation:** deterministic mocked-client regression for source precedence on product lookup failure; it does not prove production database behavior, an authorization bypass, or a confirmed vulnerability.
+- **Safety:** no production Supabase data, migration, policy, configuration, production deployment, merge, or branch-protection setting was changed.
+
+
+## QA200 — demand-scope fallback product lookup failure (5 November 2026, 14:12 KST)
+
+- **Test file:** `tests/e2e/legacy-offers-route-contract.spec.ts`.
+- **Starting PR HEAD:** `6baf40283312cc054751ea55c7c2faaf028e3c4b`; PR #26 remains open and draft, based on `main`.
+- **Scenario:** submit a valid `demandId` with no explicit `productMasterId`; the mocked demand scope contains `product_master_id = PRODUCT_MASTER_ID`, while the fallback product lookup returns a simulated error and no product.
+- **Expected behavior:** HTTP 400 with `PRODUCT_MASTER_NOT_FOUND`; lookup only the scope-derived ID with `status = active`; no offer insertion.
+- **Assertions:** one authenticated-user lookup; one profile lookup; one demand lookup; product lookup for `PRODUCT_MASTER_ID` followed by `status = active`; zero offer insertions; null insert payload.
+- **Expected browser suite:** **219 tests** (218 previously validated + QA200).
+- **CI/CodeQL/Preview:** pending on the new test-bearing PR HEAD; record exact workflow IDs, outcomes, and the Preview status after completion.
+- **Security interpretation:** deterministic mocked-client regression for the scope fallback failure path; not proof of production database behavior, an authorization bypass, or a confirmed vulnerability.
+- **Safety:** no production Supabase data, migration, policy, configuration, production deployment, merge, or branch-protection setting was changed.
