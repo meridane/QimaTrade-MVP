@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 const currencies = new Set(["USD", "EUR", "KRW", "MAD", "CNY"]);
+const genericCreateOfferError = "Unable to create the offer.";
 
 export function createLegacyOfferHandler(
   createSupabaseClient: typeof createSupabaseServerClient = createSupabaseServerClient,
@@ -134,13 +135,12 @@ export function createLegacyOfferHandler(
         .single();
 
       if (insertError || !offer) {
-        return NextResponse.json({ error: insertError?.message ?? "Unable to create the offer." }, { status: 500 });
+        return NextResponse.json({ error: genericCreateOfferError }, { status: 500 });
       }
 
       return NextResponse.redirect(new URL(`/offers?created=${offer.id}`, request.url), 303);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Unable to create the offer.";
-      return NextResponse.json({ error: message }, { status: 500 });
+    } catch {
+      return NextResponse.json({ error: genericCreateOfferError }, { status: 500 });
     }
   };
 }

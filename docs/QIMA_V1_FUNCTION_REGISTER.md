@@ -4751,3 +4751,26 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **Conclusion:** QA202 is validated on the latest documentation HEAD by CI #797 (**221/221**), CodeQL #753, and Preview status.
 - **Security interpretation:** deterministic mocked-client regression only; it does not prove production database behavior, an authorization bypass, or a confirmed vulnerability.
 - **Safety:** no production Supabase data, migration, policy, configuration, production deployment, merge, or branch-protection setting was changed.
+
+
+## QA202 — final validation reconciliation on canonical HEAD (5 November 2026, 17:22 KST)
+
+- **Validated PR HEAD:** `b8276192e2d22cda5fec613461ae1933a959a705`; PR #26 is open and draft, based on `main`, **736 commits ahead and 0 behind**.
+- **QIMA CI #798:** [run 41989603378](https://github.com/meridane/QimaTrade-MVP/actions/runs/41989603378) — **SUCCESS**, both jobs completed. The browser job log confirms **221/221 Playwright tests passed (6.6 s)**, including QA202 at `legacy-offers-route-contract.spec.ts:2733`. Dependency installation, npm audit, TypeScript, Next.js production build, Chromium/browser tests, isolated PostgreSQL CREATE_OFFER integration/concurrency/idempotency, legacy-messages RLS, and participant self-enrollment RLS all succeeded.
+- **QIMA CodeQL #754:** [run 41989603377](https://github.com/meridane/QimaTrade-MVP/actions/runs/41989603377) — **SUCCESS**; JavaScript/TypeScript analysis completed.
+- **Vercel combined status:** **FAILURE** on the checked commit status, with `api-deployments-free-per-day` / `build-rate-limit`. A separate PR comment contains an earlier Ready Preview deployment, but it cannot be tied conclusively to this exact HEAD; no new Preview success is claimed for this reconciliation.
+- **Conclusion:** QA202 is validated by CI #798 (**221/221**) and CodeQL #754. Vercel Preview status for the exact HEAD is not confirmed successful.
+- **Security interpretation:** deterministic mocked-client regression only; it does not prove production database behavior, an authorization bypass, or a confirmed vulnerability.
+- **Safety:** no production Supabase data, migration, policy, configuration, production deployment, merge, or branch-protection setting was changed.
+
+
+## QA203 — generic errors for legacy offer creation (5 November 2026, 17:22 KST)
+
+- **Starting PR HEAD:** `b8276192e2d22cda5fec613461ae1933a959a705`; PR #26 is open and draft, based on `main`, **736 commits ahead and 0 behind**.
+- **Source finding:** `lib/offers/create-legacy-offer.ts` returned raw `insertError.message` from the Supabase offer insert and raw `Error.message` from the outer exception handler in HTTP 500 responses.
+- **Change:** both unexpected failure paths now return the stable public response `{ error: "Unable to create the offer." }`. Known validation/authentication responses remain unchanged. No exception details are returned to the client.
+- **Regression coverage:** updated the existing insert-error and Supabase-client-initialization rejection tests to require the generic response and assert that the sentinel internal messages are absent. The Playwright suite count remains **221** because two existing tests were strengthened rather than adding new test cases.
+- **Expected validation:** 221 Playwright tests on the QA203 HEAD; this is an expectation until CI completes.
+- **CI/CodeQL/Preview:** pending on the QA203 test/code-bearing commit. Record exact workflow IDs, outcomes, and browser count after completion.
+- **Security interpretation:** source inspection identified an internal-error disclosure path and the code now returns a generic public error. The deterministic mocked-client tests verify only the response contract; they do not establish that a production disclosure was exploited or that a confirmed vulnerability existed.
+- **Safety:** no production Supabase data, migration, policy, configuration, production deployment, merge, or branch-protection setting was changed.

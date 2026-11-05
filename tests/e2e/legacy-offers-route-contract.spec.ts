@@ -458,7 +458,7 @@ test("legacy offers route rejects an unsupported multipart currency before authe
 });
 
 
-test("legacy offers route returns the Supabase insert error without redirecting", async () => {
+test("legacy offers route returns a generic error when Supabase insert fails without redirecting", async () => {
   const { client, calls } = createSupabaseMock({
     offerError: { message: "Offer insert failed" },
   });
@@ -467,7 +467,9 @@ test("legacy offers route returns the Supabase insert error without redirecting"
   const response = await handler(createFormRequest());
 
   expect(response.status).toBe(500);
-  await expect(response.json()).resolves.toEqual({ error: "Offer insert failed" });
+  const body = await response.json();
+  expect(body).toEqual({ error: "Unable to create the offer." });
+  expect(JSON.stringify(body)).not.toContain("Offer insert failed");
   expect(response.headers.get("location")).toBeNull();
   expect(calls.offerInsertCalls).toBe(1);
   expect(calls.insertPayload).toMatchObject({
@@ -539,7 +541,7 @@ test("legacy offers route redirects to the ID returned by insert and preserves d
   });
 });
 
-test("legacy offers route returns HTTP 500 when Supabase client initialization rejects before authentication", async () => {
+test("legacy offers route returns a generic error when Supabase client initialization rejects before authentication", async () => {
   const { calls } = createSupabaseMock();
   let factoryCalls = 0;
   const handler = createLegacyOfferHandler(async () => {
@@ -550,9 +552,9 @@ test("legacy offers route returns HTTP 500 when Supabase client initialization r
   const response = await handler(createFormRequest());
 
   expect(response.status).toBe(500);
-  await expect(response.json()).resolves.toEqual({
-    error: "Supabase client initialization failed",
-  });
+  const body = await response.json();
+  expect(body).toEqual({ error: "Unable to create the offer." });
+  expect(JSON.stringify(body)).not.toContain("Supabase client initialization failed");
   expect(factoryCalls).toBe(1);
   expect(calls.authGetUser).toBe(0);
   expect(calls.profileLookups).toHaveLength(0);
