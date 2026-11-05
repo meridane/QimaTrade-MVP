@@ -4698,3 +4698,34 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **CI/CodeQL/Preview:** pending on the new test-bearing PR HEAD; record exact workflow IDs, outcomes, and the Preview status after completion.
 - **Security interpretation:** deterministic mocked-client regression for the scope fallback failure path; not proof of production database behavior, an authorization bypass, or a confirmed vulnerability.
 - **Safety:** no production Supabase data, migration, policy, configuration, production deployment, merge, or branch-protection setting was changed.
+
+
+## QA201 — final validation reconciliation (5 November 2026, 16:40 KST)
+
+- **Validated PR HEAD:** `d4ff1d3a619ada3ffd4f0bc1e0c1bcd71520e795`; PR #26 remains open and draft, based on `main`, **729 commits ahead and 0 behind**.
+- **QIMA CI #795:** [run 41979357573](https://github.com/meridane/QimaTrade-MVP/actions/runs/41979357573) — **SUCCESS**, both jobs completed. The browser job log confirms **220/220 Playwright tests passed (7.0 s)**, including QA201 at `legacy-offers-route-contract.spec.ts:2701). Dependency installation, npm audit, TypeScript, Next.js production build, Chromium/browser tests, isolated PostgreSQL CREATE_OFFER integration/concurrency/idempotency, legacy-messages RLS, and participant self-enrollment RLS all succeeded.
+- **QIMA CodeQL #751:** [run 41979357561](https://github.com/meridane/QimaTrade-MVP/actions/runs/41979357561) — **SUCCESS**; JavaScript/TypeScript analysis completed.
+- **Vercel combined status:** **SUCCESS** on this exact HEAD (Preview only; no production deployment).
+- **Conclusion:** QA201 is validated by CI #795 (**220/220**), CodeQL #751, and the Preview status. The prior pending note is superseded.
+- **Security interpretation:** deterministic mocked-client regression only. The data-plus-error combination does not establish actual Supabase production behavior or a confirmed vulnerability.
+- **Safety:** no production Supabase data, migration, policy, configuration, production deployment, merge, or branch-protection setting was changed.
+
+
+## QA202 — scope fallback lookup returns no product without an error (5 November 2026)
+
+- **Test file:** `tests/e2e/legacy-offers-route-contract.spec.ts`.
+- **Starting PR HEAD:** `d4ff1d3a619ada3ffd4f0bc1e0c1bcd71520e795`; PR #26 is open and draft, based on `main`, **729 commits ahead and 0 behind**.
+- **Scenario:** submit a valid `demandId` without an explicit `productMasterId`; the mocked demand scope contains `PRODUCT_MASTER_ID`. The product lookup returns `data: null` and `error: null` (the mock's default when `productMasterError` is omitted).
+- **Expected behavior:** HTTP 400 with `PRODUCT_MASTER_NOT_FOUND`; exactly one lookup for the scope-derived product ID followed by `status = active`; no offer insertion.
+- **Assertions:** one authenticated-user lookup; one profile lookup; one demand lookup; exact product lookup filters; zero offer insertions; null insert payload.
+- **Expected browser suite:** **221 tests** (220 previously validated + QA202); this is an expectation, not a result.
+- **CI/CodeQL/Preview:** pending on the QA202 test-bearing commit. Record exact workflow IDs, outcomes, and the exact browser test count after completion.
+- **Security interpretation:** deterministic mocked-client regression for the `!product` branch when the lookup error is null; it does not prove production database behavior, an authorization bypass, or a confirmed vulnerability.
+- **Safety:** no production Supabase data, migration, policy, configuration, production deployment, merge, or branch-protection setting was changed.
+
+
+## Canonical register retrieval and update completed (5 November 2026, 16:40 KST)
+
+- The complete canonical blob was recovered from GitHub's Git blob endpoint using the exact starting blob SHA `3dba1d25ecc73ddff31d9d48143c18e4200b41d1` (**1,095,955 characters**). This safely resolves the ordinary file-reader limitation recorded above.
+- The QA201 final validation reconciliation and QA202 pending test entry were appended to this complete content; prior history was preserved without reconstruction from partial excerpts.
+- This supersedes the earlier statement that the canonical update remained outstanding.
