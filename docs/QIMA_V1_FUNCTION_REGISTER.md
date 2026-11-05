@@ -4774,3 +4774,26 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **CI/CodeQL/Preview:** pending on the QA203 test/code-bearing commit. Record exact workflow IDs, outcomes, and browser count after completion.
 - **Security interpretation:** source inspection identified an internal-error disclosure path and the code now returns a generic public error. The deterministic mocked-client tests verify only the response contract; they do not establish that a production disclosure was exploited or that a confirmed vulnerability existed.
 - **Safety:** no production Supabase data, migration, policy, configuration, production deployment, merge, or branch-protection setting was changed.
+
+
+## QA203 — final validation reconciliation on the code-bearing HEAD (5 November 2026, KST)
+
+- **Validated PR HEAD:** `df4dcf2668fce9c6864c26673f51e82b3cb2b652`; PR #26 remained open and draft, based on `main`, **737 commits ahead and 0 behind**.
+- **QIMA CI #799:** [run 41994352970](https://github.com/meridane/QimaTrade-MVP/actions/runs/41994352970) — **SUCCESS**, both jobs completed. The browser job log confirms **221/221 Playwright tests passed (8.4 s)**, including the two strengthened generic-error regressions. Dependency installation, npm audit, TypeScript, Next.js production build, Chromium/browser tests, isolated PostgreSQL CREATE_OFFER integration/concurrency/idempotency, legacy-messages RLS, and participant self-enrollment RLS all succeeded.
+- **QIMA CodeQL #755:** [run 41994353041](https://github.com/meridane/QimaTrade-MVP/actions/runs/41994353041) — **SUCCESS**; JavaScript/TypeScript analysis completed.
+- **Vercel combined status:** **SUCCESS** on this exact HEAD (Preview only; no production deployment).
+- **Conclusion:** QA203 is validated by CI #799 (**221/221**), CodeQL #755, and the successful Preview status on the exact HEAD.
+- **Security interpretation:** source inspection identified raw internal exception messages in two legacy-route HTTP 500 paths and the code now returns a generic public message. Mocked-client regressions verify the response contract only; they do not establish that a production disclosure was exploited or that a confirmed vulnerability existed.
+- **Safety:** no production Supabase data, migration, policy, configuration, production deployment, merge, or branch-protection setting was changed.
+
+
+## QA204 — sanitize unexpected Universal CREATE_OFFER errors (5 November 2026, KST)
+
+- **Starting PR HEAD:** `df4dcf2668fce9c6864c26673f51e82b3cb2b652`; PR #26 was open and draft, based on `main`, **737 commits ahead and 0 behind**.
+- **Source finding:** `app/api/actions/create-offer/route.ts` returned arbitrary `Error.message` text from the Universal Action Runtime or Supabase/PostgREST RPC failures in HTTP 400 responses.
+- **Change on code/test HEAD:** `95bd82e2e19fb84e8ca0b85db656415e9c3475c3` — an exact allowlist of documented CREATE_OFFER domain codes is preserved; all other thrown errors now return `{ error: "ACTION_FAILED" }` with HTTP 500. Raw database/RPC and unexpected exception text is not returned to the client.
+- **Regression coverage:** two existing route tests were strengthened for execution-RPC and action-definition-RPC failures; one test was added to confirm that the exact allowlisted `INVALID_PRICE` code remains available to clients. Expected browser suite count: **222** (221 prior tests plus one new test).
+- **Allowlisted codes:** `ACTION_NOT_PUBLISHED`, `ACTION_HANDLER_NOT_FOUND`, `UNAUTHENTICATED`, `TENANT_REQUIRED`, `IDEMPOTENCY_KEY_REQUIRED`, `ACTION_INPUT_REQUIRED`, `TENANT_ACCESS_DENIED`, `PROFILE_ACTOR_NOT_FOUND`, `INVALID_PROVIDER_ACTOR`, `INVALID_QUANTITY`, `INVALID_PRICE`, `INVALID_CURRENCY`, `PRODUCT_MASTER_NOT_FOUND`, `DEMAND_NOT_FOUND`, `IDEMPOTENCY_KEY_REUSE`, and `ACTION_ALREADY_RUNNING`. Matching is exact; arbitrary message prefixes or suffixes are not allowlisted.
+- **Validation on code/test HEAD:** QIMA CI #800 [run 42004698684](https://github.com/meridane/QimaTrade-MVP/actions/runs/42004698684) — **IN PROGRESS** at documentation time; npm audit and TypeScript had succeeded, production build and isolated PostgreSQL/browser jobs were still running. QIMA CodeQL #756 [run 42004698483](https://github.com/meridane/QimaTrade-MVP/actions/runs/42004698483) — **IN PROGRESS**. Vercel combined status — **PENDING**; Preview Comments check had succeeded. Final outcomes and exact Playwright count must be reconciled after completion.
+- **Security interpretation:** source inspection confirms that raw exception text was passed to the response; the new exact-code allowlist prevents unrecognized RPC/runtime text from crossing the route boundary. Synthetic HTTP/RPC mocks verify this response contract only and do not prove a production disclosure or exploitation.
+- **Safety:** no production Supabase data, migration, policy, configuration, production deployment, merge, or branch-protection setting was changed.
