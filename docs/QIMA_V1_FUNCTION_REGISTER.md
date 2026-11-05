@@ -5050,3 +5050,10 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **Conclusion:** QA213 is validated on `b1e3c23` by 230/230 Playwright tests, full PostgreSQL/RLS CI and CodeQL. No failure is reported on this code HEAD.
 - **Security interpretation:** the mocked fetch rejection verifies route mapping and request boundaries only. It is not evidence of a live Supabase outage, confirmed information disclosure, or production vulnerability.
 - **Safety:** no production Supabase data, migration, policy, configuration, production deployment, merge, or branch-protection setting was changed.
+
+### QA213 register-publication validation (6 November 2026, 03:11 KST)
+
+- **QIMA CI #819:** [run 42082680711](https://github.com/meridane/QimaTrade-MVP/actions/runs/42082680711) — **SUCCESS** on documentation HEAD `d4f2d2809112ce46fbfaad81c4ce4492d3ddfe4a`. Browser logs reconfirm **230/230 Playwright tests passed (5.9 s)**; dependency install/audit, TypeScript, Next.js build, Chromium, isolated PostgreSQL CREATE_OFFER integration/concurrency/idempotency, legacy-message RLS and participant self-enrollment RLS all succeeded.
+- **QIMA CodeQL #774:** [run 42082680713](https://github.com/meridane/QimaTrade-MVP/actions/runs/42082680713) — **SUCCESS**, no new alerts reported.
+- **Vercel:** no Vercel check or deployment status was attached to this documentation HEAD at inspection.
+- **Conclusion:** both function-register updates and the QA213 test source are validated on `d4f2d28` by the complete CI and CodeQL workflows.
