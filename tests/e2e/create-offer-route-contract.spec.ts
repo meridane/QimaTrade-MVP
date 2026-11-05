@@ -244,7 +244,7 @@ test("CREATE_OFFER route enforces RFC 6750 b64token syntax before any Supabase r
       undefined,
       undefined,
       "succeeded",
-      \`Bearer \${credential}\`,
+      "Bearer " + credential,
     );
 
     expect(result.status, credential).toBe(401);
@@ -259,12 +259,12 @@ test("CREATE_OFFER route enforces RFC 6750 b64token syntax before any Supabase r
     undefined,
     undefined,
     "succeeded",
-    \`Bearer \${validToken}\`,
+    "Bearer " + validToken,
   );
 
   expect(validResult.status).toBe(200);
   const authRequest = validResult.requests.find((request) => request.path === "/auth/v1/user");
-  expect(authRequest?.authorization).toBe(\`Bearer \${validToken}\`);
+  expect(authRequest?.authorization).toBe("Bearer " + validToken);
 });
 
 test("CREATE_OFFER route returns HTTP 409 for a non-succeeded execution status", async () => {

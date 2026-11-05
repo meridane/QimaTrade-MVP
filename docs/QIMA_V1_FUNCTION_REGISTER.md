@@ -4923,3 +4923,10 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **Scope:** one route parser change, one regression test, and append-only register updates. No database or migration changes.
 - **Security interpretation:** the route parser's acceptance of a broader syntactic token alphabet is confirmed by source inspection; authentication rejection/acceptance is not inferred from mocks. This is not evidence of an authentication bypass or confirmed production vulnerability.
 - **Safety:** no production Supabase data, migration, policy, configuration, production deployment, merge, or branch-protection setting was changed.
+
+## QA208 — pre-publication test-source correction (5 November 2026, 22:23 KST)
+
+- **Work-branch draft:** `3dee837b265cf8abdf8cd7921cd743914abf8cae` contained escaped template-literal delimiters in the newly inserted Playwright test because the patch was authored as a raw template string.
+- **Review outcome:** inspection of the generated Git diff caught the malformed source before the work branch was advanced to the PR branch. The test now builds the Authorization value with ordinary string concatenation (`"Bearer " + credential`), avoiding nested-template escaping entirely.
+- **Publication/CI:** the malformed draft was never pushed to `fix/create-offer-status-contract` and no CI success is claimed for it. The corrected follow-up commit is the only QA208 commit intended for the PR branch.
+- **Safety:** no production data, migration, policy, configuration, deployment, merge, or branch-protection setting was changed.
