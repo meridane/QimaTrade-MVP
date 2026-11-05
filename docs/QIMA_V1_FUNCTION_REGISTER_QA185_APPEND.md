@@ -761,3 +761,25 @@ The canonical register's QA184 tail was inspected from commit `0eca4833bae236f32
 - **Scope:** one Playwright regression and append-only updates to the canonical and supplementary function registers. No application code, SQL migration, database, tenant authorization rule, or public API behavior is changed.
 - **Security interpretation:** the test uses a mocked Supabase Auth/REST boundary and verifies request ordering and response mapping only. It does not establish a production vulnerability, data exposure, or live Supabase behavior.
 - **Safety:** no production Supabase data, migration, policy, configuration, production deployment, merge, or branch-protection setting was changed.
+
+
+## QA212 — final validation (6 November 2026, 03:11 KST)
+
+- **Validated HEAD:** `1037768bbaf9618431aeec9069d38515b4b06741`. PR #26 remains open, draft, unmerged and mergeable; branch `fix/create-offer-status-contract` is 757 commits ahead of `main`, 0 behind, with 44 files in the overall diff.
+- **QIMA CI #816:** [run 42078131376](https://github.com/meridane/QimaTrade-MVP/actions/runs/42078131376) — **SUCCESS**. Browser job logs confirm **229/229 Playwright tests passed (5.0 s)**, including QA212. npm install, dependency audit, TypeScript, Next.js production build, Chromium, isolated PostgreSQL CREATE_OFFER integration/concurrency/idempotency, legacy-message RLS and participant self-enrollment RLS all succeeded.
+- **QIMA CodeQL #772:** [run 42078131193](https://github.com/meridane/QimaTrade-MVP/actions/runs/42078131193) — **SUCCESS**.
+- **Vercel combined status:** **SUCCESS** on this HEAD (Preview only; no production deployment).
+- **Conclusion:** QA212 is validated on `1037768` by 229/229 Playwright tests, full PostgreSQL/RLS CI, CodeQL and successful Preview status.
+- **Security interpretation:** the mocked route test verifies request ordering and validation mapping only; it does not establish a production vulnerability or live Supabase behavior.
+- **Safety:** no production Supabase data, migration, policy, configuration, production deployment, merge, or branch-protection setting was changed.
+
+## QA213 — characterize Auth transport failures without exposing diagnostics (6 November 2026, 03:11 KST)
+
+- **Starting PR state:** PR #26 is open, draft, unmerged and mergeable. Branch `fix/create-offer-status-contract` is 757 commits ahead of `main`, 0 behind, with 44 files in the overall PR diff. Starting HEAD: `1037768bbaf9618431aeec9069d38515b4b06741`.
+- **Baseline checks:** QIMA CI #816 [run 42078131376](https://github.com/meridane/QimaTrade-MVP/actions/runs/42078131376) completed successfully. Browser logs confirm **229/229 Playwright tests passed (5.0 s)**. npm install, dependency audit, TypeScript, Next.js production build, Chromium, isolated PostgreSQL CREATE_OFFER integration/concurrency/idempotency, legacy-message RLS and participant self-enrollment RLS all succeeded. QIMA CodeQL #772 [run 42078131193](https://github.com/meridane/QimaTrade-MVP/actions/runs/42078131193) succeeded. The combined Vercel status on the starting HEAD is success (Preview only).
+- **Change:** extend the existing route-test mock with a deterministic transport-failure mode for the Supabase Auth `/auth/v1/user` fetch. Add one Playwright regression asserting the current route contract: HTTP 401, JSON `{ error: "UNAUTHENTICATED" }`, realm-only `WWW-Authenticate` challenge, no transport diagnostic in the public body, and no profile, tenant-membership or RPC request. Any retry requests made by the Auth client must remain confined to the Auth endpoint and carry the normalized Bearer credential.
+- **Compatibility:** preserve the existing handling of Auth HTTP 503 and the public HTTP/JSON contract. This test characterizes a mocked fetch rejection; it does not decide whether Auth outages should become HTTP 503.
+- **Expected browser suite:** 230 tests (229 baseline + one new QA213 test). Validation is pending until GitHub Actions completes on the published QA213 code commit.
+- **Scope:** one Playwright helper and one regression, plus append-only updates to both function registers. No application code, SQL migration, database, tenant authorization rule, or production API behavior is changed.
+- **Security interpretation:** the mocked network failure verifies error mapping and request boundaries only. It is not evidence of a live Supabase outage, a confirmed information disclosure, or a production vulnerability.
+- **Safety:** no production Supabase data, migration, policy, configuration, production deployment, merge, or branch-protection setting was changed.

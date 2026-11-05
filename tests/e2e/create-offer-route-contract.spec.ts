@@ -13,7 +13,7 @@ async function postCreateOffer(
   membershipRows: Array<{ tenant_id: string | null }> = [{ tenant_id: "20000000-0000-4000-8000-000000000001" }],
   rpcStatus = "succeeded",
   authorizationHeader: string | null = "Bearer qima-route-test-token",
-  authStatus = 200,
+  authStatus: number | "network-error" = 200,
   membershipStatus = 200,
   profileStatus = 200,
   profileActorId: string | null = "30000000-0000-4000-8000-000000000001",
@@ -60,6 +60,9 @@ async function postCreateOffer(
     requests.push({ path: url.pathname, query: url.search, body, authorization: headers.get("authorization") ?? undefined });
 
     if (url.pathname === "/auth/v1/user") {
+      if (authStatus === "network-error") {
+        throw new Error("ECONNRESET: Auth network connection reset");
+      }
       if (authStatus !== 200) {
         const authError = authStatus === 401
           ? { message: "Invalid JWT", code: "bad_jwt" }
@@ -1254,4 +1257,29 @@ test("CREATE_OFFER route authenticates before rejecting semantically invalid inp
       "Bearer qima-route-test-token",
     );
   }
+});
+
+test("CREATE_OFFER route masks Auth transport failures and stops before profile or tenant access", async () => {
+  const result = await postCreateOffer(
+    "USD",
+    {},
+    undefined,
+    undefined,
+    "succeeded",
+    "Bearer qima-route-test-token",
+    "network-error",
+  );
+
+  expect(result.status).toBe(401);
+  expect(result.body).toEqual({ error: "UNAUTHENTICATED" });
+  expect(result.wwwAuthenticate).toBe('Bearer realm="qimatrade"');
+  expect(JSON.stringify(result.body)).not.toContain("ECONNRESET");
+  expect(result.requests.length).toBeGreaterThan(0);
+  expect(result.requests.every((request) => request.path === "/auth/v1/user")).toBe(true);
+  expect(
+    result.requests.every((request) => request.authorization === "Bearer qima-route-test-token"),
+  ).toBe(true);
+  expect(result.requests.some((request) => request.path === "/rest/v1/profiles")).toBe(false);
+  expect(result.requests.some((request) => request.path === "/rest/v1/dt_memberships")).toBe(false);
+  expect(result.requests.some((request) => request.path.startsWith("/rest/v1/rpc/"))).toBe(false);
 });
