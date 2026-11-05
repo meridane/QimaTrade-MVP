@@ -1309,3 +1309,63 @@ test("CREATE_OFFER route masks Auth transport failures and stops before profile 
   expect(result.requests.some((request) => request.path === "/rest/v1/dt_memberships")).toBe(false);
   expect(result.requests.some((request) => request.path.startsWith("/rest/v1/rpc/"))).toBe(false);
 });
+
+test("CREATE_OFFER route preserves non-disclosing profile and membership errors across upstream HTTP statuses", async () => {
+  const upstreamStatuses = [401, 403, 500];
+  const bearer = "Bearer qima-route-test-token";
+
+  for (const upstreamStatus of upstreamStatuses) {
+    const profileFailure = await postCreateOffer(
+      "USD",
+      {},
+      undefined,
+      undefined,
+      "succeeded",
+      bearer,
+      200,
+      200,
+      upstreamStatus,
+    );
+
+    expect(profileFailure.status, `profile upstream HTTP ${upstreamStatus}`).toBe(403);
+    expect(profileFailure.body, `profile upstream HTTP ${upstreamStatus}`).toEqual({
+      error: "PROFILE_ACTOR_NOT_FOUND",
+    });
+    expect(JSON.stringify(profileFailure.body)).not.toMatch(
+      /PROFILE_(?:LOOKUP|DETAILS|HINT)_PRIVATE_SENTINEL|XX000|Profile lookup failed/i,
+    );
+    expect(profileFailure.wwwAuthenticate).toBeNull();
+    expect(profileFailure.requests.map((request) => request.path)).toEqual([
+      "/auth/v1/user",
+      "/rest/v1/profiles",
+    ]);
+    expect(profileFailure.requests.every((request) => request.authorization === bearer)).toBe(true);
+
+    const membershipFailure = await postCreateOffer(
+      "USD",
+      {},
+      undefined,
+      undefined,
+      "succeeded",
+      bearer,
+      200,
+      upstreamStatus,
+      200,
+    );
+
+    expect(membershipFailure.status, `membership upstream HTTP ${upstreamStatus}`).toBe(403);
+    expect(membershipFailure.body, `membership upstream HTTP ${upstreamStatus}`).toEqual({
+      error: "TENANT_MEMBERSHIP_REQUIRED",
+    });
+    expect(JSON.stringify(membershipFailure.body)).not.toMatch(
+      /MEMBERSHIP_(?:LOOKUP|DETAILS|HINT)_PRIVATE_SENTINEL|XX000|Membership lookup failed/i,
+    );
+    expect(membershipFailure.wwwAuthenticate).toBeNull();
+    expect(membershipFailure.requests.map((request) => request.path)).toEqual([
+      "/auth/v1/user",
+      "/rest/v1/profiles",
+      "/rest/v1/dt_memberships",
+    ]);
+    expect(membershipFailure.requests.every((request) => request.authorization === bearer)).toBe(true);
+  }
+});
