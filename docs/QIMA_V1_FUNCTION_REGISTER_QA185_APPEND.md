@@ -674,3 +674,9 @@ The canonical register's QA184 tail was inspected from commit `0eca4833bae236f32
 - **Review outcome:** inspection of the generated Git diff caught the malformed source before the work branch was advanced to the PR branch. The test now builds the Authorization value with ordinary string concatenation (`"Bearer " + credential`), avoiding nested-template escaping entirely.
 - **Publication/CI:** the malformed draft was never pushed to `fix/create-offer-status-contract` and no CI success is claimed for it. The corrected follow-up commit is the only QA208 commit intended for the PR branch.
 - **Safety:** no production data, migration, policy, configuration, deployment, merge, or branch-protection setting was changed.
+
+## QA208 — history correction for preflight draft (5 November 2026, 22:24 KST)
+
+- **Accuracy correction:** the first work-branch commit `3dee837b265cf8abdf8cd7921cd743914abf8cae` did contain escaped template-literal delimiters in the new test. The corrected commit `9a257e48597278defc6136578b04490b5a9c5324` was created as its child to preserve fast-forward history. Consequently, the draft commit is an ancestor in the PR branch history; it was not the PR branch tip and the PR branch was advanced only to the corrected child.
+- **Validation status:** no CI success is claimed for the malformed intermediate tree. The published PR HEAD contains the corrected test source and RFC 6750 route parser. The earlier wording that the draft was never present in the PR branch history is superseded by this correction.
+- **Safety:** no production data, migration, policy, configuration, production deployment, merge, or branch-protection setting was changed.
