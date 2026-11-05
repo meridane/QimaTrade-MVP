@@ -5067,3 +5067,14 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **Scope:** one Playwright test file and append-only updates to both function registers. No application code, SQL migration, database, tenant authorization rule, or public API behavior is changed.
 - **Security interpretation:** synthetic PostgREST errors verify response mapping and request boundaries only. They do not establish a production information disclosure, data exposure, or confirmed vulnerability.
 - **Safety:** no production Supabase data, migration, policy, configuration, production deployment, merge, or branch-protection setting was changed.
+
+
+### QA214 final validation and CI reconciliation (6 November 2026, 04:40 KST)
+
+- **Code-only validation attempt — QIMA CI #821:** [run 42095770757](https://github.com/meridane/QimaTrade-MVP/actions/runs/42095770757) was **CANCELLED** after the PR branch advanced to include the register updates. Before cancellation, the browser step completed with **230/230 Playwright tests passed (5.6 s)**, and the isolated CREATE_OFFER integration/concurrency/idempotency, legacy-message RLS and participant self-enrollment RLS steps all completed successfully. Because the overall workflow conclusion is cancelled, it is not counted as a full CI success. QIMA CodeQL #776 [run 42095770927](https://github.com/meridane/QimaTrade-MVP/actions/runs/42095770927) — **SUCCESS** on the code-only commit.
+- **Final QA214 HEAD:** `5a2026647a30637a36d0fe97312fe3baa868d775`. QIMA CI #822 [run 42095917995](https://github.com/meridane/QimaTrade-MVP/actions/runs/42095917995) — **SUCCESS**. Browser job logs confirm **230/230 Playwright tests passed (6.2 s)**. Dependency installation, npm audit, TypeScript, Next.js production build, Chromium, isolated PostgreSQL CREATE_OFFER integration/concurrency/idempotency, legacy-message RLS and participant self-enrollment RLS all succeeded.
+- **QIMA CodeQL #777:** [run 42095918091](https://github.com/meridane/QimaTrade-MVP/actions/runs/42095918091) — **SUCCESS**.
+- **Vercel combined status:** **SUCCESS** on final QA214 HEAD `5a20266` (Preview only; no production deployment).
+- **Conclusion:** QA214 is validated on `5a20266` by 230/230 Playwright tests, complete PostgreSQL/RLS CI, CodeQL and successful Preview status. The cancelled #821 attempt is retained as an intermediate history item and is not represented as a passing workflow.
+- **Security interpretation:** diagnostic sentinel values exist only in the deterministic PostgREST test fixture. Exact-response assertions verify route mapping and request boundaries; they are not evidence of a live information disclosure, data exposure, or confirmed production vulnerability.
+- **Safety:** no production Supabase data, migration, policy, configuration, production deployment, merge, or branch-protection setting was changed.
