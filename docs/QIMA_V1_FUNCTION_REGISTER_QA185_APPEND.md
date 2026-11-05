@@ -783,3 +783,14 @@ The canonical register's QA184 tail was inspected from commit `0eca4833bae236f32
 - **Scope:** one Playwright helper and one regression, plus append-only updates to both function registers. No application code, SQL migration, database, tenant authorization rule, or production API behavior is changed.
 - **Security interpretation:** the mocked network failure verifies error mapping and request boundaries only. It is not evidence of a live Supabase outage, a confirmed information disclosure, or a production vulnerability.
 - **Safety:** no production Supabase data, migration, policy, configuration, production deployment, merge, or branch-protection setting was changed.
+
+## QA213 — final validation of Auth transport-failure handling (6 November 2026, 03:11 KST)
+
+- **Validated code HEAD:** `b1e3c234518458811c03842bfc26d2730ebe5595`. PR #26 remains open, draft, unmerged and mergeable; branch `fix/create-offer-status-contract` is 758 commits ahead of `main`, 0 behind, with 44 files in the overall diff.
+- **QIMA CI #818:** [run 42082316820](https://github.com/meridane/QimaTrade-MVP/actions/runs/42082316820) — **SUCCESS**. Browser job logs confirm **230/230 Playwright tests passed (5.3 s)**, including QA213. npm install, dependency audit, TypeScript, Next.js production build, Chromium, isolated PostgreSQL CREATE_OFFER integration/concurrency/idempotency, legacy-message RLS and participant self-enrollment RLS all succeeded.
+- **QIMA CodeQL #773:** [run 42082316656](https://github.com/meridane/QimaTrade-MVP/actions/runs/42082316656) — **SUCCESS**, with no new alerts reported for the pull-request code.
+- **Vercel:** no Vercel deployment/check/status was reported for this QA213 HEAD at final inspection. The prior HEAD had a successful combined Preview status; that result is not carried forward or claimed for this commit.
+- **Observed SDK logging:** Supabase Auth logs the deliberately injected `ECONNRESET` exception to the CI job log while converting it to an Auth error. This expected test-harness log does not appear in the public HTTP JSON response; the regression confirms the route returns only `{ error: "UNAUTHENTICATED" }` with the realm-only challenge.
+- **Conclusion:** QA213 is validated on `b1e3c23` by 230/230 Playwright tests, full PostgreSQL/RLS CI and CodeQL. No failure is reported on this code HEAD.
+- **Security interpretation:** the mocked fetch rejection verifies route mapping and request boundaries only. It is not evidence of a live Supabase outage, confirmed information disclosure, or production vulnerability.
+- **Safety:** no production Supabase data, migration, policy, configuration, production deployment, merge, or branch-protection setting was changed.
