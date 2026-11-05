@@ -1002,3 +1002,73 @@ test("CREATE_OFFER route normalizes a mixed-case Bearer header and forwards the 
   expect(rpcRequests).toHaveLength(2);
   expect(rpcRequests.every((request) => request.authorization === `Bearer ${accessToken}`)).toBe(true);
 });
+
+
+test("CREATE_OFFER route exposes exact SQL domain errors and masks internal handler-dispatch failures", async () => {
+  const sqlDomainErrorCodes = [
+    "UNAUTHENTICATED",
+    "TENANT_REQUIRED",
+    "IDEMPOTENCY_KEY_REQUIRED",
+    "ACTION_INPUT_REQUIRED",
+    "TENANT_ACCESS_DENIED",
+    "PROFILE_ACTOR_NOT_FOUND",
+    "INVALID_PROVIDER_ACTOR",
+    "INVALID_QUANTITY",
+    "INVALID_PRICE",
+    "INVALID_CURRENCY",
+    "PRODUCT_MASTER_NOT_FOUND",
+    "DEMAND_NOT_FOUND",
+    "ACTION_NOT_PUBLISHED",
+    "IDEMPOTENCY_KEY_REUSE",
+    "ACTION_ALREADY_RUNNING",
+  ];
+
+  for (const code of sqlDomainErrorCodes) {
+    const result = await postCreateOffer(
+      "USD",
+      {},
+      undefined,
+      undefined,
+      "succeeded",
+      "Bearer qima-route-test-token",
+      200,
+      200,
+      200,
+      "30000000-0000-4000-8000-000000000001",
+      false,
+      400,
+      200,
+      undefined,
+      code,
+    );
+
+    expect(result.status, code).toBe(400);
+    expect(result.body, code).toEqual({ error: code });
+  }
+
+  // The action engine's missing-handler code is a runtime configuration failure,
+  // not a caller-correctable domain error. Simulate the same exact error text
+  // at the definition boundary to exercise the route's exception mapper.
+  const dispatchFailure = await postCreateOffer(
+    "USD",
+    {},
+    undefined,
+    undefined,
+    "succeeded",
+    "Bearer qima-route-test-token",
+    200,
+    200,
+    200,
+    "30000000-0000-4000-8000-000000000001",
+    false,
+    200,
+    500,
+    undefined,
+    "CREATE_OFFER RPC unavailable",
+    "ACTION_HANDLER_NOT_FOUND",
+  );
+
+  expect(dispatchFailure.status).toBe(500);
+  expect(dispatchFailure.body).toEqual({ error: "ACTION_FAILED" });
+  expect(JSON.stringify(dispatchFailure.body)).not.toContain("ACTION_HANDLER_NOT_FOUND");
+});

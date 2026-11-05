@@ -587,3 +587,27 @@ The canonical register's QA184 tail was inspected from commit `0eca4833bae236f32
 - **CI/CodeQL/Preview:** pending on the new QA205 test-bearing HEAD; record exact workflow IDs, job outcomes, and browser count after completion.
 - **Security interpretation:** this test verifies exact string matching in a mocked RPC failure path only. It does not prove that production RPCs emit these messages, that a disclosure was exploited, or that a confirmed vulnerability exists.
 - **Safety:** no production Supabase data, migration, policy, configuration, production deployment, merge, or branch-protection setting was changed.
+
+
+## QA205 — final validation on PR HEAD (5 November 2026, 20:18 KST)
+
+- **Validated PR HEAD:** `293a79359c884434d60bff2c139b7adae9c5788c`; PR #26 is open and draft, based on `main`, **742 commits ahead and 0 behind**; mergeable state was `clean`. No submitted reviews or unresolved review threads were present at this check.
+- **QIMA CI #804:** [run 42013903013](https://github.com/meridane/QimaTrade-MVP/actions/runs/42013903013) — **SUCCESS**, both jobs completed. Browser log confirms **223/223 Playwright tests passed (5.8 s)**. npm install, npm audit, TypeScript, Next.js production build, Chromium/browser tests, isolated PostgreSQL CREATE_OFFER integration/concurrency/idempotency, legacy-messages RLS, and participant self-enrollment RLS all succeeded.
+- **QIMA CodeQL #760:** [run 42013903124](https://github.com/meridane/QimaTrade-MVP/actions/runs/42013903124) — **SUCCESS**.
+- **Vercel combined status:** **SUCCESS** on this exact HEAD (Preview only; no production deployment).
+- **Conclusion:** QA205 is validated on the current PR HEAD by CI #804 (**223/223**), CodeQL #760, and successful Preview status.
+- **Security interpretation:** the three diagnostic-message variants are deterministic mocked RPC responses; passing tests verifies exact string matching only. They do not prove that production emitted such messages or that a disclosure was exploited.
+- **Safety:** no production Supabase data, migration, policy, configuration, production deployment, merge, or branch-protection setting was changed.
+
+
+## QA206 — reconcile Universal CREATE_OFFER public error allowlist (5 November 2026, 20:18 KST)
+
+- **Starting PR HEAD:** `293a79359c884434d60bff2c139b7adae9c5788c`; PR #26 open/draft, **742 ahead / 0 behind**.
+- **Sources reviewed:** `app/api/actions/create-offer/route.ts`, `lib/actions/engine.ts`, `lib/actions/runtime.ts`, and `supabase/migrations/20261027090000_fix_create_offer_action_status_contract.sql`.
+- **SQL exception inventory:** the CREATE_OFFER SQL function raises exactly these 15 named codes: `UNAUTHENTICATED`, `TENANT_REQUIRED`, `IDEMPOTENCY_KEY_REQUIRED`, `ACTION_INPUT_REQUIRED`, `TENANT_ACCESS_DENIED`, `PROFILE_ACTOR_NOT_FOUND`, `INVALID_PROVIDER_ACTOR`, `INVALID_QUANTITY`, `INVALID_PRICE`, `INVALID_CURRENCY`, `PRODUCT_MASTER_NOT_FOUND`, `DEMAND_NOT_FOUND`, `ACTION_NOT_PUBLISHED`, `IDEMPOTENCY_KEY_REUSE`, and `ACTION_ALREADY_RUNNING`.
+- **Engine classification:** `ACTION_NOT_PUBLISHED` and `ACTION_HANDLER_NOT_FOUND` are emitted by the action engine. `ACTION_NOT_PUBLISHED` is also emitted by the SQL function and remains a public domain response. `ACTION_HANDLER_NOT_FOUND` means the server has no registered handler for the action; it is an internal dispatch/configuration failure, not a caller-correctable domain error. It was therefore removed from the public allowlist and must map to generic HTTP 500 `ACTION_FAILED`.
+- **Direct route responses:** `INVALID_REQUEST_BODY`, `NAME_AND_DEMAND_REQUIRED`, `TENANT_MEMBERSHIP_REQUIRED`, and `TENANT_SELECTION_REQUIRED` are returned directly before the catch boundary; they are not members of the thrown-error allowlist. Existing direct validation/authentication responses remain unchanged.
+- **Regression matrix added:** one Playwright test exercises all 15 exact SQL domain codes as mocked RPC errors and expects the exact HTTP 400 body. It also exercises the exact internal `ACTION_HANDLER_NOT_FOUND` message at the definition-RPC boundary and expects generic HTTP 500 `ACTION_FAILED`. The existing unpublished-action test remains the engine-side positive coverage for `ACTION_NOT_PUBLISHED`.
+- **Expected browser suite:** **224 tests** (223 previously validated + QA206). Validation on the new HEAD is pending; do not claim a pass until CI logs confirm it.
+- **Security interpretation:** the matrix uses deterministic RPC mocks and source-level inventory. It validates public error classification, not live Supabase behavior or a confirmed production vulnerability.
+- **Safety:** no production Supabase data, migration, policy, configuration, production deployment, merge, or branch-protection setting was changed.

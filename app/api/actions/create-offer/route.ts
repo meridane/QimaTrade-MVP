@@ -10,7 +10,6 @@ const currencies = new Set(["USD", "EUR", "KRW", "MAD", "CNY"]);
 // Supabase/PostgREST messages and unexpected exception text remain server-side.
 const publicCreateOfferErrorCodes = new Set([
   "ACTION_NOT_PUBLISHED",
-  "ACTION_HANDLER_NOT_FOUND",
   "UNAUTHENTICATED",
   "TENANT_REQUIRED",
   "IDEMPOTENCY_KEY_REQUIRED",
