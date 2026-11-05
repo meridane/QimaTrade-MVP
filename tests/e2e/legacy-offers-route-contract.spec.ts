@@ -2576,3 +2576,29 @@ test("legacy offers route handles a null demand scope without a product associat
     offer_type: "supplier_offer",
   });
 });
+
+test("legacy offers route treats a primitive demand scope as empty and preserves the demand association", async () => {
+  const { client, calls } = createSupabaseMock({
+    demand: {
+      id: DEMAND_ID,
+      target_market: "South Korea",
+      scope: "legacy-scope",
+    },
+  });
+  const handler = createHandler(client);
+
+  const response = await handler(createFormRequest({ demandId: DEMAND_ID }));
+
+  expect(response.status).toBe(303);
+  expect(calls.demandLookups).toEqual([{ column: "id", value: DEMAND_ID }]);
+  expect(calls.productMasterLookups).toHaveLength(0);
+  expect(calls.offerInsertCalls).toBe(1);
+  expect(calls.insertPayload).toMatchObject({
+    demand_id: DEMAND_ID,
+    product_master_id: null,
+    market: "South Korea",
+    lifecycle: "draft",
+    offer_type: "supplier_offer",
+  });
+});
+
