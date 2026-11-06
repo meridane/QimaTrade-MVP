@@ -1915,6 +1915,7 @@ test("executeAction normalizes descriptor mutability while preserving enumerabil
   const expectedResult: ActionResult & { objectType: string } = {
     executionId: "execution-descriptor-flags",
     status: "succeeded",
+    objectType: "Offer",
   };
   Object.defineProperties(expectedResult, {
     objectId: {
