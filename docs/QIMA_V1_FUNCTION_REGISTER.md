@@ -5277,3 +5277,13 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **Expected browser suite:** 270 tests (266 QA226 baseline + 4 QA227 cases). Results are pending the new GitHub Actions run.
 - **Security interpretation:** these are synthetic in-process contract tests of the trusted handler registry boundary. They do not establish a production exploit or confirmed vulnerability.
 - **Safety:** no Supabase production data, migration, policy, production configuration, production deployment, merge, or branch-branch protection setting was changed.
+
+
+## QA227 validation closure — 6 November 2026 (16:08 KST)
+
+- **Final QIMA CI:** CI #851 [run 42178376514](https://github.com/meridane/QimaTrade-MVP/actions/runs/42178376514) completed successfully on QA227 code. The browser job ran **270 tests and all 270 passed** in 6.2 seconds. npm installation, `npm audit --audit-level=high`, TypeScript, Next.js production build and Chromium installation succeeded. The isolated PostgreSQL CREATE_OFFER integration/concurrency suite, legacy-message RLS regression and participant self-enrollment RLS regression all passed.
+- **Browser log note:** a transient `ECONNRESET: Auth network connection reset` line appeared during the run, but Playwright completed with 270 passed and the browser job concluded successfully. No test failure is associated with that log line.
+- **CodeQL:** QIMA CodeQL #806 [run 42178376552](https://github.com/meridane/QimaTrade-MVP/actions/runs/42178376552) completed successfully.
+- **Vercel:** the combined status on the QA227 HEAD remains failure with target `build-rate-limit` (provider/account build quota). GitHub Actions' Next.js production build succeeded; Vercel's quota status is not treated as an application build failure.
+- **Security interpretation:** all new cases are synthetic in-process tests of handler registry descriptors and Proxy behavior. They do not establish a production exploit or confirmed vulnerability.
+- **Safety:** no Supabase production data, migration, policy, production configuration, production deployment, merge, or branch-protection setting was changed.
