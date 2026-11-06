@@ -24,6 +24,24 @@ export type ActionEngineDependencies = {
   handlers: Record<string, ActionHandler>;
 };
 
+function isActionDefinition(value: unknown): value is ActionDefinition {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) return false;
+
+  const candidate = value as Record<string, unknown>;
+  const hasOwn = (key: string) => Object.prototype.hasOwnProperty.call(candidate, key);
+
+  return (
+    hasOwn("actionKey") &&
+    typeof candidate.actionKey === "string" &&
+    hasOwn("version") &&
+    typeof candidate.version === "number" &&
+    hasOwn("status") &&
+    (candidate.status === "draft" ||
+      candidate.status === "published" ||
+      candidate.status === "retired")
+  );
+}
+
 function isActionResult(value: unknown): value is ActionResult {
   if (value === null || typeof value !== "object" || Array.isArray(value)) return false;
 
@@ -67,9 +85,9 @@ export async function executeAction(
   input: ActionInput,
   dependencies: ActionEngineDependencies,
 ): Promise<ActionResult> {
-  const definition = await dependencies.getDefinition(context.actionKey, context.actionVersion);
+  const definition: unknown = await dependencies.getDefinition(context.actionKey, context.actionVersion);
   if (
-    !definition ||
+    !isActionDefinition(definition) ||
     definition.status !== "published" ||
     definition.actionKey !== context.actionKey ||
     definition.version !== context.actionVersion
