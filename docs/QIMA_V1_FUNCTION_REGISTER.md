@@ -5369,3 +5369,23 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **Expected browser suite:** **280 tests** (278 baseline plus two compatibility regressions). CI and CodeQL for the QA231 commit are pending.
 - **Interpretation:** synthetic in-process compatibility tests for symbol property copying and shallow reference identity only; they do not establish a production exploit or confirmed vulnerability.
 - **Safety:** no application runtime, SQL, Supabase production data, migration, policy, production configuration, production deployment, merge, or branch-protection setting is changed.
+
+
+## QA231 — final validation reconciliation — 6 November 2026 (20:17 KST)
+
+- **Starting point:** PR #26 head `15083e000534daf263f16051e8ebb38d9641b1b5`, branch `fix/create-offer-status-contract`. The PR is open, draft, and mergeable; it is **823 commits ahead** of `main`, zero behind, with 44 changed files and no submitted reviews or inline review threads.
+- **Final QIMA CI:** CI #858 [run 42207790934](https://github.com/meridane/QimaTrade-MVP/actions/runs/42207790934) completed successfully. The browser job confirms **280 Playwright tests passed**. npm ci, dependency audit, TypeScript, Next.js production build, Chromium installation, isolated CREATE_OFFER PostgreSQL integration/concurrency, legacy-message RLS, and participant self-enrollment RLS all succeeded.
+- **CodeQL:** CodeQL #813 [run 42207790879](https://github.com/meridane/QimaTrade-MVP/actions/runs/42207790879) completed successfully; JavaScript/TypeScript analysis passed.
+- **Vercel Preview:** the combined commit status is `success` with target [QimaTrade Preview](https://vercel.com/bmk1/qimatrade-mvp/3nWRqkKkTxUTjN6oyu7Xv1mc3fV2). This is a Preview, not a production deployment.
+- **Workflow note:** GitHub Actions emitted a Node.js 20 deprecation warning for several pinned actions; all steps and both CI jobs nevertheless completed successfully. No functional failure is associated with this warning.
+- **Conclusion:** QA231 is validated by CI #858 (280/280) and CodeQL #813. The tests characterize symbol-keyed metadata copying and shallow nested-payload reference behavior; they do not establish a production exploit or confirmed vulnerability.
+- **Safety:** no Supabase production data, migration, policy, production configuration, production deployment, merge, or branch-protection setting was changed.
+
+
+## QA232 — special `__proto__` own-data-property compatibility — 6 November 2026 (20:17 KST)
+
+- **Starting point:** PR #26 head `15083e000534daf263f16051e8ebb38d9641b1b5`, branch `fix/create-offer-status-contract`; open, draft, and mergeable, 823 commits ahead of `main`, zero behind. Baseline CI #858 and CodeQL #813 both succeeded.
+- **Scope:** one focused regression test in `tests/e2e/action-engine.spec.ts`. The handler returns an otherwise valid ActionResult with an explicitly defined own data property named `__proto__`. The test verifies that normalization retains the own key and its value while the normalized result keeps `Object.prototype` as its actual prototype. This protects the current `Object.defineProperty` snapshot behavior without changing runtime code.
+- **Expected browser suite:** **281 tests** (280 baseline plus one special-key regression). CI and CodeQL for the QA232 commit are pending.
+- **Interpretation:** synthetic in-process JavaScript property-copy compatibility coverage only. It does not demonstrate prototype pollution in production or establish a confirmed vulnerability.
+- **Safety:** no application runtime, SQL, Supabase production data, migration, policy, production configuration, production deployment, merge, or branch-protection setting is changed.

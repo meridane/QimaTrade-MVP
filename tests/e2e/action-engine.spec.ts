@@ -1846,3 +1846,54 @@ test("executeAction keeps nested ActionResult payload references during shallow 
   expect(result.result).toBe(nestedPayload);
   expect((result.result as typeof nestedPayload).audit).toBe(nestedAudit);
 });
+
+
+test("executeAction copies an own __proto__ data field without changing the normalized result prototype", async () => {
+  const context: ActionContext = {
+    userId: "user-1",
+    tenantId: "tenant-1",
+    actionKey: "CREATE_OFFER",
+    actionVersion: 1,
+    objectType: "Demand",
+    objectId: "demand-1",
+    correlationId: "correlation-1",
+    idempotencyKey: "idempotency-1",
+  };
+  const input: ActionInput = { demandId: "demand-1" };
+  const protoMetadata = { marker: "ordinary-own-data" };
+  const expectedResult: ActionResult = {
+    executionId: "execution-proto-key",
+    status: "succeeded",
+  };
+  Object.defineProperty(expectedResult, "__proto__", {
+    configurable: false,
+    enumerable: true,
+    value: protoMetadata,
+    writable: false,
+  });
+  let handlerCalls = 0;
+
+  const result = await executeAction(context, input, {
+    getDefinition: async (actionKey, version) => ({
+      actionKey,
+      version,
+      status: "published",
+    }),
+    handlers: {
+      CREATE_OFFER: async () => {
+        handlerCalls += 1;
+        return expectedResult;
+      },
+    },
+  });
+
+  expect(handlerCalls).toBe(1);
+  expect(result).not.toBe(expectedResult);
+  expect(Object.getPrototypeOf(result)).toBe(Object.prototype);
+  expect(Object.prototype.hasOwnProperty.call(result, "__proto__")).toBe(true);
+  expect(Object.getOwnPropertyDescriptor(result, "__proto__")).toMatchObject({
+    enumerable: true,
+    value: protoMetadata,
+  });
+  expect(Object.getPrototypeOf(result)).not.toBe(protoMetadata);
+});
