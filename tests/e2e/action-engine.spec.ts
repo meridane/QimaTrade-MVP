@@ -954,11 +954,14 @@ test("executeAction snapshots a Proxy ActionResult without invoking its get trap
     },
   });
 
+  // Capture trap activity before assertion helpers inspect either value.
+  const getTrapCallsAtReturn = getTrapCalls;
+  const resultIsDetached = !Object.is(result, proxy);
+  expect(getTrapCallsAtReturn).toBe(0);
+  expect(resultIsDetached).toBe(true);
   expect(result).toEqual(target);
-  expect(result).not.toBe(proxy);
   expect(result.objectId).toBe("offer-1");
   expect((result as ActionResult & { objectType: string }).objectType).toBe("Offer");
-  expect(getTrapCalls).toBe(0);
   expect(handlerCalls).toBe(1);
 });
 
