@@ -1241,3 +1241,176 @@ test("executeAction normalizes a revoked proxy ActionDefinition as unpublished",
 
   expect(handlerCalls).toBe(0);
 });
+
+
+test("executeAction rejects an accessor-backed handler registry entry without invoking its getter", async () => {
+  const context: ActionContext = {
+    userId: "user-1",
+    tenantId: "tenant-1",
+    actionKey: "CREATE_OFFER",
+    actionVersion: 1,
+    objectType: "TestObject",
+    objectId: "object-1",
+    correlationId: "correlation-1",
+    idempotencyKey: "idempotency-1",
+  };
+  const input: ActionInput = { demandId: "demand-1" };
+  let definitionLookups = 0;
+  let getterCalls = 0;
+  let handlerCalls = 0;
+  const handlers = {} as Record<string, ActionHandler>;
+
+  Object.defineProperty(handlers, "CREATE_OFFER", {
+    configurable: true,
+    enumerable: true,
+    get: () => {
+      getterCalls += 1;
+      return async () => {
+        handlerCalls += 1;
+        return { executionId: "unexpected", status: "succeeded" as const };
+      };
+    },
+  });
+
+  await expect(
+    executeAction(context, input, {
+      getDefinition: async (actionKey, version) => {
+        definitionLookups += 1;
+        return { actionKey, version, status: "published" };
+      },
+      handlers,
+    }),
+  ).rejects.toThrow("ACTION_HANDLER_NOT_FOUND");
+
+  expect(definitionLookups).toBe(1);
+  expect(getterCalls).toBe(0);
+  expect(handlerCalls).toBe(0);
+});
+
+test("executeAction resolves a Proxy handler registry without invoking its get trap", async () => {
+  const context: ActionContext = {
+    userId: "user-1",
+    tenantId: "tenant-1",
+    actionKey: "CREATE_OFFER",
+    actionVersion: 1,
+    objectType: "TestObject",
+    objectId: "object-1",
+    correlationId: "correlation-1",
+    idempotencyKey: "idempotency-1",
+  };
+  const input: ActionInput = { demandId: "demand-1" };
+  let getTrapCalls = 0;
+  let handlerCalls = 0;
+  const target: Record<string, ActionHandler> = {
+    CREATE_OFFER: async () => {
+      handlerCalls += 1;
+      return { executionId: "execution-proxy-registry", status: "succeeded" };
+    },
+  };
+  const handlers = new Proxy(target, {
+    get() {
+      getTrapCalls += 1;
+      throw new Error("ACTION_HANDLER_REGISTRY_GET_TRAP_INVOKED");
+    },
+  });
+
+  const result = await executeAction(context, input, {
+    getDefinition: async (actionKey, version) => ({
+      actionKey,
+      version,
+      status: "published",
+    }),
+    handlers,
+  });
+
+  const getTrapCallsAtReturn = getTrapCalls;
+  expect(getTrapCallsAtReturn).toBe(0);
+  expect(handlerCalls).toBe(1);
+  expect(result).toMatchObject({
+    executionId: "execution-proxy-registry",
+    status: "succeeded",
+  });
+});
+
+test("executeAction rejects a handler registry when its descriptor trap throws", async () => {
+  const context: ActionContext = {
+    userId: "user-1",
+    tenantId: "tenant-1",
+    actionKey: "CREATE_OFFER",
+    actionVersion: 1,
+    objectType: "TestObject",
+    objectId: "object-1",
+    correlationId: "correlation-1",
+    idempotencyKey: "idempotency-1",
+  };
+  const input: ActionInput = { demandId: "demand-1" };
+  let descriptorTrapCalls = 0;
+  let handlerCalls = 0;
+  const target: Record<string, ActionHandler> = {
+    CREATE_OFFER: async () => {
+      handlerCalls += 1;
+      return { executionId: "unexpected", status: "succeeded" };
+    },
+  };
+  const handlers = new Proxy(target, {
+    getOwnPropertyDescriptor(object, property) {
+      if (property === "CREATE_OFFER") {
+        descriptorTrapCalls += 1;
+        throw new Error("ACTION_HANDLER_REGISTRY_DESCRIPTOR_TRAP_THROWN");
+      }
+      return Reflect.getOwnPropertyDescriptor(object, property);
+    },
+  });
+
+  await expect(
+    executeAction(context, input, {
+      getDefinition: async (actionKey, version) => ({
+        actionKey,
+        version,
+        status: "published",
+      }),
+      handlers,
+    }),
+  ).rejects.toThrow("ACTION_HANDLER_NOT_FOUND");
+
+  expect(descriptorTrapCalls).toBe(1);
+  expect(handlerCalls).toBe(0);
+});
+
+test("executeAction rejects a revoked Proxy handler registry without leaking reflection errors", async () => {
+  const context: ActionContext = {
+    userId: "user-1",
+    tenantId: "tenant-1",
+    actionKey: "CREATE_OFFER",
+    actionVersion: 1,
+    objectType: "TestObject",
+    objectId: "object-1",
+    correlationId: "correlation-1",
+    idempotencyKey: "idempotency-1",
+  };
+  const input: ActionInput = { demandId: "demand-1" };
+  let handlerCalls = 0;
+  const revocable = Proxy.revocable(
+    {
+      CREATE_OFFER: async () => {
+        handlerCalls += 1;
+        return { executionId: "unexpected", status: "succeeded" as const };
+      },
+    },
+    {},
+  );
+  revocable.revoke();
+
+  await expect(
+    executeAction(context, input, {
+      getDefinition: async (actionKey, version) => ({
+        actionKey,
+        version,
+        status: "published",
+      }),
+      handlers: revocable.proxy as unknown as Record<string, ActionHandler>,
+    }),
+  ).rejects.toThrow("ACTION_HANDLER_NOT_FOUND");
+
+  expect(handlerCalls).toBe(0);
+});
