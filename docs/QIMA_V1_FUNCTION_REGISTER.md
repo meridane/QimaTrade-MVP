@@ -5307,3 +5307,14 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **Scope:** test typing only; no engine/runtime change. The three reflection-trap scenarios remain unchanged. A new CI/CodeQL validation is expected on the correction commit.
 - **Security interpretation:** synthetic regression tests only; no production exploit or confirmed vulnerability is asserted.
 - **Safety:** no Supabase production data, migration, policy, production configuration, production deployment, merge, or branch-protection setting was changed.
+
+
+## QA228 validation closure — 6 November 2026 (16:19 KST)
+
+- **Final QIMA CI:** CI #854 [run 42179998391](https://github.com/meridane/QimaTrade-MVP/actions/runs/42179998391) completed successfully on corrected test commit `19ef111e73d6f901dbc356fa3e05362e843d356f`. Playwright reported **273 passed** in 7.4 seconds. npm audit reported **0 vulnerabilities** (0 info, 0 low, 0 moderate, 0 high, 0 critical). TypeScript, Next.js production build, Chromium installation, and the isolated PostgreSQL CREATE_OFFER integration/concurrency, legacy-message RLS, and participant self-enrollment RLS jobs all succeeded.
+- **First-attempt correction:** CI #853 [run 42179815974](https://github.com/meridane/QimaTrade-MVP/actions/runs/42179815974) failed only in the TypeScript job due to the invalid `Proxy<ActionResult>` type annotation in the new test fixture; the PostgreSQL/RLS job succeeded. Playwright was skipped in #853. The annotation was corrected to `ActionResult`, and #854 passed all 273 tests. CodeQL #808 [run 42179815927](https://github.com/meridane/QimaTrade-MVP/actions/runs/42179815927) succeeded on the first QA228 test commit.
+- **CodeQL:** CodeQL #809 [run 42179998335](https://github.com/meridane/QimaTrade-MVP/actions/runs/42179998335) completed successfully on the corrected commit.
+- **Vercel Preview:** status succeeded on the corrected commit; preview target [QimaTrade Preview](https://vercel.com/bmk1/qimatrade-mvp/AeC1tvB6GFB3Uv66sRMcRY8CBDRP). This is a Preview, not a production deployment.
+- **Browser log note:** a transient `ECONNRESET: Auth network connection reset` line appeared during Playwright, but the suite completed with 273 passed and the browser job succeeded. No test failure is associated with that line.
+- **Security interpretation:** the three cases are synthetic in-process Proxy reflection tests. They verify exception normalization only and do not establish a production exploit or confirmed vulnerability.
+- **Safety:** no Supabase production data, migration, policy, production configuration, production deployment, merge, or branch-protection setting was changed.
