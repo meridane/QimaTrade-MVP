@@ -5256,3 +5256,24 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **Expected browser suite:** 266 tests (260 prior baseline plus six QA226 regression cases); confirmation is pending CI #849.
 - **Security interpretation:** these are synthetic in-process tests of object descriptors and Proxy behavior. The earlier test failures and the new passing/pending checks do not establish a production exploit or confirmed vulnerability.
 - **Safety:** no Supabase production data, migration, policy, production configuration, production deployment, merge, or branch-protection setting was changed.
+
+
+## QA226 validation closure — 6 November 2026 (15:58 KST)
+
+- **Starting branch state:** PR #26 is open and remains a draft for review; branch `fix/create-offer-status-contract` is 811 commits ahead of `main` and zero behind. The PR has 44 changed files, no submitted reviews, and no inline review threads. Main's current base commit is `0d35c13db81019867fe9929420b0a6916285fbf6`.
+- **Final QA226 CI:** QIMA CI #850 [run 42172183516](https://github.com/meridane/QimaTrade-MVP/actions/runs/42172183516) completed successfully. The browser job ran **266 tests and all 266 passed**; npm audit reported zero vulnerabilities at all severities, TypeScript and the production build passed, and the PostgreSQL CREATE_OFFER integration/concurrency, legacy-message RLS, and participant self-enrollment RLS jobs passed. The browser log also contained a transient `ECONNRESET: Auth network connection reset` line, but the Playwright process completed with 266 passed and the job concluded successfully.
+- **Superseded run:** QIMA CI #849 [run 42172054978](https://github.com/meridane/QimaTrade-MVP/actions/runs/42172054978) was cancelled during Chromium installation; Playwright was skipped. Its PostgreSQL integration/RLS job passed. QIMA CodeQL #804 [run 42172055008](https://github.com/meridane/QimaTrade-MVP/actions/runs/42172055008) succeeded.
+- **CodeQL on final QA226 head:** QIMA CodeQL #805 [run 42172183505](https://github.com/meridane/QimaTrade-MVP/actions/runs/42172183505) succeeded.
+- **Vercel:** the combined status on the final QA226 HEAD is failure with target `build-rate-limit` (account build quota). This is an external Preview quota limitation, not a failed Next.js build; the GitHub Actions production build passed.
+- **Security interpretation:** the Proxy/accessor cases are synthetic in-process regression tests. They do not establish a production exploit or confirmed vulnerability.
+- **Safety:** no Supabase production data, migration, policy, production configuration, production deployment, merge, or branch-protection setting was changed.
+
+## QA227 — descriptor-safe action handler registry resolution (6 November 2026, 15:58 KST)
+
+- **Starting state:** based on QA226's verified 266/266 browser suite and successful CodeQL #805. The canonical register was retrieved from blob `c68778b013219d4600593549092d3eacdabc475b` (1,199,659 characters); the companion register was read at blob `7c856417e99ec82e19c149c7cd59317a681b9261`.
+- **Gap:** `executeAction` previously checked the registry with `hasOwnProperty` and then read `handlers[actionKey]` directly. An own accessor could execute during lookup; a Proxy `get` trap could run; and `Array.isArray`/descriptor operations on a revoked or throwing Proxy could escape as raw reflection errors.
+- **Runtime change:** add `resolveActionHandler`, which rejects non-object/array registries, resolves only an own data-property descriptor, requires its value to be a function, and catches exceptions from revoked/throwing Proxy reflection. Handler accessors are not invoked; inherited entries remain unavailable; null-prototype registries remain supported.
+- **Regression coverage:** four cases cover an accessor-backed own handler (getter not invoked), a Proxy registry with a throwing `get` trap (handler still resolves via its own descriptor), a throwing `getOwnPropertyDescriptor` trap (normalized to `ACTION_HANDLER_NOT_FOUND`), and a revoked Proxy registry (normalized to `ACTION_HANDLER_NOT_FOUND`).
+- **Expected browser suite:** 270 tests (266 QA226 baseline + 4 QA227 cases). Results are pending the new GitHub Actions run.
+- **Security interpretation:** these are synthetic in-process contract tests of the trusted handler registry boundary. They do not establish a production exploit or confirmed vulnerability.
+- **Safety:** no Supabase production data, migration, policy, production configuration, production deployment, merge, or branch-branch protection setting was changed.
