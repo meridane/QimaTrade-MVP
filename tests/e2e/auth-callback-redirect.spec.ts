@@ -140,3 +140,22 @@ test("OAuth callback honors the safe same-origin destination after a successful 
   expect(location.searchParams.get("search")).toBe("steel");
   expect(exchangedCode).toBe("authorization-code");
 });
+
+test("OAuth callback catches Supabase client initialization failures without exposing details or honoring next", async () => {
+  const secret = "simulated-supabase-client-secret";
+
+  const response = await handleOAuthCallback(
+    callbackRequest("?code=authorization-code&next=%2Foffers"),
+    async () => {
+      throw new Error(secret);
+    },
+  );
+
+  const location = responseLocation(response);
+  expect(response.status).toBe(307);
+  expect(location.origin).toBe(ORIGIN);
+  expect(location.pathname).toBe("/login");
+  expect(location.searchParams.get("error")).toBe("oauth_callback_failed");
+  expect(location.searchParams.has("next")).toBe(false);
+  expect(location.href).not.toContain(secret);
+});
