@@ -73,6 +73,18 @@ function normalizeActionResult(value: unknown): ActionResult | null {
     // for hostile or revoked Proxies. Keep the entire boundary exception-safe.
     if (Array.isArray(value)) return null;
 
+    // Preserve the existing contract: optional result fields may not be supplied
+    // through the prototype chain. Reflect.has can invoke a Proxy trap, so it
+    // remains inside this exception boundary.
+    const hasOwnOriginal = (key: string) =>
+      Object.prototype.hasOwnProperty.call(value, key);
+    if (
+      (Reflect.has(value, "objectId") && !hasOwnOriginal("objectId")) ||
+      (Reflect.has(value, "result") && !hasOwnOriginal("result"))
+    ) {
+      return null;
+    }
+
     // Snapshot own data properties so subsequent consumers never read through
     // the handler's getters or Proxy get trap. Preserve extra SQL result fields
     // such as objectType, plus non-enumerable and symbol data properties.
