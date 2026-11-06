@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { config as middlewareConfig } from "../../middleware";
 
 test("login page displays Google authentication", async ({ page }) => {
   await page.goto("/login");
@@ -184,4 +185,15 @@ test("CREATE_OFFER action API rejects requests without a bearer token", async ({
   await expect(response.json()).resolves.toMatchObject({
     error: "UNAUTHENTICATED",
   });
+});
+
+
+test("Supabase SSR middleware explicitly uses the Node.js runtime", () => {
+  expect(middlewareConfig.runtime).toBe("nodejs");
+  expect(middlewareConfig.matcher).toEqual([
+    "/demands/:path*",
+    "/decision-tree/:path*",
+    "/offers/:path*",
+    "/request/:path*",
+  ]);
 });

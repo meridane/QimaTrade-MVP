@@ -5421,3 +5421,13 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **Earlier QA235/QA236 records:** their detailed changes and validation evidence remain in the append-only QA185 supplement; they are not reconstructed or silently rewritten here.
 - **Conclusion:** QA237 code validation is complete for CI #872, CodeQL #827, and the Preview status above. The earlier pending Playwright/build-log checks are resolved by the observed results.
 - **Safety:** no Supabase production data, migration, RLS policy, production configuration, production deployment, PR merge, or branch-protection setting was changed.
+
+
+## QA238 — lock the Supabase SSR middleware runtime contract — 7 November 2026
+
+- **Starting point:** PR #26 remains open and draft on `fix/create-offer-status-contract`. QA237 code commit `747ea26` is followed by the completed validation record `ba894ed`.
+- **Reason:** the middleware's Node.js runtime selection is now an intentional compatibility decision for the repository's Next.js 15.5.28 + Supabase SSR setup. Existing browser tests exercise protected-route redirects, but they do not directly fail if the exported runtime setting is later removed or changed.
+- **Change:** add a Playwright-level configuration regression that imports the root middleware config and asserts `runtime === "nodejs"` plus the exact existing matcher list (`/demands`, `/decision-tree`, `/offers`, `/request`). This is a static configuration contract test; it is not evidence of a security vulnerability or a substitute for a deployed runtime test.
+- **Expected suite count:** 284 Playwright tests, one more than the previously validated 283. The count is provisional until the new CI run completes.
+- **Validation:** pending for the QA238 commit. The preceding QA237 validation remains QIMA CI #872 (283/283), CodeQL #827 success, and successful Vercel Preview status.
+- **Safety:** no middleware behavior, auth/cookie handling, application runtime, dependency, SQL, migration, Supabase production data, RLS policy, production configuration, production deployment, PR merge, or branch-protection setting is changed.
