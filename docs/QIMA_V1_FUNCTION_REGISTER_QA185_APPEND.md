@@ -1168,3 +1168,22 @@ The canonical register's QA184 tail was inspected from commit `0eca4833bae236f32
 - **Interpretation:** these are synthetic in-process contract tests for JavaScript property descriptors and optional fields. They do not establish a production exploit or confirmed vulnerability.
 - **Safety:** no application runtime, SQL, Supabase production data, migration, policy, production configuration, production deployment, merge, or branch-protection setting is changed.
 
+
+
+## QA230 — final validation reconciliation — 6 November 2026 (20:04 KST)
+
+- **Starting point:** PR #26 head `1bbd0022982c05165f7befa1455e213cb9746ad1`, branch `fix/create-offer-status-contract`. The PR is open, draft, and mergeable; it is 822 commits ahead of `main`, zero behind, with 44 changed files and no submitted reviews or review threads.
+- **Final QIMA CI:** CI #857 [run 42195353376](https://github.com/meridane/QimaTrade-MVP/actions/runs/42195353376) completed successfully. The browser job confirms **278 Playwright tests passed (7.7 s)**. npm install, dependency audit, TypeScript, Next.js production build, Chromium installation, isolated CREATE_OFFER PostgreSQL integration/concurrency, legacy-message RLS, and participant self-enrollment RLS all succeeded.
+- **CodeQL:** CodeQL #812 [run 42195353432](https://github.com/meridane/QimaTrade-MVP/actions/runs/42195353432) completed successfully.
+- **Vercel Preview:** the combined commit status is `success` with target [QimaTrade Preview](https://vercel.com/bmk1/qimatrade-mvp/FqgWpxJajLgnkMnbQLTXp6bC9XYS). This is a Preview, not a production deployment.
+- **Browser log note:** a transient `ECONNRESET: Auth network connection reset` line and Node deprecation warnings appeared, but the browser suite completed with 278 passed. The workflow's dependency-audit step and overall CI job both report success; no audit failure is inferred from the echoed diagnostic line alone.
+- **Conclusion:** QA230 is validated by CI #857 (278/278) and CodeQL #812. The tests cover optional fields explicitly set to `undefined` and non-enumerable own fields plus SQL metadata. They do not establish a production exploit or confirmed vulnerability.
+- **Safety:** no Supabase production data, migration, policy, production configuration, production deployment, merge, or branch-protection setting was changed.
+
+## QA231 — symbol metadata and shallow ActionResult payload compatibility — 6 November 2026 (20:04 KST)
+
+- **Starting point:** PR #26 head `1bbd0022982c05165f7befa1455e213cb9746ad1`, branch `fix/create-offer-status-contract`; open and draft, 822 commits ahead of `main`, zero behind. Baseline CI #857 and CodeQL #812 both succeeded.
+- **Scope:** tests only in `tests/e2e/action-engine.spec.ts`. Add (1) a non-enumerable symbol-keyed own data property and verify that its symbol key, value, and enumerability survive the normalizer's `Reflect.ownKeys`/descriptor snapshot; (2) a nested `ActionResult.result` payload and nested object, verifying that the outer result is detached while nested references remain identical. This documents the current shallow-copy contract without changing runtime behavior or deciding a JSON-only business contract.
+- **Expected browser suite:** **280 tests** (278 baseline plus two compatibility regressions). CI and CodeQL for the QA231 commit are pending.
+- **Interpretation:** synthetic in-process compatibility tests for symbol property copying and shallow reference identity only; they do not establish a production exploit or confirmed vulnerability.
+- **Safety:** no application runtime, SQL, Supabase production data, migration, policy, production configuration, production deployment, merge, or branch-protection setting is changed.

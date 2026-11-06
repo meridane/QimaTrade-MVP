@@ -1751,3 +1751,98 @@ test("executeAction preserves non-enumerable optional fields and extra SQL resul
   });
   expect(Object.keys(result)).toEqual(["executionId", "status", "objectType"]);
 });
+
+
+test("executeAction preserves symbol-keyed own data metadata during ActionResult normalization", async () => {
+  const context: ActionContext = {
+    userId: "user-1",
+    tenantId: "tenant-1",
+    actionKey: "CREATE_OFFER",
+    actionVersion: 1,
+    objectType: "Demand",
+    objectId: "demand-1",
+    correlationId: "correlation-1",
+    idempotencyKey: "idempotency-1",
+  };
+  const input: ActionInput = { demandId: "demand-1" };
+  const metadataKey = Symbol("resultMetadata");
+  const expectedResult: ActionResult & { [metadataKey]: string } = {
+    executionId: "execution-symbol-metadata",
+    status: "succeeded",
+    result: { offerId: "offer-symbol-metadata" },
+    [metadataKey]: "source:CREATE_OFFER",
+  };
+  Object.defineProperty(expectedResult, metadataKey, {
+    configurable: false,
+    enumerable: false,
+    value: "source:CREATE_OFFER",
+    writable: false,
+  });
+  let handlerCalls = 0;
+
+  const result = await executeAction(context, input, {
+    getDefinition: async (actionKey, version) => ({
+      actionKey,
+      version,
+      status: "published",
+    }),
+    handlers: {
+      CREATE_OFFER: async () => {
+        handlerCalls += 1;
+        return expectedResult;
+      },
+    },
+  });
+
+  expect(handlerCalls).toBe(1);
+  expect(result).not.toBe(expectedResult);
+  expect(Object.getOwnPropertySymbols(result)).toContain(metadataKey);
+  expect(Object.getOwnPropertyDescriptor(result, metadataKey)).toMatchObject({
+    enumerable: false,
+    value: "source:CREATE_OFFER",
+  });
+});
+
+test("executeAction keeps nested ActionResult payload references during shallow normalization", async () => {
+  const context: ActionContext = {
+    userId: "user-1",
+    tenantId: "tenant-1",
+    actionKey: "CREATE_OFFER",
+    actionVersion: 1,
+    objectType: "Demand",
+    objectId: "demand-1",
+    correlationId: "correlation-1",
+    idempotencyKey: "idempotency-1",
+  };
+  const input: ActionInput = { demandId: "demand-1" };
+  const nestedAudit = { source: "CREATE_OFFER", revision: 1 };
+  const nestedPayload = {
+    offerId: "offer-shallow-copy",
+    audit: nestedAudit,
+  };
+  const expectedResult: ActionResult = {
+    executionId: "execution-shallow-payload",
+    status: "succeeded",
+    result: nestedPayload,
+  };
+  let handlerCalls = 0;
+
+  const result = await executeAction(context, input, {
+    getDefinition: async (actionKey, version) => ({
+      actionKey,
+      version,
+      status: "published",
+    }),
+    handlers: {
+      CREATE_OFFER: async () => {
+        handlerCalls += 1;
+        return expectedResult;
+      },
+    },
+  });
+
+  expect(handlerCalls).toBe(1);
+  expect(result).not.toBe(expectedResult);
+  expect(result.result).toBe(nestedPayload);
+  expect((result.result as typeof nestedPayload).audit).toBe(nestedAudit);
+});
