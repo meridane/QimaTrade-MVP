@@ -210,6 +210,107 @@ for (const invalidCase of invalidActionDefinitions) {
   });
 }
 
+const inheritedActionDefinitionCases: Array<{
+  label: string;
+  inheritedKey: "actionKey" | "version" | "status";
+  definition: ActionDefinition;
+}> = [
+  {
+    label: "actionKey",
+    inheritedKey: "actionKey",
+    definition: Object.assign(Object.create({ actionKey: "CREATE_OFFER" }), {
+      version: 1,
+      status: "published",
+    }) as ActionDefinition,
+  },
+  {
+    label: "version",
+    inheritedKey: "version",
+    definition: Object.assign(Object.create({ version: 1 }), {
+      actionKey: "CREATE_OFFER",
+      status: "published",
+    }) as ActionDefinition,
+  },
+  {
+    label: "status",
+    inheritedKey: "status",
+    definition: Object.assign(Object.create({ status: "published" }), {
+      actionKey: "CREATE_OFFER",
+      version: 1,
+    }) as ActionDefinition,
+  },
+];
+
+for (const inheritedCase of inheritedActionDefinitionCases) {
+  test(`executeAction rejects a definition with inherited ${inheritedCase.inheritedKey}`, async () => {
+    const context: ActionContext = {
+      userId: "user-1",
+      tenantId: "tenant-1",
+      actionKey: "CREATE_OFFER",
+      actionVersion: 1,
+      objectType: "TestObject",
+      objectId: "object-1",
+      correlationId: "correlation-1",
+      idempotencyKey: "idempotency-1",
+    };
+    const input: ActionInput = { demandId: "demand-1" };
+    let definitionLookups = 0;
+    let handlerCalls = 0;
+
+    expect(Object.prototype.hasOwnProperty.call(inheritedCase.definition, inheritedCase.inheritedKey)).toBe(false);
+
+    await expect(
+      executeAction(context, input, {
+        getDefinition: async () => {
+          definitionLookups += 1;
+          return inheritedCase.definition;
+        },
+        handlers: {
+          CREATE_OFFER: async () => {
+            handlerCalls += 1;
+            return { executionId: "unexpected", status: "succeeded" };
+          },
+        },
+      }),
+    ).rejects.toThrow("ACTION_NOT_PUBLISHED");
+
+    expect(definitionLookups).toBe(1);
+    expect(handlerCalls).toBe(0);
+  });
+}
+
+test("executeAction accepts an own-field ActionDefinition with a null prototype", async () => {
+  const context: ActionContext = {
+    userId: "user-1",
+    tenantId: "tenant-1",
+    actionKey: "CREATE_OFFER",
+    actionVersion: 1,
+    objectType: "TestObject",
+    objectId: "object-1",
+    correlationId: "correlation-1",
+    idempotencyKey: "idempotency-1",
+  };
+  const input: ActionInput = { demandId: "demand-1" };
+  const definition = Object.assign(Object.create(null), {
+    actionKey: "CREATE_OFFER",
+    version: 1,
+    status: "published",
+  }) as ActionDefinition;
+
+  const result = await executeAction(context, input, {
+    getDefinition: async () => definition,
+    handlers: {
+      CREATE_OFFER: async () => ({
+        executionId: "execution-1",
+        status: "succeeded",
+      }),
+    },
+  });
+
+  expect(result).toMatchObject({ executionId: "execution-1", status: "succeeded" });
+});
+
+
 const mismatchedActionDefinitions: Array<{ label: string; definition: ActionDefinition }> = [
   {
     label: "different action key",
