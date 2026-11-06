@@ -946,5 +946,15 @@ The canonical register's QA184 tail was inspected from commit `0eca4833bae236f32
 - **Scope:** test-only change. No runtime code, SQL migration, Supabase database, public HTTP contract, idempotency behavior, or tenant authorization behavior is modified.
 - **Canonical register limitation:** `docs/QIMA_V1_FUNCTION_REGISTER.md` remains a >1 MiB historical file; its GitHub file-content connector response contains the blob SHA but an empty body, including for line-range requests. It is not safe to replace without the complete content. This entry is preserved in the append-only QA register.
 - **Security interpretation:** the SQL result shape is read from a proposed repository migration and the new test uses an in-process fixture. It does not prove production migration application or a production vulnerability.
-- **Published test commit:** pending publication to PR branch from isolated work branch `work/offer-qa-221-sql-result-shape-20261106-1103`.
+- **Published test commit:** `27ad3dcc44e9079672779e214be17f3430df27a8` (`test(actions): cover CREATE_OFFER SQL result shape`), included in the published PR branch through the subsequent append-only documentation commit.
 - **Safety:** no Supabase production data, migration, policy, production configuration, production deployment, merge, or branch-protection setting is changed.
+
+
+## QA221 — final validation reconciliation (6 November 2026, 11:10 KST)
+
+- **Published test commit:** `27ad3dcc44e9079672779e214be17f3430df27a8`. It adds one positive action-engine regression for the actual CREATE_OFFER SQL JSONB shape: `status`, `executionId`, `objectType`, and `objectId`, with no `result` property.
+- **QIMA CI #836** [run 42147491112](https://github.com/meridane/QimaTrade-MVP/actions/runs/42147491112) — **SUCCESS**; the browser job log confirms **247/247 Playwright tests passed (7.1 s)** and explicitly records the QA221 SQL-shape test as passed. Both CI jobs succeeded, including npm ci/audit, TypeScript, production build, Chromium, PostgreSQL CREATE_OFFER integration/concurrency/idempotency, legacy-message RLS, and participant self-enrollment RLS.
+- **QIMA CodeQL #791** [run 42147491231](https://github.com/meridane/QimaTrade-MVP/actions/runs/42147491231) — **SUCCESS**.
+- **Vercel for exact test SHA `36907e4975dec10bf7ce3b066d8ff4528debff3b`:** GitHub combined status is **FAILURE** with target `https://vercel.com/bmk1?upgradeToPro=build-rate-limit`; direct Vercel deployment history returns zero Preview deployments for this SHA. This is recorded as the existing Preview quota/availability limitation, not as a failed application build. The earlier QA220 code/test SHA `f6ffaa5...` has a separate READY Preview deployment.
+- **Conclusion:** QA221 is validated by CI #836 (247/247), the isolated PostgreSQL and RLS jobs, and CodeQL #791. A new Preview was not created for this test SHA because of the Vercel build-rate-limit status.
+- **Safety:** no Supabase production data, migration, policy, production configuration, production deployment, merge, or branch-protection setting was changed.
