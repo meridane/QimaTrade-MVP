@@ -1414,3 +1414,95 @@ test("executeAction rejects a revoked Proxy handler registry without leaking ref
 
   expect(handlerCalls).toBe(0);
 });
+
+
+const actionResultReflectionTrapScenarios: Array<{
+  name: string;
+  createProxy: (target: ActionResult, onTrap: () => void) => Proxy<ActionResult>;
+}> = [
+  {
+    name: "has trap",
+    createProxy: (target, onTrap) =>
+      new Proxy(target, {
+        has(object, property) {
+          if (property === "objectId") {
+            onTrap();
+            throw new Error("ACTION_RESULT_HAS_TRAP_THROWN");
+          }
+          return Reflect.has(object, property);
+        },
+      }),
+  },
+  {
+    name: "ownKeys trap",
+    createProxy: (target, onTrap) =>
+      new Proxy(target, {
+        ownKeys() {
+          onTrap();
+          throw new Error("ACTION_RESULT_OWN_KEYS_TRAP_THROWN");
+        },
+      }),
+  },
+  {
+    name: "getOwnPropertyDescriptor trap",
+    createProxy: (target, onTrap) =>
+      new Proxy(target, {
+        getOwnPropertyDescriptor(object, property) {
+          if (property === "executionId") {
+            onTrap();
+            throw new Error("ACTION_RESULT_DESCRIPTOR_TRAP_THROWN");
+          }
+          return Reflect.getOwnPropertyDescriptor(object, property);
+        },
+      }),
+  },
+];
+
+for (const scenario of actionResultReflectionTrapScenarios) {
+  test(`executeAction normalizes ActionResult ${scenario.name} failures`, async () => {
+    const context: ActionContext = {
+      userId: "user-1",
+      tenantId: "tenant-1",
+      actionKey: "CREATE_OFFER",
+      actionVersion: 1,
+      objectType: "TestObject",
+      objectId: "object-1",
+      correlationId: "correlation-1",
+      idempotencyKey: "idempotency-1",
+    };
+    const input: ActionInput = { demandId: "demand-1" };
+    const target: ActionResult = {
+      executionId: "execution-reflection-trap",
+      status: "succeeded",
+      objectId: "offer-1",
+    };
+    let definitionLookups = 0;
+    let reflectionTrapCalls = 0;
+    let handlerCalls = 0;
+    const proxy = scenario.createProxy(target, () => {
+      reflectionTrapCalls += 1;
+    });
+    // Resolve while the proxy is live; Promise's thenable probe uses the
+    // ordinary get path and does not trigger the reflection traps under test.
+    const handlerResult = Promise.resolve(proxy);
+
+    await expect(
+      executeAction(context, input, {
+        getDefinition: async (actionKey, version) => {
+          definitionLookups += 1;
+          return { actionKey, version, status: "published" };
+        },
+        handlers: {
+          CREATE_OFFER: async () => {
+            handlerCalls += 1;
+            return handlerResult;
+          },
+        },
+      }),
+    ).rejects.toThrow("ACTION_RESULT_INVALID");
+
+    expect(definitionLookups).toBe(1);
+    expect(handlerCalls).toBe(1);
+    expect(reflectionTrapCalls).toBe(1);
+  });
+}
