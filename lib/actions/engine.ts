@@ -27,19 +27,30 @@ export type ActionEngineDependencies = {
 function isActionDefinition(value: unknown): value is ActionDefinition {
   if (value === null || typeof value !== "object" || Array.isArray(value)) return false;
 
-  const candidate = value as Record<string, unknown>;
-  const hasOwn = (key: string) => Object.prototype.hasOwnProperty.call(candidate, key);
+  try {
+    const actionKey = Object.getOwnPropertyDescriptor(value, "actionKey");
+    const version = Object.getOwnPropertyDescriptor(value, "version");
+    const status = Object.getOwnPropertyDescriptor(value, "status");
 
-  return (
-    hasOwn("actionKey") &&
-    typeof candidate.actionKey === "string" &&
-    hasOwn("version") &&
-    typeof candidate.version === "number" &&
-    hasOwn("status") &&
-    (candidate.status === "draft" ||
-      candidate.status === "published" ||
-      candidate.status === "retired")
-  );
+    // Definitions are data contracts, not executable accessor surfaces. Read
+    // descriptor values so validation never invokes user-provided getters.
+    return (
+      actionKey !== undefined &&
+      Object.prototype.hasOwnProperty.call(actionKey, "value") &&
+      typeof actionKey.value === "string" &&
+      version !== undefined &&
+      Object.prototype.hasOwnProperty.call(version, "value") &&
+      typeof version.value === "number" &&
+      status !== undefined &&
+      Object.prototype.hasOwnProperty.call(status, "value") &&
+      (status.value === "draft" ||
+        status.value === "published" ||
+        status.value === "retired")
+    );
+  } catch {
+    // A proxy may throw while its own property descriptors are inspected.
+    return false;
+  }
 }
 
 function isActionResult(value: unknown): value is ActionResult {
