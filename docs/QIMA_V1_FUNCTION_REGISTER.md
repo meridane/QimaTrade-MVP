@@ -5328,3 +5328,25 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **Expected browser suite:** **276 tests** (273 baseline plus three thenable-boundary cases). CI and CodeQL validation for the new commit are pending at this entry.
 - **Interpretation:** these are synthetic in-process tests of JavaScript Promise/thenable assimilation and the engine boundary. They do not establish a production exploit or confirmed vulnerability.
 - **Safety:** no application runtime, SQL, Supabase production data, migration, policy, production configuration, production deployment, merge, or branch-protection setting is changed.
+
+
+## QA229 — final validation reconciliation — 6 November 2026 (18:25 KST)
+
+- **Starting point:** PR #26 head `427ae360d451219e7871c1264b88a7f3f7d8e981`, branch `fix/create-offer-status-contract`. The PR remained open and draft. The three thenable-boundary tests were added without changing runtime semantics.
+- **Final QIMA CI:** CI #856 [run 42189498565](https://github.com/meridane/QimaTrade-MVP/actions/runs/42189498565) completed successfully. The browser log confirms **276 Playwright tests passed (4.8 s)**. npm ci, dependency audit, TypeScript, Next.js production build, Chromium installation, and isolated PostgreSQL CREATE_OFFER integration/concurrency, legacy-message RLS, and participant self-enrollment RLS jobs all succeeded.
+- **CodeQL:** CodeQL #811 [run 42189498402](https://github.com/meridane/QimaTrade-MVP/actions/runs/42189498402) completed successfully; JavaScript/TypeScript analysis passed.
+- **Vercel Preview:** the combined commit status was `success` with target [QimaTrade Preview](https://vercel.com/bmk1/qimatrade-mvp/AptkG4NAJSBwDWWdQijkTnXejkC6). This is a Preview, not a production deployment.
+- **Browser log note:** a transient `ECONNRESET: Auth network connection reset` line and Node deprecation warnings appeared in the logs, but the browser suite completed with 276 passed and its job succeeded. No test failure is associated with those log lines.
+- **Conclusion:** QA229 is validated by CI #856 (276/276) and CodeQL #811. The three tests characterize JavaScript thenable assimilation at the handler boundary; they do not establish a production exploit or confirmed vulnerability.
+- **Safety:** no application runtime, SQL, Supabase production data, migration, policy, production configuration, production deployment, merge, or branch-protection setting was changed.
+
+## QA230 — ActionResult optional-field compatibility regression tests — 6 November 2026 (18:25 KST)
+
+- **Starting point:** PR #26 head `a52dd0bb1f6124a506dec83832410491215b9bdc`, branch `fix/create-offer-status-contract`. The PR is open, draft, and mergeable; it is 821 commits ahead of `main`, zero behind, with 44 files in the PR diff and no submitted reviews or review threads.
+- **Baseline checks:** QIMA CI #856 [run 42189498565](https://github.com/meridane/QimaTrade-MVP/actions/runs/42189498565) completed successfully with **276 Playwright tests passed**; npm install/audit, TypeScript, production build, Chromium, isolated CREATE_OFFER PostgreSQL integration/concurrency, and both RLS regression jobs succeeded. CodeQL #811 [run 42189498402](https://github.com/meridane/QimaTrade-MVP/actions/runs/42189498402) succeeded. Vercel Preview status was `success` for the baseline head.
+- **Scope:** tests only. Add two focused cases to `tests/e2e/action-engine.spec.ts`: (1) explicitly present `objectId: undefined` and `result: undefined` remain accepted and remain own properties after normalization; (2) non-enumerable own `objectId` and `result` data properties remain non-enumerable after normalization, while the additional SQL result field `objectType` and nested result data remain available. No runtime or SQL behavior is changed.
+- **Contract boundary:** preserve the current shallow-copy behavior. The nested `ActionResult.result` payload contract (JSON-only versus general JavaScript object) remains undecided; no recursive validation or new serialization restriction is introduced without a business decision.
+- **Expected browser suite:** **278 tests** (276 baseline plus two compatibility regressions). CI and CodeQL validation for the new commit are pending.
+- **Interpretation:** these are synthetic in-process contract tests for JavaScript property descriptors and optional fields. They do not establish a production exploit or confirmed vulnerability.
+- **Safety:** no application runtime, SQL, Supabase production data, migration, policy, production configuration, production deployment, merge, or branch-protection setting is changed.
+

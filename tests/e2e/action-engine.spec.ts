@@ -1641,3 +1641,113 @@ test("executeAction preserves a throwing handler then accessor without retrying"
   expect(handlerCalls).toBe(1);
   expect(thenGetterCalls).toBe(1);
 });
+
+
+test("executeAction preserves explicitly undefined optional ActionResult fields", async () => {
+  const context: ActionContext = {
+    userId: "user-1",
+    tenantId: "tenant-1",
+    actionKey: "CREATE_OFFER",
+    actionVersion: 1,
+    objectType: "TestObject",
+    objectId: "object-1",
+    correlationId: "correlation-1",
+    idempotencyKey: "idempotency-1",
+  };
+  const input: ActionInput = { demandId: "demand-1" };
+  const expectedResult = {
+    executionId: "execution-undefined-optionals",
+    status: "succeeded" as const,
+    objectId: undefined,
+    result: undefined,
+  } as unknown as ActionResult;
+  let handlerCalls = 0;
+
+  const result = await executeAction(context, input, {
+    getDefinition: async (actionKey, version) => ({
+      actionKey,
+      version,
+      status: "published",
+    }),
+    handlers: {
+      CREATE_OFFER: async () => {
+        handlerCalls += 1;
+        return expectedResult;
+      },
+    },
+  });
+
+  expect(handlerCalls).toBe(1);
+  expect(result).not.toBe(expectedResult);
+  expect(Object.prototype.hasOwnProperty.call(result, "objectId")).toBe(true);
+  expect(Object.prototype.hasOwnProperty.call(result, "result")).toBe(true);
+  expect(Object.getOwnPropertyDescriptor(result, "objectId")?.value).toBeUndefined();
+  expect(Object.getOwnPropertyDescriptor(result, "result")?.value).toBeUndefined();
+});
+
+test("executeAction preserves non-enumerable optional fields and extra SQL result metadata", async () => {
+  const context: ActionContext = {
+    userId: "user-1",
+    tenantId: "tenant-1",
+    actionKey: "CREATE_OFFER",
+    actionVersion: 1,
+    objectType: "Demand",
+    objectId: "demand-1",
+    correlationId: "correlation-1",
+    idempotencyKey: "idempotency-1",
+  };
+  const input: ActionInput = { demandId: "demand-1" };
+  const expectedNestedResult = {
+    offerId: "offer-non-enumerable",
+    source: "CREATE_OFFER",
+  };
+  const expectedResult: ActionResult & { objectType: string } = {
+    executionId: "execution-non-enumerable-optionals",
+    status: "succeeded",
+    objectType: "Offer",
+  };
+  Object.defineProperties(expectedResult, {
+    objectId: {
+      configurable: false,
+      enumerable: false,
+      value: "offer-non-enumerable",
+      writable: false,
+    },
+    result: {
+      configurable: false,
+      enumerable: false,
+      value: expectedNestedResult,
+      writable: false,
+    },
+  });
+  let handlerCalls = 0;
+
+  const result = await executeAction(context, input, {
+    getDefinition: async (actionKey, version) => ({
+      actionKey,
+      version,
+      status: "published",
+    }),
+    handlers: {
+      CREATE_OFFER: async () => {
+        handlerCalls += 1;
+        return expectedResult;
+      },
+    },
+  });
+
+  expect(handlerCalls).toBe(1);
+  expect(result).not.toBe(expectedResult);
+  expect(result.objectId).toBe("offer-non-enumerable");
+  expect(result.result).toEqual(expectedNestedResult);
+  expect((result as ActionResult & { objectType: string }).objectType).toBe("Offer");
+  expect(Object.getOwnPropertyDescriptor(result, "objectId")).toMatchObject({
+    enumerable: false,
+    value: "offer-non-enumerable",
+  });
+  expect(Object.getOwnPropertyDescriptor(result, "result")).toMatchObject({
+    enumerable: false,
+    value: expectedNestedResult,
+  });
+  expect(Object.keys(result)).toEqual(["executionId", "status", "objectType"]);
+});
