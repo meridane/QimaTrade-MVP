@@ -1207,3 +1207,22 @@ The canonical register's QA184 tail was inspected from commit `0eca4833bae236f32
 - **Expected browser suite:** **281 tests** (280 baseline plus one special-key regression). CI and CodeQL for the QA232 commit are pending.
 - **Interpretation:** synthetic in-process JavaScript property-copy compatibility coverage only. It does not demonstrate prototype pollution in production or establish a confirmed vulnerability.
 - **Safety:** no application runtime, SQL, Supabase production data, migration, policy, production configuration, production deployment, merge, or branch-protection setting is changed.
+
+
+## QA232 — final validation reconciliation — 6 November 2026 (21:15 KST)
+
+- **Starting point:** PR #26 head `f0f828a8929ac40c51d43adf007cfa8159a12a1f`, branch `fix/create-offer-status-contract`. The PR remains open and draft; compare against `main` reports 824 commits ahead and zero behind, with 44 changed files. No submitted reviews or review threads are present.
+- **Final QIMA CI:** CI #859 [run 42209375252](https://github.com/meridane/QimaTrade-MVP/actions/runs/42209375252) completed successfully. The browser job log confirms **281 Playwright tests passed**. npm install, dependency audit, TypeScript, Next.js production build, Chromium installation, isolated CREATE_OFFER PostgreSQL integration/concurrency, legacy-message RLS, and participant self-enrollment RLS all succeeded.
+- **CodeQL:** CodeQL #814 [run 42209375228](https://github.com/meridane/QimaTrade-MVP/actions/runs/42209375228) completed successfully; JavaScript/TypeScript analysis passed.
+- **Vercel Preview:** the combined status for this commit is `success`, with target [QimaTrade Preview](https://vercel.com/bmk1/qimatrade-mvp/BV9yahk6bWDiXVSE4SPYnbCstw8o). This is a Preview, not a production deployment.
+- **Conclusion:** QA232 is validated by CI #859 (281/281) and CodeQL #814. The test covers an own data property named `__proto__`; it does not demonstrate prototype pollution in production or establish a confirmed vulnerability.
+- **Safety:** no Supabase production data, migration, policy, production configuration, production deployment, merge, or branch-protection setting was changed.
+
+## QA233 — ActionResult descriptor normalization contract — 6 November 2026 (21:15 KST)
+
+- **Starting point:** PR #26 head `f0f828a8929ac40c51d43adf007cfa8159a12a1f`, branch `fix/create-offer-status-contract`; open and draft, 824 commits ahead of `main`, zero behind. QA232 baseline CI #859 and CodeQL #814 both succeeded.
+- **Scope:** one regression test in `tests/e2e/action-engine.spec.ts`. The handler returns an ActionResult whose `objectId`, `result`, and extra SQL metadata `objectType` are non-writable and non-configurable data properties. The normalizer is expected to create a detached outer snapshot, preserve each property's value and original enumerability, preserve the nested result reference, and normalize copied data properties to writable/configurable snapshots.
+- **Expected browser suite:** **282 tests** (281 baseline plus one descriptor-contract regression). CI and CodeQL for the QA233 test commit are pending.
+- **Interpretation:** synthetic in-process characterization of JavaScript property descriptor behavior and SQL metadata compatibility. It does not establish a production exploit or confirmed vulnerability.
+- **Canonical register note:** the canonical `docs/QIMA_V1_FUNCTION_REGISTER.md` blob is larger than the GitHub file-content connector's supported body response; its existing blob was inspected by metadata but not replaced. This append-only QA addendum is updated to preserve history without risking truncation of the canonical register.
+- **Safety:** no application runtime, SQL, Supabase production data, migration, policy, production configuration, production deployment, merge, or branch-protection setting is changed.
