@@ -5298,3 +5298,12 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **Scope:** tests only; no runtime change and no change to the `ActionResult.result` nested-data contract. Expected browser suite: **273 tests** (270 baseline plus three reflection-trap cases); new CI validation pending at commit time.
 - **Interpretation:** these are synthetic in-process tests of JavaScript Proxy reflection behavior. They validate exception normalization but do not establish a production exploit or confirmed vulnerability.
 - **Safety:** no Supabase production data, migration, policy, production configuration, production deployment, merge, or branch-protection setting was changed.
+
+
+## QA228 first CI correction — 6 November 2026 (16:17 KST)
+
+- **First validation:** QIMA CI #853 [run 42179815974](https://github.com/meridane/QimaTrade-MVP/actions/runs/42179815974) started on commit `5b97f5214f65b1070cdf4813547e8850f82e10a5`. Dependency installation and npm audit completed; TypeScript then failed at `tests/e2e/action-engine.spec.ts:1421` with TS2749 because `Proxy` is a runtime constructor value, not a generic TypeScript type. The build and Playwright steps were skipped after the typecheck failure. This is a test-fixture typing error, not a runtime failure. The separate PostgreSQL job was still running when this correction was prepared.
+- **Correction:** change the scenario factory return annotation from `Proxy<ActionResult>` to `ActionResult`. The built-in `Proxy` constructor preserves the target's static type, so this accurately types the returned proxy without inventing a generic `Proxy<T>` type.
+- **Scope:** test typing only; no engine/runtime change. The three reflection-trap scenarios remain unchanged. A new CI/CodeQL validation is expected on the correction commit.
+- **Security interpretation:** synthetic regression tests only; no production exploit or confirmed vulnerability is asserted.
+- **Safety:** no Supabase production data, migration, policy, production configuration, production deployment, merge, or branch-protection setting was changed.

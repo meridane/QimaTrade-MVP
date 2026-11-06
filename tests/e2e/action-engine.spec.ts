@@ -1418,7 +1418,7 @@ test("executeAction rejects a revoked Proxy handler registry without leaking ref
 
 const actionResultReflectionTrapScenarios: Array<{
   name: string;
-  createProxy: (target: ActionResult, onTrap: () => void) => Proxy<ActionResult>;
+  createProxy: (target: ActionResult, onTrap: () => void) => ActionResult;
 }> = [
   {
     name: "has trap",
