@@ -5479,3 +5479,12 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **Vercel:** the commit status reports `Deployment rate limited — retry in 24 hours` with `upgradeToPro=build-rate-limit`. No Preview for this HEAD is claimed; the quota was not bypassed.
 - **Interpretation:** this validates the callback handler's control flow using an injected fake Supabase client. It is not a live Google OAuth exchange, a production Supabase test, evidence of an open redirect, or proof of a confirmed vulnerability.
 - **Safety:** no Supabase production data, production migration, RLS policy, production configuration, production deployment, PR merge, or branch-protection setting is changed.
+
+## QA242 — documentation HEAD validation (7 November 2026)
+
+- **Documentation commit:** [`c343180`](https://github.com/meridane/QimaTrade-MVP/commit/c343180bb91de59313519c19a8553010da6bda02), which adds QA242 to both registers.
+- **QIMA CI #883:** [run 42296537775](https://github.com/meridane/QimaTrade-MVP/actions/runs/42296537775) completed successfully on documentation HEAD `c343180bb91de59313519c19a8553010da6bda02`. The browser job reports **295 passed (5.9 s), 0 failed**. Dependency installation, npm audit enforcement at the configured `high` threshold, TypeScript, Next.js production build, Chromium installation, browser tests, audit/lockfile artifact uploads, isolated CREATE_OFFER PostgreSQL integration/concurrency tests, and both RLS regression jobs all succeeded.
+- **QIMA CodeQL #837:** [run 42296537771](https://github.com/meridane/QimaTrade-MVP/actions/runs/42296537771) completed successfully on the same documentation HEAD.
+- **Vercel:** commit status remains `failure` with description `Deployment rate limited — retry in 24 hours` and target `upgradeToPro=build-rate-limit`. This is a provider quota limitation; no Preview for this HEAD is claimed and no quota bypass was attempted.
+- **Interpretation:** these checks validate the register-updated PR HEAD. QA242's functional code and four callback tests were independently validated by CI #882 (295/295) and CodeQL #836.
+- **Safety:** no production Supabase data, production migration, RLS policy, production configuration, production deployment, PR merge, or branch-protection setting is changed.
