@@ -5158,3 +5158,13 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **Vercel on exact QA222 HEAD:** GitHub combined status is **FAILURE** with target `https://vercel.com/bmk1?upgradeToPro=build-rate-limit`. This is the existing Preview build-rate-limit/availability condition, not a failed Next.js build; the GitHub Actions production build succeeded. No production deployment was attempted.
 - **Conclusion:** QA222 is validated by CI #838 (251/251), isolated PostgreSQL and RLS tests, and CodeQL #793. The Vercel Preview check is blocked by the provider quota/availability status.
 - **Scope/safety:** no SQL migration, Supabase production data, policy, production configuration, production deployment, merge, or branch-protection setting was changed.
+
+
+## QA222 — final documentation-head reconciliation (6 November 2026, 11:20 KST)
+
+- **Documentation-only HEAD:** `a614a75bcad78683ce69be3f939d2c6fd55be80e` updated both function registers after QA222 code/test validation. No application or test source changed in this documentation-only update.
+- **QIMA CI #839** [run 42149817898](https://github.com/meridane/QimaTrade-MVP/actions/runs/42149817898) — **SUCCESS**; the browser job log confirms **251/251 Playwright tests passed (5.7 s)** with 0 failed test lines. Both jobs succeeded, including npm ci/audit, TypeScript, Next.js production build, Chromium, Playwright, isolated PostgreSQL CREATE_OFFER/concurrency/idempotency, legacy-message RLS, and participant self-enrollment RLS.
+- **QIMA CodeQL #794** [run 42149817794](https://github.com/meridane/QimaTrade-MVP/actions/runs/42149817794) — **SUCCESS**.
+- **Vercel on exact documentation-only SHA:** GitHub combined status is **FAILURE** with target `https://vercel.com/bmk1?upgradeToPro=build-rate-limit`. This is the Preview build-rate-limit/availability condition, not a failed application build; the GitHub Actions production build succeeded. No production deployment was attempted.
+- **Conclusion:** the QA222 code/test SHA is validated by CI #838 (251/251), PostgreSQL/RLS, and CodeQL #793. The documentation-only HEAD `a614a75` is independently validated by CI #839 and CodeQL #794. Vercel Preview remains unavailable due the quota status.
+- **Safety:** no production Supabase data, migration, policy, configuration, production deployment, merge, or branch-protection setting was changed.
