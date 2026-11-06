@@ -554,3 +554,85 @@ test("executeAction preserves a string rejection from a handler without retrying
   expect(definitionLookups).toBe(1);
   expect(handlerCalls).toBe(1);
 });
+
+
+const invalidActionResults: Array<{ label: string; result: unknown }> = [
+  { label: "null", result: null },
+  { label: "missing executionId", result: { status: "succeeded" } },
+  { label: "blank executionId", result: { executionId: "   ", status: "succeeded" } },
+  { label: "unsupported status", result: { executionId: "execution-1", status: "running" } },
+];
+
+for (const invalidCase of invalidActionResults) {
+  test(`executeAction rejects a handler result with ${invalidCase.label}`, async () => {
+    const context: ActionContext = {
+      userId: "user-1",
+      tenantId: "tenant-1",
+      actionKey: "CREATE_OFFER",
+      actionVersion: 1,
+      objectType: "TestObject",
+      objectId: "object-1",
+      correlationId: "correlation-1",
+      idempotencyKey: "idempotency-1",
+    };
+    const input: ActionInput = { demandId: "demand-1", quantity: 3 };
+    let definitionLookups = 0;
+    let handlerCalls = 0;
+
+    const handlers: Record<string, ActionHandler> = {
+      CREATE_OFFER: async () => {
+        handlerCalls += 1;
+        return invalidCase.result as ActionResult;
+      },
+    };
+
+    await expect(
+      executeAction(context, input, {
+        getDefinition: async (actionKey, version) => {
+          definitionLookups += 1;
+          return { actionKey, version, status: "published" };
+        },
+        handlers,
+      }),
+    ).rejects.toThrow("ACTION_RESULT_INVALID");
+
+    expect(definitionLookups).toBe(1);
+    expect(handlerCalls).toBe(1);
+  });
+}
+
+test("executeAction accepts a valid failed ActionResult", async () => {
+  const context: ActionContext = {
+    userId: "user-1",
+    tenantId: "tenant-1",
+    actionKey: "CREATE_OFFER",
+    actionVersion: 1,
+    objectType: "TestObject",
+    objectId: "object-1",
+    correlationId: "correlation-1",
+    idempotencyKey: "idempotency-1",
+  };
+  const input: ActionInput = { demandId: "demand-1", quantity: 3 };
+  const expectedResult: ActionResult = {
+    executionId: "execution-failed-1",
+    status: "failed",
+  };
+  let handlerCalls = 0;
+
+  const result = await executeAction(context, input, {
+    getDefinition: async (actionKey, version) => ({
+      actionKey,
+      version,
+      status: "published",
+    }),
+    handlers: {
+      CREATE_OFFER: async () => {
+        handlerCalls += 1;
+        return expectedResult;
+      },
+    },
+  });
+
+  expect(handlerCalls).toBe(1);
+  expect(result).toBe(expectedResult);
+});

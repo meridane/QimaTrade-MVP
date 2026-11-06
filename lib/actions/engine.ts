@@ -24,6 +24,19 @@ export type ActionEngineDependencies = {
   handlers: Record<string, ActionHandler>;
 };
 
+function isActionResult(value: unknown): value is ActionResult {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) return false;
+
+  const candidate = value as Record<string, unknown>;
+  return (
+    Object.prototype.hasOwnProperty.call(candidate, "executionId") &&
+    typeof candidate.executionId === "string" &&
+    candidate.executionId.trim().length > 0 &&
+    Object.prototype.hasOwnProperty.call(candidate, "status") &&
+    (candidate.status === "succeeded" || candidate.status === "failed")
+  );
+}
+
 export async function executeAction(
   context: ActionContext,
   input: ActionInput,
@@ -48,5 +61,8 @@ export async function executeAction(
   const handler = hasOwnHandler ? handlers[context.actionKey] : undefined;
   if (typeof handler !== "function") throw new Error("ACTION_HANDLER_NOT_FOUND");
 
-  return handler(context, input);
+  const result: unknown = await handler(context, input);
+  if (!isActionResult(result)) throw new Error("ACTION_RESULT_INVALID");
+
+  return result;
 }
