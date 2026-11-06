@@ -654,3 +654,43 @@ test("executeAction accepts a valid failed ActionResult", async () => {
   expect(handlerCalls).toBe(1);
   expect(result).toBe(expectedResult);
 });
+
+
+test("executeAction accepts the CREATE_OFFER SQL result shape without optional result", async () => {
+  const context: ActionContext = {
+    userId: "user-1",
+    tenantId: "tenant-1",
+    actionKey: "CREATE_OFFER",
+    actionVersion: 1,
+    objectType: "Demand",
+    objectId: "demand-1",
+    correlationId: "correlation-1",
+    idempotencyKey: "idempotency-1",
+  };
+  const input: ActionInput = { demandId: "demand-1" };
+  const expectedResult: ActionResult & { objectType: string } = {
+    executionId: "10000000-0000-4000-8000-000000000001",
+    status: "succeeded",
+    objectType: "Offer",
+    objectId: "70000000-0000-4000-8000-000000000001",
+  };
+  let handlerCalls = 0;
+
+  const result = await executeAction(context, input, {
+    getDefinition: async (actionKey, version) => ({
+      actionKey,
+      version,
+      status: "published",
+    }),
+    handlers: {
+      CREATE_OFFER: async () => {
+        handlerCalls += 1;
+        return expectedResult;
+      },
+    },
+  });
+
+  expect(handlerCalls).toBe(1);
+  expect(result).toEqual(expectedResult);
+  expect(Object.prototype.hasOwnProperty.call(result, "result")).toBe(false);
+});
