@@ -197,3 +197,13 @@ test("Supabase SSR middleware explicitly uses the Node.js runtime", () => {
     "/request/:path*",
   ]);
 });
+
+
+test("protected route redirects preserve the original query string", async ({ page }) => {
+  const requestedPath = "/demands?search=steel&sort=recent";
+  await page.goto(requestedPath);
+
+  await expect(page).toHaveURL(/\\/login\\?/);
+  const loginUrl = new URL(page.url());
+  expect(loginUrl.searchParams.get("next")).toBe(requestedPath);
+});
