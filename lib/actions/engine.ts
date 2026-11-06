@@ -65,51 +65,72 @@ function normalizeActionDefinition(value: unknown): ActionDefinition | null {
   }
 }
 
-function isActionResult(value: unknown): value is ActionResult {
-  if (value === null || typeof value !== "object" || Array.isArray(value)) return false;
+function normalizeActionResult(value: unknown): ActionResult | null {
+  if (value === null || typeof value !== "object") return null;
 
-  const candidate = value as Record<string, unknown>;
-  const hasOwn = (key: string) => Object.prototype.hasOwnProperty.call(candidate, key);
+  try {
+    // Array checks, own-key enumeration, and descriptor inspection can all throw
+    // for hostile or revoked Proxies. Keep the entire boundary exception-safe.
+    if (Array.isArray(value)) return null;
 
-  if (
-    !hasOwn("executionId") ||
-    typeof candidate.executionId !== "string" ||
-    candidate.executionId.trim().length === 0 ||
-    !hasOwn("status") ||
-    (candidate.status !== "succeeded" && candidate.status !== "failed")
-  ) {
-    return false;
+    // Snapshot own data properties so subsequent consumers never read through
+    // the handler's getters or Proxy get trap. Preserve extra SQL result fields
+    // such as objectType, plus non-enumerable and symbol data properties.
+    const normalized: Record<PropertyKey, unknown> = {};
+    for (const key of Reflect.ownKeys(value)) {
+      const descriptor = Object.getOwnPropertyDescriptor(value, key);
+      if (
+        descriptor === undefined ||
+        !Object.prototype.hasOwnProperty.call(descriptor, "value")
+      ) {
+        return null;
+      }
+
+      Object.defineProperty(normalized, key, {
+        value: descriptor.value,
+        enumerable: descriptor.enumerable,
+        configurable: true,
+        writable: true,
+      });
+    }
+
+    const hasOwn = (key: string) =>
+      Object.prototype.hasOwnProperty.call(normalized, key);
+
+    if (
+      !hasOwn("executionId") ||
+      typeof normalized.executionId !== "string" ||
+      normalized.executionId.trim().length === 0 ||
+      !hasOwn("status") ||
+      (normalized.status !== "succeeded" && normalized.status !== "failed")
+    ) {
+      return null;
+    }
+
+    if (
+      hasOwn("objectId") &&
+      normalized.objectId !== undefined &&
+      normalized.objectId !== null &&
+      typeof normalized.objectId !== "string"
+    ) {
+      return null;
+    }
+
+    if (
+      hasOwn("result") &&
+      normalized.result !== undefined &&
+      (normalized.result === null ||
+        typeof normalized.result !== "object" ||
+        Array.isArray(normalized.result))
+    ) {
+      return null;
+    }
+
+    return normalized as ActionResult;
+  } catch {
+    // Revoked proxies and throwing reflection traps are invalid results.
+    return null;
   }
-
-  // Optional contract fields must be own properties when present. Otherwise
-  // callers can observe inherited values that JSON serialization omits.
-  if (
-    ("objectId" in candidate && !hasOwn("objectId")) ||
-    ("result" in candidate && !hasOwn("result"))
-  ) {
-    return false;
-  }
-
-  if (
-    hasOwn("objectId") &&
-    candidate.objectId !== undefined &&
-    candidate.objectId !== null &&
-    typeof candidate.objectId !== "string"
-  ) {
-    return false;
-  }
-
-  if (
-    hasOwn("result") &&
-    candidate.result !== undefined &&
-    (candidate.result === null ||
-      typeof candidate.result !== "object" ||
-      Array.isArray(candidate.result))
-  ) {
-    return false;
-  }
-
-  return true;
 }
 
 export async function executeAction(
@@ -140,8 +161,8 @@ export async function executeAction(
   const handler = hasOwnHandler ? handlers[context.actionKey] : undefined;
   if (typeof handler !== "function") throw new Error("ACTION_HANDLER_NOT_FOUND");
 
-  const result: unknown = await handler(context, input);
-  if (!isActionResult(result)) throw new Error("ACTION_RESULT_INVALID");
+  const result = normalizeActionResult(await handler(context, input));
+  if (!result) throw new Error("ACTION_RESULT_INVALID");
 
   return result;
 }
