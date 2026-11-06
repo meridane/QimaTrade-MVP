@@ -5318,3 +5318,13 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **Browser log note:** a transient `ECONNRESET: Auth network connection reset` line appeared during Playwright, but the suite completed with 273 passed and the browser job succeeded. No test failure is associated with that line.
 - **Security interpretation:** the three cases are synthetic in-process Proxy reflection tests. They verify exception normalization only and do not establish a production exploit or confirmed vulnerability.
 - **Safety:** no Supabase production data, migration, policy, production configuration, production deployment, merge, or branch-protection setting was changed.
+
+
+## QA229 — handler thenable boundary regression tests — 6 November 2026 (17:39 KST)
+
+- **Starting point:** PR #26 head `427ae360d451219e7871c1264b88a7f3f7d8e981`, branch `fix/create-offer-status-contract`. The PR remains open and draft. QA228 was reconciled against GitHub: QIMA CI #855 [run 42180227471](https://github.com/meridane/QimaTrade-MVP/actions/runs/42180227471) completed successfully with **273 Playwright tests passed**; TypeScript, production build, npm audit, and isolated CREATE_OFFER PostgreSQL/RLS jobs succeeded. CodeQL #810 [run 42180227496](https://github.com/meridane/QimaTrade-MVP/actions/runs/42180227496) succeeded.
+- **Preview note:** the Vercel status on `427ae360d451219e7871c1264b88a7f3f7d8e981` is `failure` with target `build-rate-limit`. This is a provider quota limitation, not evidence of a source build failure; GitHub Actions production build succeeded on the same head.
+- **Scope:** tests only. Add three focused cases at the `executeAction` handler boundary: (1) a custom thenable resolving a valid ActionResult is awaited and then normalized into a detached result; (2) a thenable resolving an invalid ActionResult is rejected as `ACTION_RESULT_INVALID`; and (3) a throwing `then` accessor is propagated as the original rejection, with exactly one definition lookup and one handler invocation. This records the existing Promise-assimilation contract without changing runtime semantics.
+- **Expected browser suite:** **276 tests** (273 baseline plus three thenable-boundary cases). CI and CodeQL validation for the new commit are pending at this entry.
+- **Interpretation:** these are synthetic in-process tests of JavaScript Promise/thenable assimilation and the engine boundary. They do not establish a production exploit or confirmed vulnerability.
+- **Safety:** no application runtime, SQL, Supabase production data, migration, policy, production configuration, production deployment, merge, or branch-protection setting is changed.

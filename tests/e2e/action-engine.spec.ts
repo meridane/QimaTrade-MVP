@@ -1506,3 +1506,138 @@ for (const scenario of actionResultReflectionTrapScenarios) {
     expect(reflectionTrapCalls).toBe(1);
   });
 }
+
+
+test("executeAction awaits a custom handler thenable before normalizing its resolved result", async () => {
+  const context: ActionContext = {
+    userId: "user-1",
+    tenantId: "tenant-1",
+    actionKey: "CREATE_OFFER",
+    actionVersion: 1,
+    objectType: "TestObject",
+    objectId: "object-1",
+    correlationId: "correlation-1",
+    idempotencyKey: "idempotency-1",
+  };
+  const input: ActionInput = { demandId: "demand-1" };
+  const expectedResult: ActionResult = {
+    executionId: "execution-custom-thenable",
+    status: "succeeded",
+    objectId: "offer-thenable",
+  };
+  let definitionLookups = 0;
+  let handlerCalls = 0;
+  let thenCalls = 0;
+  const thenable = {
+    then(resolve: (value: ActionResult) => void) {
+      thenCalls += 1;
+      resolve(expectedResult);
+    },
+  };
+  const handler = (() => {
+    handlerCalls += 1;
+    return thenable as unknown as Promise<ActionResult>;
+  }) as ActionHandler;
+
+  const result = await executeAction(context, input, {
+    getDefinition: async (actionKey, version) => {
+      definitionLookups += 1;
+      return { actionKey, version, status: "published" };
+    },
+    handlers: { CREATE_OFFER: handler },
+  });
+
+  expect(definitionLookups).toBe(1);
+  expect(handlerCalls).toBe(1);
+  expect(thenCalls).toBe(1);
+  expect(result).toEqual(expectedResult);
+  expect(result).not.toBe(expectedResult);
+});
+
+test("executeAction validates the ActionResult resolved by a custom handler thenable", async () => {
+  const context: ActionContext = {
+    userId: "user-1",
+    tenantId: "tenant-1",
+    actionKey: "CREATE_OFFER",
+    actionVersion: 1,
+    objectType: "TestObject",
+    objectId: "object-1",
+    correlationId: "correlation-1",
+    idempotencyKey: "idempotency-1",
+  };
+  const input: ActionInput = { demandId: "demand-1" };
+  const invalidResult = {
+    executionId: "execution-invalid-thenable",
+    status: "running",
+  } as unknown as ActionResult;
+  let definitionLookups = 0;
+  let handlerCalls = 0;
+  let thenCalls = 0;
+  const thenable = {
+    then(resolve: (value: ActionResult) => void) {
+      thenCalls += 1;
+      resolve(invalidResult);
+    },
+  };
+  const handler = (() => {
+    handlerCalls += 1;
+    return thenable as unknown as Promise<ActionResult>;
+  }) as ActionHandler;
+
+  await expect(
+    executeAction(context, input, {
+      getDefinition: async (actionKey, version) => {
+        definitionLookups += 1;
+        return { actionKey, version, status: "published" };
+      },
+      handlers: { CREATE_OFFER: handler },
+    }),
+  ).rejects.toThrow("ACTION_RESULT_INVALID");
+
+  expect(definitionLookups).toBe(1);
+  expect(handlerCalls).toBe(1);
+  expect(thenCalls).toBe(1);
+});
+
+test("executeAction preserves a throwing handler then accessor without retrying", async () => {
+  const context: ActionContext = {
+    userId: "user-1",
+    tenantId: "tenant-1",
+    actionKey: "CREATE_OFFER",
+    actionVersion: 1,
+    objectType: "TestObject",
+    objectId: "object-1",
+    correlationId: "correlation-1",
+    idempotencyKey: "idempotency-1",
+  };
+  const input: ActionInput = { demandId: "demand-1" };
+  const expectedError = new Error("HANDLER_THENABLE_GETTER_THROWN");
+  let definitionLookups = 0;
+  let handlerCalls = 0;
+  let thenGetterCalls = 0;
+  const thenable = Object.defineProperty({}, "then", {
+    configurable: true,
+    get: () => {
+      thenGetterCalls += 1;
+      throw expectedError;
+    },
+  });
+  const handler = (() => {
+    handlerCalls += 1;
+    return thenable as unknown as Promise<ActionResult>;
+  }) as ActionHandler;
+
+  await expect(
+    executeAction(context, input, {
+      getDefinition: async (actionKey, version) => {
+        definitionLookups += 1;
+        return { actionKey, version, status: "published" };
+      },
+      handlers: { CREATE_OFFER: handler },
+    }),
+  ).rejects.toBe(expectedError);
+
+  expect(definitionLookups).toBe(1);
+  expect(handlerCalls).toBe(1);
+  expect(thenGetterCalls).toBe(1);
+});
