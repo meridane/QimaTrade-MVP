@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { createSupabaseCookieMethods } from "./cookie-methods";
 
 export async function createSupabaseServerClient() {
   const cookieStore = await cookies();
@@ -12,19 +13,9 @@ export async function createSupabaseServerClient() {
   }
 
   return createServerClient(supabaseUrl, supabaseAnonKey, {
-    cookies: {
-      getAll() {
-        return cookieStore.getAll();
-      },
-      setAll(cookiesToSet) {
-        try {
-          cookiesToSet.forEach(({ name, value, options }) => {
-            cookieStore.set(name, value, options);
-          });
-        } catch {
-          // Server Components may not be able to mutate cookies.
-        }
-      },
-    },
+    cookies: createSupabaseCookieMethods({
+      getAll: () => cookieStore.getAll(),
+      set: (name, value, options) => cookieStore.set(name, value, options),
+    }),
   });
 }
