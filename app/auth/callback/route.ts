@@ -1,20 +1,6 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getSafeRedirectUrl } from "@/lib/auth/safe-redirect";
 import { NextResponse } from "next/server";
-
-function getSafeRedirectUrl(next: string | null, origin: string) {
-  const fallback = new URL("/demands", origin);
-
-  if (!next || !next.startsWith("/") || next.startsWith("//")) {
-    return fallback;
-  }
-
-  try {
-    const candidate = new URL(next, origin);
-    return candidate.origin === origin ? candidate : fallback;
-  } catch {
-    return fallback;
-  }
-}
 
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
