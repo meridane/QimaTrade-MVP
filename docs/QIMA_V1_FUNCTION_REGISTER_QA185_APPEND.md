@@ -1003,3 +1003,17 @@ The canonical register's QA184 tail was inspected from commit `0eca4833bae236f32
 - **Vercel on exact SHA `6e8876296e955b45166cc06b59ae6a9242bfcdbf`:** combined status **FAILURE** with `build-rate-limit` target. This remains a Preview quota/availability limitation; the GitHub Actions build succeeded and no production deployment was attempted.
 - **Conclusion:** the QA222 implementation and the two-register documentation head are validated by CI #840 (251/251), PostgreSQL/RLS, and CodeQL #795. Vercel Preview remains unavailable due the quota status.
 - **Safety:** no production Supabase data, migration, policy, configuration, production deployment, merge, or branch-protection setting was changed.
+
+
+## QA223 — reject inherited optional ActionResult fields (6 November 2026, 11:30 KST)
+
+- **Starting PR state:** PR #26 open, draft, unmerged and mergeable. Starting HEAD `fe316517c16b718c333d1d386df80708d779d6ed`; branch `fix/create-offer-status-contract` is 792 commits ahead of `main`, 0 behind, with 44 files in the overall PR diff.
+- **Baseline:** QIMA CI #841 (run 42150231426) and QIMA CodeQL #796 (run 42150231537) both completed successfully. CI #840 confirms 251/251 browser tests for the QA222 code/test baseline. Vercel on the starting HEAD reports `build-rate-limit`; treat this as Preview quota/availability, not an application build failure.
+- **Gap:** the `ActionResult` guard checked optional `objectId` and `result` only with own-property checks. An inherited invalid value could therefore be visible to callers while bypassing runtime type validation.
+- **Change:** `lib/actions/engine.ts` now rejects inherited `objectId` or `result` properties while preserving own optional fields and null-prototype objects.
+- **Tests:** `tests/e2e/action-engine.spec.ts` adds two negative regressions (inherited numeric `objectId`, inherited string `result`) and one positive null-prototype result case. Expected suite: 254 tests; pending CI confirmation.
+- **Code commit:** `10f8d1c10c86a220fa5732a6360cb5e0aaea0b6f` on `work/offer-qa-223-action-result-own-optional-fields-20261106-1130`.
+- **Canonical register:** full pre-change content was fetched from blob `c407a09e127b64bb0832631f43eb06297c59187c` (1,181,623 characters) and preserved before appending this entry.
+- **Interpretation:** synthetic in-process cases characterize the runtime contract only; they do not establish a production exploit or vulnerability.
+- **CI/CodeQL:** new-head validation is pending; record final run IDs and outcomes in the next reconciliation.
+- **Safety:** no Supabase production data, migration, policy, production configuration, production deployment, merge, or branch-protection setting is changed.
