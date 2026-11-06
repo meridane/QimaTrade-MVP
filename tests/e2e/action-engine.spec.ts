@@ -1897,3 +1897,82 @@ test("executeAction copies an own __proto__ data field without changing the norm
   });
   expect(Object.getPrototypeOf(result)).not.toBe(protoMetadata);
 });
+
+
+test("executeAction normalizes descriptor mutability while preserving enumerability and SQL metadata", async () => {
+  const context: ActionContext = {
+    userId: "user-1",
+    tenantId: "tenant-1",
+    actionKey: "CREATE_OFFER",
+    actionVersion: 1,
+    objectType: "Demand",
+    objectId: "demand-1",
+    correlationId: "correlation-1",
+    idempotencyKey: "idempotency-1",
+  };
+  const input: ActionInput = { demandId: "demand-1" };
+  const nestedPayload = { offerId: "offer-descriptor-flags" };
+  const expectedResult: ActionResult & { objectType: string } = {
+    executionId: "execution-descriptor-flags",
+    status: "succeeded",
+  };
+  Object.defineProperties(expectedResult, {
+    objectId: {
+      configurable: false,
+      enumerable: false,
+      value: "offer-descriptor-flags",
+      writable: false,
+    },
+    objectType: {
+      configurable: false,
+      enumerable: true,
+      value: "Offer",
+      writable: false,
+    },
+    result: {
+      configurable: false,
+      enumerable: false,
+      value: nestedPayload,
+      writable: false,
+    },
+  });
+  let handlerCalls = 0;
+
+  const result = await executeAction(context, input, {
+    getDefinition: async (actionKey, version) => ({
+      actionKey,
+      version,
+      status: "published",
+    }),
+    handlers: {
+      CREATE_OFFER: async () => {
+        handlerCalls += 1;
+        return expectedResult;
+      },
+    },
+  });
+
+  expect(handlerCalls).toBe(1);
+  expect(result).not.toBe(expectedResult);
+  expect(result.objectId).toBe("offer-descriptor-flags");
+  expect((result as ActionResult & { objectType: string }).objectType).toBe("Offer");
+  expect(result.result).toBe(nestedPayload);
+  expect(Object.getOwnPropertyDescriptor(result, "objectId")).toMatchObject({
+    configurable: true,
+    enumerable: false,
+    value: "offer-descriptor-flags",
+    writable: true,
+  });
+  expect(Object.getOwnPropertyDescriptor(result, "objectType")).toMatchObject({
+    configurable: true,
+    enumerable: true,
+    value: "Offer",
+    writable: true,
+  });
+  expect(Object.getOwnPropertyDescriptor(result, "result")).toMatchObject({
+    configurable: true,
+    enumerable: false,
+    value: nestedPayload,
+    writable: true,
+  });
+});
