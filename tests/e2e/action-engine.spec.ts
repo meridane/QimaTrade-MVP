@@ -884,3 +884,62 @@ test("executeAction accepts the CREATE_OFFER SQL result shape without optional r
   expect(result).toEqual(expectedResult);
   expect(Object.prototype.hasOwnProperty.call(result, "result")).toBe(false);
 });
+
+
+const accessorBackedActionDefinitionFields: Array<keyof ActionDefinition> = [
+  "actionKey",
+  "version",
+  "status",
+];
+
+for (const field of accessorBackedActionDefinitionFields) {
+  test(`executeAction rejects an accessor-backed ActionDefinition ${field} without invoking its getter`, async () => {
+    const context: ActionContext = {
+      userId: "user-1",
+      tenantId: "tenant-1",
+      actionKey: "CREATE_OFFER",
+      actionVersion: 1,
+      objectType: "TestObject",
+      objectId: "object-1",
+      correlationId: "correlation-1",
+      idempotencyKey: "idempotency-1",
+    };
+    const input: ActionInput = { demandId: "demand-1" };
+    let definitionLookups = 0;
+    let getterCalls = 0;
+    let handlerCalls = 0;
+    const definition = {
+      actionKey: "CREATE_OFFER",
+      version: 1,
+      status: "published",
+    } as ActionDefinition;
+
+    Object.defineProperty(definition, field, {
+      configurable: true,
+      enumerable: true,
+      get: () => {
+        getterCalls += 1;
+        throw new Error(`ACTION_DEFINITION_${field.toUpperCase()}_GETTER_INVOKED`);
+      },
+    });
+
+    await expect(
+      executeAction(context, input, {
+        getDefinition: async () => {
+          definitionLookups += 1;
+          return definition;
+        },
+        handlers: {
+          CREATE_OFFER: async () => {
+            handlerCalls += 1;
+            return { executionId: "unexpected", status: "succeeded" };
+          },
+        },
+      }),
+    ).rejects.toThrow("ACTION_NOT_PUBLISHED");
+
+    expect(definitionLookups).toBe(1);
+    expect(getterCalls).toBe(0);
+    expect(handlerCalls).toBe(0);
+  });
+}
