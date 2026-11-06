@@ -1080,3 +1080,18 @@ The canonical register's QA184 tail was inspected from commit `0eca4833bae236f32
 - **Expected browser suite:** 266 tests (260 prior baseline plus six QA226 regression cases); confirmation is pending CI #849.
 - **Security interpretation:** these are synthetic in-process tests of object descriptors and Proxy behavior. The earlier test failures and the new passing/pending checks do not establish a production exploit or confirmed vulnerability.
 - **Safety:** no Supabase production data, migration, policy, production configuration, production deployment, merge, or branch-protection setting was changed.
+
+
+## QA226 validation closure — 6 November 2026 (15:58 KST)
+
+- **Final CI:** QIMA CI #850 [run 42172183516](https://github.com/meridane/QimaTrade-MVP/actions/runs/42172183516) completed successfully with **266/266 Playwright tests passed**. npm audit reported 0 vulnerabilities across all severities; TypeScript, Next.js production build, CREATE_OFFER PostgreSQL integration/concurrency, legacy-message RLS and participant self-enrollment RLS passed. A transient `ECONNRESET: Auth network connection reset` appeared in the browser log, but the Playwright suite and job completed successfully.
+- **Other checks:** CodeQL #805 [run 42172183505](https://github.com/meridane/QimaTrade-MVP/actions/runs/42172183505) succeeded. CI #849 [run 42172054978](https://github.com/meridane/QimaTrade-MVP/actions/runs/42172054978) was cancelled during Chromium installation (Playwright skipped); its PostgreSQL/RLS job passed. CodeQL #804 [run 42172055008](https://github.com/meridane/QimaTrade-MVP/actions/runs/42172055008) succeeded.
+- **Preview status:** Vercel on the final QA226 HEAD returned `build-rate-limit`; this is a provider quota limitation, not an application build failure. GitHub Actions production build succeeded.
+- **Security/safety:** synthetic regression evidence only; no production exploit is asserted. No Supabase production data, migration, policy, deployment, merge or branch-protection change.
+
+## QA227 — descriptor-safe action handler registry resolution (6 November 2026, 15:58 KST)
+
+- **Gap:** direct `handlers[actionKey]` lookup could invoke an own getter or Proxy `get` trap. A revoked Proxy could also throw during `Array.isArray` or descriptor inspection.
+- **Runtime:** add `resolveActionHandler` to accept only an own data-property descriptor whose value is a function. Reflection is contained in `try/catch`; malformed, accessor-backed, throwing and revoked registries map to `ACTION_HANDLER_NOT_FOUND`. Null-prototype registries and Proxy registries with ordinary data descriptors remain supported.
+- **Tests:** four regressions cover an own getter (not invoked), a Proxy with a throwing `get` trap (not invoked), a throwing descriptor trap (normalized), and a revoked Proxy registry (normalized). Expected browser suite: 270 tests; CI pending.
+- **Interpretation:** synthetic in-process tests only; no production vulnerability is confirmed. Production Supabase and deployment boundaries remain untouched.
