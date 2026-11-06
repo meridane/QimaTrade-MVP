@@ -5148,3 +5148,13 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **Security interpretation:** inherited-property definitions are deterministic in-process fixtures. The tests characterize runtime contract validation only; they do not establish a production exploit or confirmed vulnerability.
 - **Work branch:** `work/offer-qa-222-action-definition-own-fields-20261106-1116`; runtime commit `c29bc75cb66435560472e458709c74e76aaf51a2`; test commit `6f339ae4aa66280d90e26d4d1d84bdf8855d2e90`. Publication to the PR branch and final CI results are pending.
 - **Safety:** no production Supabase data, migration, policy, configuration, production deployment, merge, or branch-protection setting is changed.
+
+
+## QA222 — final code/test validation reconciliation (6 November 2026, 11:18 KST)
+
+- **Published QA222 commits:** runtime guard `c29bc75cb66435560472e458709c74e76aaf51a2`; regression tests `6f339ae4aa66280d90e26d4d1d84bdf8855d2e90`. Both are included in PR HEAD `05fb176a5378d191080b1987ae11c44f5fd0b8fa`.
+- **QIMA CI #838** [run 42149583689](https://github.com/meridane/QimaTrade-MVP/actions/runs/42149583689) — **SUCCESS**. The browser job log confirms **251/251 Playwright tests passed (5.3 s)** with 0 failed test lines. Both CI jobs succeeded: npm ci, npm audit, TypeScript, Next.js production build, Chromium, Playwright, isolated PostgreSQL CREATE_OFFER integration/concurrency/idempotency, legacy-message RLS, and participant self-enrollment RLS.
+- **QIMA CodeQL #793** [run 42149583686](https://github.com/meridane/QimaTrade-MVP/actions/runs/42149583686) — **SUCCESS**.
+- **Vercel on exact QA222 HEAD:** GitHub combined status is **FAILURE** with target `https://vercel.com/bmk1?upgradeToPro=build-rate-limit`. This is the existing Preview build-rate-limit/availability condition, not a failed Next.js build; the GitHub Actions production build succeeded. No production deployment was attempted.
+- **Conclusion:** QA222 is validated by CI #838 (251/251), isolated PostgreSQL and RLS tests, and CodeQL #793. The Vercel Preview check is blocked by the provider quota/availability status.
+- **Scope/safety:** no SQL migration, Supabase production data, policy, production configuration, production deployment, merge, or branch-protection setting was changed.
