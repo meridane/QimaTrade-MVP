@@ -96,8 +96,15 @@ export async function POST(request: Request) {
     const { data: memberships, error: membershipError } = await supabase.from("dt_memberships").select("tenant_id").eq("user_id", user.id);
     if (membershipError || !memberships?.length) return NextResponse.json({ error: "TENANT_MEMBERSHIP_REQUIRED" }, { status: 403 });
 
-    const tenantIds = [...new Set(memberships.map((membership) => membership.tenant_id).filter(Boolean))];
-    if (tenantIds.length !== 1) {
+    const tenantIds = [...new Set(
+      memberships
+        .map((membership) => typeof membership.tenant_id === "string" ? membership.tenant_id.trim() : "")
+        .filter((tenantId) => tenantId.length > 0),
+    )];
+    if (tenantIds.length === 0) {
+      return NextResponse.json({ error: "TENANT_MEMBERSHIP_REQUIRED" }, { status: 403 });
+    }
+    if (tenantIds.length > 1) {
       return NextResponse.json({ error: "TENANT_SELECTION_REQUIRED", message: "Select an active tenant before creating an offer." }, { status: 409 });
     }
     const tenantId = tenantIds[0];
