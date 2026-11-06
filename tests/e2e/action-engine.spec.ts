@@ -1052,14 +1052,12 @@ test("executeAction normalizes a revoked proxy ActionDefinition as unpublished",
     idempotencyKey: "idempotency-1",
   };
   const input: ActionInput = { demandId: "demand-1" };
-  const revocable = Proxy.revocable(
-    {
-      actionKey: "CREATE_OFFER",
-      version: 1,
-      status: "published",
-    },
-    {},
-  );
+  const revocableTarget: ActionDefinition = {
+    actionKey: "CREATE_OFFER",
+    version: 1,
+    status: "published",
+  };
+  const revocable = Proxy.revocable(revocableTarget, {});
   revocable.revoke();
   let handlerCalls = 0;
 
