@@ -145,6 +145,30 @@ function normalizeActionResult(value: unknown): ActionResult | null {
   }
 }
 
+function resolveActionHandler(value: unknown, actionKey: string): ActionHandler | null {
+  if (value === null || typeof value !== "object") return null;
+
+  try {
+    // A revoked Proxy can throw even during Array.isArray. Resolve only an own
+    // data-property descriptor so handler accessors and Proxy get traps do not run.
+    if (Array.isArray(value)) return null;
+
+    const descriptor = Object.getOwnPropertyDescriptor(value, actionKey);
+    if (
+      descriptor === undefined ||
+      !Object.prototype.hasOwnProperty.call(descriptor, "value") ||
+      typeof descriptor.value !== "function"
+    ) {
+      return null;
+    }
+
+    return descriptor.value as ActionHandler;
+  } catch {
+    // Malformed or revoked handler registries are treated as unregistered.
+    return null;
+  }
+}
+
 export async function executeAction(
   context: ActionContext,
   input: ActionInput,
@@ -164,14 +188,8 @@ export async function executeAction(
     throw new Error("ACTION_NOT_PUBLISHED");
   }
 
-  const handlers = dependencies.handlers;
-  if (!handlers || typeof handlers !== "object" || Array.isArray(handlers)) {
-    throw new Error("ACTION_HANDLER_NOT_FOUND");
-  }
-
-  const hasOwnHandler = Object.prototype.hasOwnProperty.call(handlers, context.actionKey);
-  const handler = hasOwnHandler ? handlers[context.actionKey] : undefined;
-  if (typeof handler !== "function") throw new Error("ACTION_HANDLER_NOT_FOUND");
+  const handler = resolveActionHandler(dependencies.handlers, context.actionKey);
+  if (!handler) throw new Error("ACTION_HANDLER_NOT_FOUND");
 
   const result = normalizeActionResult(await handler(context, input));
   if (!result) throw new Error("ACTION_RESULT_INVALID");
