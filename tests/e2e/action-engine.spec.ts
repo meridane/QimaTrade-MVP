@@ -561,6 +561,22 @@ const invalidActionResults: Array<{ label: string; result: unknown }> = [
   { label: "missing executionId", result: { status: "succeeded" } },
   { label: "blank executionId", result: { executionId: "   ", status: "succeeded" } },
   { label: "unsupported status", result: { executionId: "execution-1", status: "running" } },
+  {
+    label: "non-string objectId",
+    result: { executionId: "execution-1", status: "succeeded", objectId: 42 },
+  },
+  {
+    label: "null result payload",
+    result: { executionId: "execution-1", status: "succeeded", result: null },
+  },
+  {
+    label: "array result payload",
+    result: { executionId: "execution-1", status: "succeeded", result: [] },
+  },
+  {
+    label: "primitive result payload",
+    result: { executionId: "execution-1", status: "succeeded", result: "not-an-object" },
+  },
 ];
 
 for (const invalidCase of invalidActionResults) {
@@ -616,6 +632,8 @@ test("executeAction accepts a valid failed ActionResult", async () => {
   const expectedResult: ActionResult = {
     executionId: "execution-failed-1",
     status: "failed",
+    objectId: null,
+    result: {},
   };
   let handlerCalls = 0;
 
