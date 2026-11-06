@@ -1015,7 +1015,9 @@ test("executeAction validates a proxy ActionDefinition without invoking its get 
   let getTrapCalls = 0;
   let handlerCalls = 0;
   const definition = new Proxy(target, {
-    get() {
+    get(_object, property) {
+      // Promise resolution probes "then"; keep that protocol lookup harmless.
+      if (property === "then") return undefined;
       getTrapCalls += 1;
       throw new Error("ACTION_DEFINITION_GET_TRAP_INVOKED");
     },
@@ -1058,12 +1060,15 @@ test("executeAction normalizes a revoked proxy ActionDefinition as unpublished",
     status: "published",
   };
   const revocable = Proxy.revocable(revocableTarget, {});
+  // Fulfill while the proxy is live so Promise's "then" probe does not itself
+  // throw; revoke before executeAction resumes and inspects the value.
+  const revokedDefinition = Promise.resolve(revocable.proxy);
   revocable.revoke();
   let handlerCalls = 0;
 
   await expect(
     executeAction(context, input, {
-      getDefinition: async () => revocable.proxy,
+      getDefinition: () => revokedDefinition,
       handlers: {
         CREATE_OFFER: async () => {
           handlerCalls += 1;
