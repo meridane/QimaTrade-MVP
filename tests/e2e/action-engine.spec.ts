@@ -85,7 +85,7 @@ test("executeAction invokes a registered handler once with the original context 
   expect(handlerCalls).toBe(1);
   expect(receivedContext).toBe(context);
   expect(receivedInput).toBe(input);
-  expect(result).toBe(expectedResult);
+  expect(result).toEqual(expectedResult);
 });
 
 test("executeAction propagates a registered handler rejection without retrying", async () => {
@@ -801,7 +801,9 @@ test("executeAction accepts a valid null-prototype ActionResult", async () => {
   });
 
   expect(handlerCalls).toBe(1);
-  expect(result).toBe(expectedResult);
+  expect(result).toEqual(expectedResult);
+  expect(result).not.toBe(expectedResult);
+  expect(Object.getPrototypeOf(result)).toBe(Object.prototype);
   expect(result.objectId).toBeNull();
   expect(result.result).toEqual({ source: "regression-test" });
 });
@@ -842,7 +844,163 @@ test("executeAction accepts a valid failed ActionResult", async () => {
   });
 
   expect(handlerCalls).toBe(1);
-  expect(result).toBe(expectedResult);
+  expect(result).toEqual(expectedResult);
+});
+
+
+const accessorBackedActionResultFields: Array<keyof ActionResult> = [
+  "executionId",
+  "status",
+  "objectId",
+  "result",
+];
+
+for (const field of accessorBackedActionResultFields) {
+  test(`executeAction rejects an accessor-backed ActionResult ${field} without invoking its getter`, async () => {
+    const context: ActionContext = {
+      userId: "user-1",
+      tenantId: "tenant-1",
+      actionKey: "CREATE_OFFER",
+      actionVersion: 1,
+      objectType: "TestObject",
+      objectId: "object-1",
+      correlationId: "correlation-1",
+      idempotencyKey: "idempotency-1",
+    };
+    const input: ActionInput = { demandId: "demand-1" };
+    let definitionLookups = 0;
+    let handlerCalls = 0;
+    let getterCalls = 0;
+    const invalidResult = {
+      executionId: "execution-accessor",
+      status: "succeeded" as const,
+      objectId: null,
+      result: { source: "accessor-regression" },
+    };
+
+    Object.defineProperty(invalidResult, field, {
+      configurable: true,
+      enumerable: true,
+      get: () => {
+        getterCalls += 1;
+        throw new Error(`ACTION_RESULT_${String(field).toUpperCase()}_GETTER_INVOKED`);
+      },
+    });
+
+    const handlerResult = Promise.resolve(invalidResult as ActionResult);
+    await expect(
+      executeAction(context, input, {
+        getDefinition: async (actionKey, version) => {
+          definitionLookups += 1;
+          return { actionKey, version, status: "published" };
+        },
+        handlers: {
+          CREATE_OFFER: () => {
+            handlerCalls += 1;
+            return handlerResult;
+          },
+        },
+      }),
+    ).rejects.toThrow("ACTION_RESULT_INVALID");
+
+    expect(definitionLookups).toBe(1);
+    expect(handlerCalls).toBe(1);
+    expect(getterCalls).toBe(0);
+  });
+}
+
+test("executeAction snapshots a Proxy ActionResult without invoking its get trap", async () => {
+  const context: ActionContext = {
+    userId: "user-1",
+    tenantId: "tenant-1",
+    actionKey: "CREATE_OFFER",
+    actionVersion: 1,
+    objectType: "TestObject",
+    objectId: "object-1",
+    correlationId: "correlation-1",
+    idempotencyKey: "idempotency-1",
+  };
+  const input: ActionInput = { demandId: "demand-1" };
+  const target: ActionResult & { objectType: string } = {
+    executionId: "execution-proxy-result",
+    status: "succeeded",
+    objectId: "offer-1",
+    objectType: "Offer",
+    result: { source: "proxy-regression" },
+  };
+  let getTrapCalls = 0;
+  let handlerCalls = 0;
+  const proxy = new Proxy(target, {
+    get(_object, property) {
+      // Promise resolution probes "then" before the engine receives the value.
+      if (property === "then") return undefined;
+      getTrapCalls += 1;
+      throw new Error("ACTION_RESULT_GET_TRAP_INVOKED");
+    },
+  });
+  const handlerResult = Promise.resolve(proxy);
+
+  const result = await executeAction(context, input, {
+    getDefinition: async (actionKey, version) => ({
+      actionKey,
+      version,
+      status: "published",
+    }),
+    handlers: {
+      CREATE_OFFER: () => {
+        handlerCalls += 1;
+        return handlerResult;
+      },
+    },
+  });
+
+  expect(result).toEqual(target);
+  expect(result).not.toBe(proxy);
+  expect(result.objectId).toBe("offer-1");
+  expect((result as ActionResult & { objectType: string }).objectType).toBe("Offer");
+  expect(getTrapCalls).toBe(0);
+  expect(handlerCalls).toBe(1);
+});
+
+test("executeAction rejects a revoked Proxy ActionResult without leaking reflection errors", async () => {
+  const context: ActionContext = {
+    userId: "user-1",
+    tenantId: "tenant-1",
+    actionKey: "CREATE_OFFER",
+    actionVersion: 1,
+    objectType: "TestObject",
+    objectId: "object-1",
+    correlationId: "correlation-1",
+    idempotencyKey: "idempotency-1",
+  };
+  const input: ActionInput = { demandId: "demand-1" };
+  const target: ActionResult = {
+    executionId: "execution-revoked-result",
+    status: "succeeded",
+  };
+  const revocable = Proxy.revocable(target, {});
+  // Fulfill while live, then revoke before executeAction inspects the result.
+  const handlerResult = Promise.resolve(revocable.proxy);
+  revocable.revoke();
+  let handlerCalls = 0;
+
+  await expect(
+    executeAction(context, input, {
+      getDefinition: async (actionKey, version) => ({
+        actionKey,
+        version,
+        status: "published",
+      }),
+      handlers: {
+        CREATE_OFFER: () => {
+          handlerCalls += 1;
+          return handlerResult;
+        },
+      },
+    }),
+  ).rejects.toThrow("ACTION_RESULT_INVALID");
+
+  expect(handlerCalls).toBe(1);
 });
 
 
@@ -1037,7 +1195,7 @@ test("executeAction validates a proxy ActionDefinition without invoking its get 
     },
   });
 
-  expect(result).toBe(expectedResult);
+  expect(result).toEqual(expectedResult);
   expect(getTrapCalls).toBe(0);
   expect(handlerCalls).toBe(1);
 });
