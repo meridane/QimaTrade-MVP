@@ -1095,3 +1095,13 @@ The canonical register's QA184 tail was inspected from commit `0eca4833bae236f32
 - **Runtime:** add `resolveActionHandler` to accept only an own data-property descriptor whose value is a function. Reflection is contained in `try/catch`; malformed, accessor-backed, throwing and revoked registries map to `ACTION_HANDLER_NOT_FOUND`. Null-prototype registries and Proxy registries with ordinary data descriptors remain supported.
 - **Tests:** four regressions cover an own getter (not invoked), a Proxy with a throwing `get` trap (not invoked), a throwing descriptor trap (normalized), and a revoked Proxy registry (normalized). Expected browser suite: 270 tests; CI pending.
 - **Interpretation:** synthetic in-process tests only; no production vulnerability is confirmed. Production Supabase and deployment boundaries remain untouched.
+
+
+## QA227 validation closure — 6 November 2026 (16:08 KST)
+
+- **Final QIMA CI:** CI #851 [run 42178376514](https://github.com/meridane/QimaTrade-MVP/actions/runs/42178376514) completed successfully on QA227 code. The browser job ran **270 tests and all 270 passed** in 6.2 seconds. npm installation, `npm audit --audit-level=high`, TypeScript, Next.js production build and Chromium installation succeeded. The isolated PostgreSQL CREATE_OFFER integration/concurrency suite, legacy-message RLS regression and participant self-enrollment RLS regression all passed.
+- **Browser log note:** a transient `ECONNRESET: Auth network connection reset` line appeared during the run, but Playwright completed with 270 passed and the browser job concluded successfully. No test failure is associated with that log line.
+- **CodeQL:** QIMA CodeQL #806 [run 42178376552](https://github.com/meridane/QimaTrade-MVP/actions/runs/42178376552) completed successfully.
+- **Vercel:** the combined status on the QA227 HEAD remains failure with target `build-rate-limit` (provider/account build quota). GitHub Actions' Next.js production build succeeded; Vercel's quota status is not treated as an application build failure.
+- **Security interpretation:** all new cases are synthetic in-process tests of handler registry descriptors and Proxy behavior. They do not establish a production exploit or confirmed vulnerability.
+- **Safety:** no Supabase production data, migration, policy, production configuration, production deployment, merge, or branch-protection setting was changed.
