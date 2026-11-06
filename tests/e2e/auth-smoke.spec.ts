@@ -218,10 +218,12 @@ test("protected route redirects preserve duplicate, empty, and encoded query val
   const loginUrl = new URL(page.url());
   const next = loginUrl.searchParams.get("next");
 
-  expect(next).toBe(requestedPath);
   expect(next).not.toBeNull();
 
+  // URLSearchParams may serialize an equivalent space as "+" instead of "%20".
+  // Compare the decoded query semantics rather than requiring byte-identical encoding.
   const restoredUrl = new URL(next!, "http://localhost");
+  expect(restoredUrl.pathname).toBe("/demands");
   expect(restoredUrl.searchParams.getAll("tag")).toEqual(["steel", "aluminum"]);
   expect(restoredUrl.searchParams.get("empty")).toBe("");
   expect(restoredUrl.searchParams.get("q")).toBe("stainless steel&pipe=1");
