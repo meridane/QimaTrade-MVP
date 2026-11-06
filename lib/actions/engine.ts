@@ -28,13 +28,38 @@ function isActionResult(value: unknown): value is ActionResult {
   if (value === null || typeof value !== "object" || Array.isArray(value)) return false;
 
   const candidate = value as Record<string, unknown>;
-  return (
-    Object.prototype.hasOwnProperty.call(candidate, "executionId") &&
-    typeof candidate.executionId === "string" &&
-    candidate.executionId.trim().length > 0 &&
-    Object.prototype.hasOwnProperty.call(candidate, "status") &&
-    (candidate.status === "succeeded" || candidate.status === "failed")
-  );
+  const hasOwn = (key: string) => Object.prototype.hasOwnProperty.call(candidate, key);
+
+  if (
+    !hasOwn("executionId") ||
+    typeof candidate.executionId !== "string" ||
+    candidate.executionId.trim().length === 0 ||
+    !hasOwn("status") ||
+    (candidate.status !== "succeeded" && candidate.status !== "failed")
+  ) {
+    return false;
+  }
+
+  if (
+    hasOwn("objectId") &&
+    candidate.objectId !== undefined &&
+    candidate.objectId !== null &&
+    typeof candidate.objectId !== "string"
+  ) {
+    return false;
+  }
+
+  if (
+    hasOwn("result") &&
+    candidate.result !== undefined &&
+    (candidate.result === null ||
+      typeof candidate.result !== "object" ||
+      Array.isArray(candidate.result))
+  ) {
+    return false;
+  }
+
+  return true;
 }
 
 export async function executeAction(
