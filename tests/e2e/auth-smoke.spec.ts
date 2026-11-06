@@ -207,3 +207,23 @@ test("protected route redirects preserve the original query string", async ({ pa
   const loginUrl = new URL(page.url());
   expect(loginUrl.searchParams.get("next")).toBe(requestedPath);
 });
+
+
+test("protected route redirects preserve duplicate, empty, and encoded query values", async ({ page }) => {
+  const requestedPath =
+    "/demands?tag=steel&tag=aluminum&empty=&q=stainless%20steel%26pipe%3D1&unicode=%E9%9B%AA";
+  await page.goto(requestedPath);
+
+  await expect(page).toHaveURL(/login/);
+  const loginUrl = new URL(page.url());
+  const next = loginUrl.searchParams.get("next");
+
+  expect(next).toBe(requestedPath);
+  expect(next).not.toBeNull();
+
+  const restoredUrl = new URL(next!, "http://localhost");
+  expect(restoredUrl.searchParams.getAll("tag")).toEqual(["steel", "aluminum"]);
+  expect(restoredUrl.searchParams.get("empty")).toBe("");
+  expect(restoredUrl.searchParams.get("q")).toBe("stainless steel&pipe=1");
+  expect(restoredUrl.searchParams.get("unicode")).toBe("雪");
+});
