@@ -1017,3 +1017,16 @@ The canonical register's QA184 tail was inspected from commit `0eca4833bae236f32
 - **Interpretation:** synthetic in-process cases characterize the runtime contract only; they do not establish a production exploit or vulnerability.
 - **CI/CodeQL:** new-head validation is pending; record final run IDs and outcomes in the next reconciliation.
 - **Safety:** no Supabase production data, migration, policy, production configuration, production deployment, merge, or branch-protection setting is changed.
+
+
+## QA224 — reject accessor-backed ActionDefinition fields (6 November 2026, 12:00 KST)
+
+- **Starting PR state:** PR #26 is open, draft, unmerged and mergeable. Starting HEAD `f06cebc167d2e883be4c186af13c85a7b5c910e0`; branch `fix/create-offer-status-contract` is 794 commits ahead of `main`, 0 behind, with 44 files in the overall PR diff.
+- **Baseline validation:** QIMA CI #842 [run 42151446470](https://github.com/meridane/QimaTrade-MVP/actions/runs/42151446470) — **SUCCESS**, including **254/254 Playwright tests** (6.7 s), npm ci/audit, TypeScript, Next.js production build, Chromium, and both isolated PostgreSQL/RLS jobs. QIMA CodeQL #797 [run 42151446480](https://github.com/meridane/QimaTrade-MVP/actions/runs/42151446480) — **SUCCESS**. Vercel combined status on the starting HEAD is **FAILURE** with `build-rate-limit`, a Preview quota/availability condition rather than a GitHub Actions build failure.
+- **Review finding:** `isActionDefinition` verified own properties and then read `candidate.actionKey`, `candidate.version`, and `candidate.status`; own accessor properties could therefore execute getters during validation and propagate arbitrary getter exceptions.
+- **Runtime change:** validate the three required fields using own property descriptors and require data descriptors. Accessor-backed definitions are rejected as `ACTION_NOT_PUBLISHED` without invoking getters. Descriptor-inspection exceptions (including proxy traps) are normalized to invalid-definition rejection. Plain JSON objects and valid null-prototype data objects remain supported.
+- **Regression coverage:** three generated tests install a throwing getter on `actionKey`, `version`, or `status`; each asserts the getter is never called, the definition is looked up once, and no handler is invoked. Existing positive null-prototype definition coverage remains unchanged.
+- **Expected browser suite:** 257 tests (254 baseline + three QA224 cases); pending GitHub Actions confirmation.
+- **Security interpretation:** accessor and proxy cases are synthetic in-process fixtures. This verifies the runtime contract and exception boundary only; it does not establish a production exploit or confirmed vulnerability.
+- **Validation after publication:** CI, CodeQL, and Preview outcomes for the QA224 PR HEAD are pending; reconcile exact run IDs and Playwright totals in a subsequent update.
+- **Safety:** no Supabase production data, migration, policy, production configuration, production deployment, merge, or branch-protection setting was changed.
