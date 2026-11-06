@@ -58,6 +58,15 @@ function isActionResult(value: unknown): value is ActionResult {
     return false;
   }
 
+  // Optional contract fields must be own properties when present. Otherwise
+  // callers can observe inherited values that JSON serialization omits.
+  if (
+    ("objectId" in candidate && !hasOwn("objectId")) ||
+    ("result" in candidate && !hasOwn("result"))
+  ) {
+    return false;
+  }
+
   if (
     hasOwn("objectId") &&
     candidate.objectId !== undefined &&

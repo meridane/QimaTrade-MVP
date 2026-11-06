@@ -718,6 +718,95 @@ for (const invalidCase of invalidActionResults) {
   });
 }
 
+const inheritedOptionalActionResultCases: Array<{ label: string; prototype: object }> = [
+  { label: "objectId", prototype: { objectId: 42 } },
+  { label: "result", prototype: { result: "not-an-object" } },
+];
+
+for (const invalidCase of inheritedOptionalActionResultCases) {
+  test(`executeAction rejects an ActionResult with inherited ${invalidCase.label}`, async () => {
+    const context: ActionContext = {
+      userId: "user-1",
+      tenantId: "tenant-1",
+      actionKey: "CREATE_OFFER",
+      actionVersion: 1,
+      objectType: "TestObject",
+      objectId: "object-1",
+      correlationId: "correlation-1",
+      idempotencyKey: "idempotency-1",
+    };
+    const input: ActionInput = { demandId: "demand-1", quantity: 3 };
+    const invalidResult = Object.assign(
+      Object.create(invalidCase.prototype),
+      {
+        executionId: "execution-1",
+        status: "succeeded",
+      },
+    ) as ActionResult;
+    let definitionLookups = 0;
+    let handlerCalls = 0;
+
+    await expect(
+      executeAction(context, input, {
+        getDefinition: async (actionKey, version) => {
+          definitionLookups += 1;
+          return { actionKey, version, status: "published" };
+        },
+        handlers: {
+          CREATE_OFFER: async () => {
+            handlerCalls += 1;
+            return invalidResult;
+          },
+        },
+      }),
+    ).rejects.toThrow("ACTION_RESULT_INVALID");
+
+    expect(definitionLookups).toBe(1);
+    expect(handlerCalls).toBe(1);
+  });
+}
+
+test("executeAction accepts a valid null-prototype ActionResult", async () => {
+  const context: ActionContext = {
+    userId: "user-1",
+    tenantId: "tenant-1",
+    actionKey: "CREATE_OFFER",
+    actionVersion: 1,
+    objectType: "TestObject",
+    objectId: "object-1",
+    correlationId: "correlation-1",
+    idempotencyKey: "idempotency-1",
+  };
+  const input: ActionInput = { demandId: "demand-1", quantity: 3 };
+  const expectedResult = Object.assign(Object.create(null), {
+    executionId: "execution-null-prototype",
+    status: "succeeded",
+    objectId: null,
+    result: { source: "regression-test" },
+  }) as ActionResult;
+  let handlerCalls = 0;
+
+  const result = await executeAction(context, input, {
+    getDefinition: async (actionKey, version) => ({
+      actionKey,
+      version,
+      status: "published",
+    }),
+    handlers: {
+      CREATE_OFFER: async () => {
+        handlerCalls += 1;
+        return expectedResult;
+      },
+    },
+  });
+
+  expect(handlerCalls).toBe(1);
+  expect(result).toBe(expectedResult);
+  expect(result.objectId).toBeNull();
+  expect(result.result).toEqual({ source: "regression-test" });
+});
+
+
 test("executeAction accepts a valid failed ActionResult", async () => {
   const context: ActionContext = {
     userId: "user-1",
