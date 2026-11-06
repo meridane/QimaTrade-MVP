@@ -839,6 +839,30 @@ test("CREATE_OFFER route rejects missing tenant membership before calling RPC", 
   expect(result.requests.some((request) => request.path.startsWith("/rest/v1/rpc/"))).toBe(false);
 });
 
+test("CREATE_OFFER route rejects membership rows without a non-empty tenant ID", async () => {
+  const invalidMembershipSets = [
+    { label: "null-only", rows: [{ tenant_id: null }] },
+    { label: "blank-only", rows: [{ tenant_id: "" }] },
+    { label: "null-and-blank", rows: [{ tenant_id: null }, { tenant_id: "" }] },
+  ];
+
+  for (const { label, rows } of invalidMembershipSets) {
+    const result = await postCreateOffer("USD", {}, undefined, rows);
+
+    expect(result.status, label).toBe(403);
+    expect(result.body, label).toEqual({ error: "TENANT_MEMBERSHIP_REQUIRED" });
+    expect(result.requests.map((request) => request.path), label).toEqual([
+      "/auth/v1/user",
+      "/rest/v1/profiles",
+      "/rest/v1/dt_memberships",
+    ]);
+    expect(
+      result.requests.some((request) => request.path.startsWith("/rest/v1/rpc/")),
+      label,
+    ).toBe(false);
+  }
+});
+
 test("CREATE_OFFER route masks tenant membership lookup diagnostics and stops before RPC access", async () => {
   const result = await postCreateOffer(
     "USD",
