@@ -943,3 +943,137 @@ for (const field of accessorBackedActionDefinitionFields) {
     expect(handlerCalls).toBe(0);
   });
 }
+
+
+test("executeAction rejects an ActionDefinition when a proxy descriptor trap throws", async () => {
+  const context: ActionContext = {
+    userId: "user-1",
+    tenantId: "tenant-1",
+    actionKey: "CREATE_OFFER",
+    actionVersion: 1,
+    objectType: "TestObject",
+    objectId: "object-1",
+    correlationId: "correlation-1",
+    idempotencyKey: "idempotency-1",
+  };
+  const input: ActionInput = { demandId: "demand-1" };
+  const target: ActionDefinition = {
+    actionKey: "CREATE_OFFER",
+    version: 1,
+    status: "published",
+  };
+  let definitionLookups = 0;
+  let descriptorTrapCalls = 0;
+  let handlerCalls = 0;
+  const definition = new Proxy(target, {
+    getOwnPropertyDescriptor(object, property) {
+      if (property === "actionKey") {
+        descriptorTrapCalls += 1;
+        throw new Error("ACTION_DEFINITION_DESCRIPTOR_TRAP_THROWN");
+      }
+      return Reflect.getOwnPropertyDescriptor(object, property);
+    },
+  });
+
+  await expect(
+    executeAction(context, input, {
+      getDefinition: async () => {
+        definitionLookups += 1;
+        return definition;
+      },
+      handlers: {
+        CREATE_OFFER: async () => {
+          handlerCalls += 1;
+          return { executionId: "unexpected", status: "succeeded" };
+        },
+      },
+    }),
+  ).rejects.toThrow("ACTION_NOT_PUBLISHED");
+
+  expect(definitionLookups).toBe(1);
+  expect(descriptorTrapCalls).toBe(1);
+  expect(handlerCalls).toBe(0);
+});
+
+test("executeAction validates a proxy ActionDefinition without invoking its get trap", async () => {
+  const context: ActionContext = {
+    userId: "user-1",
+    tenantId: "tenant-1",
+    actionKey: "CREATE_OFFER",
+    actionVersion: 1,
+    objectType: "TestObject",
+    objectId: "object-1",
+    correlationId: "correlation-1",
+    idempotencyKey: "idempotency-1",
+  };
+  const input: ActionInput = { demandId: "demand-1" };
+  const target: ActionDefinition = {
+    actionKey: "CREATE_OFFER",
+    version: 1,
+    status: "published",
+  };
+  let getTrapCalls = 0;
+  let handlerCalls = 0;
+  const definition = new Proxy(target, {
+    get() {
+      getTrapCalls += 1;
+      throw new Error("ACTION_DEFINITION_GET_TRAP_INVOKED");
+    },
+  });
+  const expectedResult: ActionResult = {
+    executionId: "execution-proxy-definition",
+    status: "succeeded",
+  };
+
+  const result = await executeAction(context, input, {
+    getDefinition: async () => definition,
+    handlers: {
+      CREATE_OFFER: async () => {
+        handlerCalls += 1;
+        return expectedResult;
+      },
+    },
+  });
+
+  expect(result).toBe(expectedResult);
+  expect(getTrapCalls).toBe(0);
+  expect(handlerCalls).toBe(1);
+});
+
+test("executeAction normalizes a revoked proxy ActionDefinition as unpublished", async () => {
+  const context: ActionContext = {
+    userId: "user-1",
+    tenantId: "tenant-1",
+    actionKey: "CREATE_OFFER",
+    actionVersion: 1,
+    objectType: "TestObject",
+    objectId: "object-1",
+    correlationId: "correlation-1",
+    idempotencyKey: "idempotency-1",
+  };
+  const input: ActionInput = { demandId: "demand-1" };
+  const revocable = Proxy.revocable(
+    {
+      actionKey: "CREATE_OFFER",
+      version: 1,
+      status: "published",
+    },
+    {},
+  );
+  revocable.revoke();
+  let handlerCalls = 0;
+
+  await expect(
+    executeAction(context, input, {
+      getDefinition: async () => revocable.proxy,
+      handlers: {
+        CREATE_OFFER: async () => {
+          handlerCalls += 1;
+          return { executionId: "unexpected", status: "succeeded" };
+        },
+      },
+    }),
+  ).rejects.toThrow("ACTION_NOT_PUBLISHED");
+
+  expect(handlerCalls).toBe(0);
+});

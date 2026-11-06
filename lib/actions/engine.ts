@@ -24,32 +24,44 @@ export type ActionEngineDependencies = {
   handlers: Record<string, ActionHandler>;
 };
 
-function isActionDefinition(value: unknown): value is ActionDefinition {
-  if (value === null || typeof value !== "object" || Array.isArray(value)) return false;
+function normalizeActionDefinition(value: unknown): ActionDefinition | null {
+  if (value === null || typeof value !== "object") return null;
 
   try {
+    // Array.isArray can throw for a revoked Proxy, so keep every reflective
+    // operation inside this boundary.
+    if (Array.isArray(value)) return null;
+
     const actionKey = Object.getOwnPropertyDescriptor(value, "actionKey");
     const version = Object.getOwnPropertyDescriptor(value, "version");
     const status = Object.getOwnPropertyDescriptor(value, "status");
 
     // Definitions are data contracts, not executable accessor surfaces. Read
-    // descriptor values so validation never invokes user-provided getters.
-    return (
-      actionKey !== undefined &&
-      Object.prototype.hasOwnProperty.call(actionKey, "value") &&
-      typeof actionKey.value === "string" &&
-      version !== undefined &&
-      Object.prototype.hasOwnProperty.call(version, "value") &&
-      typeof version.value === "number" &&
-      status !== undefined &&
-      Object.prototype.hasOwnProperty.call(status, "value") &&
-      (status.value === "draft" ||
-        status.value === "published" ||
-        status.value === "retired")
-    );
+    // descriptor values and copy them so later checks never invoke Proxy get traps.
+    if (
+      actionKey === undefined ||
+      !Object.prototype.hasOwnProperty.call(actionKey, "value") ||
+      typeof actionKey.value !== "string" ||
+      version === undefined ||
+      !Object.prototype.hasOwnProperty.call(version, "value") ||
+      typeof version.value !== "number" ||
+      status === undefined ||
+      !Object.prototype.hasOwnProperty.call(status, "value") ||
+      (status.value !== "draft" &&
+        status.value !== "published" &&
+        status.value !== "retired")
+    ) {
+      return null;
+    }
+
+    return {
+      actionKey: actionKey.value,
+      version: version.value,
+      status: status.value,
+    };
   } catch {
-    // A proxy may throw while its own property descriptors are inspected.
-    return false;
+    // Revoked proxies and throwing descriptor traps are invalid definitions.
+    return null;
   }
 }
 
@@ -105,9 +117,13 @@ export async function executeAction(
   input: ActionInput,
   dependencies: ActionEngineDependencies,
 ): Promise<ActionResult> {
-  const definition: unknown = await dependencies.getDefinition(context.actionKey, context.actionVersion);
+  const rawDefinition: unknown = await dependencies.getDefinition(
+    context.actionKey,
+    context.actionVersion,
+  );
+  const definition = normalizeActionDefinition(rawDefinition);
   if (
-    !isActionDefinition(definition) ||
+    !definition ||
     definition.status !== "published" ||
     definition.actionKey !== context.actionKey ||
     definition.version !== context.actionVersion
