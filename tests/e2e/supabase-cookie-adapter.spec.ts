@@ -207,6 +207,10 @@ test("Supabase SSR client persists its PKCE verifier through the production cook
         detectSessionInUrl: false,
         persistSession: true,
       },
+      // The test exercises auth cookie storage only and never opens a realtime channel.
+      realtime: {
+        transport: class NoopWebSocket {} as unknown as typeof WebSocket,
+      },
     },
   );
 
