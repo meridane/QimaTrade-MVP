@@ -65,15 +65,35 @@ chmod +x "$MOCK_BIN/psql"
 cat > "$MOCK_BIN/pg_isready" <<'READY'
 #!/usr/bin/env bash
 set -euo pipefail
+count_file="${MOCK_EVENTS}.ready-count"
+ready_count=0
+if [[ -f "$count_file" ]]; then
+  read -r ready_count < "$count_file"
+fi
+ready_count=$((ready_count + 1))
+printf '%s\n' "$ready_count" > "$count_file"
 printf '%s\n' pg-isready >> "$MOCK_EVENTS"
+if [[ "${MOCK_READY_FAIL_FROM_CALL:-0}" =~ ^[0-9]+$ ]] &&
+  (( ${MOCK_READY_FAIL_FROM_CALL:-0} > 0 && ready_count >= MOCK_READY_FAIL_FROM_CALL )); then
+  exit "${MOCK_READY_FAILURE_STATUS:-1}"
+fi
 exit "${MOCK_READY_STATUS:-0}"
 READY
 chmod +x "$MOCK_BIN/pg_isready"
+
+cat > "$MOCK_BIN/sleep" <<'SLEEP'
+#!/usr/bin/env bash
+set -euo pipefail
+printf 'sleep-%s\n' "$*" >> "$MOCK_EVENTS"
+exit "${MOCK_SLEEP_STATUS:-0}"
+SLEEP
+chmod +x "$MOCK_BIN/sleep"
 
 run_restore() {
   local expected_status="$1"
   shift
   : > "$EVENTS"
+  rm -f "$EVENTS.ready-count"
   set +e
   PATH="$MOCK_BIN:$PATH" \
     MOCK_EVENTS="$EVENTS" \
@@ -181,6 +201,40 @@ if [[ "$actual" != "$expected" ]] || ! grep -Fq "PostgreSQL service restart fail
   exit 1
 fi
 
+# QA269-A: PostgreSQL remains unavailable after the successful restart command.
+# The first readiness probe is the pre-reset check; every probe after restart fails.
+# The sleep stub makes all 60 retry attempts deterministic and fast.
+run_restore 1 env MOCK_READY_FAIL_FROM_CALL=2
+if ! grep -Fq "PostgreSQL did not return to max_prepared_transactions=0" "$OUTPUT" ||
+  grep -Fq "QA267 passed" "$OUTPUT" ||
+  [[ "$(grep -Fxc "pg-isready" "$EVENTS" || true)" -ne 61 ]] ||
+  [[ "$(grep -Fxc "sleep-1" "$EVENTS" || true)" -ne 60 ]] ||
+  [[ "$(grep -Fxc "psql-show" "$EVENTS" || true)" -ne 0 ]] ||
+  [[ "$(grep -Fxc "psql-prepared" "$EVENTS" || true)" -ne 0 ]] ||
+  [[ "$(grep -Fxc "psql-database" "$EVENTS" || true)" -ne 0 ]]; then
+  echo "ERROR: unavailable PostgreSQL after restart was not rejected without claiming restoration." >&2
+  cat "$EVENTS" >&2
+  cat "$OUTPUT" >&2
+  exit 1
+fi
+
+# QA269-B: PostgreSQL is reachable after restart but still reports the temporary value.
+# The runner must exhaust the bounded verification loop and must not check residual
+# resources or print the restoration success message.
+run_restore 1 env MOCK_RESTORED_VALUE=10
+if ! grep -Fq "PostgreSQL did not return to max_prepared_transactions=0" "$OUTPUT" ||
+  grep -Fq "QA267 passed" "$OUTPUT" ||
+  [[ "$(grep -Fxc "pg-isready" "$EVENTS" || true)" -ne 61 ]] ||
+  [[ "$(grep -Fxc "sleep-1" "$EVENTS" || true)" -ne 60 ]] ||
+  [[ "$(grep -Fxc "psql-show" "$EVENTS" || true)" -ne 60 ]] ||
+  [[ "$(grep -Fxc "psql-prepared" "$EVENTS" || true)" -ne 0 ]] ||
+  [[ "$(grep -Fxc "psql-database" "$EVENTS" || true)" -ne 0 ]]; then
+  echo "ERROR: an incorrect post-restart configuration was accepted as restored." >&2
+  cat "$EVENTS" >&2
+  cat "$OUTPUT" >&2
+  exit 1
+fi
+
 # The original baseline is explicit; do not reset against an unrecognized value.
 : > "$EVENTS"
 set +e
@@ -201,4 +255,4 @@ if grep -Fq "postgres:postgres" "$OUTPUT"; then
   exit 1
 fi
 
-echo "Prepared-transaction configuration restoration regression passed: reset/restart order, explicit RESET and restart failure handling with original exit codes, no-op behavior, loopback URL guard, single-container guard, baseline guard, and residual-resource detection."
+echo "Prepared-transaction configuration restoration regression passed: reset/restart order, explicit RESET and restart failure handling with original exit codes, post-restart unavailability and wrong-value rejection, no-op behavior, loopback URL guard, single-container guard, baseline guard, and residual-resource detection."
