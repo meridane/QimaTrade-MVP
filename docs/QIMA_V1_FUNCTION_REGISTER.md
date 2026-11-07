@@ -5749,3 +5749,13 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **PR state after code commit:** compare reports 918 commits ahead of `main`, zero behind; 55 changed files. PR remains open and draft.
 - **Safety:** no Supabase production data, migration, RLS policy, production configuration, production deployment, PR merge, or branch-protection setting was changed. No real OAuth secret was used.
 
+
+## QA255 — final documentation-head verification — 7 November 2026
+
+- **Documentation commit:** [`d3be709`](https://github.com/meridane/QimaTrade-MVP/commit/d3be7094a8896dd5264ac1d184a54ab66387f499) updated both complete registers with the QA255 test contract and the code-head validation.
+- **QIMA CI #925:** [run 42369439461](https://github.com/meridane/QimaTrade-MVP/actions/runs/42369439461) completed successfully on documentation head `d3be709`: **321 Playwright tests passed in 6.6 seconds, 0 failed**. npm ci, npm audit (0 info/low/moderate/high/critical findings), TypeScript, Next.js production build, Chromium, isolated CREATE_OFFER PostgreSQL integration/concurrency/idempotency, legacy-messages RLS and participant self-enrollment RLS all succeeded.
+- **QIMA CodeQL #879:** [run 42369439409](https://github.com/meridane/QimaTrade-MVP/actions/runs/42369439409) completed successfully.
+- **Vercel Preview:** combined status on documentation head `d3be709` is successful at [Preview deployment 6vjrsZkNNoQgAhYjMJCVMmC6WqJP](https://vercel.com/bmk1/qimatrade-mvp/6vjrsZkNNoQgAhYjMJCVMmC6WqJP). Preview only; no production deployment.
+- **Register integrity:** both complete Git blobs were re-read after publication; the QA255 implementation and final CI/CodeQL/Preview verification entries are present.
+- **Safety:** no Supabase production data, migration, RLS policy, production configuration, production deployment, PR merge, or branch-protection setting was changed.
+
