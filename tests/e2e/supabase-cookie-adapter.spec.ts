@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { NextResponse } from "next/server";
 import type { CookieOptions } from "@supabase/ssr";
 import { createSupabaseCookieMethods } from "../../lib/supabase/cookie-methods";
 
