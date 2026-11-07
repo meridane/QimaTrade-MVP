@@ -116,7 +116,7 @@ if [[ "$is_assertions" == true ]]; then
     ' </dev/null >/dev/null 2>&1 &
   printf "%s\n" "$!" > "$MOCK_IDLE_READER_PID"
 
-  MOCK_IDLE_FIFO="$MOCK_IDLE_FIFO" MOCK_IDLE_WRITER_READY_FILE="$MOCK_IDLE_WRITER_READY" \
+  MOCK_IDLE_FIFO="$MOCK_IDLE_FIFO" MOCK_IDLE_WRITER_READY_FILE="$MOCK_IDLE_WRITER_READY_FILE" \
     nohup bash -c '
       exec 9>"$MOCK_IDLE_FIFO"
       printf "BEGIN;\nSELECT 1;\n" >&9
