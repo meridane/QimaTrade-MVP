@@ -347,8 +347,8 @@ test("real Next.js OAuth callback falls back for an absolute external next URL",
   const response = await requestQa252OAuthCallback(request, "https://evil.example/phish");
 
   expect(response.status()).toBe(307);
-  const location = new URL(response.headers().location!, "http://127.0.0.1:3000");
-  expect(location.origin).toBe("http://127.0.0.1:3000");
+  const location = new URL(response.headers().location!, response.url());
+  expect(location.origin).toBe(new URL(response.url()).origin);
   expect(location.pathname).toBe("/demands");
   expect(location.href).not.toContain("evil.example");
 });
@@ -359,8 +359,8 @@ test("real Next.js OAuth callback falls back for a protocol-relative external ne
   const response = await requestQa252OAuthCallback(request, "//evil.example/phish");
 
   expect(response.status()).toBe(307);
-  const location = new URL(response.headers().location!, "http://127.0.0.1:3000");
-  expect(location.origin).toBe("http://127.0.0.1:3000");
+  const location = new URL(response.headers().location!, response.url());
+  expect(location.origin).toBe(new URL(response.url()).origin);
   expect(location.pathname).toBe("/demands");
   expect(location.href).not.toContain("evil.example");
 });
@@ -374,8 +374,8 @@ test("real Next.js OAuth callback preserves a safe same-origin next path and que
   );
 
   expect(response.status()).toBe(307);
-  const location = new URL(response.headers().location!, "http://127.0.0.1:3000");
-  expect(location.origin).toBe("http://127.0.0.1:3000");
+  const location = new URL(response.headers().location!, response.url());
+  expect(location.origin).toBe(new URL(response.url()).origin);
   expect(location.pathname).toBe("/offers");
   expect(location.searchParams.get("search")).toBe("steel");
   expect(location.searchParams.get("sort")).toBe("recent");
