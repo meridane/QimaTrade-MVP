@@ -33,6 +33,21 @@ if [[ "${#postgres_containers[@]}" -ne 1 ]]; then
 fi
 container_id="${postgres_containers[0]}"
 
+# Wait for the disposable service before issuing ALTER SYSTEM RESET. This also
+# covers the always() path when the preceding setup step failed during a restart.
+service_ready=false
+for attempt in {1..60}; do
+  if pg_isready -h 127.0.0.1 -p 5432 -U postgres -d qima_test >/dev/null 2>&1; then
+    service_ready=true
+    break
+  fi
+  sleep 1
+done
+if [[ "$service_ready" != true ]]; then
+  echo "::error::The disposable PostgreSQL service did not become ready before configuration restoration." >&2
+  exit 1
+fi
+
 # RESET removes only the ALTER SYSTEM override created by the preceding CI setup step.
 docker exec "$container_id" psql -U postgres -d qima_test -v ON_ERROR_STOP=1 \
   -c "ALTER SYSTEM RESET max_prepared_transactions"

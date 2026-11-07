@@ -92,7 +92,7 @@ run_restore() {
 
 # The successful path must reset, restart, wait, and verify all disposable resources.
 run_restore 0
-expected="$(printf '%s\n' docker-ps docker-exec-reset docker-restart pg-isready psql-show psql-prepared psql-database)"
+expected="$(printf '%s\n' docker-ps pg-isready docker-exec-reset docker-restart pg-isready psql-show psql-prepared psql-database)"
 actual="$(cat "$EVENTS")"
 if [[ "$actual" != "$expected" ]] || ! grep -Fq "returned to baseline 0" "$OUTPUT"; then
   echo "ERROR: restoration did not follow the expected reset/restart/verification sequence." >&2
