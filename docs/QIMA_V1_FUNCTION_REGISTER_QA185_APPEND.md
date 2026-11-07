@@ -1810,3 +1810,6 @@ The canonical register's QA184 tail was inspected from commit `0eca4833bae236f32
 - Vercel's combined status check reported success for code HEAD `f23e57d`; the deployment detail endpoint still reported `BUILDING` with `target=null` at final inspection. No Preview-READY or Production deployment is claimed.
 - **Limit:** this verifies `DROP DATABASE WITH (FORCE)` against an active session on the ephemeral CI PostgreSQL 16 service. It does not prove behavior during server/network failure or persistent DROP permission denial, and it does not establish Supabase production migration parity.
 - No Supabase production data, migration, schema, RLS policy, grant, secret, production deployment, PR merge, or branch-protection setting was touched.
+
+
+- **Final documentation-head verification:** QIMA CI #947 [run 42402085380](https://github.com/meridane/QimaTrade-MVP/actions/runs/42402085380) and CodeQL #900 [run 42402085468](https://github.com/meridane/QimaTrade-MVP/actions/runs/42402085468) both succeeded on HEAD `2d17d868182c44e7bd02d23c80f17c29828359dd`. Playwright: **322/322**; npm audit: zero findings; PostgreSQL QA264 active-session termination and database-absence assertion passed. Vercel's combined check was rate-limited on this documentation HEAD; no Production deployment occurred.
