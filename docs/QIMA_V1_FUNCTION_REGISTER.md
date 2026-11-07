@@ -5719,6 +5719,17 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **CodeQL #875:** [run 42363577711](https://github.com/meridane/QimaTrade-MVP/actions/runs/42363577711) completed successfully; the check reported no new alerts in code changed by the PR.
 - **Vercel:** the Vercel status for code head `3f80ba9` completed successfully at [Preview deployment](https://vercel.com/bmk1/qimatrade-mvp/EDyZD2mL6xj5qBRLLN71d5pBoXPv). This is a Preview, not a production deployment.
 - **Scope limitation:** these tests exercise the self-hosted Next.js 15.5.28 server with an explicit hostname/port and a synthetic local Supabase Auth fixture. They do not exercise Vercel's edge/proxy trust chain, `X-Forwarded-Proto`, a custom production domain, Google OAuth, or production Supabase. No production origin-trust vulnerability is inferred. The deployment's trusted-proxy behaviour remains a separate configuration check.
-- **Documentation-head validation:** this QA entry is a docs-only change. Both `QIMA CI` and `QIMA CodeQL` declare `paths-ignore: docs/**`; therefore the code validation remains CI #921 and CodeQL #875 on code head `3f80ba9`, rather than claiming a new code run for this documentation-only commit.
+- **Workflow filtering:** although both workflows declare `paths-ignore: docs/**`, GitHub evaluates the cumulative PR diff; the PR still includes `tests/e2e/auth-smoke.spec.ts`, so the documentation commit also queued CI #922 and CodeQL #876 on docs head `f0bf1d6`. Both succeeded; see the final verification entry below.
+- **Safety:** no Supabase production data, migration, RLS policy, production configuration, production deployment, PR merge, or branch-protection setting was changed.
+
+## QA254 — final documentation-head verification — 7 November 2026
+
+- **Documentation HEAD:** QA254 tests and both complete register updates are present; this verification is recorded in the following commit.
+- **QIMA CI #922:** [run 42363769870](https://github.com/meridane/QimaTrade-MVP/actions/runs/42363769870) completed successfully on documentation head `f0bf1d6`: **318 Playwright tests passed in 7.2 seconds, 0 failed**. npm installation, npm audit (0 info/low/moderate/high/critical findings), TypeScript, Next.js production build, Chromium installation, isolated CREATE_OFFER PostgreSQL integration/concurrency/idempotency, legacy-messages RLS and participant self-enrollment RLS all succeeded.
+- **QIMA CodeQL #876:** [run 42363769889](https://github.com/meridane/QimaTrade-MVP/actions/runs/42363769889) completed successfully; CodeQL reported no new alerts in code changed by the PR.
+- **Vercel:** Vercel Preview on documentation head `f0bf1d6` completed successfully at [deployment 8EZmJ4JvbHAr4rNP7VvFgyNn17wu](https://vercel.com/bmk1/qimatrade-mvp/8EZmJ4JvbHAr4rNP7VvFgyNn17wu). This is a Preview only, not a production deployment.
+- **Vercel Preview Comments:** success; zero unresolved feedback.
+- **Workflow filtering clarification:** the QIMA CI and CodeQL workflows declare `paths-ignore: docs/**`, but GitHub evaluates the cumulative PR diff. Because PR #26 still contains the QA254 test change in `tests/e2e/auth-smoke.spec.ts`, the documentation commit also triggered CI #922 and CodeQL #876. The earlier wording that implied these workflows would be skipped for this docs commit has been corrected.
+- **Register integrity:** both complete register blobs were fetched before the update, updated without truncation, and re-read after publication; QA254 and this final verification entry are present.
 - **Safety:** no Supabase production data, migration, RLS policy, production configuration, production deployment, PR merge, or branch-protection setting was changed.
 
