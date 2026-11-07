@@ -19,8 +19,13 @@ psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -f "$ROOT/tests/sql/legacy-messages-r
 # The CI PostgreSQL service is isolated; never point this runner at production.
 MIGRATION_DATABASE_NAME="qima_message_migration_test"
 drop_migration_database() {
+  local cleanup_status=0
   psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 \
-    -c "DROP DATABASE IF EXISTS ${MIGRATION_DATABASE_NAME} WITH (FORCE)" >/dev/null 2>&1 || true
+    -c "DROP DATABASE IF EXISTS ${MIGRATION_DATABASE_NAME} WITH (FORCE)" >/dev/null 2>&1 || cleanup_status=$?
+  if [[ "$cleanup_status" -ne 0 ]]; then
+    echo "::warning::Best-effort cleanup of ${MIGRATION_DATABASE_NAME} failed (psql exit ${cleanup_status}); the original migration/test exit status is preserved." >&2
+  fi
+  return 0
 }
 trap drop_migration_database EXIT
 
