@@ -5698,3 +5698,13 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **Scope limitation:** these are real HTTP tests of the local Next.js Route Handler with a synthetic local Supabase Auth server. They verify WHATWG URL normalization and redirect-origin behaviour in CI; they do not contact Google or production Supabase and do not establish a production vulnerability.
 - **Safety:** no Supabase production data, migration, RLS policy, production configuration, production deployment, PR merge, or branch-protection setting was changed.
 
+## QA253 — final documentation-head verification — 7 November 2026
+
+- **Documentation HEAD:** both registers contain the QA253 implementation and its code-head results; the documentation commit is 7fb2e498be1c722209546ef9881b33eab930fb42.
+- **QIMA CI #919:** [run 42359553350](https://github.com/meridane/QimaTrade-MVP/actions/runs/42359553350) completed successfully on documentation HEAD 7fb2e49: **316 Playwright tests passed, 0 failed**. npm installation, npm audit at the configured high threshold, TypeScript, Next.js production build, Chromium installation, isolated CREATE_OFFER PostgreSQL integration/concurrency/idempotency, legacy-messages RLS and participant self-enrollment RLS all succeeded.
+- **QIMA CodeQL #873:** [run 42359553356](https://github.com/meridane/QimaTrade-MVP/actions/runs/42359553356) completed successfully.
+- **PostgreSQL log interpretation:** the job log contains expected test-fixture errors for forced failure recovery and IDEMPOTENCY_KEY_REUSE cases; the SQL regression job and overall workflow concluded successfully. These are asserted negative paths, not workflow failures.
+- **Vercel:** combined status on documentation HEAD 7fb2e49 reports failure with upgradeToPro=build-rate-limit. This is a Preview-provider quota response; the GitHub Actions Next.js build and browser suite succeeded. No quota bypass or production deployment was attempted.
+- **Register integrity:** the full canonical Git blob and the complete QA185 addendum were re-read after publication; the QA253 sections and final verification entries were present.
+- **Safety:** no Supabase production data, migration, RLS policy, production configuration, production deployment, PR merge, or branch-protection setting was changed.
+
