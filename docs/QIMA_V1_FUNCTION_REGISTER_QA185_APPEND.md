@@ -1496,3 +1496,12 @@ The canonical register's QA184 tail was inspected from commit `0eca4833bae236f32
 - **Vercel:** corrected code HEAD status is `failure` with `upgradeToPro=build-rate-limit`; no Preview is claimed for this HEAD. This is a deployment quota, not a CI build failure.
 - **Scope:** actual Supabase SSR client and PKCE generation are exercised, but with placeholder credentials and an in-memory cookie store. No Google/Supabase network exchange, real Next.js Route Handler request context, browser cookie persistence, or production vulnerability is established.
 - **Safety:** no production Supabase data, migration, RLS policy, production configuration, production deployment, merge, or branch-protection setting was changed.
+
+
+## QA248 — final documentation-head verification — 7 November 2026
+
+- **Documentation commit:** [`8e36867`](https://github.com/meridane/QimaTrade-MVP/commit/8e3686798a250df5b00cfeb0cf64ac70ddd9471b) appended the QA247 reconciliation and QA248 results to both registers.
+- **QIMA CI #898:** [run 42333926504](https://github.com/meridane/QimaTrade-MVP/actions/runs/42333926504) completed successfully on documentation HEAD `8e36867`. The browser log confirms **303 passed (6.2 s), 0 failed**. TypeScript, Next.js production build, Chromium, npm audit enforcement at the configured `high` threshold, isolated CREATE_OFFER PostgreSQL integration/concurrency tests, legacy-messages RLS and participant self-enrollment RLS all succeeded.
+- **QIMA CodeQL #852:** [run 42333926398](https://github.com/meridane/QimaTrade-MVP/actions/runs/42333926398) completed successfully.
+- **Vercel:** the status remains `failure` with `upgradeToPro=build-rate-limit`; this is a provider quota limitation, not a failed CI build. No Preview is claimed for documentation HEAD `8e36867`.
+- This run verifies the documentation update; it does not change the QA248 code-test scope or establish live provider/session behavior.

@@ -5585,3 +5585,12 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **Vercel:** the combined status for corrected code HEAD `a3d266c` is `failure` with target `upgradeToPro=build-rate-limit`. This is a provider build-quota limitation, not a reported Next.js build failure; no quota bypass or production deployment was attempted.
 - **Test scope and limitation:** this test executes the actual Supabase SSR client and PKCE URL/verifier generation using a placeholder project URL/key and an in-memory cookie store. It does not contact Google or Supabase, execute the actual Next.js Route Handler request async-storage, prove browser persistence or full HTTP `Set-Cookie` propagation, or establish a production vulnerability. Full Route Handler integration remains deferred until a supported local request-context harness is available.
 - **Safety:** no Supabase production data, migration, RLS policy, production configuration, production deployment, PR merge, or branch-protection setting was changed.
+
+
+## QA248 — final documentation-head verification — 7 November 2026
+
+- **Documentation commit:** [`8e36867`](https://github.com/meridane/QimaTrade-MVP/commit/8e3686798a250df5b00cfeb0cf64ac70ddd9471b) appended the QA247 reconciliation and QA248 results to both registers.
+- **QIMA CI #898:** [run 42333926504](https://github.com/meridane/QimaTrade-MVP/actions/runs/42333926504) completed successfully on documentation HEAD `8e36867`. The browser log confirms **303 passed (6.2 s), 0 failed**. TypeScript, Next.js production build, Chromium, npm audit enforcement at the configured `high` threshold, isolated CREATE_OFFER PostgreSQL integration/concurrency tests, legacy-messages RLS and participant self-enrollment RLS all succeeded.
+- **QIMA CodeQL #852:** [run 42333926398](https://github.com/meridane/QimaTrade-MVP/actions/runs/42333926398) completed successfully.
+- **Vercel:** the status remains `failure` with `upgradeToPro=build-rate-limit`; this is a provider quota limitation, not a failed CI build. No Preview is claimed for documentation HEAD `8e36867`.
+- This run verifies the documentation update; it does not change the QA248 code-test scope or establish live provider/session behavior.
