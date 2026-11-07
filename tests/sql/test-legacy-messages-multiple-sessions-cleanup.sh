@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-DATABASE_URL="\${DATABASE_URL-}"
+DATABASE_URL="${DATABASE_URL-}"
 if [[ -z "$DATABASE_URL" ]]; then
   echo "::error::DATABASE_URL is required." >&2
   exit 2
