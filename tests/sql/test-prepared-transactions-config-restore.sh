@@ -157,6 +157,30 @@ if ! grep -Fq "disposable QA266 resources remain" "$OUTPUT"; then
   exit 1
 fi
 
+# A failed ALTER SYSTEM RESET must stop before restart or postcondition checks,
+# report the command failure, and preserve its exit status.
+run_restore 42 env MOCK_DOCKER_EXEC_STATUS=42
+expected="$(printf '%s\\n' docker-ps pg-isready docker-exec-reset)"
+actual="$(cat "$EVENTS")"
+if [[ "$actual" != "$expected" ]] || ! grep -Fq "ALTER SYSTEM RESET max_prepared_transactions failed (docker exec exit 42)" "$OUTPUT"; then
+  echo "ERROR: RESET failure was not reported precisely or the workflow continued." >&2
+  printf 'Expected events:\\n%s\\nActual events:\\n%s\\n' "$expected" "$actual" >&2
+  cat "$OUTPUT" >&2
+  exit 1
+fi
+
+# A failed container restart must stop before readiness and configuration checks,
+# report that restoration is unconfirmed, and preserve the restart exit status.
+run_restore 43 env MOCK_DOCKER_RESTART_STATUS=43
+expected="$(printf '%s\\n' docker-ps pg-isready docker-exec-reset docker-restart)"
+actual="$(cat "$EVENTS")"
+if [[ "$actual" != "$expected" ]] || ! grep -Fq "PostgreSQL service restart failed (docker restart exit 43)" "$OUTPUT"; then
+  echo "ERROR: restart failure was not reported precisely or the workflow claimed verification." >&2
+  printf 'Expected events:\\n%s\\nActual events:\\n%s\\n' "$expected" "$actual" >&2
+  cat "$OUTPUT" >&2
+  exit 1
+fi
+
 # The original baseline is explicit; do not reset against an unrecognized value.
 : > "$EVENTS"
 set +e
@@ -177,4 +201,4 @@ if grep -Fq "postgres:postgres" "$OUTPUT"; then
   exit 1
 fi
 
-echo "Prepared-transaction configuration restoration regression passed: reset/restart order, no-op behavior, loopback URL guard, single-container guard, baseline guard, and residual-resource detection."
+echo "Prepared-transaction configuration restoration regression passed: reset/restart order, explicit RESET and restart failure handling with original exit codes, no-op behavior, loopback URL guard, single-container guard, baseline guard, and residual-resource detection."

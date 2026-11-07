@@ -49,9 +49,24 @@ if [[ "$service_ready" != true ]]; then
 fi
 
 # RESET removes only the ALTER SYSTEM override created by the preceding CI setup step.
-docker exec "$container_id" psql -U postgres -d qima_test -v ON_ERROR_STOP=1 \
-  -c "ALTER SYSTEM RESET max_prepared_transactions"
-docker restart "$container_id" >/dev/null
+# Report each failure explicitly and preserve the command's exit status; never
+# continue to the verification loop or claim restoration after a failed step.
+if docker exec "$container_id" psql -U postgres -d qima_test -v ON_ERROR_STOP=1 \
+  -c "ALTER SYSTEM RESET max_prepared_transactions"; then
+  :
+else
+  reset_status=$?
+  echo "::error::ALTER SYSTEM RESET max_prepared_transactions failed (docker exec exit $reset_status); configuration restoration is not confirmed." >&2
+  exit "$reset_status"
+fi
+
+if docker restart "$container_id" >/dev/null; then
+  :
+else
+  restart_status=$?
+  echo "::error::PostgreSQL service restart failed (docker restart exit $restart_status); configuration restoration is not confirmed." >&2
+  exit "$restart_status"
+fi
 
 restored=false
 for attempt in {1..60}; do
