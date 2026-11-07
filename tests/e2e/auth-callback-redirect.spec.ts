@@ -50,6 +50,7 @@ function responseLocation(response: Response) {
 
 test("OAuth callback without a code does not create a Supabase client or honor next", async () => {
   let clientFactoryCalls = 0;
+  let cleanupCalls = 0;
 
   const response = await handleOAuthCallback(
     callbackRequest("?next=%2Foffers%3Fsearch%3Dsteel"),
@@ -61,6 +62,7 @@ test("OAuth callback without a code does not create a Supabase client or honor n
         },
       };
     },
+    async () => { cleanupCalls += 1; },
   );
 
   const location = responseLocation(response);
@@ -69,11 +71,13 @@ test("OAuth callback without a code does not create a Supabase client or honor n
   expect(location.searchParams.get("error")).toBe("oauth_callback_missing_code");
   expect(location.searchParams.has("next")).toBe(false);
   expect(clientFactoryCalls).toBe(0);
+  expect(cleanupCalls).toBe(0);
 });
 
 test("OAuth callback exchange errors return to login instead of honoring next", async () => {
   let exchangedCode: string | null = null;
   let clientFactoryCalls = 0;
+  let cleanupCalls = 0;
 
   const response = await handleOAuthCallback(
     callbackRequest("?code=authorization-code&next=%2Foffers%3Fsearch%3Dsteel"),
@@ -88,6 +92,7 @@ test("OAuth callback exchange errors return to login instead of honoring next", 
         },
       };
     },
+    async () => { cleanupCalls += 1; },
   );
 
   const location = responseLocation(response);
@@ -97,9 +102,11 @@ test("OAuth callback exchange errors return to login instead of honoring next", 
   expect(location.searchParams.has("next")).toBe(false);
   expect(exchangedCode).toBe("authorization-code");
   expect(clientFactoryCalls).toBe(1);
+  expect(cleanupCalls).toBe(1);
 });
 
 test("OAuth callback catches a thrown exchange failure and fails closed", async () => {
+  let cleanupCalls = 0;
   const response = await handleOAuthCallback(
     callbackRequest("?code=authorization-code&next=%2Foffers"),
     async () => ({
@@ -109,6 +116,7 @@ test("OAuth callback catches a thrown exchange failure and fails closed", async 
         },
       },
     }),
+    async () => { cleanupCalls += 1; },
   );
 
   const location = responseLocation(response);
@@ -116,10 +124,12 @@ test("OAuth callback catches a thrown exchange failure and fails closed", async 
   expect(location.pathname).toBe("/login");
   expect(location.searchParams.get("error")).toBe("oauth_callback_failed");
   expect(location.searchParams.has("next")).toBe(false);
+  expect(cleanupCalls).toBe(1);
 });
 
 test("OAuth callback honors the safe same-origin destination after a successful exchange", async () => {
   let exchangedCode: string | null = null;
+  let cleanupCalls = 0;
 
   const response = await handleOAuthCallback(
     callbackRequest("?code=authorization-code&next=%2Foffers%3Fsearch%3Dsteel"),
@@ -131,6 +141,7 @@ test("OAuth callback honors the safe same-origin destination after a successful 
         },
       },
     }),
+    async () => { cleanupCalls += 1; },
   );
 
   const location = responseLocation(response);
@@ -139,16 +150,19 @@ test("OAuth callback honors the safe same-origin destination after a successful 
   expect(location.pathname).toBe("/offers");
   expect(location.searchParams.get("search")).toBe("steel");
   expect(exchangedCode).toBe("authorization-code");
+  expect(cleanupCalls).toBe(0);
 });
 
 test("OAuth callback catches Supabase client initialization failures without exposing details or honoring next", async () => {
   const secret = "simulated-supabase-client-secret";
+  let cleanupCalls = 0;
 
   const response = await handleOAuthCallback(
     callbackRequest("?code=authorization-code&next=%2Foffers"),
     async () => {
       throw new Error(secret);
     },
+    async () => { cleanupCalls += 1; },
   );
 
   const location = responseLocation(response);
@@ -158,4 +172,29 @@ test("OAuth callback catches Supabase client initialization failures without exp
   expect(location.searchParams.get("error")).toBe("oauth_callback_failed");
   expect(location.searchParams.has("next")).toBe(false);
   expect(location.href).not.toContain(secret);
+  expect(cleanupCalls).toBe(1);
+});
+
+test("OAuth callback keeps the generic failure redirect when PKCE cleanup throws", async () => {
+  const cleanupSecret = "simulated-cookie-cleanup-secret";
+  const response = await handleOAuthCallback(
+    callbackRequest("?code=authorization-code&next=%2Foffers"),
+    async () => ({
+      auth: {
+        exchangeCodeForSession: async () => ({
+          error: new Error("simulated invalid grant"),
+        }),
+      },
+    }),
+    async () => {
+      throw new Error(cleanupSecret);
+    },
+  );
+
+  const location = responseLocation(response);
+  expect(response.status).toBe(307);
+  expect(location.pathname).toBe("/login");
+  expect(location.searchParams.get("error")).toBe("oauth_callback_failed");
+  expect(location.searchParams.has("next")).toBe(false);
+  expect(location.href).not.toContain(cleanupSecret);
 });

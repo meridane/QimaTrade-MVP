@@ -3,7 +3,10 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse } from "next/server";
 import type { CookieOptions } from "@supabase/ssr";
 import { createSupabaseCookieMethods } from "../../lib/supabase/cookie-methods";
-import { createSupabaseServerClientOptions } from "../../lib/supabase/server";
+import {
+  clearSupabasePkceVerifierCookiesFromStore,
+  createSupabaseServerClientOptions,
+} from "../../lib/supabase/server";
 
 test("Supabase cookie adapter returns every request cookie", () => {
   const requestCookies = [
@@ -438,4 +441,42 @@ test("Supabase SSR does not persist a session and defers verifier-cookie removal
         value.length > 0,
     ),
   ).toBe(false);
+});
+
+test("OAuth PKCE cleanup expires verifier cookie chunks without removing session or unrelated cookies", () => {
+  const response = NextResponse.redirect(
+    new URL("/login?error=oauth_callback_failed", "https://qimatrade.example"),
+  );
+  const secureOptions: CookieOptions = {
+    httpOnly: true,
+    secure: true,
+    sameSite: "lax",
+    path: "/",
+  };
+
+  response.cookies.set(
+    "sb-qima-auth-token-code-verifier",
+    "stale-verifier",
+    secureOptions,
+  );
+  response.cookies.set(
+    "sb-qima-auth-token-code-verifier.0",
+    "stale-verifier-chunk",
+    secureOptions,
+  );
+  response.cookies.set("sb-qima-auth-token", "session-value", secureOptions);
+  response.cookies.set("unrelated-code-verifier", "keep-this", secureOptions);
+
+  const removed = clearSupabasePkceVerifierCookiesFromStore(response.cookies);
+  const serializedCookies = (response.headers.get("set-cookie") ?? "").toLowerCase();
+
+  expect(removed).toEqual([
+    "sb-qima-auth-token-code-verifier",
+    "sb-qima-auth-token-code-verifier.0",
+  ]);
+  expect(serializedCookies).toContain("sb-qima-auth-token-code-verifier=;");
+  expect(serializedCookies).toContain("sb-qima-auth-token-code-verifier.0=;");
+  expect(serializedCookies).toContain("expires=");
+  expect(response.cookies.get("sb-qima-auth-token")?.value).toBe("session-value");
+  expect(response.cookies.get("unrelated-code-verifier")?.value).toBe("keep-this");
 });
