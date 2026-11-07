@@ -166,6 +166,9 @@ jobs:
       - name: Run isolated CREATE_OFFER integration and concurrency tests
         run: bash tests/sql/run-create-offer-integration.sh
 
+      - name: Verify legacy migration runner rejects unsafe database URLs
+        run: bash tests/sql/test-legacy-messages-runner-guard.sh
+
       - name: Run isolated legacy messages RLS regression tests
         run: bash tests/sql/run-legacy-messages-rls-regression.sh
 
