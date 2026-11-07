@@ -1476,3 +1476,23 @@ The canonical register's QA184 tail was inspected from commit `0eca4833bae236f32
 - **Test interpretation:** the test documents the current adapter's behavior with an in-memory cookie store. It does not exercise a live Next.js request context, Google OAuth, a live Supabase session, or establish a production vulnerability. Partial mutation is explicitly not transactional.
 - **Canonical register limitation:** the canonical `docs/QIMA_V1_FUNCTION_REGISTER.md` blob is larger than the content endpoint currently returns; GitHub's file-content read returned an empty body while providing its blob SHA, and raw-file retrieval was rejected as oversized. It was not replaced or rewritten from incomplete content. This QA247 record is appended to the companion register instead; the canonical file remains unchanged in this run.
 - **Safety:** no Supabase production data, migration, RLS policy, production configuration, production deployment, PR merge, or branch-protection setting was changed.
+
+
+## QA247 — final validation reconciliation — 7 November 2026
+
+- QIMA CI #894 [run 42331323206](https://github.com/meridane/QimaTrade-MVP/actions/runs/42331323206) succeeded with **302 passed (6.3 s), 0 failed**; TypeScript, production build, npm audit gate at `high`, isolated CREATE_OFFER PostgreSQL/concurrency, and both RLS regression jobs succeeded.
+- CodeQL #848 [run 42331323176](https://github.com/meridane/QimaTrade-MVP/actions/runs/42331323176) succeeded.
+- Vercel Preview for code HEAD `a1b4c82` succeeded: [Preview](https://vercel.com/bmk1/qimatrade-mvp/6Virug43Cq39NdNQ2ja5tMuBuYh6).
+- The exact Playwright count and Preview outcome are reconciled here; the earlier QA247 entry remains as the contemporaneous record.
+
+## QA248 — Supabase SSR PKCE cookie persistence — 7 November 2026
+
+- **Starting PR HEAD:** `ac6d8113769bc7ca24a0ccf405ea9987cc7d0988`; PR #26 open/draft, 881 commits ahead of `main`, zero behind, 53 changed files.
+- **Change:** add one regression to `tests/e2e/supabase-cookie-adapter.spec.ts` using the actual `createServerClient` from `@supabase/ssr` and the production `createSupabaseServerClientOptions(cookieStore)` helper. The test invokes Google `signInWithOAuth` with `skipBrowserRedirect: true` and asserts the generated provider/S256 authorization URL plus a non-empty PKCE verifier cookie written through the helper.
+- **Initial code commit:** `db11bc019c49400f9e3ca908fa892028a9f3c719`. QIMA CI #896 [run 42333559209](https://github.com/meridane/QimaTrade-MVP/actions/runs/42333559209) reported **302 passed, 1 failed** because the test-created Supabase client attempted WebSocket capability detection in Node.js 20. TypeScript, build, audit gate and PostgreSQL/RLS checks passed.
+- **Correction commit:** `a3d266cb511389b8c718bdf57b128f2b67058cca` supplies a test-only no-op Realtime transport; no dependency or production runtime code was added.
+- **Final validation:** QIMA CI #897 [run 42333735058](https://github.com/meridane/QimaTrade-MVP/actions/runs/42333735058) succeeded with **303 passed (8.8 s), 0 failed**. TypeScript, build, npm audit enforcement at `high`, Chromium, isolated CREATE_OFFER PostgreSQL integration/concurrency/idempotency, legacy-messages RLS and participant self-enrollment RLS all succeeded.
+- **CodeQL:** #850 [run 42333559208](https://github.com/meridane/QimaTrade-MVP/actions/runs/42333559208) and #851 [run 42333734968](https://github.com/meridane/QimaTrade-MVP/actions/runs/42333734968) succeeded.
+- **Vercel:** corrected code HEAD status is `failure` with `upgradeToPro=build-rate-limit`; no Preview is claimed for this HEAD. This is a deployment quota, not a CI build failure.
+- **Scope:** actual Supabase SSR client and PKCE generation are exercised, but with placeholder credentials and an in-memory cookie store. No Google/Supabase network exchange, real Next.js Route Handler request context, browser cookie persistence, or production vulnerability is established.
+- **Safety:** no production Supabase data, migration, RLS policy, production configuration, production deployment, merge, or branch-protection setting was changed.
