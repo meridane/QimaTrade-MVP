@@ -94,3 +94,12 @@ The full remote history must be exported without truncation and joined to a comp
 - CI runs this negative guard test immediately before the actual migration test. The positive CI connection remains the isolated service URI `postgresql://postgres:postgres@localhost:5432/qima_test`.
 - QIMA CI #933 [run 42378012790](https://github.com/meridane/QimaTrade-MVP/actions/runs/42378012790) succeeded: 322/322 Playwright; TypeScript, audit, build, PostgreSQL integration, URL guard, actual branch migration disposable-db test, and self-enrollment regression all passed. CodeQL #887 [run 42378012776](https://github.com/meridane/QimaTrade-MVP/actions/runs/42378012776) succeeded.
 - The guard does not establish live Supabase migration parity. The remote `list_migrations` refresh is still blocked by PostgreSQL `28P01`; no production connection or mutation was attempted. No migration was applied to any Supabase project.
+
+
+## QA260 — failure-path cleanup verification for the disposable migration runner — 2026-11-07
+
+- Extended \`tests/sql/test-legacy-messages-runner-guard.sh\` with a mocked valid loopback run. The mock allows the initial regression SQL, pre-clean DROP, temporary database CREATE and migration fixture, then exits 42 when the branch migration file is invoked.
+- The test verifies the EXIT trap invokes \`DROP DATABASE IF EXISTS qima_message_migration_test WITH (FORCE)\` after the migration failure and that the runner retains exit status 42 rather than masking the original error.
+- Local command \`bash tests/sql/test-legacy-messages-runner-guard.sh\` passed with no PostgreSQL server connection. Existing CI remains responsible for the actual migration execution in the ephemeral PostgreSQL 16 service.
+- Code commits: \`0c696cdfc124558ff2f796d6793a6a57f76cea1c\` (test) and \`6ec40fd9eea2f4a7eb4648f8aca86452e16adb83\` (portable expected-event assertion). QIMA CI #936 [run 42383925328](https://github.com/meridane/QimaTrade-MVP/actions/runs/42383925328) and CodeQL #890 [run 42383925301](https://github.com/meridane/QimaTrade-MVP/actions/runs/42383925301) were in progress when recorded.
+- This test confirms the cleanup command is attempted and the original exit code is preserved under a deterministic failure. It does not establish cleanup success after a PostgreSQL outage. No Supabase production database or migration was touched.
