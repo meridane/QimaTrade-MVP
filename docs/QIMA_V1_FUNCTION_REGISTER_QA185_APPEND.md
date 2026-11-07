@@ -1559,3 +1559,12 @@ The canonical register's QA184 tail was inspected from commit `0eca4833bae236f32
 - **Vercel:** the commit status on code HEAD `091f43e` remains failure with `upgradeToPro=build-rate-limit`. This is a provider build-quota limitation, not a failed Next.js build: the GitHub Actions production build passed. No Preview is claimed for this HEAD.
 - **Scope and limitations:** this test executes the actual Next.js Route Handler over HTTP and verifies its real 307 `Set-Cookie` headers, but the Auth token endpoint is a local synthetic fixture. It does not contact Google or Supabase, and it does not establish a production vulnerability.
 - **Safety:** no Supabase production data, migration, RLS policy, production configuration, production deployment, PR merge, or branch-protection setting was changed.
+
+## QA251 — documentation-head verification — 7 November 2026
+
+- **Documentation commit:** [`f8b2fe8`](https://github.com/meridane/QimaTrade-MVP/commit/f8b2fe82b9f83383028ab9603efc43c6554dae6b) updated both registers with the QA251 implementation, the initial fixture-format failure, and the successful code-head validation.
+- **QIMA CI #912:** [run 42347024564](https://github.com/meridane/QimaTrade-MVP/actions/runs/42347024564) completed successfully on documentation HEAD `f8b2fe8`. Playwright reported **309 passed (10.1 s), 0 failed**. npm installation, npm audit (0 findings at info/low/moderate/high/critical in this run), TypeScript, Next.js production build, Chromium, isolated CREATE_OFFER PostgreSQL integration/concurrency/idempotency, legacy-messages RLS and participant self-enrollment RLS all succeeded.
+- **QIMA CodeQL #866:** [run 42347024610](https://github.com/meridane/QimaTrade-MVP/actions/runs/42347024610) completed successfully.
+- **Vercel:** the combined commit status on documentation HEAD `f8b2fe8` is `success`; the Preview deployment completed. This is not a production deployment. The earlier code HEAD `091f43e` had been rate-limited, but the final documentation HEAD received a successful Preview status.
+- **Register integrity:** both complete Git blobs were re-read after publication and the QA251 sections were confirmed present. The canonical register is 1,286,867 characters and the QA185 addendum is 286,173 characters.
+- **Safety:** no Supabase production data, migration, RLS policy, production configuration, production deployment, PR merge, or branch-protection setting was changed.
