@@ -231,6 +231,7 @@ test("protected route redirects preserve duplicate, empty, and encoded query val
 });
 
 const QA251_VERIFIER_COOKIE = "sb-127-auth-token-code-verifier";
+const QA252_EXPECTED_APP_ORIGIN = "http://localhost:3000";
 
 // Supabase SSR's default base64url cookie encoding wraps the JSON storage value.
 function encodeQa251VerifierCookie(value: string) {
@@ -347,8 +348,8 @@ test("real Next.js OAuth callback falls back for an absolute external next URL",
   const response = await requestQa252OAuthCallback(request, "https://evil.example/phish");
 
   expect(response.status()).toBe(307);
-  const location = new URL(response.headers().location!, response.url());
-  expect(location.origin).toBe(new URL(response.url()).origin);
+  const location = new URL(response.headers().location!);
+  expect(location.origin).toBe(QA252_EXPECTED_APP_ORIGIN);
   expect(location.pathname).toBe("/demands");
   expect(location.href).not.toContain("evil.example");
 });
@@ -359,8 +360,8 @@ test("real Next.js OAuth callback falls back for a protocol-relative external ne
   const response = await requestQa252OAuthCallback(request, "//evil.example/phish");
 
   expect(response.status()).toBe(307);
-  const location = new URL(response.headers().location!, response.url());
-  expect(location.origin).toBe(new URL(response.url()).origin);
+  const location = new URL(response.headers().location!);
+  expect(location.origin).toBe(QA252_EXPECTED_APP_ORIGIN);
   expect(location.pathname).toBe("/demands");
   expect(location.href).not.toContain("evil.example");
 });
@@ -374,8 +375,8 @@ test("real Next.js OAuth callback preserves a safe same-origin next path and que
   );
 
   expect(response.status()).toBe(307);
-  const location = new URL(response.headers().location!, response.url());
-  expect(location.origin).toBe(new URL(response.url()).origin);
+  const location = new URL(response.headers().location!);
+  expect(location.origin).toBe(QA252_EXPECTED_APP_ORIGIN);
   expect(location.pathname).toBe("/offers");
   expect(location.searchParams.get("search")).toBe("steel");
   expect(location.searchParams.get("sort")).toBe("recent");
