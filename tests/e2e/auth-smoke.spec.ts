@@ -382,3 +382,58 @@ test("real Next.js OAuth callback preserves a safe same-origin next path and que
   expect(location.searchParams.get("sort")).toBe("recent");
   expect(location.hash).toBe("#results");
 });
+
+// QA253: exercise WHATWG URL normalization through the real OAuth Route Handler.
+test("real Next.js OAuth callback rejects a backslash-normalized external destination", async ({ request }) => {
+  test.skip(process.env.CI !== "true", "Requires the isolated mock Supabase Auth server configured for CI.");
+
+  const response = await requestQa252OAuthCallback(request, "/\\evil.example/phish");
+
+  expect(response.status()).toBe(307);
+  const location = new URL(response.headers().location!);
+  expect(location.origin).toBe(QA252_EXPECTED_APP_ORIGIN);
+  expect(location.pathname).toBe("/demands");
+  expect(location.href).not.toContain("evil.example");
+});
+
+test("real Next.js OAuth callback rejects an external destination after control-character normalization", async ({ request }) => {
+  test.skip(process.env.CI !== "true", "Requires the isolated mock Supabase Auth server configured for CI.");
+
+  const response = await requestQa252OAuthCallback(request, "/\r\n//evil.example/phish");
+
+  expect(response.status()).toBe(307);
+  const location = new URL(response.headers().location!);
+  expect(location.origin).toBe(QA252_EXPECTED_APP_ORIGIN);
+  expect(location.pathname).toBe("/demands");
+  expect(location.href).not.toContain("evil.example");
+});
+
+test("real Next.js OAuth callback keeps percent-encoded backslashes on the same-origin path", async ({ request }) => {
+  test.skip(process.env.CI !== "true", "Requires the isolated mock Supabase Auth server configured for CI.");
+
+  const response = await requestQa252OAuthCallback(request, "/%5C%5Cevil.example/phish");
+
+  expect(response.status()).toBe(307);
+  const location = new URL(response.headers().location!);
+  expect(location.origin).toBe(QA252_EXPECTED_APP_ORIGIN);
+  expect(location.pathname).toBe("/%5C%5Cevil.example/phish");
+});
+
+test("real Next.js OAuth callback preserves Unicode paths and duplicate or empty query values", async ({ request }) => {
+  test.skip(process.env.CI !== "true", "Requires the isolated mock Supabase Auth server configured for CI.");
+
+  const response = await requestQa252OAuthCallback(
+    request,
+    "/offers/雪?tag=steel&tag=aluminum&empty=&q=stainless%20steel%26pipe%3D1#résultats",
+  );
+
+  expect(response.status()).toBe(307);
+  const location = new URL(response.headers().location!);
+  expect(location.origin).toBe(QA252_EXPECTED_APP_ORIGIN);
+  expect(decodeURIComponent(location.pathname)).toBe("/offers/雪");
+  expect(location.searchParams.getAll("tag")).toEqual(["steel", "aluminum"]);
+  expect(location.searchParams.get("empty")).toBe("");
+  expect(location.searchParams.get("q")).toBe("stainless steel&pipe=1");
+  expect(decodeURIComponent(location.hash.slice(1))).toBe("résultats");
+});
+
