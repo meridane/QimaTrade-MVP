@@ -121,6 +121,11 @@ if [[ "$is_assertions" == true ]]; then
       exec 9>"$MOCK_IDLE_FIFO"
       printf "BEGIN;\nSELECT 1;\n" >&9
       printf "ready\n" > "$MOCK_IDLE_WRITER_READY_FILE"
+      # psql reading a FIFO may wait on stdin without noticing an asynchronous
+      # server disconnect. Send a harmless follow-up after DROP DATABASE has
+      # had time to run so libpq observes the closed connection and exits.
+      sleep 2
+      printf "SELECT 2;\n" >&9
       exec sleep 120
     ' </dev/null >/dev/null 2>&1 &
   printf "%s\n" "$!" > "$MOCK_IDLE_WRITER_PID"
@@ -208,13 +213,22 @@ for status_file in "$ACTIVE_ONE_STATUS" "$ACTIVE_TWO_STATUS" "$IDLE_STATUS"; do
   fi
 done
 
-for log_file in "$ACTIVE_ONE_LOG" "$ACTIVE_TWO_LOG" "$IDLE_LOG"; do
+for log_file in "$ACTIVE_ONE_LOG" "$ACTIVE_TWO_LOG"; do
   if ! grep -Fq "terminating connection due to administrator command" "$log_file"; then
-    echo "ERROR: PostgreSQL did not record administrator termination for every held session." >&2
+    echo "ERROR: PostgreSQL did not record administrator termination for an active held session." >&2
     cat "$log_file" >&2 || true
     exit 1
   fi
 done
+
+# The idle-in-transaction psql client is waiting on its FIFO. The writer sends
+# SELECT 2 after cleanup so the client observes the already-closed connection.
+if ! grep -Fq "terminating connection due to administrator command" "$IDLE_LOG" &&
+   ! grep -Eq "server closed the connection unexpectedly|connection to server was lost" "$IDLE_LOG"; then
+  echo "ERROR: idle-in-transaction client did not report the database connection being terminated." >&2
+  cat "$IDLE_LOG" >&2 || true
+  exit 1
+fi
 
 # Verify through the unwrapped, real client that the disposable database is gone.
 if ! DATABASE_URL="$DATABASE_URL" bash "$ASSERTION" > "$ASSERTION_OUTPUT" 2>&1; then
