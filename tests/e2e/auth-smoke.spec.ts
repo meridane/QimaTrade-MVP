@@ -486,3 +486,58 @@ test("real Next.js OAuth callback does not derive its redirect origin from a for
   expect(location.href).not.toContain("evil.example");
 });
 
+// QA255: characterize Next.js 15.5.28's X-Forwarded-Proto handling.
+// The self-hosted test server uses an explicit hostname/port; this does not model a Vercel edge.
+async function requestQa255OAuthCallback(
+  request: import("@playwright/test").APIRequestContext,
+  forwardedProto: string,
+) {
+  const params = new URLSearchParams({
+    code: "qa251-valid-code",
+    next: "/offers",
+  });
+
+  return request.get(`/auth/callback?${params.toString()}`, {
+    maxRedirects: 0,
+    headers: {
+      cookie: `${QA251_VERIFIER_COOKIE}=${encodeQa251VerifierCookie("fresh-verifier")}`,
+      "x-forwarded-proto": forwardedProto,
+    },
+  });
+}
+
+test("real Next.js OAuth callback derives an HTTPS redirect scheme from X-Forwarded-Proto https", async ({ request }) => {
+  test.skip(process.env.CI !== "true", "Requires the isolated mock Supabase Auth server configured for CI.");
+
+  const response = await requestQa255OAuthCallback(request, "https");
+
+  expect(response.status()).toBe(307);
+  const location = new URL(response.headers().location!);
+  expect(location.protocol).toBe("https:");
+  expect(location.host).toBe(new URL(QA252_EXPECTED_APP_ORIGIN).host);
+  expect(location.pathname).toBe("/offers");
+});
+
+test("real Next.js OAuth callback derives an HTTP redirect scheme from X-Forwarded-Proto http", async ({ request }) => {
+  test.skip(process.env.CI !== "true", "Requires the isolated mock Supabase Auth server configured for CI.");
+
+  const response = await requestQa255OAuthCallback(request, "http");
+
+  expect(response.status()).toBe(307);
+  const location = new URL(response.headers().location!);
+  expect(location.protocol).toBe("http:");
+  expect(location.host).toBe(new URL(QA252_EXPECTED_APP_ORIGIN).host);
+  expect(location.pathname).toBe("/offers");
+});
+
+test("real Next.js OAuth callback treats a comma-separated X-Forwarded-Proto containing https as HTTPS", async ({ request }) => {
+  test.skip(process.env.CI !== "true", "Requires the isolated mock Supabase Auth server configured for CI.");
+
+  const response = await requestQa255OAuthCallback(request, "http, https");
+
+  expect(response.status()).toBe(307);
+  const location = new URL(response.headers().location!);
+  expect(location.protocol).toBe("https:");
+  expect(location.host).toBe(new URL(QA252_EXPECTED_APP_ORIGIN).host);
+  expect(location.pathname).toBe("/offers");
+});
