@@ -7,13 +7,13 @@
 ## Evidence captured
 
 - The connected Supabase project's migration history returned 161 applied versions. Latest remote version: `20261026034925 enable_rls_on_unexposed_reference_tables`.
-- The current repository branch contains 17 SQL migration files in `supabase/migrations/`.
-- The two newest local files are proposals for CREATE_OFFER and are not in the remote applied history:
+- At the 2026-10-27 snapshot, the repository branch contained 17 SQL migration files in `supabase/migrations/`.
+- At that snapshot, the two CREATE_OFFER proposal files below were newer than the reported remote latest version and were not in the remote applied history:
   - `20261027090000_fix_create_offer_action_status_contract.sql`
   - `20261027100000_restrict_direct_create_offer_rpc.sql`
 - A count difference does not prove every missing remote migration must be recreated as an individual file. Some historical changes may be represented by a baseline, external/manual changes, or files lost from version control. That must be established from schema and SQL definitions.
 
-## Local migration inventory (17 files)
+## Local migration inventory at 2026-10-27 snapshot (17 files)
 
 | Version | File |
 |---|---|
@@ -62,3 +62,15 @@ The full remote history must be exported without truncation and joined to a comp
 - Do not mark migration parity as passed based only on counts.
 - Do not claim this register contains all 161 remote rows; it currently records the verified count, latest version, and all local filenames only.
 - No production migration or data mutation was performed for this inventory.
+
+
+## Branch inventory refresh — 2026-11-07 (read-only)
+
+- The GitHub tree for `fix/create-offer-status-contract` now contains **18** SQL files in `supabase/migrations/`. The 17-row table above is retained as the historical 2026-10-27 snapshot.
+- Static comparison found one branch-tracked migration not listed in that snapshot: `20261028180000_fix_message_participant_authorization.sql`.
+- The file defines a replacement `public.is_message_participant(uuid, uuid, uuid)` predicate, revokes function EXECUTE from `PUBLIC`, and grants EXECUTE to `authenticated`. Its header says it is branch-only pending review and explicit application to a non-production environment. The repository's security audit also records it as prepared on the branch and not applied to production.
+- A fresh read-only `list_migrations` call against the QIMA project failed with PostgreSQL `28P01: password authentication failed for user "postgres"`. No credential was requested, decrypted, or changed, and no retry using secrets was attempted. Therefore the remote applied-migration count/latest version could not be refreshed in this run.
+- The earlier remote snapshot (161 applied versions; latest reported `20261026034925`) remains historical evidence dated 2026-10-27 only. It must not be represented as a current 2026-11-07 remote count, nor used to assert whether the newly inventoried message-participant migration is currently applied.
+- **Current classification:** branch inventory discrepancy identified and documented; production migration parity remains **UNRESOLVED** until a read-only remote history export can be obtained with working database credentials and matched to the complete Git tree.
+- **Safety:** only GitHub repository files and read-only migration metadata were inspected. No `apply_migration`, `execute_sql`, migration replay, data read/write, schema change, grant change, production deployment, PR merge, or branch-protection change was performed.
+
