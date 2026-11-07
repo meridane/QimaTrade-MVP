@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { createServerClient } from "@supabase/ssr";
 import { NextResponse } from "next/server";
 import type { CookieOptions } from "@supabase/ssr";
 import { createSupabaseCookieMethods } from "../../lib/supabase/cookie-methods";
@@ -184,4 +185,47 @@ test("Supabase cookie adapter stops the remaining batch when an immutable store 
   // setAll is best-effort, not transactional: earlier writes remain and the
   // first rejected write aborts the rest of this batch.
   expect(attemptedNames).toEqual(["sb-access-token", "sb-refresh-token"]);
+});
+
+
+test("Supabase SSR client persists its PKCE verifier through the production cookie wiring", async () => {
+  const writes: Array<{ name: string; value: string; options: CookieOptions }> = [];
+  const cookieStore = {
+    getAll: () => [],
+    set: (name: string, value: string, options: CookieOptions) => {
+      writes.push({ name, value, options });
+    },
+  };
+  const supabase = createServerClient(
+    "https://qima-test.supabase.co",
+    "ci-placeholder-anon-key",
+    {
+      ...createSupabaseServerClientOptions(cookieStore),
+      auth: {
+        flowType: "pkce",
+        autoRefreshToken: false,
+        detectSessionInUrl: false,
+        persistSession: true,
+      },
+    },
+  );
+
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      redirectTo: "https://qimatrade.example/auth/callback",
+      skipBrowserRedirect: true,
+    },
+  });
+
+  expect(error).toBeNull();
+  expect(data.url).not.toBeNull();
+  const authorizationUrl = new URL(data.url!);
+  expect(authorizationUrl.searchParams.get("provider")).toBe("google");
+  expect(authorizationUrl.searchParams.get("code_challenge_method")).toBe("s256");
+
+  const verifierCookie = writes.find(({ name }) => name.endsWith("-code-verifier"));
+  expect(verifierCookie).toBeDefined();
+  expect(verifierCookie?.value.length).toBeGreaterThan(0);
+  expect(verifierCookie?.options.path).toBe("/");
 });
