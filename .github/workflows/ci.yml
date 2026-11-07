@@ -184,7 +184,11 @@ jobs:
       - name: Verify DROP DATABASE WITH FORCE terminates multiple active and idle-in-transaction sessions
         run: bash tests/sql/test-legacy-messages-multiple-sessions-cleanup.sh
 
+      - name: Verify prepared-transaction configuration restoration guard
+        run: bash tests/sql/test-prepared-transactions-config-restore.sh
+
       - name: Enable prepared transactions for the disposable PostgreSQL regression
+        id: enable_prepared
         shell: bash
         run: |
           set -euo pipefail
@@ -194,14 +198,22 @@ jobs:
             exit 1
           fi
           container_id="${postgres_containers[0]}"
-          docker exec "$container_id" psql -U postgres -d qima_test -v ON_ERROR_STOP=1 \
+          baseline="$(psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -Atqc "SHOW max_prepared_transactions")"
+          if [[ "$baseline" != "0" ]]; then
+            echo "::error::Expected the pristine disposable PostgreSQL baseline to be 0; found $baseline."
+            exit 1
+          fi
+          # Publish the restoration intent before changing the ephemeral service.
+          echo "baseline=$baseline" >> "$GITHUB_OUTPUT"
+          echo "restore_required=true" >> "$GITHUB_OUTPUT"
+          docker exec "$container_id" psql -U postgres -d qima_test -v ON_ERROR_STOP=1 \\
             -c "ALTER SYSTEM SET max_prepared_transactions = '10'"
           docker restart "$container_id" >/dev/null
           for attempt in {1..60}; do
             if pg_isready -h 127.0.0.1 -p 5432 -U postgres -d qima_test >/dev/null 2>&1; then
               configured="$(psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -Atqc "SHOW max_prepared_transactions")"
               if [[ "$configured" == "10" ]]; then
-                echo "Disposable PostgreSQL service restarted with max_prepared_transactions=10."
+                echo "Disposable PostgreSQL service restarted with max_prepared_transactions=10 (captured baseline=$baseline)."
                 exit 0
               fi
             fi
@@ -212,6 +224,13 @@ jobs:
 
       - name: Verify prepared transactions block forced disposable database cleanup
         run: bash tests/sql/test-legacy-messages-prepared-transaction-cleanup.sh
+
+      - name: Restore prepared-transaction configuration and verify disposable resources
+        if: always()
+        env:
+          RESTORE_REQUIRED: ${{ steps.enable_prepared.outputs.restore_required }}
+          BASELINE_MAX_PREPARED_TRANSACTIONS: ${{ steps.enable_prepared.outputs.baseline }}
+        run: bash tests/sql/restore-prepared-transactions-config.sh
 
       - name: Run isolated participant self-enrollment RLS regression tests
         run: bash tests/sql/run-participant-self-enrollment-regression.sh
