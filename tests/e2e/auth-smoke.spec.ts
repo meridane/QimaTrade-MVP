@@ -232,6 +232,11 @@ test("protected route redirects preserve duplicate, empty, and encoded query val
 
 const QA251_VERIFIER_COOKIE = "sb-127-auth-token-code-verifier";
 
+// Supabase SSR's default base64url cookie encoding wraps the JSON storage value.
+function encodeQa251VerifierCookie(value: string) {
+  return `base64-${Buffer.from(JSON.stringify(value), "utf8").toString("base64url")}`;
+}
+
 async function getSetCookieHeaders(response: import("@playwright/test").APIResponse) {
   return (await response.headersArray())
     .filter(({ name }) => name.toLowerCase() === "set-cookie")
@@ -246,7 +251,7 @@ test("real Next.js OAuth callback expires a stale PKCE verifier after invalid_gr
     {
       maxRedirects: 0,
       headers: {
-        cookie: `${QA251_VERIFIER_COOKIE}=stale-verifier; unrelated=keep`,
+        cookie: `${QA251_VERIFIER_COOKIE}=${encodeQa251VerifierCookie("stale-verifier")}; unrelated=keep`,
       },
     },
   );
@@ -286,7 +291,7 @@ test("real Next.js OAuth callback consumes a fresh PKCE verifier and persists th
     {
       maxRedirects: 0,
       headers: {
-        cookie: `${QA251_VERIFIER_COOKIE}=fresh-verifier`,
+        cookie: `${QA251_VERIFIER_COOKIE}=${encodeQa251VerifierCookie("fresh-verifier")}`,
       },
     },
   );
