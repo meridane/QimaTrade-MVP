@@ -60,32 +60,32 @@ for arg in "$@"; do
         drop_count="$(cat "$MOCK_PSQL_DROP_COUNT")"
       fi
       drop_count=$((drop_count + 1))
-      printf '%s\\n' "$drop_count" > "$MOCK_PSQL_DROP_COUNT"
+      printf '%s\n' "$drop_count" > "$MOCK_PSQL_DROP_COUNT"
       if [[ "$drop_count" -eq 1 ]]; then
-        printf '%s\\n' drop-pre >> "$MOCK_PSQL_EVENTS"
+        printf '%s\n' drop-pre >> "$MOCK_PSQL_EVENTS"
         exit 0
       fi
-      printf '%s\\n' drop-exit >> "$MOCK_PSQL_EVENTS"
+      printf '%s\n' drop-exit >> "$MOCK_PSQL_EVENTS"
       exit "${MOCK_EXIT_DROP_STATUS:-0}"
       ;;
     *"CREATE DATABASE qima_message_migration_test"*)
-      printf '%s\\n' create >> "$MOCK_PSQL_EVENTS"
+      printf '%s\n' create >> "$MOCK_PSQL_EVENTS"
       exit 0
       ;;
     *legacy-messages-rls-regression.sql)
-      printf '%s\\n' legacy >> "$MOCK_PSQL_EVENTS"
+      printf '%s\n' legacy >> "$MOCK_PSQL_EVENTS"
       exit 0
       ;;
     *legacy-messages-migration-fixture.sql)
-      printf '%s\\n' fixture >> "$MOCK_PSQL_EVENTS"
+      printf '%s\n' fixture >> "$MOCK_PSQL_EVENTS"
       exit 0
       ;;
     *20261028180000_fix_message_participant_authorization.sql)
-      printf '%s\\n' migration >> "$MOCK_PSQL_EVENTS"
+      printf '%s\n' migration >> "$MOCK_PSQL_EVENTS"
       exit "${MOCK_MIGRATION_STATUS:-42}"
       ;;
     *legacy-messages-migration-assertions.sql)
-      printf '%s\\n' assertions >> "$MOCK_PSQL_EVENTS"
+      printf '%s\n' assertions >> "$MOCK_PSQL_EVENTS"
       exit 0
       ;;
   esac
@@ -124,15 +124,15 @@ run_cleanup_failure_scenario() {
 
   local expected_events
   if [[ "$migration_status" -eq 0 ]]; then
-    expected_events="$(printf '%s\\n' legacy drop-pre create fixture migration assertions drop-exit)"
+    expected_events="$(printf '%s\n' legacy drop-pre create fixture migration assertions drop-exit)"
   else
-    expected_events="$(printf '%s\\n' legacy drop-pre create fixture migration drop-exit)"
+    expected_events="$(printf '%s\n' legacy drop-pre create fixture migration drop-exit)"
   fi
   local actual_events
   actual_events="$(cat "$events")"
   if [[ "$actual_events" != "$expected_events" ]]; then
     echo "ERROR: $scenario executed an unexpected PostgreSQL command sequence" >&2
-    printf 'Expected:\\n%s\\nActual:\\n%s\\n' "$expected_events" "$actual_events" >&2
+    printf 'Expected:\n%s\nActual:\n%s\n' "$expected_events" "$actual_events" >&2
     exit 1
   fi
 
