@@ -322,3 +322,62 @@ test("real Next.js OAuth callback consumes a fresh PKCE verifier and persists th
     }),
   );
 });
+
+
+async function requestQa252OAuthCallback(
+  request: import("@playwright/test").APIRequestContext,
+  next: string,
+) {
+  const params = new URLSearchParams({
+    code: "qa251-valid-code",
+    next,
+  });
+
+  return request.get(`/auth/callback?${params.toString()}`, {
+    maxRedirects: 0,
+    headers: {
+      cookie: `${QA251_VERIFIER_COOKIE}=${encodeQa251VerifierCookie("fresh-verifier")}`,
+    },
+  });
+}
+
+test("real Next.js OAuth callback falls back for an absolute external next URL", async ({ request }) => {
+  test.skip(process.env.CI !== "true", "Requires the isolated mock Supabase Auth server configured for CI.");
+
+  const response = await requestQa252OAuthCallback(request, "https://evil.example/phish");
+
+  expect(response.status()).toBe(307);
+  const location = new URL(response.headers().location!, "http://127.0.0.1:3000");
+  expect(location.origin).toBe("http://127.0.0.1:3000");
+  expect(location.pathname).toBe("/demands");
+  expect(location.href).not.toContain("evil.example");
+});
+
+test("real Next.js OAuth callback falls back for a protocol-relative external next URL", async ({ request }) => {
+  test.skip(process.env.CI !== "true", "Requires the isolated mock Supabase Auth server configured for CI.");
+
+  const response = await requestQa252OAuthCallback(request, "//evil.example/phish");
+
+  expect(response.status()).toBe(307);
+  const location = new URL(response.headers().location!, "http://127.0.0.1:3000");
+  expect(location.origin).toBe("http://127.0.0.1:3000");
+  expect(location.pathname).toBe("/demands");
+  expect(location.href).not.toContain("evil.example");
+});
+
+test("real Next.js OAuth callback preserves a safe same-origin next path and query", async ({ request }) => {
+  test.skip(process.env.CI !== "true", "Requires the isolated mock Supabase Auth server configured for CI.");
+
+  const response = await requestQa252OAuthCallback(
+    request,
+    "/offers?search=steel&sort=recent#results",
+  );
+
+  expect(response.status()).toBe(307);
+  const location = new URL(response.headers().location!, "http://127.0.0.1:3000");
+  expect(location.origin).toBe("http://127.0.0.1:3000");
+  expect(location.pathname).toBe("/offers");
+  expect(location.searchParams.get("search")).toBe("steel");
+  expect(location.searchParams.get("sort")).toBe("recent");
+  expect(location.hash).toBe("#results");
+});
