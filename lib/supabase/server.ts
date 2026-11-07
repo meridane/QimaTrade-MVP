@@ -35,7 +35,7 @@ type PkceVerifierCookieStore = {
   delete(name: string): unknown;
 };
 
-const supabasePkceVerifierCookieName = /^sb-.+-auth-token-code-verifier(?:\\.\\d+)?$/;
+const supabasePkceVerifierCookieName = /^sb-.+-auth-token-code-verifier(?:\.\d+)?$/;
 
 /**
  * Expires only Supabase auth code-verifier cookies, including any chunked
