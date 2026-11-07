@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import { NextResponse } from "next/server";
 import type { CookieOptions } from "@supabase/ssr";
 import { createSupabaseCookieMethods } from "../../lib/supabase/cookie-methods";
+import { createSupabaseServerClientOptions } from "../../lib/supabase/server";
 
 test("Supabase cookie adapter returns every request cookie", () => {
   const requestCookies = [
@@ -118,4 +119,44 @@ test("Supabase cookie adapter serializes auth cookie chunks into Next.js redirec
   expect(serializedCookies).toContain("samesite=lax");
   expect(serializedCookies).toContain("path=/");
   expect(serializedCookies).toContain("max-age=0");
+});
+
+
+test("Supabase server client options bind the request cookie store through the SSR adapter", () => {
+  const requestCookies = [
+    { name: "sb-qima-auth-token.0", value: "session-fragment" },
+  ];
+  const writes: Array<{ name: string; value: string; options: CookieOptions }> = [];
+  const cookieStore = {
+    getAll: () => requestCookies,
+    set: (name: string, value: string, options: CookieOptions) => {
+      writes.push({ name, value, options });
+    },
+  };
+
+  const options = createSupabaseServerClientOptions(cookieStore);
+  expect(options.cookies.getAll()).toEqual(requestCookies);
+
+  const sessionOptions: CookieOptions = {
+    httpOnly: true,
+    secure: true,
+    sameSite: "lax",
+    path: "/",
+    maxAge: 60,
+  };
+  options.cookies.setAll([
+    {
+      name: "sb-qima-auth-token.1",
+      value: "refresh-fragment",
+      options: sessionOptions,
+    },
+  ]);
+
+  expect(writes).toEqual([
+    {
+      name: "sb-qima-auth-token.1",
+      value: "refresh-fragment",
+      options: sessionOptions,
+    },
+  ]);
 });
