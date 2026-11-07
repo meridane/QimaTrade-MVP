@@ -94,7 +94,7 @@ if [[ "$runner_status" -ne 42 ]]; then
   exit 1
 fi
 
-expected_events=legacy\ndrop\ncreate\nfixture\nmigration\ndrop'
+expected_events="$(printf '%s\n' legacy drop create fixture migration drop)"
 actual_events="$(cat "$EVENTS")"
 if [[ "$actual_events" != "$expected_events" ]]; then
   echo "ERROR: expected EXIT-trap cleanup sequence after migration failure" >&2
