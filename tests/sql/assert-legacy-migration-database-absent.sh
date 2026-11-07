@@ -4,7 +4,7 @@ set -euo pipefail
 
 # This check is read-only, but still fail closed to the same dedicated CI database.
 # Never print DATABASE_URL because it may contain credentials.
-if [[ ! "$DATABASE_URL" =~ ^postgres(ql)?://[^@]+@(localhost|127\\.0\\.0\\.1|\\[::1\\]):5432/qima_test$ ]]; then
+if [[ ! "$DATABASE_URL" =~ ^postgres(ql)?://[^@]+@(localhost|127\.0\.0\.1|\[::1\]):5432/qima_test$ ]]; then
   echo "::error::Refusing to inspect migration cleanup: DATABASE_URL must target qima_test on a loopback host at port 5432." >&2
   exit 2
 fi
