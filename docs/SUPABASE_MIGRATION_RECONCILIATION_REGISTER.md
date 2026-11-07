@@ -118,3 +118,13 @@ The full remote history must be exported without truncation and joined to a comp
 - The real migration still runs only in the isolated GitHub Actions PostgreSQL 16 service. The cleanup-failure cases use a deterministic `psql` stub and do not connect to Supabase.
 - QIMA CI #939 [run 42388526274](https://github.com/meridane/QimaTrade-MVP/actions/runs/42388526274) succeeded: the updated guard script passed, the actual migration disposable-db regression passed, and the PostgreSQL integration job completed successfully. Playwright: 322 passed, 0 failed. CodeQL #893 [run 42388526180](https://github.com/meridane/QimaTrade-MVP/actions/runs/42388526180) succeeded.
 - **Limit:** the runner reports cleanup failure but preserves the primary result. A warning does not prove that the temporary database was deleted if PostgreSQL itself is unavailable. No production migration history, schema, data, RLS policy, or grant was modified.
+
+
+## QA262 — real PostgreSQL disposable-database cleanup verification — 8 November 2026
+
+- Added `tests/sql/assert-legacy-migration-database-absent.sh`, a read-only post-run check restricted to the dedicated loopback `qima_test` URL. It queries `pg_database` for `qima_message_migration_test` and fails if the temporary database remains.
+- Extended `tests/sql/test-legacy-messages-runner-guard.sh` to cover absent (0), present (1), PostgreSQL inspection failure (91), and remote URL rejection (2 without a database call).
+- Added a CI step immediately after the actual migration runner. QIMA CI #942 [run 42390456541](https://github.com/meridane/QimaTrade-MVP/actions/runs/42390456541) passed; the PostgreSQL job log explicitly confirms the database is absent after the EXIT trap. The complete browser suite passed **322/322**.
+- QIMA CodeQL #895 [run 42390456540](https://github.com/meridane/QimaTrade-MVP/actions/runs/42390456540) succeeded.
+- This verifies successful cleanup in the ephemeral GitHub Actions PostgreSQL 16 service only. It does not establish cleanup during a real PostgreSQL outage. Supabase remote migration-history parity remains unresolved because the read-only connector previously returned PostgreSQL `28P01`; no production migration was applied.
+- No Supabase production data, migration, schema, RLS policy, grant, secret, production deployment, PR merge, or branch-protection setting was touched.
