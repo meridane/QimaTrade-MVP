@@ -24,16 +24,175 @@ export type ActionEngineDependencies = {
   handlers: Record<string, ActionHandler>;
 };
 
+function normalizeActionDefinition(value: unknown): ActionDefinition | null {
+  if (value === null || typeof value !== "object") return null;
+
+  try {
+    // Array.isArray can throw for a revoked Proxy, so keep every reflective
+    // operation inside this boundary.
+    if (Array.isArray(value)) return null;
+
+    const actionKey = Object.getOwnPropertyDescriptor(value, "actionKey");
+    const version = Object.getOwnPropertyDescriptor(value, "version");
+    const status = Object.getOwnPropertyDescriptor(value, "status");
+
+    // Definitions are data contracts, not executable accessor surfaces. Read
+    // descriptor values and copy them so later checks never invoke Proxy get traps.
+    if (
+      actionKey === undefined ||
+      !Object.prototype.hasOwnProperty.call(actionKey, "value") ||
+      typeof actionKey.value !== "string" ||
+      version === undefined ||
+      !Object.prototype.hasOwnProperty.call(version, "value") ||
+      typeof version.value !== "number" ||
+      status === undefined ||
+      !Object.prototype.hasOwnProperty.call(status, "value") ||
+      (status.value !== "draft" &&
+        status.value !== "published" &&
+        status.value !== "retired")
+    ) {
+      return null;
+    }
+
+    return {
+      actionKey: actionKey.value,
+      version: version.value,
+      status: status.value,
+    };
+  } catch {
+    // Revoked proxies and throwing descriptor traps are invalid definitions.
+    return null;
+  }
+}
+
+function normalizeActionResult(value: unknown): ActionResult | null {
+  if (value === null || typeof value !== "object") return null;
+
+  try {
+    // Array checks, own-key enumeration, and descriptor inspection can all throw
+    // for hostile or revoked Proxies. Keep the entire boundary exception-safe.
+    if (Array.isArray(value)) return null;
+
+    // Preserve the existing contract: optional result fields may not be supplied
+    // through the prototype chain. Reflect.has can invoke a Proxy trap, so it
+    // remains inside this exception boundary.
+    const hasOwnOriginal = (key: string) =>
+      Object.prototype.hasOwnProperty.call(value, key);
+    if (
+      (Reflect.has(value, "objectId") && !hasOwnOriginal("objectId")) ||
+      (Reflect.has(value, "result") && !hasOwnOriginal("result"))
+    ) {
+      return null;
+    }
+
+    // Snapshot own data properties so subsequent consumers never read through
+    // the handler's getters or Proxy get trap. Preserve extra SQL result fields
+    // such as objectType, plus non-enumerable and symbol data properties.
+    const normalized: Record<PropertyKey, unknown> = {};
+    for (const key of Reflect.ownKeys(value)) {
+      const descriptor = Object.getOwnPropertyDescriptor(value, key);
+      if (
+        descriptor === undefined ||
+        !Object.prototype.hasOwnProperty.call(descriptor, "value")
+      ) {
+        return null;
+      }
+
+      Object.defineProperty(normalized, key, {
+        value: descriptor.value,
+        enumerable: descriptor.enumerable,
+        configurable: true,
+        writable: true,
+      });
+    }
+
+    const hasOwn = (key: string) =>
+      Object.prototype.hasOwnProperty.call(normalized, key);
+
+    if (
+      !hasOwn("executionId") ||
+      typeof normalized.executionId !== "string" ||
+      normalized.executionId.trim().length === 0 ||
+      !hasOwn("status") ||
+      (normalized.status !== "succeeded" && normalized.status !== "failed")
+    ) {
+      return null;
+    }
+
+    if (
+      hasOwn("objectId") &&
+      normalized.objectId !== undefined &&
+      normalized.objectId !== null &&
+      typeof normalized.objectId !== "string"
+    ) {
+      return null;
+    }
+
+    if (
+      hasOwn("result") &&
+      normalized.result !== undefined &&
+      (normalized.result === null ||
+        typeof normalized.result !== "object" ||
+        Array.isArray(normalized.result))
+    ) {
+      return null;
+    }
+
+    return normalized as ActionResult;
+  } catch {
+    // Revoked proxies and throwing reflection traps are invalid results.
+    return null;
+  }
+}
+
+function resolveActionHandler(value: unknown, actionKey: string): ActionHandler | null {
+  if (value === null || typeof value !== "object") return null;
+
+  try {
+    // A revoked Proxy can throw even during Array.isArray. Resolve only an own
+    // data-property descriptor so handler accessors and Proxy get traps do not run.
+    if (Array.isArray(value)) return null;
+
+    const descriptor = Object.getOwnPropertyDescriptor(value, actionKey);
+    if (
+      descriptor === undefined ||
+      !Object.prototype.hasOwnProperty.call(descriptor, "value") ||
+      typeof descriptor.value !== "function"
+    ) {
+      return null;
+    }
+
+    return descriptor.value as ActionHandler;
+  } catch {
+    // Malformed or revoked handler registries are treated as unregistered.
+    return null;
+  }
+}
+
 export async function executeAction(
   context: ActionContext,
   input: ActionInput,
   dependencies: ActionEngineDependencies,
 ): Promise<ActionResult> {
-  const definition = await dependencies.getDefinition(context.actionKey, context.actionVersion);
-  if (!definition || definition.status !== "published") throw new Error("ACTION_NOT_PUBLISHED");
+  const rawDefinition: unknown = await dependencies.getDefinition(
+    context.actionKey,
+    context.actionVersion,
+  );
+  const definition = normalizeActionDefinition(rawDefinition);
+  if (
+    !definition ||
+    definition.status !== "published" ||
+    definition.actionKey !== context.actionKey ||
+    definition.version !== context.actionVersion
+  ) {
+    throw new Error("ACTION_NOT_PUBLISHED");
+  }
 
-  const handler = dependencies.handlers[context.actionKey];
+  const handler = resolveActionHandler(dependencies.handlers, context.actionKey);
   if (!handler) throw new Error("ACTION_HANDLER_NOT_FOUND");
 
-  return handler(context, input);
+  const result = normalizeActionResult(await handler(context, input));
+  if (!result) throw new Error("ACTION_RESULT_INVALID");
+
+  return result;
 }
