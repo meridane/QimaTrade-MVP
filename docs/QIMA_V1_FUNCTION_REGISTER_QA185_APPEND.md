@@ -1534,3 +1534,11 @@ The canonical register's QA184 tail was inspected from commit `0eca4833bae236f32
 - **Vercel:** the commit status on `d071c9a` is `success` (deployment completed); this is a Preview status, not a production deployment.
 - **Scope and limitations:** the cookie cleanup helper is tested against NextResponse's real response-cookie serializer, while callback tests inject the cleanup callback. This does not execute the complete Next.js Route Handler request async-storage in a live browser or contact Google/Supabase. The behavior characterized in QA249 is an SDK implementation detail; the synthetic tests do not establish a production vulnerability.
 - **Safety:** no Supabase production data, migration, RLS policy, production configuration, production deployment, PR merge, or branch-protection setting was changed.
+## QA250 — final documentation-head verification — 7 November 2026
+
+- **Documentation commit:** [`06d2e35`](https://github.com/meridane/QimaTrade-MVP/commit/06d2e35e5e8f6102d614f618d046f401dfec8f7a) updated the canonical register and QA185 addendum with the QA250 implementation and code-validation results.
+- **QIMA CI #908:** [run 42345771062](https://github.com/meridane/QimaTrade-MVP/actions/runs/42345771062) completed successfully on documentation HEAD `06d2e35`. Playwright reported **307 passed (8.2 s), 0 failed**. npm installation, npm audit enforcement at `high`, TypeScript, Next.js production build, Chromium, isolated CREATE_OFFER PostgreSQL integration/concurrency/idempotency, legacy-messages RLS and participant self-enrollment RLS all succeeded.
+- **QIMA CodeQL #862:** [run 42345771084](https://github.com/meridane/QimaTrade-MVP/actions/runs/42345771084) completed successfully.
+- **Vercel:** the commit status on `06d2e35` is `success` (`Deployment has completed`). This is a Preview deployment status, not production.
+- **Conclusion:** QA250 code and the first documentation update are validated. The helper/callback tests remain deterministic; no live Google/Supabase OAuth exchange or complete browser Route Handler request-context test is claimed.
+- **Safety:** no Supabase production data, migration, RLS policy, production configuration, production deployment, PR merge, or branch-protection setting was changed.
