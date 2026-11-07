@@ -150,3 +150,91 @@ run_cleanup_failure_scenario migration-fails 42 91 42
 run_cleanup_failure_scenario migration-succeeds 0 91 0
 
 echo "Disposable PostgreSQL runner preserves primary exit 42 when EXIT cleanup fails with 91, and reports best-effort cleanup failure after both failed and successful migrations."
+
+
+# QA262: exercise the read-only post-run assertion with a psql stub. The real
+# PostgreSQL service check is run after the migration runner in CI; these cases
+# cover the assertion's fail-closed URL handling and result/error semantics.
+ASSERTION_SCRIPT="$ROOT/tests/sql/assert-legacy-migration-database-absent.sh"
+ASSERTION_MOCK_BIN="$TEMP_DIR/assertion-mock-bin"
+ASSERTION_CALLS="$TEMP_DIR/assertion-psql-calls.log"
+mkdir -p "$ASSERTION_MOCK_BIN"
+cat > "$ASSERTION_MOCK_BIN/psql" <<'PSQL'
+#!/usr/bin/env bash
+set -u
+printf '%s\n' "$*" >> "$MOCK_ASSERT_PSQL_CALLS"
+printf '%s\n' "${MOCK_DATABASE_COUNT:-0}"
+exit "${MOCK_PSQL_STATUS:-0}"
+PSQL
+chmod +x "$ASSERTION_MOCK_BIN/psql"
+
+run_absence_assertion_case() {
+  local scenario="$1"
+  local database_count="$2"
+  local psql_status="$3"
+  local expected_status="$4"
+  : > "$ASSERTION_CALLS"
+
+  set +e
+  PATH="$ASSERTION_MOCK_BIN:$PATH" \
+    MOCK_ASSERT_PSQL_CALLS="$ASSERTION_CALLS" \
+    MOCK_DATABASE_COUNT="$database_count" \
+    MOCK_PSQL_STATUS="$psql_status" \
+    DATABASE_URL="postgresql://postgres:postgres@localhost:5432/qima_test" \
+    bash "$ASSERTION_SCRIPT" > "$OUTPUT" 2>&1
+  local assertion_status=$?
+  set -e
+
+  if [[ "$assertion_status" -ne "$expected_status" ]]; then
+    echo "ERROR: $scenario expected exit $expected_status, received $assertion_status" >&2
+    cat "$OUTPUT" >&2
+    exit 1
+  fi
+
+  if grep -Fq "postgres:postgres" "$OUTPUT"; then
+    echo "ERROR: $scenario exposed DATABASE_URL credentials" >&2
+    cat "$OUTPUT" >&2
+    exit 1
+  fi
+}
+
+# A zero-row result confirms absence; the query must inspect pg_database.
+run_absence_assertion_case database-absent 0 0 0
+if ! grep -Fq "is absent after the migration runner EXIT trap" "$OUTPUT"; then
+  echo "ERROR: absent database was not positively reported" >&2
+  cat "$OUTPUT" >&2
+  exit 1
+fi
+if ! grep -Fq "SELECT count(*) FROM pg_database WHERE datname = 'qima_message_migration_test'" "$ASSERTION_CALLS"; then
+  echo "ERROR: assertion did not query pg_database for the exact temporary database" >&2
+  cat "$ASSERTION_CALLS" >&2
+  exit 1
+fi
+
+# A remaining database must fail the post-run assertion.
+run_absence_assertion_case database-still-exists 1 0 1
+if ! grep -Fq "still exists after the runner completed" "$OUTPUT"; then
+  echo "ERROR: a remaining migration database was not reported" >&2
+  cat "$OUTPUT" >&2
+  exit 1
+fi
+
+# A PostgreSQL inspection error must propagate instead of being treated as absence.
+run_absence_assertion_case postgres-query-fails 0 91 91
+
+# Unsafe destinations must be rejected before the psql stub is invoked.
+: > "$ASSERTION_CALLS"
+set +e
+PATH="$ASSERTION_MOCK_BIN:$PATH" \
+  MOCK_ASSERT_PSQL_CALLS="$ASSERTION_CALLS" \
+  DATABASE_URL="postgresql://postgres:postgres@db.example:5432/qima_test" \
+  bash "$ASSERTION_SCRIPT" > "$OUTPUT" 2>&1
+unsafe_status=$?
+set -e
+if [[ "$unsafe_status" -ne 2 || -s "$ASSERTION_CALLS" ]]; then
+  echo "ERROR: post-run assertion did not reject a remote URL before psql (exit $unsafe_status)" >&2
+  cat "$OUTPUT" >&2
+  exit 1
+fi
+
+echo "QA262 assertion regression passed: absent/present database, psql failure propagation, and remote URL rejection."
