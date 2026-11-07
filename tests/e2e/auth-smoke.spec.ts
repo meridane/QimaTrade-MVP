@@ -541,3 +541,18 @@ test("real Next.js OAuth callback treats a comma-separated X-Forwarded-Proto con
   expect(location.host).toBe(new URL(QA252_EXPECTED_APP_ORIGIN).host);
   expect(location.pathname).toBe("/offers");
 });
+
+
+// QA256: pin the framework's substring-based handling of malformed forwarded-proto values.
+// This characterizes the self-hosted Next.js server only; it does not assert Vercel proxy behavior.
+test("real Next.js OAuth callback treats a malformed X-Forwarded-Proto value containing https as HTTPS", async ({ request }) => {
+  test.skip(process.env.CI !== "true", "Requires the isolated mock Supabase Auth server configured for CI.");
+
+  const response = await requestQa255OAuthCallback(request, "nothttps");
+
+  expect(response.status()).toBe(307);
+  const location = new URL(response.headers().location!);
+  expect(location.protocol).toBe("https:");
+  expect(location.host).toBe(new URL(QA252_EXPECTED_APP_ORIGIN).host);
+  expect(location.pathname).toBe("/offers");
+});
