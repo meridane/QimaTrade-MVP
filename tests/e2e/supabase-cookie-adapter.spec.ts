@@ -160,3 +160,28 @@ test("Supabase server client options bind the request cookie store through the S
     },
   ]);
 });
+
+test("Supabase cookie adapter stops the remaining batch when an immutable store rejects a write", () => {
+  const attemptedNames: string[] = [];
+  const methods = createSupabaseCookieMethods({
+    getAll: () => [],
+    set: (name) => {
+      attemptedNames.push(name);
+      if (name === "sb-refresh-token") {
+        throw new Error("Cookie store is immutable");
+      }
+    },
+  });
+
+  expect(() =>
+    methods.setAll([
+      { name: "sb-access-token", value: "access", options: { path: "/" } },
+      { name: "sb-refresh-token", value: "refresh", options: { path: "/" } },
+      { name: "sb-session-metadata", value: "metadata", options: { path: "/" } },
+    ]),
+  ).not.toThrow();
+
+  // setAll is best-effort, not transactional: earlier writes remain and the
+  // first rejected write aborts the rest of this batch.
+  expect(attemptedNames).toEqual(["sb-access-token", "sb-refresh-token"]);
+});

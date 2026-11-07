@@ -14,6 +14,8 @@ type CookieMutation = {
 /**
  * Adapts the Next.js cookie store to Supabase SSR's getAll/setAll contract.
  * Route Handlers can mutate cookies; Server Components may reject writes.
+ * A failed write is swallowed; the batch is not transactional, and later
+ * mutations are skipped after the first rejected write.
  */
 export function createSupabaseCookieMethods(cookieStore: CookieStore) {
   return {
