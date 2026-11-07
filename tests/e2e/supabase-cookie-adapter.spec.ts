@@ -233,3 +233,200 @@ test("Supabase SSR client persists its PKCE verifier through the production cook
   expect(verifierCookie?.value.length).toBeGreaterThan(0);
   expect(verifierCookie?.options.path).toBe("/");
 });
+
+
+function createQa249CookieStore() {
+  const values = new Map<string, { name: string; value: string }>();
+  const writes: Array<{ name: string; value: string; options: CookieOptions }> = [];
+
+  return {
+    values,
+    writes,
+    cookieStore: {
+      getAll: () => Array.from(values.values()),
+      set: (name: string, value: string, options: CookieOptions) => {
+        writes.push({ name, value, options });
+        if (options.maxAge === 0 || value === "") {
+          values.delete(name);
+        } else {
+          values.set(name, { name, value });
+        }
+      },
+    },
+  };
+}
+
+function createQa249SupabaseClient(
+  cookieStore: ReturnType<typeof createQa249CookieStore>["cookieStore"],
+  fetch: typeof globalThis.fetch,
+) {
+  return createServerClient(
+    "https://qima-test.supabase.co",
+    "ci-placeholder-anon-key",
+    {
+      ...createSupabaseServerClientOptions(cookieStore),
+      auth: {
+        flowType: "pkce",
+        autoRefreshToken: false,
+        detectSessionInUrl: false,
+        persistSession: true,
+      },
+      global: { fetch },
+      // This test covers Auth only and never opens a Realtime channel.
+      realtime: {
+        transport: class NoopWebSocket {} as unknown as typeof WebSocket,
+      },
+    },
+  );
+}
+
+const qa249SessionResponse = {
+  access_token: "qa249-access-token",
+  token_type: "bearer",
+  expires_in: 3600,
+  refresh_token: "qa249-refresh-token",
+  user: {
+    id: "00000000-0000-4000-8000-00000000249",
+    aud: "authenticated",
+    role: "authenticated",
+    email: "qa249@example.test",
+    app_metadata: { provider: "google", providers: ["google"] },
+    user_metadata: {},
+    created_at: "2026-11-07T00:00:00.000Z",
+    updated_at: "2026-11-07T00:00:00.000Z",
+  },
+};
+
+test("Supabase SSR exchanges a PKCE code, persists session cookies, and removes the verifier", async () => {
+  const { cookieStore, values, writes } = createQa249CookieStore();
+  const authRequests: Array<{ url: string; method: string; body: string }> = [];
+  const authFetch: typeof fetch = async (input, init) => {
+    const request = new Request(input, init);
+    authRequests.push({
+      url: request.url,
+      method: request.method,
+      body: await request.clone().text(),
+    });
+
+    return new Response(JSON.stringify(qa249SessionResponse), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  };
+  const supabase = createQa249SupabaseClient(cookieStore, authFetch);
+
+  const oauth = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      redirectTo: "https://qimatrade.example/auth/callback",
+      skipBrowserRedirect: true,
+    },
+  });
+  expect(oauth.error).toBeNull();
+
+  const verifierName = Array.from(values.keys()).find((name) =>
+    name.endsWith("-code-verifier"),
+  );
+  expect(verifierName).toBeDefined();
+  expect(values.get(verifierName!)?.value.length).toBeGreaterThan(0);
+
+  const exchange = await supabase.auth.exchangeCodeForSession("qa249-auth-code");
+
+  expect(exchange.error).toBeNull();
+  expect(exchange.data.session?.access_token).toBe("qa249-access-token");
+  expect(exchange.data.session?.refresh_token).toBe("qa249-refresh-token");
+  expect(exchange.data.user?.id).toBe("00000000-0000-4000-8000-00000000249");
+
+  expect(authRequests).toHaveLength(1);
+  const tokenRequest = authRequests[0];
+  const requestUrl = new URL(tokenRequest.url);
+  const requestBody = JSON.parse(tokenRequest.body) as {
+    auth_code?: string;
+    code_verifier?: string;
+  };
+  expect(tokenRequest.method).toBe("POST");
+  expect(requestUrl.pathname).toBe("/auth/v1/token");
+  expect(requestUrl.searchParams.get("grant_type")).toBe("pkce");
+  expect(requestBody.auth_code).toBe("qa249-auth-code");
+  expect(requestBody.code_verifier).toBeTruthy();
+
+  expect(
+    writes.some(
+      ({ name, value, options }) =>
+        name === verifierName && (value === "" || options.maxAge === 0),
+    ),
+  ).toBe(true);
+  expect(values.has(verifierName!)).toBe(false);
+
+  const persistedSessionCookieNames = Array.from(values.keys()).filter(
+    (name) => name.includes("-auth-token") && !name.endsWith("-code-verifier"),
+  );
+  expect(persistedSessionCookieNames.length).toBeGreaterThan(0);
+  expect(
+    writes.some(
+      ({ name, value }) =>
+        name.includes("-auth-token") &&
+        !name.endsWith("-code-verifier") &&
+        value.length > 0,
+    ),
+  ).toBe(true);
+});
+
+test("Supabase SSR clears the PKCE verifier and does not persist a session after token exchange fails", async () => {
+  const { cookieStore, values, writes } = createQa249CookieStore();
+  const authRequests: Array<{ url: string; method: string }> = [];
+  const authFetch: typeof fetch = async (input, init) => {
+    const request = new Request(input, init);
+    authRequests.push({ url: request.url, method: request.method });
+
+    return new Response(
+      JSON.stringify({
+        code: "invalid_grant",
+        error: "invalid_grant",
+        error_description: "Synthetic invalid authorization code",
+      }),
+      {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+  };
+  const supabase = createQa249SupabaseClient(cookieStore, authFetch);
+
+  const oauth = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      redirectTo: "https://qimatrade.example/auth/callback",
+      skipBrowserRedirect: true,
+    },
+  });
+  expect(oauth.error).toBeNull();
+
+  const verifierName = Array.from(values.keys()).find((name) =>
+    name.endsWith("-code-verifier"),
+  );
+  expect(verifierName).toBeDefined();
+
+  const exchange = await supabase.auth.exchangeCodeForSession("qa249-invalid-code");
+
+  expect(exchange.error).not.toBeNull();
+  expect(exchange.data.session).toBeNull();
+  expect(exchange.data.user).toBeNull();
+  expect(authRequests).toHaveLength(1);
+  expect(new URL(authRequests[0].url).searchParams.get("grant_type")).toBe("pkce");
+  expect(values.has(verifierName!)).toBe(false);
+  expect(
+    writes.some(
+      ({ name, value, options }) =>
+        name === verifierName && (value === "" || options.maxAge === 0),
+    ),
+  ).toBe(true);
+  expect(
+    writes.some(
+      ({ name, value }) =>
+        name.includes("-auth-token") &&
+        !name.endsWith("-code-verifier") &&
+        value.length > 0,
+    ),
+  ).toBe(false);
+});
