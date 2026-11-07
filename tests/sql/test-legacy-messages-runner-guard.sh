@@ -41,4 +41,66 @@ for unsafe_url in "${unsafe_urls[@]}"; do
   fi
 done
 
-echo "Disposable PostgreSQL URL guard rejected remote, non-test, and query-bearing URLs before psql."
+
+
+# Exercise the EXIT trap after the migration command fails. The mock psql records
+# the order of operations and deliberately exits 42 for the migration file.
+MOCK_BIN="$TEMP_DIR/mock-bin"
+mkdir -p "$MOCK_BIN"
+EVENTS="$TEMP_DIR/psql-events.log"
+cat > "$MOCK_BIN/psql" <<'PSQL'
+#!/usr/bin/env bash
+set -euo pipefail
+for arg in "$@"; do
+  case "$arg" in
+    *"DROP DATABASE IF EXISTS qima_message_migration_test WITH (FORCE)"*)
+      printf '%s\n' drop >> "$MOCK_PSQL_EVENTS"
+      exit 0
+      ;;
+    *"CREATE DATABASE qima_message_migration_test"*)
+      printf '%s\n' create >> "$MOCK_PSQL_EVENTS"
+      exit 0
+      ;;
+    *legacy-messages-rls-regression.sql)
+      printf '%s\n' legacy >> "$MOCK_PSQL_EVENTS"
+      exit 0
+      ;;
+    *legacy-messages-migration-fixture.sql)
+      printf '%s\n' fixture >> "$MOCK_PSQL_EVENTS"
+      exit 0
+      ;;
+    *20261028180000_fix_message_participant_authorization.sql)
+      printf '%s\n' migration >> "$MOCK_PSQL_EVENTS"
+      exit 42
+      ;;
+  esac
+done
+echo "ERROR: unexpected psql invocation: $*" >&2
+exit 90
+PSQL
+chmod +x "$MOCK_BIN/psql"
+
+set +e
+PATH="$MOCK_BIN:$PATH" \
+  MOCK_PSQL_EVENTS="$EVENTS" \
+  DATABASE_URL="postgresql://postgres:postgres@localhost:5432/qima_test" \
+  bash "$RUNNER" >"$OUTPUT" 2>&1
+runner_status=$?
+set -e
+
+if [[ "$runner_status" -ne 42 ]]; then
+  echo "ERROR: expected original migration failure exit 42, received $runner_status" >&2
+  cat "$OUTPUT" >&2
+  exit 1
+fi
+
+expected_events=legacy\ndrop\ncreate\nfixture\nmigration\ndrop'
+actual_events="$(cat "$EVENTS")"
+if [[ "$actual_events" != "$expected_events" ]]; then
+  echo "ERROR: expected EXIT-trap cleanup sequence after migration failure" >&2
+  printf 'Expected:\n%s\nActual:\n%s\n' "$expected_events" "$actual_events" >&2
+  exit 1
+fi
+
+echo "Disposable PostgreSQL URL guard rejected unsafe URLs; EXIT trap dropped the temporary database after migration failure and preserved exit 42."
+
