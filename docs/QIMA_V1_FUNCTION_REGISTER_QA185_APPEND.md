@@ -1687,3 +1687,14 @@ The canonical register's QA184 tail was inspected from commit `0eca4833bae236f32
 - **PR after code commit:** PR #26 remains open, draft and mergeable at `dcf88cd`, 921 commits ahead of `main`, zero behind and 55 changed files.
 - **Safety:** no Supabase production data, migration, RLS policy, production configuration, production deployment, PR merge, or branch-protection setting was changed. No real OAuth secret was used; no Vercel sensitive value was decrypted.
 
+
+
+## QA256 — final documentation-head verification — 7 November 2026
+
+- **Documentation HEAD:** both complete registers contain the QA256 local malformed-header characterization, the Vercel proxy trust-chain limitation, and the QA256 code-head validation recorded above.
+- **QIMA CI #928:** [run 42372965527](https://github.com/meridane/QimaTrade-MVP/actions/runs/42372965527) completed successfully on documentation HEAD `4f0cbca`: **322 Playwright tests passed in 7.5 seconds, 0 failed**. npm installation, npm audit (0 info/low/moderate/high/critical findings in this run), TypeScript, Next.js production build, Chromium installation, isolated CREATE_OFFER PostgreSQL integration/concurrency/idempotency, legacy-messages RLS and participant self-enrollment RLS all succeeded.
+- **QIMA CodeQL #882:** [run 42372965498](https://github.com/meridane/QimaTrade-MVP/actions/runs/42372965498) completed successfully.
+- **Vercel Preview:** the documentation HEAD `4f0cbca` reached READY at [deployment 3KoifHZqcvBTUt78CpjeP2iRjdpL](https://vercel.com/bmk1/qimatrade-mvp/3KoifHZqcvBTUt78CpjeP2iRjdpL). This is a branch Preview only, with no Production target or promotion.
+- **Register integrity:** the complete canonical register and QA185 addendum were fetched from their Git blobs after publication; QA256 and this final verification entry are present in both. No truncation or replacement of historical sections occurred.
+- **Safety:** no Supabase production data, migration, RLS policy, production configuration, production deployment, PR merge, or branch-protection setting was changed. No Vercel sensitive environment value was decrypted.
+
