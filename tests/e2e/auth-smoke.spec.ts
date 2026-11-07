@@ -437,3 +437,52 @@ test("real Next.js OAuth callback preserves Unicode paths and duplicate or empty
   expect(decodeURIComponent(location.hash.slice(1))).toBe("résultats");
 });
 
+// QA254: verify that forwarded authority headers do not replace the configured
+// Next.js request origin used by the OAuth callback. The local next start server
+// is started with an explicit hostname/port; this does not model a Vercel edge.
+async function requestQa254OAuthCallback(
+  request: import("@playwright/test").APIRequestContext,
+  authorityHeaders: Record<string, string>,
+) {
+  const params = new URLSearchParams({
+    code: "qa251-valid-code",
+    next: "/offers",
+  });
+
+  return request.get(`/auth/callback?${params.toString()}`, {
+    maxRedirects: 0,
+    headers: {
+      cookie: `${QA251_VERIFIER_COOKIE}=${encodeQa251VerifierCookie("fresh-verifier")}`,
+      ...authorityHeaders,
+    },
+  });
+}
+
+test("real Next.js OAuth callback does not derive its redirect origin from a forged Host header", async ({ request }) => {
+  test.skip(process.env.CI !== "true", "Requires the isolated mock Supabase Auth server configured for CI.");
+
+  const response = await requestQa254OAuthCallback(request, {
+    host: "evil.example",
+  });
+
+  expect(response.status()).toBe(307);
+  const location = new URL(response.headers().location!);
+  expect(location.origin).toBe(QA252_EXPECTED_APP_ORIGIN);
+  expect(location.pathname).toBe("/offers");
+  expect(location.href).not.toContain("evil.example");
+});
+
+test("real Next.js OAuth callback does not derive its redirect origin from a forged X-Forwarded-Host header", async ({ request }) => {
+  test.skip(process.env.CI !== "true", "Requires the isolated mock Supabase Auth server configured for CI.");
+
+  const response = await requestQa254OAuthCallback(request, {
+    "x-forwarded-host": "evil.example",
+  });
+
+  expect(response.status()).toBe(307);
+  const location = new URL(response.headers().location!);
+  expect(location.origin).toBe(QA252_EXPECTED_APP_ORIGIN);
+  expect(location.pathname).toBe("/offers");
+  expect(location.href).not.toContain("evil.example");
+});
+
