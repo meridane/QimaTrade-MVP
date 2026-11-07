@@ -43,7 +43,7 @@ args=("$@")
 for ((index = 0; index < ${#args[@]} - 1; index++)); do
   if [[ "${args[index]}" == "-f" && "${args[index+1]}" == "$MOCK_MIGRATION_FILE" ]]; then
     args[index+1]="$MOCK_FAILURE_SQL"
-    printf '%s\\n' "intercepted" >> "$MOCK_INTERCEPT_LOG"
+    printf '%s\n' "intercepted" >> "$MOCK_INTERCEPT_LOG"
   fi
 done
 exec "$REAL_PSQL" "${args[@]}"
