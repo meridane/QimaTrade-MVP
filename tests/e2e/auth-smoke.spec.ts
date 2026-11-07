@@ -229,3 +229,91 @@ test("protected route redirects preserve duplicate, empty, and encoded query val
   expect(restoredUrl.searchParams.get("q")).toBe("stainless steel&pipe=1");
   expect(restoredUrl.searchParams.get("unicode")).toBe("雪");
 });
+
+const QA251_VERIFIER_COOKIE = "sb-127-auth-token-code-verifier";
+
+async function getSetCookieHeaders(response: import("@playwright/test").APIResponse) {
+  return (await response.headersArray())
+    .filter(({ name }) => name.toLowerCase() === "set-cookie")
+    .map(({ value }) => value);
+}
+
+test("real Next.js OAuth callback expires a stale PKCE verifier after invalid_grant", async ({ request }) => {
+  test.skip(process.env.CI !== "true", "Requires the isolated mock Supabase Auth server configured for CI.");
+
+  const response = await request.get(
+    "/auth/callback?code=qa251-invalid-code&next=%2Foffers",
+    {
+      maxRedirects: 0,
+      headers: {
+        cookie: `${QA251_VERIFIER_COOKIE}=stale-verifier; unrelated=keep`,
+      },
+    },
+  );
+
+  expect(response.status()).toBe(307);
+  const location = new URL(response.headers().location!, "http://127.0.0.1:3000");
+  expect(location.pathname).toBe("/login");
+  expect(location.searchParams.get("error")).toBe("oauth_callback_failed");
+  expect(location.searchParams.has("next")).toBe(false);
+
+  const setCookies = await getSetCookieHeaders(response);
+  const verifierDeletion = setCookies.find((value) =>
+    value.toLowerCase().startsWith(`${QA251_VERIFIER_COOKIE}=`),
+  );
+  expect(verifierDeletion).toBeDefined();
+  expect(verifierDeletion).toMatch(/(?:max-age=0|expires=thu, 01 jan 1970)/i);
+  expect(
+    setCookies.some((value) => /^sb-127-auth-token(?:\.\d+)?=/i.test(value)),
+  ).toBe(false);
+  expect(setCookies.some((value) => /^unrelated=/i.test(value))).toBe(false);
+
+  const observed = await request.get("http://127.0.0.1:54321/__test/requests");
+  const authRequests = await observed.json();
+  expect(authRequests).toContainEqual(
+    expect.objectContaining({
+      auth_code: "qa251-invalid-code",
+      code_verifier: "stale-verifier",
+    }),
+  );
+});
+
+test("real Next.js OAuth callback consumes a fresh PKCE verifier and persists the session", async ({ request }) => {
+  test.skip(process.env.CI !== "true", "Requires the isolated mock Supabase Auth server configured for CI.");
+
+  const response = await request.get(
+    "/auth/callback?code=qa251-valid-code&next=%2Foffers",
+    {
+      maxRedirects: 0,
+      headers: {
+        cookie: `${QA251_VERIFIER_COOKIE}=fresh-verifier`,
+      },
+    },
+  );
+
+  expect(response.status()).toBe(307);
+  const location = new URL(response.headers().location!, "http://127.0.0.1:3000");
+  expect(location.pathname).toBe("/offers");
+
+  const setCookies = await getSetCookieHeaders(response);
+  const verifierDeletion = setCookies.find((value) =>
+    value.toLowerCase().startsWith(`${QA251_VERIFIER_COOKIE}=`),
+  );
+  expect(verifierDeletion).toBeDefined();
+  expect(verifierDeletion).toMatch(/(?:max-age=0|expires=thu, 01 jan 1970)/i);
+
+  const sessionCookie = setCookies.find((value) =>
+    /^sb-127-auth-token(?:\.\d+)?=/i.test(value),
+  );
+  expect(sessionCookie).toBeDefined();
+  expect(sessionCookie).not.toMatch(/(?:max-age=0|expires=thu, 01 jan 1970)/i);
+
+  const observed = await request.get("http://127.0.0.1:54321/__test/requests");
+  const authRequests = await observed.json();
+  expect(authRequests).toContainEqual(
+    expect.objectContaining({
+      auth_code: "qa251-valid-code",
+      code_verifier: "fresh-verifier",
+    }),
+  );
+});
