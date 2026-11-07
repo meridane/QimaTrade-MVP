@@ -5657,3 +5657,15 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **Vercel:** the combined commit status on documentation HEAD `f8b2fe8` is `success`; the Preview deployment completed. This is not a production deployment. The earlier code HEAD `091f43e` had been rate-limited, but the final documentation HEAD received a successful Preview status.
 - **Register integrity:** both complete Git blobs were re-read after publication and the QA251 sections were confirmed present. The canonical register is 1,286,867 characters and the QA185 addendum is 286,173 characters.
 - **Safety:** no Supabase production data, migration, RLS policy, production configuration, production deployment, PR merge, or branch-protection setting was changed.
+
+
+## QA252 — OAuth callback redirect allowlist over real HTTP — 7 November 2026
+
+- **Baseline:** QA251 HEAD `5ea7d342b894a526a5b80d93d318a6409d899920`; QIMA CI #913 (run 42347196128) and QIMA CodeQL #867 (run 42347196223) completed successfully. The combined commit status reported Vercel `failure` with `upgradeToPro=build-rate-limit`; this is a provider quota result, not a GitHub Actions build failure.
+- **Implementation:** added three Playwright HTTP regressions to `tests/e2e/auth-smoke.spec.ts`. Each invokes the real Next.js `/auth/callback` Route Handler with the isolated local Supabase Auth fixture and a correctly encoded PKCE verifier.
+- **Absolute external destination:** `next=https://evil.example/phish` must complete the simulated exchange but redirect to the same-origin `/demands` fallback; the response Location must not contain the external host.
+- **Protocol-relative destination:** `next=//evil.example/phish` must likewise resolve to the same-origin `/demands` fallback.
+- **Safe local destination:** `next=/offers?search=steel&sort=recent#results` must preserve the same-origin path, query semantics and fragment after a successful simulated exchange.
+- **Validation:** implementation committed; GitHub Actions and CodeQL results are pending for the QA252 head. No test outcome is claimed yet.
+- **Scope limitation:** the browser-to-Next.js HTTP path is real, but Supabase Auth remains the local synthetic fixture. These tests verify redirect handling, not the behaviour of Google's OAuth service or a production vulnerability.
+- **Safety:** no production secrets, Supabase production data, migration, RLS policy, production configuration, production deployment, PR merge, or branch-protection setting is touched.
