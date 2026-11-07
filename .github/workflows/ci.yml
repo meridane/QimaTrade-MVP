@@ -181,5 +181,8 @@ jobs:
       - name: Verify DROP DATABASE WITH FORCE terminates active sessions
         run: bash tests/sql/test-legacy-messages-active-session-cleanup.sh
 
+      - name: Verify DROP DATABASE WITH FORCE terminates multiple active and idle-in-transaction sessions
+        run: bash tests/sql/test-legacy-messages-multiple-sessions-cleanup.sh
+
       - name: Run isolated participant self-enrollment RLS regression tests
         run: bash tests/sql/run-participant-self-enrollment-regression.sh
