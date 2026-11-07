@@ -43,35 +43,50 @@ done
 
 
 
-# Exercise the EXIT trap after the migration command fails. The mock psql records
-# the order of operations and deliberately exits 42 for the migration file.
+# Exercise the EXIT trap when cleanup itself fails. The first DROP is the
+# pre-clean and succeeds; the second DROP is the EXIT-trap cleanup and returns
+# a controlled failure. The runner must preserve the primary status and report
+# the best-effort cleanup failure without exposing DATABASE_URL.
 MOCK_BIN="$TEMP_DIR/mock-bin"
 mkdir -p "$MOCK_BIN"
-EVENTS="$TEMP_DIR/psql-events.log"
 cat > "$MOCK_BIN/psql" <<'PSQL'
 #!/usr/bin/env bash
 set -euo pipefail
 for arg in "$@"; do
   case "$arg" in
     *"DROP DATABASE IF EXISTS qima_message_migration_test WITH (FORCE)"*)
-      printf '%s\n' drop >> "$MOCK_PSQL_EVENTS"
-      exit 0
+      drop_count=0
+      if [[ -f "$MOCK_PSQL_DROP_COUNT" ]]; then
+        drop_count="$(cat "$MOCK_PSQL_DROP_COUNT")"
+      fi
+      drop_count=$((drop_count + 1))
+      printf '%s\\n' "$drop_count" > "$MOCK_PSQL_DROP_COUNT"
+      if [[ "$drop_count" -eq 1 ]]; then
+        printf '%s\\n' drop-pre >> "$MOCK_PSQL_EVENTS"
+        exit 0
+      fi
+      printf '%s\\n' drop-exit >> "$MOCK_PSQL_EVENTS"
+      exit "${MOCK_EXIT_DROP_STATUS:-0}"
       ;;
     *"CREATE DATABASE qima_message_migration_test"*)
-      printf '%s\n' create >> "$MOCK_PSQL_EVENTS"
+      printf '%s\\n' create >> "$MOCK_PSQL_EVENTS"
       exit 0
       ;;
     *legacy-messages-rls-regression.sql)
-      printf '%s\n' legacy >> "$MOCK_PSQL_EVENTS"
+      printf '%s\\n' legacy >> "$MOCK_PSQL_EVENTS"
       exit 0
       ;;
     *legacy-messages-migration-fixture.sql)
-      printf '%s\n' fixture >> "$MOCK_PSQL_EVENTS"
+      printf '%s\\n' fixture >> "$MOCK_PSQL_EVENTS"
       exit 0
       ;;
     *20261028180000_fix_message_participant_authorization.sql)
-      printf '%s\n' migration >> "$MOCK_PSQL_EVENTS"
-      exit 42
+      printf '%s\\n' migration >> "$MOCK_PSQL_EVENTS"
+      exit "${MOCK_MIGRATION_STATUS:-42}"
+      ;;
+    *legacy-messages-migration-assertions.sql)
+      printf '%s\\n' assertions >> "$MOCK_PSQL_EVENTS"
+      exit 0
       ;;
   esac
 done
@@ -80,27 +95,58 @@ exit 90
 PSQL
 chmod +x "$MOCK_BIN/psql"
 
-set +e
-PATH="$MOCK_BIN:$PATH" \
-  MOCK_PSQL_EVENTS="$EVENTS" \
-  DATABASE_URL="postgresql://postgres:postgres@localhost:5432/qima_test" \
-  bash "$RUNNER" >"$OUTPUT" 2>&1
-runner_status=$?
-set -e
+run_cleanup_failure_scenario() {
+  local scenario="$1"
+  local migration_status="$2"
+  local cleanup_status="$3"
+  local expected_status="$4"
+  local events="$TEMP_DIR/$scenario-events.log"
+  local drop_count="$TEMP_DIR/$scenario-drop-count"
+  rm -f "$drop_count"
+  : > "$events"
 
-if [[ "$runner_status" -ne 42 ]]; then
-  echo "ERROR: expected original migration failure exit 42, received $runner_status" >&2
-  cat "$OUTPUT" >&2
-  exit 1
-fi
+  set +e
+  PATH="$MOCK_BIN:$PATH" \
+    MOCK_PSQL_EVENTS="$events" \
+    MOCK_PSQL_DROP_COUNT="$drop_count" \
+    MOCK_MIGRATION_STATUS="$migration_status" \
+    MOCK_EXIT_DROP_STATUS="$cleanup_status" \
+    DATABASE_URL="postgresql://postgres:postgres@localhost:5432/qima_test" \
+    bash "$RUNNER" > "$OUTPUT" 2>&1
+  local runner_status=$?
+  set -e
 
-expected_events="$(printf '%s\n' legacy drop create fixture migration drop)"
-actual_events="$(cat "$EVENTS")"
-if [[ "$actual_events" != "$expected_events" ]]; then
-  echo "ERROR: expected EXIT-trap cleanup sequence after migration failure" >&2
-  printf 'Expected:\n%s\nActual:\n%s\n' "$expected_events" "$actual_events" >&2
-  exit 1
-fi
+  if [[ "$runner_status" -ne "$expected_status" ]]; then
+    echo "ERROR: $scenario expected exit $expected_status, received $runner_status" >&2
+    cat "$OUTPUT" >&2
+    exit 1
+  fi
 
-echo "Disposable PostgreSQL URL guard rejected unsafe URLs; EXIT trap dropped the temporary database after migration failure and preserved exit 42."
+  local expected_events
+  if [[ "$migration_status" -eq 0 ]]; then
+    expected_events="$(printf '%s\\n' legacy drop-pre create fixture migration assertions drop-exit)"
+  else
+    expected_events="$(printf '%s\\n' legacy drop-pre create fixture migration drop-exit)"
+  fi
+  local actual_events
+  actual_events="$(cat "$events")"
+  if [[ "$actual_events" != "$expected_events" ]]; then
+    echo "ERROR: $scenario executed an unexpected PostgreSQL command sequence" >&2
+    printf 'Expected:\\n%s\\nActual:\\n%s\\n' "$expected_events" "$actual_events" >&2
+    exit 1
+  fi
 
+  if ! grep -Fq "Best-effort cleanup of qima_message_migration_test failed (psql exit $cleanup_status)" "$OUTPUT"; then
+    echo "ERROR: $scenario did not report the cleanup failure" >&2
+    cat "$OUTPUT" >&2
+    exit 1
+  fi
+}
+
+# Primary migration failure remains authoritative when EXIT cleanup also fails.
+run_cleanup_failure_scenario migration-fails 42 91 42
+
+# A successful migration remains successful, but cleanup failure is visible.
+run_cleanup_failure_scenario migration-succeeds 0 91 0
+
+echo "Disposable PostgreSQL runner preserves primary exit 42 when EXIT cleanup fails with 91, and reports best-effort cleanup failure after both failed and successful migrations."
