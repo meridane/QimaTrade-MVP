@@ -1757,3 +1757,13 @@ The canonical register's QA184 tail was inspected from commit `0eca4833bae236f32
 - **Superseded runs:** QIMA CI #935 on the first test commit and #936 on the intermediate code commit were cancelled when later commits updated the PR head. They are not reported as test failures. CodeQL #889, #890 and #891 completed successfully.
 - **Vercel:** the combined status for documentation HEAD 04a97f5 reports the provider build-rate-limit failure. This is separate from the successful GitHub Actions build; no deployment was forced or promoted.
 - **Scope and safety:** the failure is simulated by a local stub. This validates that the shell EXIT trap issues the cleanup command and preserves the original exit code; it does not prove recovery from a real PostgreSQL server crash or guarantee cleanup after a network outage. The actual migration integration test remains confined to the ephemeral GitHub Actions PostgreSQL service. No Supabase production connection, data, migration, RLS policy, grant, schema, secret, production deployment, PR merge, or branch-protection setting was used or modified.
+
+
+## QA261 — cleanup failure reporting without masking the primary test result — 2026-11-08
+
+- Updated the disposable migration runner to capture and report a failed EXIT-trap DROP attempt while preserving the original runner status.
+- Added two mocked regression cases: migration failure 42 + cleanup failure 91 returns 42; successful migration + cleanup failure 91 returns 0. Both require the warning and exact command sequence.
+- Shell syntax checks and a focused local shell harness passed. The full CI guard script passed in QIMA CI #939.
+- QIMA CI #939 [run 42388526274](https://github.com/meridane/QimaTrade-MVP/actions/runs/42388526274): **322 Playwright tests passed, 0 failed**; typecheck, npm audit threshold, Next.js build, CREATE_OFFER PostgreSQL integration/concurrency, unsafe-URL guard, actual message-participant migration in disposable PostgreSQL, updated cleanup-failure guard, and participant self-enrollment regression all passed.
+- QIMA CodeQL #893 [run 42388526180](https://github.com/meridane/QimaTrade-MVP/actions/runs/42388526180) completed successfully.
+- Cleanup remains best-effort: the test proves warning/reporting and status preservation, not successful deletion during a real PostgreSQL outage. No production Supabase object or data was accessed or changed.
