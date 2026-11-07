@@ -178,5 +178,8 @@ jobs:
       - name: Run real SQL failure and verify disposable migration cleanup
         run: bash tests/sql/test-legacy-messages-real-failure-cleanup.sh
 
+      - name: Verify DROP DATABASE WITH FORCE terminates active sessions
+        run: bash tests/sql/test-legacy-messages-active-session-cleanup.sh
+
       - name: Run isolated participant self-enrollment RLS regression tests
         run: bash tests/sql/run-participant-self-enrollment-regression.sh
