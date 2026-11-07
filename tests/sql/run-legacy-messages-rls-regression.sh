@@ -1,6 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 : "${DATABASE_URL:?DATABASE_URL must point to a disposable PostgreSQL database}"
+
+# This runner drops and recreates a named database. Fail closed before invoking psql:
+# accept only the dedicated qima_test database on an explicit loopback URI.
+# Do not print DATABASE_URL because it may contain credentials.
+if [[ ! "$DATABASE_URL" =~ ^postgres(ql)?://[^@]+@(localhost|127\.0\.0\.1|\[::1\]):5432/qima_test$ ]]; then
+  echo "::error::Refusing to run destructive migration fixture: DATABASE_URL must target qima_test on localhost, 127.0.0.1, or [::1] at port 5432; no database connection was attempted." >&2
+  exit 2
+fi
+
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
 # Keep the original predicate-level synthetic regression suite.
