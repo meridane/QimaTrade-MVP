@@ -517,3 +517,11 @@ The QA281 matrix and all three register updates were revalidated on PR HEAD `9e4
 - PostgreSQL 16 disposable integration: updated runtime SQL passed; prepared-transaction QA266 and RESET/restart QA267 passed, returning to baseline 0 with no residual transaction or disposable database.
 - Vercel code-commit status: **SUCCESS** (Preview only; no Production deployment).
 - Classification: contract regression coverage, not a confirmed production vulnerability. No Supabase production data, migrations, schema, RLS policy, grants, secrets, or persistent configuration changed; no Production deployment, PR merge, force-push, or branch-protection change.
+
+
+### QA285 — final HEAD CI/CodeQL revalidation (8 November 2026)
+
+- Final documentation HEAD tested: `ad66b98c6a56a667977873e8944d57027d05f43d`; QA285 route and SQL test commits remained `682ef4d` and `91cc390`.
+- QIMA CI #1019 ([run 42491022728](https://github.com/meridane/QimaTrade-MVP/actions/runs/42491022728)): **SUCCESS**; 324/324 Playwright tests, TypeScript, Next.js build, audit enforcement, CREATE_OFFER PostgreSQL integration/concurrency, RLS, cleanup, QA266 and QA267 passed.
+- QIMA CodeQL #972 ([run 42491022811](https://github.com/meridane/QimaTrade-MVP/actions/runs/42491022811)): **SUCCESS**.
+- Vercel Preview: code commit **SUCCESS**; documentation HEAD rate-limited by `upgradeToPro=build-rate-limit`. No Production deployment or application build failure is inferred from this quota response.
