@@ -6197,3 +6197,13 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **QIMA CodeQL #962** ([run 42473845560](https://github.com/meridane/QimaTrade-MVP/actions/runs/42473845560)) — **SUCCESS**.
 - The combined Vercel status for this documentation HEAD is **FAILURE** because the Preview build rate limit returned `upgradeToPro=build-rate-limit`. This is separate from the successful GitHub Actions production build; no Preview READY or Production deployment is claimed.
 - **Safety:** documentation-head verification only. No Supabase production data, migration, schema, RLS policy, grant, secret, persistent PostgreSQL configuration, Production deployment, PR merge, force-push, or branch-protection setting was changed.
+
+
+## QA282 — Exact RESTORE_REQUIRED marker contract (8 November 2026)
+
+- **Scope:** regression-only change in `tests/sql/test-prepared-transactions-config-restore.sh`; the restoration script itself is unchanged.
+- **Contract:** restoration is entered only when `RESTORE_REQUIRED` is exactly the lowercase string `true`. The test covers an unset variable, an empty string, `false`, `1`, and uppercase `TRUE`; each must exit successfully as a no-op, emit the existing “configuration was not changed; restoration is not required” message, leave the external-command event log empty, and never emit the QA267 success message.
+- **Ordering proof:** non-matching marker cases deliberately use a remote database URL and an invalid baseline. Passing them as no-ops proves the exact-marker gate runs before URL validation, baseline validation, Docker discovery, readiness probes, or database/configuration commands. The suite's existing successful exact-`true` / baseline-`0` case continues to prove the valid restoration path is entered.
+- **Code commit:** `41eae5e0104bb4935011233e91a4e3f42d54c0c6`.
+- **Initial validation:** QIMA CI #1011 (run 42475182013) and QIMA CodeQL #964 (run 42475182036) were triggered on this code HEAD; both were still in progress when this entry was prepared. Final conclusions are recorded in the subsequent documentation-head verification entry.
+- **Classification:** deterministic CI regression coverage for exact environment-marker matching, not evidence of a production incident or vulnerability. No Supabase production data, migration, schema, RLS policy, grant, secret, persistent PostgreSQL configuration, Production deployment, PR merge, force-push, or branch-protection setting was changed.
