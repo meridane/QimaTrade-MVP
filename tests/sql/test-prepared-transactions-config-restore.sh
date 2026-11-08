@@ -193,6 +193,16 @@ run_restore_noop "false" env RESTORE_REQUIRED=false
 run_restore_noop "one" env RESTORE_REQUIRED=1
 run_restore_noop "uppercase TRUE" env RESTORE_REQUIRED=TRUE
 
+# QA283: whitespace, case variants, and newline-bearing values are not the exact
+# marker. They must no-op before URL/baseline validation or external commands.
+run_restore_noop "leading space" env "RESTORE_REQUIRED= true"
+run_restore_noop "trailing space" env "RESTORE_REQUIRED=true "
+run_restore_noop "mixed-case True" env RESTORE_REQUIRED=True
+run_restore_noop "leading newline" env $'RESTORE_REQUIRED=\ntrue'
+run_restore_noop "trailing newline" env $'RESTORE_REQUIRED=true\n'
+run_restore_noop "leading tab" env $'RESTORE_REQUIRED=\ttrue'
+run_restore_noop "trailing tab" env $'RESTORE_REQUIRED=true\t'
+
 # The successful run_restore 0 path above proves that exact "true" with the
 # approved baseline enters the restoration sequence normally.
 
@@ -471,4 +481,4 @@ if grep -Fq "postgres:postgres" "$OUTPUT"; then
   exit 1
 fi
 
-echo "Prepared-transaction configuration restoration regression passed: docker ps partial-output failures preserve the exit code; zero/multiple container discovery fails before readiness or RESET; reset/restart order, explicit RESET and restart failure handling with original exit codes, post-restart SHOW and residual-resource query failure propagation, bounded transient recovery and configuration convergence, permanent unavailability and wrong-value rejection, no-op behavior, exact RESTORE_REQUIRED marker matrix (QA282), loopback URL guard, single-container guard, missing-baseline, QA281 noncanonical-baseline matrix, unapproved-baseline guards, and residual-resource detection."
+echo "Prepared-transaction configuration restoration regression passed: docker ps partial-output failures preserve the exit code; zero/multiple container discovery fails before readiness or RESET; reset/restart order, explicit RESET and restart failure handling with original exit codes, post-restart SHOW and residual-resource query failure propagation, bounded transient recovery and configuration convergence, permanent unavailability and wrong-value rejection, no-op behavior, exact RESTORE_REQUIRED marker matrix (QA282), whitespace/case/newline marker matrix (QA283), loopback URL guard, single-container guard, missing-baseline, QA281 noncanonical-baseline matrix, unapproved-baseline guards, and residual-resource detection."
