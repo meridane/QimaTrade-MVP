@@ -704,6 +704,64 @@ test("CREATE_OFFER route preserves optional business fields in both action input
   expect(normalizedNullPayloads[0]).toEqual(normalizedNullPayloads[1]);
 });
 
+
+test("CREATE_OFFER route preserves empty optional business strings and keeps them distinct from null", async () => {
+  const optionalFields = [
+    { inputKey: "conditions", rpcKey: "p_conditions" },
+    { inputKey: "market", rpcKey: "p_market" },
+    { inputKey: "geography", rpcKey: "p_geography" },
+    { inputKey: "documentationStatus", rpcKey: "p_documentation_status" },
+  ] as const;
+  const emptyValues = Object.fromEntries(optionalFields.map(({ inputKey }) => [inputKey, ""]));
+  const nullValues = Object.fromEntries(optionalFields.map(({ inputKey }) => [inputKey, null]));
+
+  const readOptionalPayload = async (
+    label: string,
+    overrides: Record<string, unknown>,
+    expectedValue: string | null,
+  ) => {
+    const result = await postCreateOffer("USD", overrides);
+    expect(result.status, label).toBe(200);
+
+    const executionCalls = result.requests.filter(
+      (request) => request.path === "/rest/v1/rpc/execute_create_offer_v1",
+    );
+    expect(executionCalls, label).toHaveLength(1);
+
+    const rpcBody = executionCalls[0].body;
+    expect(rpcBody, label).toBeDefined();
+    const rpcInput = rpcBody?.p_input as Record<string, unknown> | undefined;
+    expect(rpcInput, label).toBeDefined();
+
+    for (const { inputKey, rpcKey } of optionalFields) {
+      expect(
+        Object.prototype.hasOwnProperty.call(rpcInput, inputKey),
+        `${label}: p_input.${inputKey} must be present`,
+      ).toBe(true);
+      expect(rpcInput?.[inputKey], `${label}: p_input.${inputKey}`).toBe(expectedValue);
+      expect(
+        Object.prototype.hasOwnProperty.call(rpcBody, rpcKey),
+        `${label}: ${rpcKey} must be present`,
+      ).toBe(true);
+      expect(rpcBody?.[rpcKey], `${label}: ${rpcKey}`).toBe(expectedValue);
+    }
+
+    return {
+      p_input: Object.fromEntries(
+        optionalFields.map(({ inputKey }) => [inputKey, rpcInput?.[inputKey]]),
+      ),
+      rpc_arguments: Object.fromEntries(
+        optionalFields.map(({ rpcKey }) => [rpcKey, rpcBody?.[rpcKey]]),
+      ),
+    };
+  };
+
+  const emptyPayload = await readOptionalPayload("empty optional strings", emptyValues, "");
+  const nullPayload = await readOptionalPayload("null optional strings", nullValues, null);
+
+  expect(emptyPayload).not.toEqual(nullPayload);
+});
+
 test("CREATE_OFFER route trims an explicit idempotency key before the RPC", async () => {
   const result = await postCreateOffer("USD", { idempotencyKey: "  client-key-123  " });
 
