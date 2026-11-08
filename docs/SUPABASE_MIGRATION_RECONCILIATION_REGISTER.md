@@ -389,3 +389,15 @@ The full remote history must be exported without truncation and joined to a comp
 - The first code commit 2814d6be9eede293bc4c4a14314c2940014221ef failed QIMA CI run 42461613424 because the inserted test block was malformed (Bash syntax error at line 418). Corrected code commit: 813bd1601e043e422e494bb890505dbf963bafba. At this documentation revision, its QIMA CI and CodeQL checks were in progress; no final pass is claimed.
 - This is a regression test of an OS-level permission denial in disposable CI, not a finding of a production filesystem problem or security vulnerability. No production Supabase migration/data/schema/RLS/grant/secret or persistent PostgreSQL configuration was touched.
 
+
+### QA278 — final CI and CodeQL evidence (2026-11-08)
+
+- Final code/documentation HEAD at this validation: b2c5d41006391ee92e88118825919eda68cd86ab.
+- QIMA CI #996 ([run 42462176743](https://github.com/meridane/QimaTrade-MVP/actions/runs/42462176743)) — **SUCCESS**, both jobs completed. The PostgreSQL integration job passed the prepared-transaction setup regression containing QA278, the QA266 real prepared-transaction cleanup blocker, and QA267's real RESET/restart/restoration to baseline 0 with no residual transaction or disposable database.
+- The browser/build job passed npm ci, npm audit enforcement, TypeScript, Next.js production build, Chromium and **322/322 Playwright tests (8.3s)**. npm audit reported zero info, low, moderate, high, critical, and total findings for this run.
+- QIMA CodeQL #949 ([run 42462176783](https://github.com/meridane/QimaTrade-MVP/actions/runs/42462176783)) — **SUCCESS**; the check reports no new alerts in code changed by this pull request.
+- QA278 uses an actual mode-0444 GITHUB_OUTPUT file and runs as an unprivileged account (or runuser -u nobody when the harness is root). The test requires Permission denied, a zero-byte output file, the exact pre-mutation docker-ps / psql-show event sequence, no ALTER SYSTEM SET or restart, and a no-op always() cleanup.
+- Correction history: QIMA CI #994 failed on an initial malformed test insertion; QIMA CI #995 then failed because the mock SHOW counter was pre-created empty and read exited under set -e. The final code initializes that counter to 0. Both earlier failures are retained as history; only CI #996 is reported as the final passing validation.
+- Vercel combined status on this HEAD remains **FAILURE** due to the Preview build rate limit (upgradeToPro=build-rate-limit); this is separate from the successful GitHub Actions build. No Preview READY or Production deployment is claimed.
+- This is a filesystem permission regression in disposable CI, not a finding of a production filesystem problem or vulnerability. No Supabase production migration/data/schema/RLS/grant/secret or persistent PostgreSQL configuration was touched.
+
