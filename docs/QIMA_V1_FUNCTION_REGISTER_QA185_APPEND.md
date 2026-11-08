@@ -2172,3 +2172,14 @@ The canonical register's QA184 tail was inspected from commit `0eca4833bae236f32
 - QIMA CodeQL #962 ([42473845560](https://github.com/meridane/QimaTrade-MVP/actions/runs/42473845560)) — **SUCCESS**.
 - Vercel combined status on this documentation HEAD — **FAILURE** due to `upgradeToPro=build-rate-limit`; no Preview READY or Production deployment is claimed.
 - No production Supabase object or migration was changed.
+
+
+## QA282 — Exact RESTORE_REQUIRED marker contract (8 November 2026)
+
+- **Scope:** regression-only addition to `tests/sql/test-prepared-transactions-config-restore.sh`; no restoration script, application code, migration, or CI workflow changed.
+- **Matrix:** `RESTORE_REQUIRED` unset, empty, `false`, `1`, and uppercase `TRUE`. Every case exits 0 as a no-op, emits the existing “configuration was not changed; restoration is not required” message, leaves the external-command event log empty, and does not emit the QA267 success message. Each case deliberately supplies a remote URL and invalid baseline, proving the exact-marker gate runs before those validations and before Docker, readiness, or database commands. The existing successful exact-`true` plus baseline-`0` case remains the positive path.
+- **Code commit:** `41eae5e0104bb4935011233e91a4e3f42d54c0c6`.
+- **QIMA CI #1011** ([run 42475182013](https://github.com/meridane/QimaTrade-MVP/actions/runs/42475182013)) — **SUCCESS**. PostgreSQL integration job and browser/build job both completed successfully, including the restoration guard suite, CREATE_OFFER integration/concurrency checks, RLS regressions, dependency audit enforcement, TypeScript, Next.js production build, Chromium, and Playwright smoke tests.
+- **QIMA CodeQL #964** ([run 42475182036](https://github.com/meridane/QimaTrade-MVP/actions/runs/42475182036)) — **SUCCESS**.
+- **Vercel commit status:** **SUCCESS** (“Deployment has completed”) for the code commit. This is a Preview/check status only; no Production deployment is claimed.
+- **Classification and safety:** deterministic environment-marker regression coverage, not evidence of a production incident or vulnerability. No Supabase production data, migration, schema, RLS policy, grant, secret, or persistent PostgreSQL configuration was touched; no Production deployment, PR merge, force-push, or branch-protection change occurred.
