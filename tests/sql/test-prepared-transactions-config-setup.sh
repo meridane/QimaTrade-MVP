@@ -213,6 +213,232 @@ if [[ "$restore_status" -ne 0 ]] ||
   exit 1
 fi
 
+# QA277: if the GitHub Actions output file cannot persist the restoration intent,
+# setup must stop before ALTER SYSTEM SET/restart, and the workflow's always()
+# restoration step must remain a no-op. The BASH_ENV hook injects a controlled
+# printf failure at the marker-write boundary; it does not emulate a filesystem
+# permission or storage failure.
+cat > "$TEMP_DIR/fail-marker-write.bash" <<'BASH_ENV'
+printf() {
+  if [[ "\${1-}" == 
+# that partial container ID to be used for any PostgreSQL operation.
+run_setup 55 env MOCK_PS_OUTPUT=partial-container MOCK_DOCKER_PS_STATUS=55
+if [[ "$(cat "$EVENTS")" != "docker-ps" ]] || [[ -s "$GITHUB_OUTPUT_FILE" ]] ||
+  ! grep -Fq "docker ps exit 55" "$OUTPUT" ||
+  grep -Fq "psql-show" "$EVENTS"; then
+  echo "ERROR: partial docker ps output was used after discovery failed." >&2
+  cat "$EVENTS" >&2
+  cat "$GITHUB_OUTPUT_FILE" >&2
+  cat "$OUTPUT" >&2
+  exit 1
+fi
+
+# Empty successful discovery must fail before reading the database baseline.
+run_setup 1 env MOCK_PS_OUTPUT=
+if [[ "$(cat "$EVENTS")" != "docker-ps" ]] || [[ -s "$GITHUB_OUTPUT_FILE" ]] ||
+  ! grep -Fq "found 0" "$OUTPUT"; then
+  echo "ERROR: an empty PostgreSQL container result was not rejected before database access." >&2
+  cat "$EVENTS" >&2
+  cat "$OUTPUT" >&2
+  exit 1
+fi
+
+# Multiple discovered containers are ambiguous and must also fail before mutation.
+run_setup 1 env MOCK_PS_OUTPUT=$'one\ntwo'
+if [[ "$(cat "$EVENTS")" != "docker-ps" ]] || [[ -s "$GITHUB_OUTPUT_FILE" ]] ||
+  ! grep -Fq "found 2" "$OUTPUT"; then
+  echo "ERROR: ambiguous PostgreSQL container discovery was not rejected before database access." >&2
+  cat "$EVENTS" >&2
+  cat "$OUTPUT" >&2
+  exit 1
+fi
+
+# A failed ALTER SYSTEM SET must leave restore_required=true in GITHUB_OUTPUT.
+run_setup 47 env MOCK_DOCKER_EXEC_STATUS=47
+assert_restore_intent
+expected="$(printf '%s\n' docker-ps psql-show-1 docker-exec-set)"
+if [[ "$(cat "$EVENTS")" != "$expected" ]] ||
+   ! grep -Fq 'restoration remains required' "$OUTPUT"; then
+  echo "ERROR: SET failure lost the cleanup marker or continued to restart." >&2
+  cat "$EVENTS" >&2
+  cat "$OUTPUT" >&2
+  exit 1
+fi
+
+# A failed restart must also preserve the cleanup marker.
+run_setup 48 env MOCK_DOCKER_RESTART_STATUS=48
+assert_restore_intent
+expected="$(printf '%s\n' docker-ps psql-show-1 docker-exec-set docker-restart)"
+if [[ "$(cat "$EVENTS")" != "$expected" ]] ||
+   ! grep -Fq 'setup restart failed' "$OUTPUT"; then
+  echo "ERROR: restart failure lost the cleanup marker or continued to readiness checks." >&2
+  cat "$EVENTS" >&2
+  cat "$OUTPUT" >&2
+  exit 1
+fi
+
+# A post-restart SHOW failure must not clear the cleanup marker.
+run_setup 49 env MOCK_SHOW_STATUS=49
+assert_restore_intent
+expected="$(printf '%s\n' docker-ps psql-show-1 docker-exec-set docker-restart pg-isready psql-show-2)"
+if [[ "$(cat "$EVENTS")" != "$expected" ]] ||
+   ! grep -Fq 'restoration remains required' "$OUTPUT"; then
+  echo "ERROR: SHOW failure lost the cleanup marker or claimed setup success." >&2
+  cat "$EVENTS" >&2
+  cat "$OUTPUT" >&2
+  exit 1
+fi
+
+# If PostgreSQL never becomes ready, setup fails after publishing the cleanup marker.
+run_setup 1 env MOCK_READY_STATUS=1
+assert_restore_intent
+if [[ "$(grep -Fxc 'pg-isready' "$EVENTS" || true)" -ne 60 ]] ||
+   [[ "$(grep -Fxc 'sleep-1' "$EVENTS" || true)" -ne 60 ]] ||
+   grep -Fq 'restarted with max_prepared_transactions=10' "$OUTPUT"; then
+  echo "ERROR: readiness exhaustion was not bounded or falsely reported setup success." >&2
+  cat "$EVENTS" >&2
+  cat "$OUTPUT" >&2
+  exit 1
+fi
+
+# The workflow must run the extracted setup script and always invoke restoration.
+grep -Fq 'run: bash tests/sql/enable-prepared-transactions-config.sh' "$WORKFLOW"
+grep -Fq 'run: bash tests/sql/test-prepared-transactions-config-setup.sh' "$WORKFLOW"
+restore_block="$(awk '/name: Restore prepared-transaction configuration and verify disposable resources/{show=1} show{print} show && /run: bash tests\/sql\/restore-prepared-transactions-config.sh/{exit}' "$WORKFLOW")"
+grep -Fq 'if: always()' <<< "$restore_block"
+grep -Fq 'RESTORE_REQUIRED: ${{ steps.enable_prepared.outputs.restore_required }}' <<< "$restore_block"
+grep -Fq 'BASELINE_MAX_PREPARED_TRANSACTIONS: ${{ steps.enable_prepared.outputs.baseline }}' <<< "$restore_block"
+
+echo "Prepared-transaction setup regression passed: docker ps partial-output failures preserve the exit code; zero/multiple container discovery fails before database access; restoration intent is persisted before mutation; SET, restart, post-restart SHOW and readiness failures preserve the cleanup marker; retry exhaustion is bounded; workflow invokes setup and always() restoration."
+baseline=%s\nrestore_required=true\n' ]]; then
+    builtin printf '%s\n' marker-write-failed >> "$MOCK_EVENTS"
+    return 52
+  fi
+  builtin printf "$@"
+}
+BASH_ENV
+
+run_setup 1 env BASH_ENV="$TEMP_DIR/fail-marker-write.bash"
+expected=
+# that partial container ID to be used for any PostgreSQL operation.
+run_setup 55 env MOCK_PS_OUTPUT=partial-container MOCK_DOCKER_PS_STATUS=55
+if [[ "$(cat "$EVENTS")" != "docker-ps" ]] || [[ -s "$GITHUB_OUTPUT_FILE" ]] ||
+  ! grep -Fq "docker ps exit 55" "$OUTPUT" ||
+  grep -Fq "psql-show" "$EVENTS"; then
+  echo "ERROR: partial docker ps output was used after discovery failed." >&2
+  cat "$EVENTS" >&2
+  cat "$GITHUB_OUTPUT_FILE" >&2
+  cat "$OUTPUT" >&2
+  exit 1
+fi
+
+# Empty successful discovery must fail before reading the database baseline.
+run_setup 1 env MOCK_PS_OUTPUT=
+if [[ "$(cat "$EVENTS")" != "docker-ps" ]] || [[ -s "$GITHUB_OUTPUT_FILE" ]] ||
+  ! grep -Fq "found 0" "$OUTPUT"; then
+  echo "ERROR: an empty PostgreSQL container result was not rejected before database access." >&2
+  cat "$EVENTS" >&2
+  cat "$OUTPUT" >&2
+  exit 1
+fi
+
+# Multiple discovered containers are ambiguous and must also fail before mutation.
+run_setup 1 env MOCK_PS_OUTPUT=$'one\ntwo'
+if [[ "$(cat "$EVENTS")" != "docker-ps" ]] || [[ -s "$GITHUB_OUTPUT_FILE" ]] ||
+  ! grep -Fq "found 2" "$OUTPUT"; then
+  echo "ERROR: ambiguous PostgreSQL container discovery was not rejected before database access." >&2
+  cat "$EVENTS" >&2
+  cat "$OUTPUT" >&2
+  exit 1
+fi
+
+# A failed ALTER SYSTEM SET must leave restore_required=true in GITHUB_OUTPUT.
+run_setup 47 env MOCK_DOCKER_EXEC_STATUS=47
+assert_restore_intent
+expected="$(printf '%s\n' docker-ps psql-show-1 docker-exec-set)"
+if [[ "$(cat "$EVENTS")" != "$expected" ]] ||
+   ! grep -Fq 'restoration remains required' "$OUTPUT"; then
+  echo "ERROR: SET failure lost the cleanup marker or continued to restart." >&2
+  cat "$EVENTS" >&2
+  cat "$OUTPUT" >&2
+  exit 1
+fi
+
+# A failed restart must also preserve the cleanup marker.
+run_setup 48 env MOCK_DOCKER_RESTART_STATUS=48
+assert_restore_intent
+expected="$(printf '%s\n' docker-ps psql-show-1 docker-exec-set docker-restart)"
+if [[ "$(cat "$EVENTS")" != "$expected" ]] ||
+   ! grep -Fq 'setup restart failed' "$OUTPUT"; then
+  echo "ERROR: restart failure lost the cleanup marker or continued to readiness checks." >&2
+  cat "$EVENTS" >&2
+  cat "$OUTPUT" >&2
+  exit 1
+fi
+
+# A post-restart SHOW failure must not clear the cleanup marker.
+run_setup 49 env MOCK_SHOW_STATUS=49
+assert_restore_intent
+expected="$(printf '%s\n' docker-ps psql-show-1 docker-exec-set docker-restart pg-isready psql-show-2)"
+if [[ "$(cat "$EVENTS")" != "$expected" ]] ||
+   ! grep -Fq 'restoration remains required' "$OUTPUT"; then
+  echo "ERROR: SHOW failure lost the cleanup marker or claimed setup success." >&2
+  cat "$EVENTS" >&2
+  cat "$OUTPUT" >&2
+  exit 1
+fi
+
+# If PostgreSQL never becomes ready, setup fails after publishing the cleanup marker.
+run_setup 1 env MOCK_READY_STATUS=1
+assert_restore_intent
+if [[ "$(grep -Fxc 'pg-isready' "$EVENTS" || true)" -ne 60 ]] ||
+   [[ "$(grep -Fxc 'sleep-1' "$EVENTS" || true)" -ne 60 ]] ||
+   grep -Fq 'restarted with max_prepared_transactions=10' "$OUTPUT"; then
+  echo "ERROR: readiness exhaustion was not bounded or falsely reported setup success." >&2
+  cat "$EVENTS" >&2
+  cat "$OUTPUT" >&2
+  exit 1
+fi
+
+# The workflow must run the extracted setup script and always invoke restoration.
+grep -Fq 'run: bash tests/sql/enable-prepared-transactions-config.sh' "$WORKFLOW"
+grep -Fq 'run: bash tests/sql/test-prepared-transactions-config-setup.sh' "$WORKFLOW"
+restore_block="$(awk '/name: Restore prepared-transaction configuration and verify disposable resources/{show=1} show{print} show && /run: bash tests\/sql\/restore-prepared-transactions-config.sh/{exit}' "$WORKFLOW")"
+grep -Fq 'if: always()' <<< "$restore_block"
+grep -Fq 'RESTORE_REQUIRED: ${{ steps.enable_prepared.outputs.restore_required }}' <<< "$restore_block"
+grep -Fq 'BASELINE_MAX_PREPARED_TRANSACTIONS: ${{ steps.enable_prepared.outputs.baseline }}' <<< "$restore_block"
+
+echo "Prepared-transaction setup regression passed: docker ps partial-output failures preserve the exit code; zero/multiple container discovery fails before database access; restoration intent is persisted before mutation; SET, restart, post-restart SHOW and readiness failures preserve the cleanup marker; retry exhaustion is bounded; workflow invokes setup and always() restoration."
+docker-ps\npsql-show-1\nmarker-write-failed'
+if [[ "$(cat "$EVENTS")" != "$expected" ]] ||
+  [[ -s "$GITHUB_OUTPUT_FILE" ]] ||
+  ! grep -Fq "Could not persist PostgreSQL restoration intent; no configuration change was attempted." "$OUTPUT" ||
+  grep -Fq "docker-exec-set" "$EVENTS" ||
+  grep -Fq "docker-restart" "$EVENTS"; then
+  echo "ERROR: failed GITHUB_OUTPUT marker persistence did not stop setup before PostgreSQL mutation." >&2
+  cat "$EVENTS" >&2
+  cat "$GITHUB_OUTPUT_FILE" >&2
+  cat "$OUTPUT" >&2
+  exit 1
+fi
+
+# The always() cleanup step must be a no-op because setup never persisted a marker
+# and therefore never started a configuration mutation.
+: > "$EVENTS"
+: > "$OUTPUT"
+set +e
+PATH="$MOCK_BIN:$PATH" MOCK_EVENTS="$EVENTS" DATABASE_URL="postgresql://postgres:postgres@localhost:5432/qima_test" RESTORE_REQUIRED="" BASELINE_MAX_PREPARED_TRANSACTIONS="" bash "$RESTORE_SCRIPT" > "$OUTPUT" 2>&1
+restore_status=$?
+set -e
+if [[ "$restore_status" -ne 0 ]] ||
+  [[ -s "$EVENTS" ]] ||
+  ! grep -Fq "configuration was not changed; restoration is not required" "$OUTPUT"; then
+  echo "ERROR: always() restoration did not no-op after marker persistence failed before mutation." >&2
+  cat "$EVENTS" >&2
+  cat "$OUTPUT" >&2
+  exit 1
+fi
+
 # A docker ps command that emits partial output and then fails must not allow
 # that partial container ID to be used for any PostgreSQL operation.
 run_setup 55 env MOCK_PS_OUTPUT=partial-container MOCK_DOCKER_PS_STATUS=55
