@@ -2087,3 +2087,15 @@ The canonical register's QA184 tail was inspected from commit `0eca4833bae236f32
 - **Vercel:** combined status for this PR HEAD remains **FAILURE** because the Preview deployment is rate limited (`upgradeToPro=build-rate-limit`). This is separate from the successful GitHub Actions build; no Preview READY or Production deployment is claimed.
 - **Interpretation:** QA277 remains a deterministic `BASH_ENV`-injected `printf` failure (exit 52), not an OS-level filesystem fault or confirmed vulnerability. The final CI run proves the regression script completed successfully; it does not convert the stub into evidence of a production incident.
 - **Safety:** no Supabase production data, migration, schema, RLS policy, grant, secret, persistent PostgreSQL configuration, Production deployment, PR merge, or branch-protection setting was changed.
+
+## QA278 — real filesystem permission denial for GITHUB_OUTPUT (2026-11-08)
+
+- **Scope:** regression coverage for the PostgreSQL setup script's pre-mutation restoration-marker write. The test uses the existing disposable CI service and mocked Docker/psql commands; no application runtime or production database is involved.
+- **Real filesystem condition:** create a regular GITHUB_OUTPUT file, make it mode 0444, and execute the setup script as an unprivileged account. GitHub-hosted Ubuntu runners normally execute steps unprivileged; if the test itself is invoked as root, it uses runuser -u nobody so the permission check cannot be bypassed by root privileges.
+- **Assertions:** the actual shell append receives an operating-system Permission denied; the script exits non-zero; the output file remains empty; the only recorded setup events are docker container discovery and the initial SHOW; no ALTER SYSTEM SET or container restart occurs.
+- **Cleanup:** the test invokes the if: always() restoration script with empty outputs and confirms it exits as a no-op without Docker, readiness, or PostgreSQL calls.
+- **Local OS-level probe:** the isolated permission probe executed as nobody returned exit 1, preserved a zero-byte output file, and emitted Permission denied. This validates the runner's permission mechanism only; the complete repository regression remains subject to GitHub Actions.
+- **Implementation history:** first QA278 commit 2814d6be9eede293bc4c4a14314c2940014221ef had a malformed test insertion; QIMA CI run 42461613424 failed in the setup regression with a Bash syntax error at line 418. The corrected test is commit 813bd1601e043e422e494bb890505dbf963bafba; its QIMA CI and CodeQL runs were still in progress when this note was prepared. CodeQL for the first commit completed successfully. The failed first CI run is retained as history and is not presented as a pass.
+- **Interpretation:** QA278 is an OS-level permission regression in the disposable CI test environment, not evidence of a production filesystem fault or vulnerability.
+- **Safety:** no Supabase production data, migration, schema, RLS policy, grant, secret, persistent PostgreSQL configuration, Production deployment, PR merge, force-push, or branch-protection setting was changed.
+
