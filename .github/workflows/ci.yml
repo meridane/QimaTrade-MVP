@@ -187,40 +187,13 @@ jobs:
       - name: Verify prepared-transaction configuration restoration guard
         run: bash tests/sql/test-prepared-transactions-config-restore.sh
 
+      - name: Verify prepared-transaction setup records restoration intent before mutation
+        run: bash tests/sql/test-prepared-transactions-config-setup.sh
+
       - name: Enable prepared transactions for the disposable PostgreSQL regression
         id: enable_prepared
         shell: bash
-        run: |
-          set -euo pipefail
-          mapfile -t postgres_containers < <(docker ps --filter 'ancestor=postgres:16' --format '{{.ID}}')
-          if [[ "${#postgres_containers[@]}" -ne 1 ]]; then
-            echo "::error::Expected exactly one PostgreSQL 16 service container; found ${#postgres_containers[@]}."
-            exit 1
-          fi
-          container_id="${postgres_containers[0]}"
-          baseline="$(psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -Atqc "SHOW max_prepared_transactions")"
-          if [[ "$baseline" != "0" ]]; then
-            echo "::error::Expected the pristine disposable PostgreSQL baseline to be 0; found $baseline."
-            exit 1
-          fi
-          # Publish the restoration intent before changing the ephemeral service.
-          echo "baseline=$baseline" >> "$GITHUB_OUTPUT"
-          echo "restore_required=true" >> "$GITHUB_OUTPUT"
-          docker exec "$container_id" psql -U postgres -d qima_test -v ON_ERROR_STOP=1 \
-            -c "ALTER SYSTEM SET max_prepared_transactions = '10'"
-          docker restart "$container_id" >/dev/null
-          for attempt in {1..60}; do
-            if pg_isready -h 127.0.0.1 -p 5432 -U postgres -d qima_test >/dev/null 2>&1; then
-              configured="$(psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -Atqc "SHOW max_prepared_transactions")"
-              if [[ "$configured" == "10" ]]; then
-                echo "Disposable PostgreSQL service restarted with max_prepared_transactions=10 (captured baseline=$baseline)."
-                exit 0
-              fi
-            fi
-            sleep 1
-          done
-          echo "::error::PostgreSQL did not become ready with max_prepared_transactions=10."
-          exit 1
+        run: bash tests/sql/enable-prepared-transactions-config.sh
 
       - name: Verify prepared transactions block forced disposable database cleanup
         run: bash tests/sql/test-legacy-messages-prepared-transaction-cleanup.sh
