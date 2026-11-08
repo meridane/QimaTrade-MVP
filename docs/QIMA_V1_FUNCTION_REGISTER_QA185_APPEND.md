@@ -2241,3 +2241,13 @@ The canonical register's QA184 tail was inspected from commit `0eca4833bae236f32
 - QIMA CI #1019 ([run 42491022728](https://github.com/meridane/QimaTrade-MVP/actions/runs/42491022728)) — **SUCCESS**, **324/324 Playwright tests**; TypeScript, build, npm audit enforcement, CREATE_OFFER PostgreSQL integration/concurrency, RLS, cleanup, QA266 and QA267 passed.
 - QIMA CodeQL #972 ([run 42491022811](https://github.com/meridane/QimaTrade-MVP/actions/runs/42491022811)) — **SUCCESS**.
 - Vercel: code commit Preview status **SUCCESS**; documentation HEAD **rate-limited** (`upgradeToPro=build-rate-limit`). No Production deployment.
+
+
+### QA286 — exact empty-string replay and NULL mismatch
+
+- Code commit: 485d69454a802b3e71804c841fdc294f76b81ba1; SQL regression: tests/sql/create-offer-runtime.sql.
+- Four optional fields (conditions, market, geography, documentationStatus) are created with empty text. The fixture verifies the complete request hash, persisted values, exactly one completed idempotency row/execution/offer/success event, and an identical replay returning the stored result without duplicates.
+- Changing conditions from empty text to JSONB null and SQL NULL under the same key must raise IDEMPOTENCY_KEY_REUSE; all row counts remain unchanged.
+- QIMA CI #1021 (https://github.com/meridane/QimaTrade-MVP/actions/runs/42493888884) — **SUCCESS**; PostgreSQL log explicitly records QA286; **324/324 Playwright tests** and the build/typecheck/audit/RLS/cleanup jobs passed.
+- QIMA CodeQL #974 (https://github.com/meridane/QimaTrade-MVP/actions/runs/42493888899) — **SUCCESS**. Vercel code-commit Preview status — **SUCCESS**.
+- Classification: regression coverage only; no production incident or vulnerability is inferred. No production Supabase data, migrations, schema, RLS policies, grants, secrets, or persistent PostgreSQL configuration changed; no Production deployment or PR merge occurred.
