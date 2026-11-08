@@ -43,8 +43,11 @@ cat > "$MOCK_BIN/psql" <<'PSQL'
 set -euo pipefail
 case "$*" in
   *"SHOW max_prepared_transactions"*)
-    printf '%s\n' "${MOCK_RESTORED_VALUE:-0}"
     printf '%s\n' psql-show >> "$MOCK_EVENTS"
+    if [[ "${MOCK_SHOW_STATUS:-0}" != "0" ]]; then
+      exit "$MOCK_SHOW_STATUS"
+    fi
+    printf '%s\n' "${MOCK_RESTORED_VALUE:-0}"
     ;;
   *"pg_prepared_xacts"*)
     printf '%s\n' "${MOCK_PREPARED_COUNT:-0}"
@@ -231,6 +234,23 @@ if ! grep -Fq "PostgreSQL did not return to max_prepared_transactions=0" "$OUTPU
   [[ "$(grep -Fxc "psql-database" "$EVENTS" || true)" -ne 0 ]]; then
   echo "ERROR: an incorrect post-restart configuration was accepted as restored." >&2
   cat "$EVENTS" >&2
+  cat "$OUTPUT" >&2
+  exit 1
+fi
+
+# QA270: PostgreSQL is reachable after restart, but the SHOW query itself fails.
+# Preserve the psql exit status and stop before residual-resource checks or success output.
+run_restore 44 env MOCK_SHOW_STATUS=44
+expected="$(printf '%s\n' docker-ps pg-isready docker-exec-reset docker-restart pg-isready psql-show)"
+actual="$(cat "$EVENTS")"
+if [[ "$actual" != "$expected" ]] ||
+  ! grep -Fq "Could not read max_prepared_transactions after PostgreSQL restart (psql exit 44)" "$OUTPUT" ||
+  grep -Fq "QA267 passed" "$OUTPUT" ||
+  [[ "$(grep -Fxc "psql-prepared" "$EVENTS" || true)" -ne 0 ]] ||
+  [[ "$(grep -Fxc "psql-database" "$EVENTS" || true)" -ne 0 ]] ||
+  [[ "$(grep -Fxc "sleep-1" "$EVENTS" || true)" -ne 0 ]]; then
+  echo "ERROR: a failed post-restart SHOW query was not reported without claiming restoration." >&2
+  printf 'Expected events:\n%s\nActual events:\n%s\n' "$expected" "$actual" >&2
   cat "$OUTPUT" >&2
   exit 1
 fi
