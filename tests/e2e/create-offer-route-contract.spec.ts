@@ -334,6 +334,31 @@ test("CREATE_OFFER route enforces RFC 6750 b64token syntax before any Supabase r
   expect(authRequest?.authorization).toBe("Bearer " + validToken);
 });
 
+test("CREATE_OFFER route preserves the succeeded execution result and maps it to HTTP 200", async () => {
+  const result = await postCreateOffer("USD", {}, undefined, undefined, "succeeded");
+
+  expect(result.status, JSON.stringify({ body: result.body, requests: result.requests })).toBe(200);
+  expect(result.body).toEqual({
+    executionId: "10000000-0000-4000-8000-000000000001",
+    status: "succeeded",
+    objectId: "50000000-0000-4000-8000-000000000001",
+    result: { offerId: "70000000-0000-4000-8000-000000000001" },
+  });
+  expect(result.wwwAuthenticate).toBeNull();
+
+  const executionCalls = result.requests.filter(
+    (request) => request.path === "/rest/v1/rpc/execute_create_offer_v1",
+  );
+  expect(executionCalls).toHaveLength(1);
+  expect(result.requests.map((request) => request.path)).toEqual([
+    "/auth/v1/user",
+    "/rest/v1/profiles",
+    "/rest/v1/dt_memberships",
+    "/rest/v1/rpc/get_action_definition_v1",
+    "/rest/v1/rpc/execute_create_offer_v1",
+  ]);
+});
+
 test("CREATE_OFFER route preserves the failed execution result and maps it to HTTP 409", async () => {
   const result = await postCreateOffer("USD", {}, undefined, undefined, "failed");
 
