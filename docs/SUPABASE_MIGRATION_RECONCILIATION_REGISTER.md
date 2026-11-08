@@ -288,3 +288,15 @@ The full remote history must be exported without truncation and joined to a comp
 - QA272 retry/recovery cases use command stubs and do not prove an actual PostgreSQL outage or vulnerability. QA267 independently verifies the successful reset/restart and cleanup against the temporary PostgreSQL service.
 - The pre-existing remote Supabase migration-history authentication/parity blocker remains unresolved; QA272 does not attempt to bypass it.
 - No production data, migration, schema, RLS policy, grant, secret, persistent database configuration, Production deployment, merge, or branch-protection setting was changed.
+
+
+## QA273 — prepared-transaction setup marker and cleanup guarantee (8 November 2026)
+
+- The former inline PostgreSQL setup in `.github/workflows/ci.yml` is now `tests/sql/enable-prepared-transactions-config.sh`; CI invokes a new regression test before setup.
+- The setup captures and validates the disposable PostgreSQL baseline (`0`) and writes both `baseline=0` and `restore_required=true` to `GITHUB_OUTPUT` before the first mutating command. The existing restoration step still runs with `if: always()`.
+- Stubbed failure cases verify marker persistence after `ALTER SYSTEM SET` exit 47, restart exit 48, post-restart SHOW exit 49, and 60 failed readiness attempts. The mock `docker exec` asserts that the marker exists before allowing the SET command.
+- QIMA CI #978 [run 42438738454](https://github.com/meridane/QimaTrade-MVP/actions/runs/42438738454) — **SUCCESS**, including the new QA273 setup regression, **322/322 Playwright tests**, CREATE_OFFER PostgreSQL integration, QA266 prepared-transaction blocker and QA267 real restoration to `max_prepared_transactions=0`; no prepared transaction or disposable database remained.
+- QIMA CodeQL #931 [run 42438738450](https://github.com/meridane/QimaTrade-MVP/actions/runs/42438738450) — **SUCCESS**. npm audit on CI #978 reported zero findings across info/low/moderate/high/critical; this is scoped to that run.
+- Vercel combined status on the tested code HEAD: **SUCCESS**, Preview/check only.
+- QA273 negative failure paths use deterministic command stubs and are not evidence of a production outage or confirmed vulnerability. All actual ALTER SYSTEM operations and PostgreSQL restarts occurred only in the ephemeral GitHub Actions PostgreSQL 16 service.
+- The remote Supabase migration-history authentication/parity blocker remains separate and unresolved. No Supabase production connection, data, migration, schema, policy, grant, secret, persistent configuration, Production deployment, merge, or branch-protection change occurred.
