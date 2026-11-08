@@ -2221,3 +2221,15 @@ The canonical register's QA184 tail was inspected from commit `0eca4833bae236f32
 - PostgreSQL evidence: QA266 confirmed real prepared-transaction blocking and explicit rollback; QA267 confirmed RESET/restart to baseline 0 with no residual prepared transaction or disposable database.
 - Vercel combined status on the code commit: **SUCCESS** (Preview status only; no Production deployment).
 - Classification: regression coverage of the existing route-to-RPC contract, not evidence of a production incident or vulnerability. No production Supabase data, migrations, schema, RLS policies, grants, secrets, or persistent PostgreSQL configuration changed; no Production deployment or PR merge occurred.
+
+
+### QA285 — empty optional CREATE_OFFER strings remain distinct from null
+
+- Added a route test proving empty `conditions`, `market`, `geography`, and `documentationStatus` values remain `""` in both the action input and matching SQL RPC arguments; explicit null remains null and produces a different normalized payload.
+- Added PostgreSQL runtime assertions that empty `p_market`, `p_conditions`, and `p_geography` do not replay a completed request whose original values were SQL NULL. Each changed same-key retry must raise `IDEMPOTENCY_KEY_REUSE`. Existing coverage already checks empty `p_documentation_status` against NULL.
+- Code commits: `682ef4d43616416c863c653ebe88e95d38aedd8d` (route) and `91cc390cf3dd129f683f9db1cfef3fd6e503f0f5` (SQL runtime).
+- QIMA CI #1018 ([run 42490794951](https://github.com/meridane/QimaTrade-MVP/actions/runs/42490794951)) — **SUCCESS**, with **324/324 Playwright tests**. The log explicitly names the new QA285 route test. TypeScript, Next.js build, Chromium, npm audit enforcement at the high threshold, CREATE_OFFER PostgreSQL integration/concurrency, RLS, cleanup, QA266 and QA267 passed.
+- QIMA CodeQL #971 ([run 42490795034](https://github.com/meridane/QimaTrade-MVP/actions/runs/42490795034)) — **SUCCESS**.
+- PostgreSQL 16 evidence: the isolated integration job passed with no residual prepared transaction or disposable database; QA267 restored `max_prepared_transactions` to baseline 0 after RESET/restart.
+- Vercel combined status on the code commit: **SUCCESS** (Preview only; no Production deployment).
+- Classification: regression coverage only; no production incident or vulnerability is inferred. No production Supabase data, migrations, schema, RLS policies, grants, secrets, or persistent PostgreSQL configuration changed; no Production deployment or PR merge occurred.
