@@ -1925,3 +1925,15 @@ The canonical register's QA184 tail was inspected from commit `0eca4833bae236f32
 - **GitHub Actions status at documentation time:** no pull-request workflow run was yet returned for code HEAD `03c32a0fa1398cbba9634c8da9aa96e7127c7c4e`; QIMA CI and CodeQL results remain **pending/unavailable**, not assumed successful. The combined Vercel status on that HEAD was **FAILURE** with `upgradeToPro=build-rate-limit`, separate from GitHub Actions.
 - **Safety and interpretation:** the new negative cases use command stubs and do not prove a production database failure or a confirmed vulnerability. No production Supabase data, migration, schema, RLS policy, grant, secret, persistent database configuration, Production deployment, merge, or branch-protection setting was changed.
 
+
+
+## QA271 — final validation status and current PR head (8 November 2026)
+
+- **Final documentation candidate HEAD:** `237943d2d5e2efbfdba8364d718cb574a19c18dc`; validated code candidate immediately before the two documentation commits: `03c32a0fa1398cbba9634c8da9aa96e7127c7c4e`.
+- **Current PR branch:** `fix/create-offer-status-contract`; comparison with `main` reports 996 commits ahead and 0 behind. PR #26 remains open and draft, with 65 changed files, no reviews and no review threads.
+- **QA270 last validated ancestor:** code HEAD `f053712cfac205b03ce9696122460eb47a334682`; QIMA CI #971 [run 42431842941](https://github.com/meridane/QimaTrade-MVP/actions/runs/42431842941) — **SUCCESS**, including **322/322 Playwright tests**, successful PostgreSQL integration job, the QA270 SHOW-query failure regression summary, and the real QA267 restoration confirmation. CodeQL #924 [run 42431842966](https://github.com/meridane/QimaTrade-MVP/actions/runs/42431842966) — **SUCCESS**.
+- **QA271 validation:** a focused local shell harness passed for both guarded psql postcondition failures (exit 45 for `pg_prepared_xacts`, exit 46 for `pg_database`). However, GitHub returned no QIMA CI or CodeQL workflow runs for QA271 code HEAD `03c32a0fa1398cbba9634c8da9aa96e7127c7c4e` or the subsequent documentation HEAD. Therefore QA271 is **not yet CI-validated**; the successful QA270 runs must not be presented as covering QA271.
+- **Combined status on QA271 documentation HEAD:** Vercel **FAILURE**, target `upgradeToPro=build-rate-limit`. This is separate from GitHub Actions and does not establish a Next.js build failure. No Preview READY is claimed for QA271 HEAD.
+- **Canonical register retrieval limitation:** `docs/QIMA_V1_FUNCTION_REGISTER.md` remains over the GitHub file-content connector's supported retrieval size; the connector returns its blob metadata but no body, including for line-range requests. It was not replaced or truncated. QA270/QA271 are recorded in this append-only companion register and in the migration reconciliation register.
+- **Safety:** no production Supabase data, migration, schema, RLS policy, grant, secret, persistent database configuration, Production deployment, PR merge, or branch-protection setting was changed.
+
