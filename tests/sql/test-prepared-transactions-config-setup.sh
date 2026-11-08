@@ -435,4 +435,53 @@ grep -Fq 'if: always()' <<< "$restore_block"
 grep -Fq 'RESTORE_REQUIRED: ${{ steps.enable_prepared.outputs.restore_required }}' <<< "$restore_block"
 grep -Fq 'BASELINE_MAX_PREPARED_TRANSACTIONS: ${{ steps.enable_prepared.outputs.baseline }}' <<< "$restore_block"
 
-echo "Prepared-transaction setup regression passed: docker ps partial-output failures preserve the exit code; zero/multiple container discovery fails before database access; restoration intent is persisted before mutation; SET, restart, post-restart SHOW and readiness failures preserve the cleanup marker; retry exhaustion is bounded; workflow invokes setup and always() restoration."
+
+# QA279: a partial GITHUB_OUTPUT append must not be mistaken for a complete
+# restoration marker. The hook writes the baseline line, then fails before
+# restore_required=true can be persisted; cleanup must remain a no-op.
+cat > "$TEMP_DIR/partial-marker-write.bash" <<'BASH_ENV'
+printf() {
+  case "$1" in
+    'baseline=%s\nrestore_required=true\n')
+      builtin printf 'baseline=%s\n' "$2"
+      builtin printf '%s\n' marker-write-partial >> "$MOCK_EVENTS"
+      return 53
+      ;;
+  esac
+  builtin printf "$@"
+}
+BASH_ENV
+
+run_setup 1 env BASH_ENV="$TEMP_DIR/partial-marker-write.bash"
+expected=$'docker-ps\npsql-show-1\nmarker-write-partial'
+if [[ "$(cat "$EVENTS")" != "$expected" ]] ||
+  [[ "$(cat "$GITHUB_OUTPUT_FILE")" != "baseline=0" ]] ||
+  grep -Fxq 'restore_required=true' "$GITHUB_OUTPUT_FILE" ||
+  ! grep -Fq "Could not persist PostgreSQL restoration intent; no configuration change was attempted." "$OUTPUT" ||
+  grep -Fq "docker-exec-set" "$EVENTS" ||
+  grep -Fq "docker-restart" "$EVENTS"; then
+  echo "ERROR: a partial GITHUB_OUTPUT marker write did not stop setup before PostgreSQL mutation." >&2
+  cat "$EVENTS" >&2
+  cat "$GITHUB_OUTPUT_FILE" >&2
+  cat "$OUTPUT" >&2
+  exit 1
+fi
+
+# A partial output may expose baseline=0 to the always() step, but without
+# restore_required=true the restoration script must still perform no operation.
+: > "$EVENTS"
+: > "$OUTPUT"
+set +e
+PATH="$MOCK_BIN:$PATH" MOCK_EVENTS="$EVENTS" DATABASE_URL="postgresql://postgres:postgres@localhost:5432/qima_test" RESTORE_REQUIRED="" BASELINE_MAX_PREPARED_TRANSACTIONS="0" bash "$RESTORE_SCRIPT" > "$OUTPUT" 2>&1
+restore_status=$?
+set -e
+if [[ "$restore_status" -ne 0 ]] ||
+  [[ -s "$EVENTS" ]] ||
+  ! grep -Fq "configuration was not changed; restoration is not required" "$OUTPUT"; then
+  echo "ERROR: always() restoration did not no-op when only the baseline line was persisted." >&2
+  cat "$EVENTS" >&2
+  cat "$OUTPUT" >&2
+  exit 1
+fi
+
+echo "Prepared-transaction setup regression passed: docker ps partial-output failures preserve the exit code; zero/multiple container discovery fails before database access; initial SHOW and non-pristine baseline failures stop before mutation; marker write failures and partial GITHUB_OUTPUT writes stop before mutation with safe always() no-op cleanup; SET, restart, post-restart SHOW and readiness failures preserve the cleanup marker; retry exhaustion is bounded; workflow invokes setup and always() restoration."
