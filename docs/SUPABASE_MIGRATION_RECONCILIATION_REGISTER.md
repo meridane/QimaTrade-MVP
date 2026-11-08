@@ -505,3 +505,15 @@ The QA281 matrix and all three register updates were revalidated on PR HEAD `9e4
 - Vercel combined status on the code commit: **SUCCESS** (Preview status only; no Production deployment).
 - Classification: regression-only verification of an existing contract; no production incident or vulnerability is inferred.
 - Safety: no Supabase production data, migrations, schema, RLS policy, grants, secrets, or persistent PostgreSQL configuration changed; no Production deployment, PR merge, force-push, or branch-protection change.
+
+
+### QA285 — empty optional CREATE_OFFER values and idempotency-hash distinction (8 November 2026)
+
+- Route test commit: `682ef4d43616416c863c653ebe88e95d38aedd8d`; SQL runtime test commit: `91cc390cf3dd129f683f9db1cfef3fd6e503f0f5`.
+- The route preserves empty `conditions`, `market`, `geography`, and `documentationStatus` strings in `p_input` and top-level RPC arguments. Explicit null remains null and is not normalized to an empty string.
+- The PostgreSQL runtime test reuses a completed key with empty `p_market`, `p_conditions`, and `p_geography` against SQL-NULL baselines and expects `IDEMPOTENCY_KEY_REUSE`. Existing coverage already checks `p_documentation_status = ''` versus NULL.
+- QIMA CI #1018 ([run 42490794951](https://github.com/meridane/QimaTrade-MVP/actions/runs/42490794951)): **SUCCESS**; **324/324 Playwright tests**, TypeScript, Next.js build, dependency-audit enforcement, CREATE_OFFER PostgreSQL integration/concurrency, RLS and cleanup checks passed. The browser log explicitly records the QA285 route test.
+- QIMA CodeQL #971 ([run 42490795034](https://github.com/meridane/QimaTrade-MVP/actions/runs/42490795034)): **SUCCESS**.
+- PostgreSQL 16 disposable integration: updated runtime SQL passed; prepared-transaction QA266 and RESET/restart QA267 passed, returning to baseline 0 with no residual transaction or disposable database.
+- Vercel code-commit status: **SUCCESS** (Preview only; no Production deployment).
+- Classification: contract regression coverage, not a confirmed production vulnerability. No Supabase production data, migrations, schema, RLS policy, grants, secrets, or persistent configuration changed; no Production deployment, PR merge, force-push, or branch-protection change.
