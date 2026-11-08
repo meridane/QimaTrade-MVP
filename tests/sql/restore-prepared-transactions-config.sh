@@ -71,7 +71,13 @@ fi
 restored=false
 for attempt in {1..60}; do
   if pg_isready -h 127.0.0.1 -p 5432 -U postgres -d qima_test >/dev/null 2>&1; then
-    configured="$("$REAL_PSQL" "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -Atqc "SHOW max_prepared_transactions")"
+    if configured="$("$REAL_PSQL" "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -Atqc "SHOW max_prepared_transactions")"; then
+      :
+    else
+      show_status=$?
+      echo "::error::Could not read max_prepared_transactions after PostgreSQL restart (psql exit $show_status); configuration restoration is not confirmed." >&2
+      exit "$show_status"
+    fi
     if [[ "$configured" == "$BASELINE" ]]; then
       restored=true
       break
