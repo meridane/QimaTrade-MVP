@@ -6321,3 +6321,16 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - Vercel combined status on code commit \`f567d500fb89935f03cc5c9a91d32d81dd74281c\`: **SUCCESS** (Preview only; no Production deployment).
 - Classification: deterministic concurrency regression coverage of the existing same-tenant idempotency/advisory-lock contract. The expected \`IDEMPOTENCY_KEY_REUSE\` SQL error is the negative assertion under test, not a failed CI run or evidence of a production incident/confirmed vulnerability.
 - Safety: no Supabase production data, migrations, schema, RLS policies, grants, secrets, or persistent PostgreSQL configuration changed; no Production deployment, PR merge, force-push, or branch-protection change.
+
+
+### QA289 — CREATE_OFFER public failed-status and unsupported-status response contract (9 November 2026)
+
+- Test location: `tests/e2e/create-offer-route-contract.spec.ts`; code commit: `888150afcf2fe27e80ab67e3dbdbaee1616f194f`.
+- Strengthened the existing failed-result route test to assert the complete public response: HTTP 409; exact `executionId`, `status: "failed"`, `objectId`, and nested result; no authentication challenge; and exactly one `execute_create_offer_v1` RPC call.
+- Added route-level negative coverage for unsupported engine result statuses `pending`, `running`, `completed`, and the empty string. Each is rejected by the action-result contract and mapped to the generic HTTP 500 body `{"error":"ACTION_FAILED"}`; the internal `ACTION_RESULT_INVALID` code is not exposed, and the execution RPC is observed exactly once.
+- The route and action-engine implementation were not changed. The existing contract already maps a valid `failed` result to HTTP 409 and the engine accepts only `succeeded` or `failed` as terminal public results; this QA entry records regression coverage, not a newly discovered production defect.
+- QIMA CI #1029 (https://github.com/meridane/QimaTrade-MVP/actions/runs/42511298360): **SUCCESS**. The browser job passed **325/325 Playwright tests**, including the strengthened failed-result test and the new unsupported-status matrix. Dependency installation and npm audit enforcement at the configured `high` threshold, TypeScript, Next.js production build, Chromium installation, CREATE_OFFER PostgreSQL integration/concurrency, legacy-message RLS, participant self-enrollment RLS, cleanup, and prepared-transaction QA266/QA267 all passed.
+- QIMA CodeQL #981 (https://github.com/meridane/QimaTrade-MVP/actions/runs/42511298369): **SUCCESS**.
+- Vercel status on code commit `888150afcf2fe27e80ab67e3dbdbaee1616f194f`: **SUCCESS** (Preview only; no Production deployment).
+- Classification: API contract regression coverage and fail-closed validation of unsupported action statuses. The synthetic invalid-status fixtures do not establish a production incident or confirmed vulnerability.
+- Safety: no Supabase production data, migrations, schema, RLS policies, grants, secrets, or persistent PostgreSQL configuration changed; no Production deployment, PR merge, force-push, or branch-protection change.
