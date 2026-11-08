@@ -13649,3 +13649,255 @@ $qa101_retry_and_replay$;
 COMMIT;
 
 SELECT 'CREATE_OFFER idempotency completion failure rolls back fully; same key and identical payload then succeed once; identical replay returns the persisted result without duplicates' AS result;
+
+
+-- OFFER-QA-286: empty optional business strings must replay exactly once;
+-- changing one of those values to SQL/JSON NULL with the same key must be rejected.
+-- This runs only against the disposable PostgreSQL integration fixture.
+BEGIN;
+SET LOCAL request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+SET LOCAL ROLE authenticated;
+
+DO $qa286$
+DECLARE
+  v_tenant_id uuid := '10000000-0000-4000-8000-000000000001';
+  v_actor_id uuid := '30000000-0000-4000-8000-000000000001';
+  v_key text := 'fixture-qa286-empty-optional-strings-replay';
+  v_name text := 'QA286 Empty Optional Strings Replay Offer';
+  v_demand_id uuid := '50000000-0000-4000-8000-000000000001';
+  v_product_master_id uuid := '40000000-0000-4000-8000-000000000001';
+  v_input jsonb := '{
+    "case":"qa286-empty-optional-strings-replay",
+    "conditions":"",
+    "market":"",
+    "geography":"",
+    "documentationStatus":""
+  }'::jsonb;
+  v_changed_input jsonb;
+  v_expected_hash text;
+  v_first_result jsonb;
+  v_replay_result jsonb;
+  v_execution_id uuid;
+  v_offer_id uuid;
+  v_error text;
+  v_count integer;
+BEGIN
+  IF auth.uid() IS DISTINCT FROM '20000000-0000-4000-8000-000000000001'::uuid THEN
+    RAISE EXCEPTION 'QA286 requires authenticated provider A';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM public.idempotency_keys
+    WHERE tenant_id = v_tenant_id AND key = v_key
+  ) OR EXISTS (
+    SELECT 1 FROM public.action_executions
+    WHERE tenant_id = v_tenant_id AND idempotency_key = v_key
+  ) OR EXISTS (
+    SELECT 1 FROM public.offers WHERE name = v_name
+  ) THEN
+    RAISE EXCEPTION 'QA286 fixture data already exists';
+  END IF;
+
+  v_expected_hash := md5(jsonb_build_object(
+    'input', v_input,
+    'name', v_name,
+    'demandId', v_demand_id,
+    'productMasterId', v_product_master_id,
+    'providerActorId', v_actor_id,
+    'quantity', 2::numeric,
+    'price', 12::numeric,
+    'currency', 'USD',
+    'conditions', '',
+    'market', '',
+    'geography', '',
+    'attributes', '{}'::jsonb,
+    'documentationStatus', '',
+    'lifecycle', NULL::text,
+    'offerType', NULL::text,
+    'pricingModel', NULL::text
+  )::text);
+
+  v_first_result := public.execute_create_offer_v1(
+    p_tenant_id => v_tenant_id,
+    p_idempotency_key => v_key,
+    p_input => v_input,
+    p_name => v_name,
+    p_demand_id => v_demand_id,
+    p_product_master_id => v_product_master_id,
+    p_provider_actor_id => v_actor_id,
+    p_quantity => 2,
+    p_price => 12,
+    p_currency => 'USD',
+    p_conditions => '',
+    p_market => '',
+    p_geography => '',
+    p_attributes => '{}'::jsonb,
+    p_documentation_status => ''
+  );
+
+  IF v_first_result IS NULL
+     OR v_first_result->>'status' IS DISTINCT FROM 'succeeded'
+     OR v_first_result->>'objectType' IS DISTINCT FROM 'Offer'
+     OR nullif(v_first_result->>'executionId', '') IS NULL
+     OR nullif(v_first_result->>'objectId', '') IS NULL THEN
+    RAISE EXCEPTION 'QA286 initial empty-string request did not return a complete success result: %',
+      coalesce(v_first_result::text, '<SQL NULL>');
+  END IF;
+
+  v_execution_id := (v_first_result->>'executionId')::uuid;
+  v_offer_id := (v_first_result->>'objectId')::uuid;
+
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE tenant_id = v_tenant_id
+    AND key = v_key
+    AND status = 'COMPLETED'
+    AND request_hash = v_expected_hash
+    AND execution_id = v_execution_id
+    AND result = v_first_result
+    AND completed_at IS NOT NULL;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA286 expected exactly one completed idempotency row with the exact empty-string hash, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE tenant_id = v_tenant_id
+    AND id = v_execution_id
+    AND idempotency_key = v_key
+    AND actor_id = v_actor_id
+    AND status = 'COMPLETED'
+    AND object_type = 'Offer'
+    AND object_id = v_offer_id
+    AND input = v_input
+    AND result = v_first_result
+    AND completed_at IS NOT NULL;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA286 expected exactly one completed execution preserving the input and result, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE id = v_offer_id
+    AND name = v_name
+    AND demand_id = v_demand_id
+    AND product_master_id = v_product_master_id
+    AND provider_actor_id = v_actor_id
+    AND quantity = 2
+    AND price = 12
+    AND currency = 'USD'
+    AND conditions = ''
+    AND market = ''
+    AND geography = ''
+    AND documentation_status = ''
+    AND attributes = '{}'::jsonb;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA286 expected exactly one offer preserving all four empty optional strings, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_events
+  WHERE tenant_id = v_tenant_id
+    AND execution_id = v_execution_id
+    AND event_type = 'ACTION_SUCCEEDED'
+    AND actor_id = v_actor_id
+    AND object_type = 'Offer'
+    AND object_id = v_offer_id
+    AND payload = v_first_result;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA286 expected exactly one ACTION_SUCCEEDED event, found %', v_count;
+  END IF;
+
+  -- An exact replay of the four empty strings must return the persisted result.
+  v_replay_result := public.execute_create_offer_v1(
+    p_tenant_id => v_tenant_id,
+    p_idempotency_key => v_key,
+    p_input => v_input,
+    p_name => v_name,
+    p_demand_id => v_demand_id,
+    p_product_master_id => v_product_master_id,
+    p_provider_actor_id => v_actor_id,
+    p_quantity => 2,
+    p_price => 12,
+    p_currency => 'USD',
+    p_conditions => '',
+    p_market => '',
+    p_geography => '',
+    p_attributes => '{}'::jsonb,
+    p_documentation_status => ''
+  );
+
+  IF v_replay_result IS DISTINCT FROM v_first_result THEN
+    RAISE EXCEPTION 'QA286 identical empty-string replay did not return the exact persisted result';
+  END IF;
+
+  -- Change one optional field from empty text to SQL NULL and its JSON input
+  -- value to JSON null. The same idempotency key must not replay the old result.
+  v_changed_input := jsonb_set(v_input, '{conditions}', 'null'::jsonb);
+  v_error := NULL;
+  BEGIN
+    PERFORM public.execute_create_offer_v1(
+      p_tenant_id => v_tenant_id,
+      p_idempotency_key => v_key,
+      p_input => v_changed_input,
+      p_name => v_name,
+      p_demand_id => v_demand_id,
+      p_product_master_id => v_product_master_id,
+      p_provider_actor_id => v_actor_id,
+      p_quantity => 2,
+      p_price => 12,
+      p_currency => 'USD',
+      p_conditions => NULL,
+      p_market => '',
+      p_geography => '',
+      p_attributes => '{}'::jsonb,
+      p_documentation_status => ''
+    );
+    RAISE EXCEPTION 'QA286 expected changing conditions from empty text to NULL to be rejected';
+  EXCEPTION WHEN OTHERS THEN
+    GET STACKED DIAGNOSTICS v_error = MESSAGE_TEXT;
+  END;
+
+  IF v_error IS DISTINCT FROM 'IDEMPOTENCY_KEY_REUSE' THEN
+    RAISE EXCEPTION 'QA286 changed empty-to-NULL request must raise IDEMPOTENCY_KEY_REUSE; got %',
+      coalesce(v_error, '<no error>');
+  END IF;
+
+  -- Neither the exact replay nor the rejected changed request may add rows.
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE tenant_id = v_tenant_id AND key = v_key;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA286 expected one idempotency row after replay and rejection, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE tenant_id = v_tenant_id AND idempotency_key = v_key;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA286 expected one execution after replay and rejection, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE id = v_offer_id AND name = v_name;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA286 expected one offer after replay and rejection, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_events
+  WHERE tenant_id = v_tenant_id
+    AND execution_id = v_execution_id
+    AND event_type = 'ACTION_SUCCEEDED';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA286 expected one success event after replay and rejection, found %', v_count;
+  END IF;
+
+  RAISE NOTICE 'QA286 four empty optional strings succeeded and exactly replayed once; changing conditions to NULL with the same key raised IDEMPOTENCY_KEY_REUSE without duplicates';
+END
+$qa286$;
+
+COMMIT;
+
+SELECT 'QA286 exact replay of four empty optional strings returns one persisted result; changing conditions to NULL with the same key is rejected without duplicate rows' AS result;
