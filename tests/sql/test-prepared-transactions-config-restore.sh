@@ -275,4 +275,4 @@ if grep -Fq "postgres:postgres" "$OUTPUT"; then
   exit 1
 fi
 
-echo "Prepared-transaction configuration restoration regression passed: reset/restart order, explicit RESET and restart failure handling with original exit codes, post-restart unavailability and wrong-value rejection, no-op behavior, loopback URL guard, single-container guard, baseline guard, and residual-resource detection."
+echo "Prepared-transaction configuration restoration regression passed: reset/restart order, explicit RESET and restart failure handling with original exit codes, post-restart SHOW query failure propagation, unavailability and wrong-value rejection, no-op behavior, loopback URL guard, single-container guard, baseline guard, and residual-resource detection."
