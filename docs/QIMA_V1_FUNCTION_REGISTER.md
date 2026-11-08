@@ -6282,3 +6282,12 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - Vercel combined status on code commit 485d69454a802b3e71804c841fdc294f76b81ba1: **SUCCESS** (Preview only; no Production deployment).
 - Classification: regression coverage of the existing CREATE_OFFER request-hash/idempotency contract, not evidence of a production incident or confirmed vulnerability.
 - Safety: no Supabase production data, migration, schema, RLS policy, grant, secret, or persistent PostgreSQL configuration changed; no Production deployment, PR merge, force-push, or branch-protection change.
+
+
+### QA286 — final PR HEAD revalidation
+
+- Final PR documentation HEAD tested: 08403ed26d70f327f7985db8bc6fe19cb262e7df; QA286 SQL test remains in code commit 485d69454a802b3e71804c841fdc294f76b81ba1.
+- QIMA CI #1022 (https://github.com/meridane/QimaTrade-MVP/actions/runs/42494130242): **SUCCESS**. The PostgreSQL job explicitly logged QA286 passing, including exact replay of all four empty optional strings and IDEMPOTENCY_KEY_REUSE for the empty-to-NULL change. The browser job passed **324/324 Playwright tests**; TypeScript, Next.js build, npm audit enforcement, Chromium, RLS, cleanup, concurrency and QA266/QA267 passed.
+- QIMA CodeQL #975 (https://github.com/meridane/QimaTrade-MVP/actions/runs/42494130392): **SUCCESS**.
+- Vercel on the QA286 code commit: **SUCCESS** (Preview). The final documentation HEAD returned upgradeToPro=build-rate-limit; this is a Preview quota limitation, not a failed GitHub Actions build. No Production deployment is claimed.
+- No application or SQL changes were made after the QA286 code validation. No production Supabase data, migrations, schema, RLS, grants, secrets, or persistent PostgreSQL configuration were changed.
