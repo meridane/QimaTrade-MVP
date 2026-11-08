@@ -245,3 +245,13 @@ The full remote history must be exported without truncation and joined to a comp
 - **Safety and interpretation:** QA269-A and QA269-B remain deterministic mocked failure-path tests, not proof of a real PostgreSQL outage or a confirmed vulnerability. QA267 separately verifies successful restoration on the ephemeral PostgreSQL 16 CI service. No Supabase production data, migration, schema, policy, grant, secret, persistent configuration, Production deployment, merge, or branch-protection setting was changed.
 
 - **Migration reconciliation:** this correction is a CI documentation note only; it does not resolve the separate remote Supabase authentication/parity blocker.
+
+
+## QA270 — CI-only PostgreSQL configuration-read failure guard (8 November 2026, 09:49 KST)
+
+- **PR / code HEAD:** [#26](https://github.com/meridane/QimaTrade-MVP/pull/26), `f053712cfac205b03ce9696122460eb47a334682`.
+- **Scope:** the CI restoration runner now reports a failed post-restart `SHOW max_prepared_transactions` query explicitly, preserves psql exit 44, and stops before checking residual resources or claiming restoration.
+- **Validation:** QIMA CI #971 [run 42431842941](https://github.com/meridane/QimaTrade-MVP/actions/runs/42431842941) **SUCCESS**; QIMA CodeQL #924 [run 42431842966](https://github.com/meridane/QimaTrade-MVP/actions/runs/42431842966) **SUCCESS**. The PostgreSQL integration job and 322/322 Playwright tests passed.
+- **Boundary:** QA270 is a deterministic stubbed command-failure regression. It does not establish a production PostgreSQL outage, migration mismatch, or vulnerability. The successful configuration restoration is separately verified on the ephemeral CI PostgreSQL 16 service by QA267.
+- **Migration impact:** none. No migration was added, edited, applied, or reconciled. The remote Supabase history/authentication blocker remains unchanged.
+- **Safety:** no Supabase production data, schema, RLS policy, grant, secret, persistent configuration, Production deployment, PR merge, or branch-protection setting was touched.
