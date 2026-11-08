@@ -35,6 +35,11 @@ async function postCreateOffer(
   const originalWebSocket = globalThis.WebSocket;
   const requests: MockRequest[] = [];
   const demandId = "50000000-0000-4000-8000-000000000001";
+  const requestOverrides = { ...overrides };
+  const rpcResultOverrideKey = "__rpcResultOverride";
+  const hasRpcResultOverride = Object.prototype.hasOwnProperty.call(requestOverrides, rpcResultOverrideKey);
+  const rpcResultOverride = requestOverrides[rpcResultOverrideKey];
+  delete requestOverrides[rpcResultOverrideKey];
 
   // Supabase creates a Realtime client even though this route only uses Auth and REST.
   // Node 20 in CI has no native WebSocket; provide a harmless constructor for this isolated test.
@@ -121,12 +126,15 @@ async function postCreateOffer(
           { status: createOfferRpcHttpStatus },
         );
       }
-      return Response.json({
-        executionId: "10000000-0000-4000-8000-000000000001",
-        status: rpcStatus,
-        objectId: demandId,
-        result: { offerId: "70000000-0000-4000-8000-000000000001" },
-      });
+      const rpcResult = hasRpcResultOverride
+        ? rpcResultOverride
+        : {
+            executionId: "10000000-0000-4000-8000-000000000001",
+            status: rpcStatus,
+            objectId: demandId,
+            result: { offerId: "70000000-0000-4000-8000-000000000001" },
+          };
+      return Response.json(rpcResult);
     }
 
     return Response.json({ message: `Unexpected mocked request: ${url.pathname}` }, { status: 500 });
@@ -147,7 +155,7 @@ async function postCreateOffer(
           quantity: 1,
           price: 10,
           currency,
-          ...overrides,
+          ...requestOverrides,
         }),
       }),
     );
@@ -390,6 +398,58 @@ test("CREATE_OFFER route masks unsupported execution statuses as generic interna
       (request) => request.path === "/rest/v1/rpc/execute_create_offer_v1",
     );
     expect(executionCalls, unsupportedStatus || "<empty>").toHaveLength(1);
+  }
+});
+
+test("CREATE_OFFER route masks malformed succeeded RPC results as generic internal failures", async () => {
+  const malformedResults: Array<{ label: string; result: unknown }> = [
+    { label: "null RPC result", result: null },
+    { label: "missing executionId", result: { status: "succeeded" } },
+    { label: "blank executionId", result: { executionId: "   ", status: "succeeded" } },
+    { label: "non-string executionId", result: { executionId: 42, status: "succeeded" } },
+    {
+      label: "non-string objectId",
+      result: { executionId: "execution-1", status: "succeeded", objectId: 42 },
+    },
+    {
+      label: "null result payload",
+      result: { executionId: "execution-1", status: "succeeded", result: null },
+    },
+    {
+      label: "array result payload",
+      result: { executionId: "execution-1", status: "succeeded", result: [] },
+    },
+    {
+      label: "primitive result payload",
+      result: {
+        executionId: "execution-1",
+        status: "succeeded",
+        result: "PRIVATE_MALFORMED_RESULT_SENTINEL",
+      },
+    },
+  ];
+
+  for (const malformedCase of malformedResults) {
+    const result = await postCreateOffer("USD", { __rpcResultOverride: malformedCase.result });
+
+    expect(result.status, malformedCase.label).toBe(500);
+    expect(result.body, malformedCase.label).toEqual({ error: "ACTION_FAILED" });
+    expect(JSON.stringify(result.body), malformedCase.label).not.toContain("ACTION_RESULT_INVALID");
+    expect(JSON.stringify(result.body), malformedCase.label).not.toContain("PRIVATE_MALFORMED_RESULT_SENTINEL");
+    expect(result.wwwAuthenticate, malformedCase.label).toBeNull();
+
+    const executionCalls = result.requests.filter(
+      (request) => request.path === "/rest/v1/rpc/execute_create_offer_v1",
+    );
+    expect(executionCalls, malformedCase.label).toHaveLength(1);
+    expect(result.requests.map((request) => request.path), malformedCase.label).toEqual([
+      "/auth/v1/user",
+      "/rest/v1/profiles",
+      "/rest/v1/dt_memberships",
+      "/rest/v1/rpc/get_action_definition_v1",
+      "/rest/v1/rpc/execute_create_offer_v1",
+    ]);
+    expect(executionCalls[0].body?.p_input).not.toHaveProperty("__rpcResultOverride");
   }
 });
 
