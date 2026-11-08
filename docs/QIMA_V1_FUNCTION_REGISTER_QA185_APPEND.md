@@ -2208,3 +2208,16 @@ The canonical register's QA184 tail was inspected from commit `0eca4833bae236f32
 - **Vercel:** Preview status was **PENDING** at the latest check for this code commit. No Preview READY or Production deployment is claimed.
 - **Classification:** deterministic environment-variable contract regression coverage, not evidence of a production incident or confirmed vulnerability.
 - **Safety:** no Supabase production data, migration, schema, RLS policy, grant, secret, or persistent PostgreSQL configuration was changed; no Production deployment, PR merge, force-push, or branch-protection change occurred.
+
+
+### QA284 — CREATE_OFFER optional business fields are preserved through the route-to-RPC contract
+
+- Date: 8 November 2026 (KST).
+- Test: `tests/e2e/create-offer-route-contract.spec.ts`; code commit `b7e2e62e2f82fa5b57c8911fd41091f4517ab82c`.
+- Mapping verified: `conditions` → `p_conditions`; `market` → `p_market`; `geography` → `p_geography`; `documentationStatus` → `p_documentation_status`. Explicit strings are asserted in both `p_input` and the matching top-level RPC argument.
+- Null/omitted behavior: explicit JSON null and omitted values both produce present null properties in `p_input` and the corresponding RPC arguments; normalized optional-field payloads are asserted equal.
+- QIMA CI #1016 ([run 42486166041](https://github.com/meridane/QimaTrade-MVP/actions/runs/42486166041)) — **SUCCESS**, including **323/323 Playwright tests** and successful browser/build and PostgreSQL integration jobs. The new test is explicitly present in the browser log. TypeScript, Next.js build, Chromium, dependency-audit enforcement, CREATE_OFFER integration/concurrency, RLS, cleanup, QA266 and QA267 passed.
+- QIMA CodeQL #969 ([run 42486166033](https://github.com/meridane/QimaTrade-MVP/actions/runs/42486166033)) — **SUCCESS**.
+- PostgreSQL evidence: QA266 confirmed real prepared-transaction blocking and explicit rollback; QA267 confirmed RESET/restart to baseline 0 with no residual prepared transaction or disposable database.
+- Vercel combined status on the code commit: **SUCCESS** (Preview status only; no Production deployment).
+- Classification: regression coverage of the existing route-to-RPC contract, not evidence of a production incident or vulnerability. No production Supabase data, migrations, schema, RLS policies, grants, secrets, or persistent PostgreSQL configuration changed; no Production deployment or PR merge occurred.

@@ -6232,3 +6232,16 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **Vercel:** Preview status was **PENDING** at the latest check for this code commit. No Preview READY or Production deployment is claimed.
 - **Classification:** deterministic environment-variable contract regression coverage, not evidence of a production incident or confirmed vulnerability.
 - **Safety:** no Supabase production data, migration, schema, RLS policy, grant, secret, or persistent PostgreSQL configuration was changed; no Production deployment, PR merge, force-push, or branch-protection change occurred.
+
+
+### QA284 — CREATE_OFFER optional business fields are preserved through the route-to-RPC contract
+
+- Date: 8 November 2026 (KST).
+- Test: `tests/e2e/create-offer-route-contract.spec.ts`; code commit `b7e2e62e2f82fa5b57c8911fd41091f4517ab82c`.
+- Verified `conditions` → `p_conditions`, `market` → `p_market`, `geography` → `p_geography`, and `documentationStatus` → `p_documentation_status` in both `p_input` and top-level RPC arguments. Explicit strings are preserved; explicit null and omitted values both produce present null properties and identical normalized optional-field payloads.
+- QIMA CI #1016 (run 42486166041): SUCCESS; 323/323 Playwright tests, TypeScript, Next.js build, Chromium, dependency-audit enforcement, CREATE_OFFER PostgreSQL integration/concurrency, RLS and cleanup checks passed. The new route test is explicitly present in the CI log.
+- QIMA CodeQL #969 (run 42486166033): SUCCESS.
+- PostgreSQL QA266/QA267: real prepared-transaction blocking/rollback and RESET/restart to baseline 0, with no residual transaction or disposable database.
+- Vercel combined status on code commit: SUCCESS (Preview status only; no Production deployment).
+- Classification: regression-only contract verification, not evidence of a production incident or confirmed vulnerability.
+- Safety: no Supabase production data, migration, schema, RLS policy, grant, secret, or persistent PostgreSQL configuration changed; no Production deployment, PR merge, force-push, or branch-protection change.

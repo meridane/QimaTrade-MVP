@@ -492,3 +492,16 @@ The QA281 matrix and all three register updates were revalidated on PR HEAD `9e4
 - **Vercel:** Preview status was **PENDING** at the latest check for this code commit. No Preview READY or Production deployment is claimed.
 - **Classification:** deterministic environment-variable contract regression coverage, not evidence of a production incident or confirmed vulnerability.
 - **Safety:** no Supabase production data, migration, schema, RLS policy, grant, secret, or persistent PostgreSQL configuration was changed; no Production deployment, PR merge, force-push, or branch-protection change occurred.
+
+
+### QA284 — CREATE_OFFER optional business fields route-to-RPC regression (8 November 2026)
+
+- Added one route-contract regression for explicit and omitted/null values of `conditions`, `market`, `geography`, and `documentationStatus`.
+- Verified each field in both the action payload (`p_input`) and the top-level SQL RPC parameter (`p_conditions`, `p_market`, `p_geography`, `p_documentation_status`). Explicit strings are preserved; omitted and explicit-null values normalize to identical explicit-null properties.
+- Code commit: `b7e2e62e2f82fa5b57c8911fd41091f4517ab82c`.
+- QIMA CI #1016 ([run 42486166041](https://github.com/meridane/QimaTrade-MVP/actions/runs/42486166041)): **SUCCESS**; 323/323 Playwright tests, TypeScript, Next.js build, dependency-audit enforcement, CREATE_OFFER PostgreSQL integration/concurrency, RLS and cleanup tests passed. The CI log explicitly confirms the new route-contract test.
+- QIMA CodeQL #969 ([run 42486166033](https://github.com/meridane/QimaTrade-MVP/actions/runs/42486166033)): **SUCCESS**.
+- PostgreSQL QA266/QA267: real prepared-transaction blocking and rollback, followed by RESET/restart to baseline 0 with no residual transaction or disposable database.
+- Vercel combined status on the code commit: **SUCCESS** (Preview status only; no Production deployment).
+- Classification: regression-only verification of an existing contract; no production incident or vulnerability is inferred.
+- Safety: no Supabase production data, migrations, schema, RLS policy, grants, secrets, or persistent PostgreSQL configuration changed; no Production deployment, PR merge, force-push, or branch-protection change.
