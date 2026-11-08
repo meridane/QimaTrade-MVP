@@ -586,3 +586,18 @@ The QA281 matrix and all three register updates were revalidated on PR HEAD `9e4
 - Vercel status on code commit `888150afcf2fe27e80ab67e3dbdbaee1616f194f`: **SUCCESS** (Preview only; no Production deployment).
 - Classification: API contract regression coverage and fail-closed validation of unsupported action statuses. The synthetic invalid-status fixtures do not establish a production incident or confirmed vulnerability.
 - Safety: no Supabase production data, migrations, schema, RLS policies, grants, secrets, or persistent PostgreSQL configuration changed; no Production deployment, PR merge, force-push, or branch-protection change.
+
+
+
+### QA290 — CREATE_OFFER succeeded public response contract (9 November 2026)
+
+- Test location: `tests/e2e/create-offer-route-contract.spec.ts`; code commit: `9fb9df7da041767dae86bc037c1ea0ec2be40b06`.
+- Added an explicit positive route regression for an execution RPC result with `status: "succeeded"`. It asserts HTTP 200 and the complete exact JSON response: `executionId`, `status`, `objectId`, and nested `result.offerId`.
+- The test also asserts that no `WWW-Authenticate` challenge is returned, exactly one `execute_create_offer_v1` RPC is called, and the request sequence is Auth, profile, membership, action-definition lookup, then execution RPC.
+- No route, action-engine, SQL, or migration implementation was changed; this locks down the existing success contract complementary to QA289's failed HTTP 409 and unsupported-status HTTP 500 cases.
+- QIMA CI #1031 (https://github.com/meridane/QimaTrade-MVP/actions/runs/42516121757): **SUCCESS**. The browser job passed **326/326 Playwright tests**, including the new QA290 test. npm installation, dependency audit enforcement at the configured high threshold, TypeScript, Next.js production build, Chromium installation, and browser suite passed.
+- The PostgreSQL integration job in CI #1031 also completed **SUCCESS**, including CREATE_OFFER integration/concurrency, legacy-message RLS, participant self-enrollment RLS, cleanup, and prepared-transaction QA266/QA267. The QA290 change itself is route-test-only and adds no SQL fixture.
+- QIMA CodeQL #983 (https://github.com/meridane/QimaTrade-MVP/actions/runs/42516122123): **SUCCESS**; CodeQL analysis and upload completed successfully.
+- Vercel combined status on code commit `9fb9df7da041767dae86bc037c1ea0ec2be40b06`: **SUCCESS** (Preview status only; no Production deployment).
+- Classification: positive API contract regression coverage. The mocked route fixture is not evidence of a production incident or confirmed vulnerability.
+- Safety: no Supabase production data, migrations, schema, RLS policies, grants, secrets, or persistent PostgreSQL configuration changed; no Production deployment, PR merge, force-push, or branch-protection change.
