@@ -372,3 +372,10 @@ The full remote history must be exported without truncation and joined to a comp
 - QIMA CodeQL #944 ([run 42455954673](https://github.com/meridane/QimaTrade-MVP/actions/runs/42455954673)) — **SUCCESS**, with no new alerts reported by the check.
 - Vercel combined status: **FAILURE** due to the Preview deployment rate limit (`upgradeToPro=build-rate-limit`); no Preview READY or Production deployment is claimed.
 - QA277 uses a deterministic `BASH_ENV` hook to make the marker-writing `printf` return 52; it does not prove an OS-level filesystem fault or a production vulnerability. No production Supabase migration/data/schema/RLS/grant/secret or persistent PostgreSQL configuration was changed.
+
+### QA277 — final PR-head validation after register synchronization (2026-11-08)
+
+- PR documentation HEAD `c70aa47601d98c50027dfada75e9444500cd6fdf`: QIMA CI #992 ([run 42456100382](https://github.com/meridane/QimaTrade-MVP/actions/runs/42456100382)) — **SUCCESS**, both jobs; QIMA CodeQL #945 ([run 42456100379](https://github.com/meridane/QimaTrade-MVP/actions/runs/42456100379)) — **SUCCESS**, no new alerts reported by the check.
+- CI #992 completed the setup regression containing QA277, the PostgreSQL integration suite, and the real QA267 restoration to baseline 0. The browser/build job passed TypeScript, npm audit enforcement, Next.js build, Chromium and **322/322 Playwright tests (7.7s)**; npm audit reported zero findings in all five severity buckets for this run.
+- Vercel combined status remains a Preview rate-limit failure; no Preview READY or Production deployment is claimed.
+- QA277 is a controlled shell-hook regression, not a real filesystem failure or production vulnerability. No Supabase production migration/data/schema/RLS/grant/secret or persistent PostgreSQL configuration was changed.
