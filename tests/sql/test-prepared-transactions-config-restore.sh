@@ -47,7 +47,19 @@ case "$*" in
     if [[ "${MOCK_SHOW_STATUS:-0}" != "0" ]]; then
       exit "$MOCK_SHOW_STATUS"
     fi
-    printf '%s\n' "${MOCK_RESTORED_VALUE:-0}"
+    show_count_file="${MOCK_EVENTS}.show-count"
+    show_count=0
+    if [[ -f "$show_count_file" ]]; then
+      read -r show_count < "$show_count_file"
+    fi
+    show_count=$((show_count + 1))
+    printf '%s\n' "$show_count" > "$show_count_file"
+    if [[ "${MOCK_SHOW_WRONG_FIRST_CALLS:-0}" =~ ^[0-9]+$ ]] &&
+      (( show_count <= MOCK_SHOW_WRONG_FIRST_CALLS )); then
+      printf '%s\n' "${MOCK_SHOW_WRONG_VALUE:-10}"
+    else
+      printf '%s\n' "${MOCK_RESTORED_VALUE:-0}"
+    fi
     ;;
   *"pg_prepared_xacts"*)
     printf '%s\n' psql-prepared >> "$MOCK_EVENTS"
@@ -82,6 +94,11 @@ fi
 ready_count=$((ready_count + 1))
 printf '%s\n' "$ready_count" > "$count_file"
 printf '%s\n' pg-isready >> "$MOCK_EVENTS"
+if [[ -n "${MOCK_READY_FAIL_CALLS:-}" ]]; then
+  case ",${MOCK_READY_FAIL_CALLS}," in
+    *",${ready_count},"*) exit "${MOCK_READY_FAILURE_STATUS:-1}" ;;
+  esac
+fi
 if [[ "${MOCK_READY_FAIL_FROM_CALL:-0}" =~ ^[0-9]+$ ]] &&
   (( ${MOCK_READY_FAIL_FROM_CALL:-0} > 0 && ready_count >= MOCK_READY_FAIL_FROM_CALL )); then
   exit "${MOCK_READY_FAILURE_STATUS:-1}"
@@ -102,7 +119,7 @@ run_restore() {
   local expected_status="$1"
   shift
   : > "$EVENTS"
-  rm -f "$EVENTS.ready-count"
+  rm -f "$EVENTS.ready-count" "$EVENTS.show-count"
   set +e
   PATH="$MOCK_BIN:$PATH" \
     MOCK_EVENTS="$EVENTS" \
@@ -290,6 +307,53 @@ if [[ "$actual" != "$expected" ]] ||
   exit 1
 fi
 
+# QA272-A: the service is unavailable during the first two pre-reset readiness probes,
+# then becomes ready. The bounded retry loop must recover and complete restoration.
+run_restore 0 env MOCK_READY_FAIL_CALLS=1,2
+expected="$(printf '%s\\n' docker-ps pg-isready sleep-1 pg-isready sleep-1 pg-isready docker-exec-reset docker-restart pg-isready psql-show psql-prepared psql-database)"
+actual="$(cat "$EVENTS")"
+if [[ "$actual" != "$expected" ]] ||
+  ! grep -Fq "QA267 passed" "$OUTPUT" ||
+  [[ "$(grep -Fxc "pg-isready" "$EVENTS" || true)" -ne 4 ]] ||
+  [[ "$(grep -Fxc "sleep-1" "$EVENTS" || true)" -ne 2 ]]; then
+  echo "ERROR: transient pre-reset PostgreSQL unavailability did not recover within the retry loop." >&2
+  printf 'Expected events:\\n%s\\nActual events:\\n%s\\n' "$expected" "$actual" >&2
+  cat "$OUTPUT" >&2
+  exit 1
+fi
+
+# QA272-B: PostgreSQL becomes ready only after two post-restart retries.
+# The initial pre-reset probe succeeds; post-restart probes 2 and 3 fail, then probe 4 succeeds.
+run_restore 0 env MOCK_READY_FAIL_CALLS=2,3
+expected="$(printf '%s\\n' docker-ps pg-isready docker-exec-reset docker-restart pg-isready sleep-1 pg-isready sleep-1 pg-isready psql-show psql-prepared psql-database)"
+actual="$(cat "$EVENTS")"
+if [[ "$actual" != "$expected" ]] ||
+  ! grep -Fq "QA267 passed" "$OUTPUT" ||
+  [[ "$(grep -Fxc "pg-isready" "$EVENTS" || true)" -ne 4 ]] ||
+  [[ "$(grep -Fxc "sleep-1" "$EVENTS" || true)" -ne 2 ]]; then
+  echo "ERROR: transient post-restart PostgreSQL unavailability did not recover within the retry loop." >&2
+  printf 'Expected events:\\n%s\\nActual events:\\n%s\\n' "$expected" "$actual" >&2
+  cat "$OUTPUT" >&2
+  exit 1
+fi
+
+# QA272-C: PostgreSQL is ready, but SHOW reports the temporary value for two polls
+# before converging to the captured baseline. The runner must retry and verify resources only
+# after the expected value is observed.
+run_restore 0 env MOCK_SHOW_WRONG_FIRST_CALLS=2 MOCK_SHOW_WRONG_VALUE=10 MOCK_RESTORED_VALUE=0
+expected="$(printf '%s\\n' docker-ps pg-isready docker-exec-reset docker-restart pg-isready psql-show sleep-1 pg-isready psql-show sleep-1 pg-isready psql-show psql-prepared psql-database)"
+actual="$(cat "$EVENTS")"
+if [[ "$actual" != "$expected" ]] ||
+  ! grep -Fq "QA267 passed" "$OUTPUT" ||
+  [[ "$(grep -Fxc "pg-isready" "$EVENTS" || true)" -ne 4 ]] ||
+  [[ "$(grep -Fxc "psql-show" "$EVENTS" || true)" -ne 3 ]] ||
+  [[ "$(grep -Fxc "sleep-1" "$EVENTS" || true)" -ne 2 ]]; then
+  echo "ERROR: transient post-restart configuration mismatch did not converge within the retry loop." >&2
+  printf 'Expected events:\\n%s\\nActual events:\\n%s\\n' "$expected" "$actual" >&2
+  cat "$OUTPUT" >&2
+  exit 1
+fi
+
 # The original baseline is explicit; do not reset against an unrecognized value.
 : > "$EVENTS"
 set +e
@@ -310,4 +374,4 @@ if grep -Fq "postgres:postgres" "$OUTPUT"; then
   exit 1
 fi
 
-echo "Prepared-transaction configuration restoration regression passed: reset/restart order, explicit RESET and restart failure handling with original exit codes, post-restart SHOW and residual-resource query failure propagation, unavailability and wrong-value rejection, no-op behavior, loopback URL guard, single-container guard, baseline guard, and residual-resource detection."
+echo "Prepared-transaction configuration restoration regression passed: reset/restart order, explicit RESET and restart failure handling with original exit codes, post-restart SHOW and residual-resource query failure propagation, bounded recovery from transient pre-reset and post-restart unavailability, bounded configuration convergence, permanent unavailability and wrong-value rejection, no-op behavior, loopback URL guard, single-container guard, baseline guard, and residual-resource detection."
