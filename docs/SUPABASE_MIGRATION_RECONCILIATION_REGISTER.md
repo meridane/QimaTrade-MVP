@@ -558,3 +558,18 @@ The QA281 matrix and all three register updates were revalidated on PR HEAD `9e4
 - Vercel status on the QA287 code commit: **SUCCESS** (Preview only). No Production deployment.
 - Classification: regression coverage of the existing same-tenant idempotency/advisory-lock contract; this synthetic fixture is not evidence of a production incident or confirmed vulnerability.
 - Safety: no Supabase production data, migrations, schema, RLS policies, grants, secrets, or persistent PostgreSQL configuration changed; no Production deployment, PR merge, force-push, or branch-protection change.
+
+
+### QA288 — concurrent same-key CREATE_OFFER requests with different effective payloads (9 November 2026)
+
+- Test location: \`tests/sql/run-create-offer-integration.sh\`; code commit: \`f567d500fb89935f03cc5c9a91d32d81dd74281c\`.
+- On the disposable PostgreSQL 16 integration database, session A starts the first-time request with \`conditions = ''\` and the other three optional fields (\`market\`, \`geography\`, \`documentationStatus\`) also empty. The test waits until A is observed holding the tenant/key transaction-scoped exclusive advisory lock during the fixture's \`pg_sleep\` before it starts session B.
+- Session B uses the same tenant, idempotency key, actor, demand, product, name, quantity, price, currency, and remaining optional values. Its only effective change is \`conditions = NULL\` in the RPC and JSONB \`p_input\` (instead of empty text).
+- The observer records \`2|1|1|1\`: two named active sessions, A granted and sleeping, B waiting on the same advisory lock. This establishes the intended concurrent ordering rather than relying on simultaneous process launch alone.
+- Session A exits successfully. Session B exits nonzero and its PostgreSQL error log contains exactly the expected domain code \`IDEMPOTENCY_KEY_REUSE\`.
+- The successful A response matches the single persisted idempotency result. SQL assertions verify one completed idempotency row with the first request's effective-parameter hash, one completed action execution preserving the original empty-string input, one offer preserving the original empty optional columns, and one \`ACTION_SUCCEEDED\` event matching the stored execution result. The rejected waiter creates no second offer, execution, idempotency row, or event.
+- QIMA CI #1027 (https://github.com/meridane/QimaTrade-MVP/actions/runs/42505426391): **SUCCESS**. The PostgreSQL integration/concurrency job passed, including the explicit QA288 log line; the browser job passed **324/324 Playwright tests**. npm installation and audit enforcement, TypeScript, Next.js build, Chromium, RLS, cleanup, and prepared-transaction QA266/QA267 passed.
+- QIMA CodeQL #979 (https://github.com/meridane/QimaTrade-MVP/actions/runs/42505426427): **SUCCESS**.
+- Vercel combined status on code commit \`f567d500fb89935f03cc5c9a91d32d81dd74281c\`: **SUCCESS** (Preview only; no Production deployment).
+- Classification: deterministic concurrency regression coverage of the existing same-tenant idempotency/advisory-lock contract. The expected \`IDEMPOTENCY_KEY_REUSE\` SQL error is the negative assertion under test, not a failed CI run or evidence of a production incident/confirmed vulnerability.
+- Safety: no Supabase production data, migrations, schema, RLS policies, grants, secrets, or persistent PostgreSQL configuration changed; no Production deployment, PR merge, force-push, or branch-protection change.
