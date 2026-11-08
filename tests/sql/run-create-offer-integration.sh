@@ -412,6 +412,277 @@ SQL
 echo "QA287 observed one granted and one waiting advisory lock for two concurrent first-time requests with four empty optional strings; both responses matched the single stored result and exactly one offer/execution/event remained."
 
 
+
+# QA288: two concurrent first-time requests reuse one tenant/key with different
+# effective parameters. The first request must complete; the waiting second
+# request must then fail with IDEMPOTENCY_KEY_REUSE without creating any rows.
+qa288_call_a=$(cat <<'SQL'
+SET application_name = 'qima-qa288-different-a';
+SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+SET ROLE authenticated;
+SELECT public.execute_create_offer_v1(
+  p_tenant_id => '10000000-0000-4000-8000-000000000001',
+  p_idempotency_key => 'fixture-qa288-concurrent-different-payload',
+  p_input => '{"case":"qa288-concurrent-different-payload","conditions":"","market":"","geography":"","documentationStatus":""}'::jsonb,
+  p_name => 'QA288 Concurrent Mismatch Offer',
+  p_demand_id => '50000000-0000-4000-8000-000000000001',
+  p_product_master_id => '40000000-0000-4000-8000-000000000001',
+  p_provider_actor_id => '30000000-0000-4000-8000-000000000001',
+  p_quantity => 6,
+  p_price => 29,
+  p_currency => 'USD',
+  p_conditions => '',
+  p_market => '',
+  p_geography => '',
+  p_attributes => '{}'::jsonb,
+  p_documentation_status => ''
+);
+SQL
+)
+
+qa288_call_b=$(cat <<'SQL'
+SET application_name = 'qima-qa288-different-b';
+SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+SET ROLE authenticated;
+SELECT public.execute_create_offer_v1(
+  p_tenant_id => '10000000-0000-4000-8000-000000000001',
+  p_idempotency_key => 'fixture-qa288-concurrent-different-payload',
+  p_input => '{"case":"qa288-concurrent-different-payload","conditions":null,"market":"","geography":"","documentationStatus":""}'::jsonb,
+  p_name => 'QA288 Concurrent Mismatch Offer',
+  p_demand_id => '50000000-0000-4000-8000-000000000001',
+  p_product_master_id => '40000000-0000-4000-8000-000000000001',
+  p_provider_actor_id => '30000000-0000-4000-8000-000000000001',
+  p_quantity => 6,
+  p_price => 29,
+  p_currency => 'USD',
+  p_conditions => NULL,
+  p_market => '',
+  p_geography => '',
+  p_attributes => '{}'::jsonb,
+  p_documentation_status => ''
+);
+SQL
+)
+
+# Start A alone and prove it owns the transaction-scoped advisory lock while
+# the fixture insert delay is active. Only then start the changed-payload waiter.
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t -c "$qa288_call_a" > /tmp/qima-qa288-a.log 2>&1 &
+qa288_pid_a=$!
+
+qa288_first_lock_snapshot=""
+for attempt in $(seq 1 200); do
+  qa288_first_lock_snapshot=$(psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -At -c "
+    SELECT
+      count(DISTINCT a.application_name)::text || '|' ||
+      count(*) FILTER (
+        WHERE l.granted AND a.wait_event = 'PgSleep'
+      )::text
+    FROM pg_stat_activity a
+    JOIN pg_locks l ON l.pid = a.pid
+    WHERE a.application_name = 'qima-qa288-different-a'
+      AND a.state = 'active'
+      AND l.locktype = 'advisory'
+      AND l.mode = 'ExclusiveLock';
+  " | tr -d '[:space:]')
+  if [[ "$qa288_first_lock_snapshot" == "1|1" ]]; then
+    break
+  fi
+  sleep 0.025
+done
+
+if [[ "$qa288_first_lock_snapshot" != "1|1" ]]; then
+  set +e
+  wait "$qa288_pid_a"
+  qa288_status_a=$?
+  set -e
+  echo "QA288 first request never exposed its granted advisory lock during PgSleep (snapshot='$qa288_first_lock_snapshot', exit=$qa288_status_a)." >&2
+  cat /tmp/qima-qa288-a.log >&2
+  exit 1
+fi
+
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -q -A -t -c "$qa288_call_b" > /tmp/qima-qa288-b.log 2>&1 &
+qa288_pid_b=$!
+
+# Both sessions must now be observed on the same exclusive tenant/key lock:
+# A owns it while sleeping; B is queued on that exact advisory lock.
+qa288_lock_snapshot=""
+for attempt in $(seq 1 200); do
+  qa288_lock_snapshot=$(psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -At -c "
+    SELECT
+      count(DISTINCT a.application_name)::text || '|' ||
+      count(*) FILTER (
+        WHERE l.granted AND a.wait_event = 'PgSleep'
+      )::text || '|' ||
+      count(*) FILTER (
+        WHERE NOT l.granted
+          AND a.wait_event_type = 'Lock'
+          AND a.wait_event = 'advisory'
+      )::text || '|' ||
+      count(DISTINCT (
+        l.classid::text || ':' || l.objid::text || ':' || l.objsubid::text
+      ))::text
+    FROM pg_stat_activity a
+    JOIN pg_locks l ON l.pid = a.pid
+    WHERE a.application_name IN ('qima-qa288-different-a', 'qima-qa288-different-b')
+      AND a.state = 'active'
+      AND l.locktype = 'advisory'
+      AND l.mode = 'ExclusiveLock';
+  " | tr -d '[:space:]')
+  if [[ "$qa288_lock_snapshot" == "2|1|1|1" ]]; then
+    break
+  fi
+  sleep 0.025
+done
+
+set +e
+wait "$qa288_pid_a"
+qa288_status_a=$?
+wait "$qa288_pid_b"
+qa288_status_b=$?
+set -e
+
+if [[ "$qa288_status_a" -ne 0 || ! -s /tmp/qima-qa288-a.log ]]; then
+  echo "QA288 first (empty-conditions) request should complete successfully; exit=$qa288_status_a." >&2
+  cat /tmp/qima-qa288-a.log /tmp/qima-qa288-b.log >&2
+  exit 1
+fi
+
+if [[ "$qa288_lock_snapshot" != "2|1|1|1" ]]; then
+  echo "QA288 expected A granted and B waiting on the same advisory lock; observed '$qa288_lock_snapshot'." >&2
+  cat /tmp/qima-qa288-a.log /tmp/qima-qa288-b.log >&2
+  exit 1
+fi
+
+if [[ "$qa288_status_b" -eq 0 ]] || ! grep -Fq "IDEMPOTENCY_KEY_REUSE" /tmp/qima-qa288-b.log; then
+  echo "QA288 changed-payload concurrent request must fail with IDEMPOTENCY_KEY_REUSE (exit=$qa288_status_b)." >&2
+  cat /tmp/qima-qa288-a.log /tmp/qima-qa288-b.log >&2
+  exit 1
+fi
+
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t -c "
+  SELECT result::text
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-qa288-concurrent-different-payload'
+    AND status = 'COMPLETED';
+" > /tmp/qima-qa288-stored-result.log
+
+if ! cmp -s /tmp/qima-qa288-a.log /tmp/qima-qa288-stored-result.log; then
+  echo "QA288 first successful response does not match the single stored idempotency result." >&2
+  diff -u /tmp/qima-qa288-a.log /tmp/qima-qa288-stored-result.log >&2 || true
+  exit 1
+fi
+
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 <<'SQL'
+DO $qa288$
+DECLARE
+  v_input jsonb := '{
+    "case":"qa288-concurrent-different-payload",
+    "conditions":"",
+    "market":"",
+    "geography":"",
+    "documentationStatus":""
+  }'::jsonb;
+  v_expected_hash text;
+  v_count integer;
+BEGIN
+  v_expected_hash := md5(jsonb_build_object(
+    'input', v_input,
+    'name', 'QA288 Concurrent Mismatch Offer',
+    'demandId', '50000000-0000-4000-8000-000000000001'::uuid,
+    'productMasterId', '40000000-0000-4000-8000-000000000001'::uuid,
+    'providerActorId', '30000000-0000-4000-8000-000000000001'::uuid,
+    'quantity', 6::numeric,
+    'price', 29::numeric,
+    'currency', 'USD',
+    'conditions', '',
+    'market', '',
+    'geography', '',
+    'attributes', '{}'::jsonb,
+    'documentationStatus', '',
+    'lifecycle', NULL::text,
+    'offerType', NULL::text,
+    'pricingModel', NULL::text
+  )::text);
+
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-qa288-concurrent-different-payload'
+    AND status = 'COMPLETED'
+    AND request_hash = v_expected_hash
+    AND result IS NOT NULL
+    AND completed_at IS NOT NULL;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA288 expected one completed idempotency row with the first request hash, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND idempotency_key = 'fixture-qa288-concurrent-different-payload';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA288 expected exactly one action execution after the rejected waiter, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND idempotency_key = 'fixture-qa288-concurrent-different-payload'
+    AND status = 'COMPLETED'
+    AND input = v_input
+    AND object_type = 'Offer';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA288 expected the single completed execution to preserve the first empty-conditions input, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE name = 'QA288 Concurrent Mismatch Offer'
+    AND demand_id = '50000000-0000-4000-8000-000000000001'
+    AND product_master_id = '40000000-0000-4000-8000-000000000001'
+    AND provider_actor_id = '30000000-0000-4000-8000-000000000001'
+    AND conditions = ''
+    AND market = ''
+    AND geography = ''
+    AND documentation_status = ''
+    AND attributes = '{}'::jsonb;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA288 expected exactly one offer preserving the first request and no offer for the rejected NULL request, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_events e
+  JOIN public.action_executions x
+    ON x.id = e.execution_id
+   AND x.tenant_id = e.tenant_id
+  WHERE x.tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND x.idempotency_key = 'fixture-qa288-concurrent-different-payload'
+    AND e.event_type = 'ACTION_SUCCEEDED'
+    AND e.object_id = x.object_id
+    AND e.payload = x.result;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA288 expected exactly one ACTION_SUCCEEDED event matching the first request result, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_events e
+  JOIN public.action_executions x
+    ON x.id = e.execution_id
+   AND x.tenant_id = e.tenant_id
+  WHERE x.tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND x.idempotency_key = 'fixture-qa288-concurrent-different-payload';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA288 rejected concurrent mismatch must not create an additional event, found %', v_count;
+  END IF;
+END
+$qa288$;
+SELECT 'QA288 concurrent changed-payload request was rejected with IDEMPOTENCY_KEY_REUSE; the first completed result and its single offer/execution/event remained intact' AS result;
+SQL
+
+echo "QA288 observed A holding and B waiting on the same tenant/key advisory lock; A completed, B received IDEMPOTENCY_KEY_REUSE, and exactly one first-request offer/execution/event remained."
+
+
 # QA103: the first same-tenant request owns the advisory lock, then fails
 # during offer insertion. The identical second request must wake after rollback,
 # acquire the released lock, and complete with the same idempotency key.
