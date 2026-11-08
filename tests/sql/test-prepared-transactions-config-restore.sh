@@ -402,10 +402,10 @@ fi
 # readiness probes, or any database/configuration operation.
 : > "$EVENTS"
 set +e
-env -u BASELINE_MAX_PREPARED_TRANSACTIONS \\
-  PATH="$MOCK_BIN:$PATH" MOCK_EVENTS="$EVENTS" \\
-  DATABASE_URL="postgresql://postgres:postgres@localhost:5432/qima_test" \\
-  RESTORE_REQUIRED=true \\
+env -u BASELINE_MAX_PREPARED_TRANSACTIONS \
+  PATH="$MOCK_BIN:$PATH" MOCK_EVENTS="$EVENTS" \
+  DATABASE_URL="postgresql://postgres:postgres@localhost:5432/qima_test" \
+  RESTORE_REQUIRED=true \
   bash "$RESTORE_SCRIPT" > "$OUTPUT" 2>&1
 missing_baseline_status=$?
 set -e
