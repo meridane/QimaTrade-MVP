@@ -535,3 +535,11 @@ The QA281 matrix and all three register updates were revalidated on PR HEAD `9e4
 - QIMA CI #1021 (https://github.com/meridane/QimaTrade-MVP/actions/runs/42493888884) — **SUCCESS**; the PostgreSQL log explicitly records QA286 passing, and the browser job passed 324/324 Playwright tests. QIMA CodeQL #974 (https://github.com/meridane/QimaTrade-MVP/actions/runs/42493888899) — **SUCCESS**.
 - QA266/QA267 real disposable PostgreSQL checks passed; the prepared-transaction configuration returned to baseline 0 and no disposable resource remained.
 - No Supabase production data, migration, schema, RLS policy, grant, secret, or persistent PostgreSQL configuration was modified. The existing migrations were executed only against the disposable CI database; no Production deployment or PR merge occurred.
+
+
+### QA286 — final PR HEAD CI/CodeQL revalidation (9 November 2026)
+
+- Final documentation HEAD tested: 08403ed26d70f327f7985db8bc6fe19cb262e7df; QA286 SQL code remains unchanged in commit 485d69454a802b3e71804c841fdc294f76b81ba1.
+- QIMA CI #1022 (https://github.com/meridane/QimaTrade-MVP/actions/runs/42494130242): **SUCCESS**; PostgreSQL logs explicitly record QA286 exact replay and empty-to-NULL rejection, 324/324 Playwright tests passed, and build/typecheck/audit/RLS/cleanup plus QA266/QA267 passed.
+- QIMA CodeQL #975 (https://github.com/meridane/QimaTrade-MVP/actions/runs/42494130392): **SUCCESS**.
+- Vercel: QA286 code commit Preview **SUCCESS**; final documentation HEAD returned upgradeToPro=build-rate-limit. No Production deployment or application build failure is inferred from this quota response.
