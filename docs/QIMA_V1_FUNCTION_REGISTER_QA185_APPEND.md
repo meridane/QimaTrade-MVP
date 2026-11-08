@@ -1903,3 +1903,25 @@ The canonical register's QA184 tail was inspected from commit `0eca4833bae236f32
 - **Follow-up behavior:** this correction is also documentation-only, but because the PR's aggregate diff still includes non-documentation paths, GitHub may start another pull-request CI and CodeQL run for the corrected documentation HEAD. The correction commit itself does not alter application or SQL code.
 - **Vercel:** the combined status on `c87c9212fc281b6667367b4a1e29944cb3ff50e3` was **FAILURE** with `upgradeToPro=build-rate-limit`. This is the deployment quota status, not a GitHub Actions failure; no Preview READY is claimed for that HEAD and no Production deployment occurred.
 - **Safety and interpretation:** QA269-A and QA269-B remain deterministic mocked failure-path tests, not proof of a real PostgreSQL outage or a confirmed vulnerability. QA267 separately verifies successful restoration on the ephemeral PostgreSQL 16 CI service. No Supabase production data, migration, schema, policy, grant, secret, persistent configuration, Production deployment, merge, or branch-protection setting was changed.
+
+
+## QA270 — post-restart SHOW query failure propagation (8 November 2026)
+
+- **Starting state:** the PR branch already contained QA270 when this run began. Compared with previously recorded HEAD `bd8aa29bad28f97ed17156979678121025b77fae`, the branch was three commits ahead; the QA270 commits were `ec597eadf9f92ea196d91fc598752fe6602c1b52` (test), `f053712cfac205b03ce9696122460eb47a334682` (test summary), and `24c8a67fabe1da553c70048f346bd63c5bc63c1b` (explicit runner error handling).
+- **Scenario:** PostgreSQL readiness succeeds after restart, but the `SHOW max_prepared_transactions` query returns controlled psql exit 44.
+- **Expected behavior:** the runner reports that the configuration read failed, preserves exit 44, stops before residual-resource queries, and never prints the QA267 restoration-success message.
+- **Validation:** QIMA CI #971 [run 42431842941](https://github.com/meridane/QimaTrade-MVP/actions/runs/42431842941) — **SUCCESS**, both browser and PostgreSQL jobs completed. The PostgreSQL job log includes the prepared-transaction restoration regression summary with post-restart SHOW failure propagation and the real QA267 restoration confirmation. QIMA CodeQL #924 [run 42431842966](https://github.com/meridane/QimaTrade-MVP/actions/runs/42431842966) — **SUCCESS**.
+- **Combined status on QA270 HEAD:** Vercel **SUCCESS**. This is a Preview/check status, not a Production deployment.
+- **Interpretation:** the SHOW failure is injected by a deterministic psql stub. It validates shell error propagation only; it does not establish a real PostgreSQL outage or a vulnerability.
+- **Safety:** no production Supabase connection, data, migration, schema, RLS policy, grant, secret, persistent configuration, Production deployment, merge, or branch-protection setting was used or modified.
+
+## QA271 — explicit failure handling for postcondition queries (8 November 2026)
+
+- **Gap addressed:** after the configuration is restored, the runner queries `pg_prepared_xacts` and `pg_database`. Previously, `set -e` stopped the script if either psql command failed, but there was no query-specific diagnostic or explicit preservation of the failing psql status.
+- **Runner change:** `tests/sql/restore-prepared-transactions-config.sh` now handles each postcondition query in an explicit `if assignment; then / else` branch. It reports which verification failed, preserves the original psql exit status, and exits before the success message.
+- **Regression coverage:** `tests/sql/test-prepared-transactions-config-restore.sh` now injects exit 45 for the prepared-transaction query and exit 46 for the disposable-database query. QA271-A asserts the database query is not attempted after the first failure. QA271-B asserts the second failure is reported. Both assert that the QA267 success message is absent.
+- **Code commits:** `24c8a67fabe1da553c70048f346bd63c5bc63c1b` (runner) and `03c32a0fa1398cbba9634c8da9aa96e7127c7c4e` (regression tests). Work branch: `work/qa271-postcondition-query-failure-guards-20261108-1000`; changes were fast-forwarded to PR #26.
+- **Local focused check:** a standalone shell harness for the two guarded psql failure branches passed: prepared-query exit 45 and database-query exit 46 were preserved with their respective diagnostics. This focused check is not a substitute for repository CI.
+- **GitHub Actions status at documentation time:** no pull-request workflow run was yet returned for code HEAD `03c32a0fa1398cbba9634c8da9aa96e7127c7c4e`; QIMA CI and CodeQL results remain **pending/unavailable**, not assumed successful. The combined Vercel status on that HEAD was **FAILURE** with `upgradeToPro=build-rate-limit`, separate from GitHub Actions.
+- **Safety and interpretation:** the new negative cases use command stubs and do not prove a production database failure or a confirmed vulnerability. No production Supabase data, migration, schema, RLS policy, grant, secret, persistent database configuration, Production deployment, merge, or branch-protection setting was changed.
+
