@@ -607,6 +607,103 @@ test("CREATE_OFFER route treats omitted attributes and an explicit empty object 
   expect(normalizedRpcPayloads[0]).toEqual(normalizedRpcPayloads[1]);
 });
 
+test("CREATE_OFFER route preserves optional business fields in both action input and SQL RPC arguments", async () => {
+  const optionalFields = [
+    {
+      inputKey: "conditions",
+      rpcKey: "p_conditions",
+      value: "FOB Busan; inspection before dispatch",
+    },
+    {
+      inputKey: "market",
+      rpcKey: "p_market",
+      value: "industrial-equipment",
+    },
+    {
+      inputKey: "geography",
+      rpcKey: "p_geography",
+      value: "KR-MA",
+    },
+    {
+      inputKey: "documentationStatus",
+      rpcKey: "p_documentation_status",
+      value: "certificate_pending",
+    },
+  ] as const;
+
+  const nullValues = Object.fromEntries(
+    optionalFields.map(({ inputKey }) => [inputKey, null]),
+  );
+  const cases = [
+    {
+      label: "explicit optional values",
+      overrides: Object.fromEntries(
+        optionalFields.map(({ inputKey, value }) => [inputKey, value]),
+      ),
+      expected: Object.fromEntries(
+        optionalFields.map(({ inputKey, value }) => [inputKey, value]),
+      ),
+    },
+    {
+      label: "explicit null optional values",
+      overrides: nullValues,
+      expected: nullValues,
+    },
+    {
+      label: "omitted optional values",
+      overrides: {},
+      expected: nullValues,
+    },
+  ];
+  const normalizedNullPayloads: Array<Record<string, unknown>> = [];
+
+  for (const testCase of cases) {
+    const result = await postCreateOffer("USD", testCase.overrides);
+
+    expect(result.status, testCase.label).toBe(200);
+    const executionCalls = result.requests.filter(
+      (request) => request.path === "/rest/v1/rpc/execute_create_offer_v1",
+    );
+    expect(executionCalls, testCase.label).toHaveLength(1);
+
+    const rpcBody = executionCalls[0].body;
+    expect(rpcBody, testCase.label).toBeDefined();
+    const rpcInput = rpcBody?.p_input as Record<string, unknown> | undefined;
+    expect(rpcInput, testCase.label).toBeDefined();
+
+    for (const { inputKey, rpcKey } of optionalFields) {
+      expect(
+        Object.prototype.hasOwnProperty.call(rpcInput, inputKey),
+        `${testCase.label}: p_input.${inputKey} must be present`,
+      ).toBe(true);
+      expect(rpcInput?.[inputKey], `${testCase.label}: p_input.${inputKey}`).toBe(
+        testCase.expected[inputKey],
+      );
+      expect(
+        Object.prototype.hasOwnProperty.call(rpcBody, rpcKey),
+        `${testCase.label}: ${rpcKey} must be present`,
+      ).toBe(true);
+      expect(rpcBody?.[rpcKey], `${testCase.label}: ${rpcKey}`).toBe(
+        testCase.expected[inputKey],
+      );
+    }
+
+    if (testCase.label !== "explicit optional values") {
+      normalizedNullPayloads.push({
+        p_input: Object.fromEntries(
+          optionalFields.map(({ inputKey }) => [inputKey, rpcInput?.[inputKey]]),
+        ),
+        rpc_arguments: Object.fromEntries(
+          optionalFields.map(({ rpcKey }) => [rpcKey, rpcBody?.[rpcKey]]),
+        ),
+      });
+    }
+  }
+
+  expect(normalizedNullPayloads).toHaveLength(2);
+  expect(normalizedNullPayloads[0]).toEqual(normalizedNullPayloads[1]);
+});
+
 test("CREATE_OFFER route trims an explicit idempotency key before the RPC", async () => {
   const result = await postCreateOffer("USD", { idempotencyKey: "  client-key-123  " });
 
