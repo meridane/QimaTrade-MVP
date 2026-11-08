@@ -3,6 +3,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 SETUP_SCRIPT="$ROOT/tests/sql/enable-prepared-transactions-config.sh"
+RESTORE_SCRIPT="$ROOT/tests/sql/restore-prepared-transactions-config.sh"
 WORKFLOW="$ROOT/.github/workflows/ci.yml"
 TEMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TEMP_DIR"' EXIT
@@ -149,7 +150,7 @@ fi
 # QA275: failure to read the initial baseline must stop before publishing
 # restoration intent or performing any configuration mutation.
 run_setup 50 env MOCK_INITIAL_SHOW_STATUS=50
-expected="$(printf '%s\\n' docker-ps psql-show-1)"
+expected=$'docker-ps\npsql-show-1'
 if [[ "$(cat "$EVENTS")" != "$expected" ]] ||
   [[ -s "$GITHUB_OUTPUT_FILE" ]] ||
   ! grep -Fq "Could not capture the disposable PostgreSQL baseline (psql exit 50)" "$OUTPUT" ||
@@ -167,10 +168,7 @@ fi
 : > "$EVENTS"
 : > "$OUTPUT"
 set +e
-PATH="$MOCK_BIN:$PATH" MOCK_EVENTS="$EVENTS" \\
-  DATABASE_URL="postgresql://postgres:postgres@localhost:5432/qima_test" \\
-  RESTORE_REQUIRED="" BASELINE_MAX_PREPARED_TRANSACTIONS="" \\
-  bash "$RESTORE_SCRIPT" > "$OUTPUT" 2>&1
+PATH="$MOCK_BIN:$PATH" MOCK_EVENTS="$EVENTS" DATABASE_URL="postgresql://postgres:postgres@localhost:5432/qima_test" RESTORE_REQUIRED="" BASELINE_MAX_PREPARED_TRANSACTIONS="" bash "$RESTORE_SCRIPT" > "$OUTPUT" 2>&1
 restore_status=$?
 set -e
 if [[ "$restore_status" -ne 0 ]] ||
