@@ -6245,3 +6245,16 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - Vercel combined status on code commit: SUCCESS (Preview status only; no Production deployment).
 - Classification: regression-only contract verification, not evidence of a production incident or confirmed vulnerability.
 - Safety: no Supabase production data, migration, schema, RLS policy, grant, secret, or persistent PostgreSQL configuration changed; no Production deployment, PR merge, force-push, or branch-protection change.
+
+
+### QA285 — CREATE_OFFER preserves empty optional strings and distinguishes them from SQL NULL
+
+- Date: 8 November 2026 (KST).
+- Route regression: `tests/e2e/create-offer-route-contract.spec.ts`, code commit `682ef4d43616416c863c653ebe88e95d38aedd8d`. Verified `conditions`, `market`, `geography`, and `documentationStatus` supplied as empty strings remain exactly `""` in both `p_input` and their top-level RPC arguments; a separate explicit-null request remains `null`, and the normalized payloads are not equal.
+- SQL idempotency regression: `tests/sql/create-offer-runtime.sql`, code commit `91cc390cf3dd129f683f9db1cfef3fd6e503f0f5`. Reusing the same completed idempotency key with empty `p_market`, `p_conditions`, or `p_geography` against the original SQL-NULL values is rejected with `IDEMPOTENCY_KEY_REUSE`. The existing `p_documentation_status => ''` case already verifies the same NULL-versus-empty distinction for documentation status.
+- QIMA CI #1018 ([run 42490794951](https://github.com/meridane/QimaTrade-MVP/actions/runs/42490794951)): **SUCCESS**. Browser log explicitly records the new QA285 route test and **324/324 Playwright tests passed**. npm installation, audit enforcement at the high threshold, TypeScript, Next.js build, Chromium, CREATE_OFFER PostgreSQL integration/concurrency, RLS and cleanup checks passed.
+- QIMA CodeQL #971 ([run 42490795034](https://github.com/meridane/QimaTrade-MVP/actions/runs/42490795034)): **SUCCESS**.
+- PostgreSQL evidence: the disposable PostgreSQL 16 integration job completed successfully, including the updated CREATE_OFFER runtime SQL, concurrency, prepared-transaction QA266 and RESET/restart QA267 to baseline 0 with no residual transaction or disposable database.
+- Vercel combined status on code commit `91cc390cf3dd129f683f9db1cfef3fd6e503f0f5`: **SUCCESS** (Preview status only; no Production deployment).
+- Classification: regression coverage of the existing route/RPC/idempotency contract, not evidence of a production incident or confirmed vulnerability.
+- Safety: no Supabase production data, migration, schema, RLS policy, grant, secret, or persistent PostgreSQL configuration changed; no Production deployment, PR merge, force-push, or branch-protection change.
