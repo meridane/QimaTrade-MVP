@@ -448,3 +448,11 @@ The QA280 entry above was present on PR HEAD `abd955099715a051259cd8ffc7ced2292d
 - **Inputs:** empty baseline, `10`, `00`, `-1`, leading-space ` 0`, and trailing-space `0 `. Each is rejected with exit `2` before Docker, readiness, or database commands; the event log remains empty and no restoration-success message appears. Exact baseline `0` remains accepted by the successful path.
 - **Validation:** QIMA CI #1008 ([42473664227](https://github.com/meridane/QimaTrade-MVP/actions/runs/42473664227)) SUCCESS; PostgreSQL regression log confirms QA281 and the real PostgreSQL 16 QA267 RESET/restart returned to `0` with no QA266 transaction or disposable database. Browser/build checks passed, including **322/322 Playwright tests (7.8s)** and npm audit enforcement at the high threshold. QIMA CodeQL #961 ([42473664222](https://github.com/meridane/QimaTrade-MVP/actions/runs/42473664222)) SUCCESS. Vercel status for the code HEAD SUCCESS; no Production deployment is claimed.
 - **Safety boundary:** this is deterministic CI coverage, not a production vulnerability finding. No Supabase production data, migrations, schema, RLS, grants, secrets, or persistent PostgreSQL settings were modified; no Production deployment, PR merge, force-push, or branch-protection change occurred.
+
+## QA281 documentation-head verification — CI #1009 / CodeQL #962 (2026-11-08)
+
+The QA281 matrix and all three register updates were revalidated on PR HEAD `9e45637dbc8df5ac2202baf8cd0e1dfc437e8e7c`:
+- QIMA CI #1009 ([42473845549](https://github.com/meridane/QimaTrade-MVP/actions/runs/42473845549)) — **SUCCESS**; PostgreSQL and browser/build jobs passed. The PostgreSQL log confirms QA281 and real PostgreSQL 16 QA267 restoration to baseline `0` with no residual QA266 transaction or temporary database. npm audit enforcement at the high threshold, TypeScript, Next.js build, and **322/322 Playwright tests (9.4s)** passed.
+- QIMA CodeQL #962 ([42473845560](https://github.com/meridane/QimaTrade-MVP/actions/runs/42473845560)) — **SUCCESS**.
+- Vercel combined status — **FAILURE** due to Preview build rate limit (`upgradeToPro=build-rate-limit`); this is not a GitHub Actions build failure and no Production deployment is claimed.
+- No Supabase production data, migrations, schema, RLS, grants, secrets, or persistent PostgreSQL configuration were modified.
