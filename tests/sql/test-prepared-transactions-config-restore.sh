@@ -54,8 +54,9 @@ case "$*" in
     fi
     show_count=$((show_count + 1))
     printf '%s\n' "$show_count" > "$show_count_file"
-    if [[ "${MOCK_SHOW_WRONG_FIRST_CALLS:-0}" =~ ^[0-9]+$ ]] &&
-      (( show_count <= MOCK_SHOW_WRONG_FIRST_CALLS )); then
+    show_wrong_first_calls="${MOCK_SHOW_WRONG_FIRST_CALLS:-0}"
+    if [[ "$show_wrong_first_calls" =~ ^[0-9]+$ ]] &&
+      (( show_count <= show_wrong_first_calls )); then
       printf '%s\n' "${MOCK_SHOW_WRONG_VALUE:-10}"
     else
       printf '%s\n' "${MOCK_RESTORED_VALUE:-0}"
