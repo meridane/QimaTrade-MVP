@@ -437,4 +437,4 @@ if [[ "$restore_status" -ne 0 ]] ||
 fi
 
 
-echo "Prepared-transaction setup regression passed: docker ps partial-output failures preserve the exit code; zero/multiple container discovery fails before database access; restoration intent is persisted before mutation; SET, restart, post-restart SHOW and readiness failures preserve the cleanup marker; retry exhaustion is bounded; workflow invokes setup and always() restoration."
+echo "Prepared-transaction setup regression passed: QA278 real GITHUB_OUTPUT permission denial stops before mutation and always() cleanup no-ops; docker ps partial-output failures preserve the exit code; zero/multiple container discovery fails before database access; restoration intent is persisted before mutation; SET, restart, post-restart SHOW and readiness failures preserve the cleanup marker; retry exhaustion is bounded; workflow invokes setup and always() restoration."
