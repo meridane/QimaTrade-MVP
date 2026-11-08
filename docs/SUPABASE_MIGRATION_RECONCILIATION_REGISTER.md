@@ -401,3 +401,14 @@ The full remote history must be exported without truncation and joined to a comp
 - Vercel combined status on this HEAD remains **FAILURE** due to the Preview build rate limit (upgradeToPro=build-rate-limit); this is separate from the successful GitHub Actions build. No Preview READY or Production deployment is claimed.
 - This is a filesystem permission regression in disposable CI, not a finding of a production filesystem problem or vulnerability. No Supabase production migration/data/schema/RLS/grant/secret or persistent PostgreSQL configuration was touched.
 
+
+
+### QA279 — partial GITHUB_OUTPUT marker write (2026-11-08)
+
+- **Code commit:** `f424bf2652daa1ae6e25744cf518d406b4123756` adds a deterministic partial-write regression to `tests/sql/test-prepared-transactions-config-setup.sh`.
+- **Injected behavior:** a temporary `BASH_ENV` hook writes only `baseline=0\n` to the real temporary output file, records `marker-write-partial`, then returns exit 53 before `restore_required=true` can be persisted.
+- **Assertions:** setup exits non-zero, the output contains exactly the partial baseline line, the restoration marker is absent, and the event sequence is exactly `docker-ps`, `psql-show-1`, `marker-write-partial`. No `ALTER SYSTEM SET` or PostgreSQL restart is allowed.
+- **Cleanup:** the test passes `RESTORE_REQUIRED=""` and `BASELINE_MAX_PREPARED_TRANSACTIONS="0"` to the restoration script, confirming that a partial baseline output without the intent marker produces a no-op and makes no Docker/PostgreSQL calls.
+- **Interpretation:** this is a deterministic shell-hook regression that exercises a real partial write to a temporary file followed by an injected command failure. It does not simulate disk-full/ENOSPC or establish a production filesystem fault or vulnerability.
+- **Validation at documentation time:** QIMA CI #1000 (run 42462932529) and QIMA CodeQL #953 (run 42462932693) were triggered for code commit `f424bf2652daa1ae6e25744cf518d406b4123756` and were still in progress when this record was prepared. No pass is claimed here; final outcomes must be read from the GitHub run pages.
+- **Safety:** no Supabase production data, migration, schema, RLS policy, grant, secret, persistent PostgreSQL configuration, Production deployment, PR merge, force-push, or branch-protection setting was changed.
