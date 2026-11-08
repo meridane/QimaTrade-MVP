@@ -2233,3 +2233,11 @@ The canonical register's QA184 tail was inspected from commit `0eca4833bae236f32
 - PostgreSQL 16 evidence: the isolated integration job passed with no residual prepared transaction or disposable database; QA267 restored `max_prepared_transactions` to baseline 0 after RESET/restart.
 - Vercel combined status on the code commit: **SUCCESS** (Preview only; no Production deployment).
 - Classification: regression coverage only; no production incident or vulnerability is inferred. No production Supabase data, migrations, schema, RLS policies, grants, secrets, or persistent PostgreSQL configuration changed; no Production deployment or PR merge occurred.
+
+
+### QA285 — final PR HEAD validation
+
+- Documentation HEAD: `ad66b98c6a56a667977873e8944d57027d05f43d`; QA285 application/SQL test commits remained `682ef4d` and `91cc390`.
+- QIMA CI #1019 ([run 42491022728](https://github.com/meridane/QimaTrade-MVP/actions/runs/42491022728)) — **SUCCESS**, **324/324 Playwright tests**; TypeScript, build, npm audit enforcement, CREATE_OFFER PostgreSQL integration/concurrency, RLS, cleanup, QA266 and QA267 passed.
+- QIMA CodeQL #972 ([run 42491022811](https://github.com/meridane/QimaTrade-MVP/actions/runs/42491022811)) — **SUCCESS**.
+- Vercel: code commit Preview status **SUCCESS**; documentation HEAD **rate-limited** (`upgradeToPro=build-rate-limit`). No Production deployment.
