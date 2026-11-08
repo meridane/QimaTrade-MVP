@@ -162,6 +162,40 @@ if [[ -s "$EVENTS" ]]; then
   exit 1
 fi
 
+# QA282: only the exact marker value "true" may enter the restoration path.
+# Non-matching values must no-op before even validating the URL or baseline.
+run_restore_noop() {
+  local label="$1"
+  shift
+  : > "$EVENTS"
+  rm -f "$EVENTS.ready-count" "$EVENTS.show-count"
+  set +e
+  PATH="$MOCK_BIN:$PATH" MOCK_EVENTS="$EVENTS" \
+    DATABASE_URL="postgresql://postgres:postgres@db.example:5432/qima_test" \
+    BASELINE_MAX_PREPARED_TRANSACTIONS="not-a-baseline" \
+    "$@" bash "$RESTORE_SCRIPT" > "$OUTPUT" 2>&1
+  local actual_status=$?
+  set -e
+  if [[ "$actual_status" -ne 0 ]] ||
+    [[ -s "$EVENTS" ]] ||
+    ! grep -Fq "Prepared-transaction configuration was not changed; restoration is not required." "$OUTPUT" ||
+    grep -Fq "QA267 passed" "$OUTPUT"; then
+    echo "ERROR: non-exact RESTORE_REQUIRED marker [$label] did not safely no-op." >&2
+    cat "$EVENTS" >&2
+    cat "$OUTPUT" >&2
+    exit 1
+  fi
+}
+
+run_restore_noop "unset" env -u RESTORE_REQUIRED
+run_restore_noop "empty" env RESTORE_REQUIRED=
+run_restore_noop "false" env RESTORE_REQUIRED=false
+run_restore_noop "one" env RESTORE_REQUIRED=1
+run_restore_noop "uppercase TRUE" env RESTORE_REQUIRED=TRUE
+
+# The successful run_restore 0 path above proves that exact "true" with the
+# approved baseline enters the restoration sequence normally.
+
 # Remote URLs are rejected before docker or psql can be invoked.
 : > "$EVENTS"
 set +e
@@ -437,4 +471,4 @@ if grep -Fq "postgres:postgres" "$OUTPUT"; then
   exit 1
 fi
 
-echo "Prepared-transaction configuration restoration regression passed: docker ps partial-output failures preserve the exit code; zero/multiple container discovery fails before readiness or RESET; reset/restart order, explicit RESET and restart failure handling with original exit codes, post-restart SHOW and residual-resource query failure propagation, bounded transient recovery and configuration convergence, permanent unavailability and wrong-value rejection, no-op behavior, loopback URL guard, single-container guard, missing-baseline, QA281 noncanonical-baseline matrix, and unapproved-baseline guards, and residual-resource detection."
+echo "Prepared-transaction configuration restoration regression passed: docker ps partial-output failures preserve the exit code; zero/multiple container discovery fails before readiness or RESET; reset/restart order, explicit RESET and restart failure handling with original exit codes, post-restart SHOW and residual-resource query failure propagation, bounded transient recovery and configuration convergence, permanent unavailability and wrong-value rejection, no-op behavior, exact RESTORE_REQUIRED marker matrix (QA282), loopback URL guard, single-container guard, missing-baseline, QA281 noncanonical-baseline matrix, unapproved-baseline guards, and residual-resource detection."
