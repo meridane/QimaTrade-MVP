@@ -2077,3 +2077,13 @@ The canonical register's QA184 tail was inspected from commit `0eca4833bae236f32
 - **Interpretation:** QA277 injects a deterministic `printf` failure at the marker-write boundary; it is not an OS permission/disk-full test and is not evidence of a production filesystem fault or vulnerability.
 - **PR state at validation:** PR #26 is open and draft, mergeable, with no reviews or review threads. The work branch was fast-forwarded to the PR branch; no force-push was used.
 - **Safety:** no Supabase production data, migration, schema, RLS policy, grant, secret, persistent PostgreSQL configuration, Production deployment, PR merge, or branch-protection setting was changed.
+
+### QA277 — final PR-head validation after register synchronization (8 November 2026)
+
+- **PR documentation HEAD:** `c70aa47601d98c50027dfada75e9444500cd6fdf`.
+- **QIMA CI #992:** [run 42456100382](https://github.com/meridane/QimaTrade-MVP/actions/runs/42456100382) — **SUCCESS**; both jobs completed. The PostgreSQL job completed the prepared-transaction setup regression containing QA277, the real QA266 prepared-transaction cleanup blocker, and QA267 restoration to `max_prepared_transactions=0` with no residual prepared transaction or disposable database.
+- **Browser/build job:** npm installation and audit enforcement, TypeScript, Next.js build, Chromium, and browser tests all succeeded; **322/322 Playwright tests passed (7.7s)**. npm audit reported 0 info, 0 low, 0 moderate, 0 high, 0 critical, and 0 total findings for this run.
+- **QIMA CodeQL #945:** [run 42456100379](https://github.com/meridane/QimaTrade-MVP/actions/runs/42456100379) — **SUCCESS**; the CodeQL check output states no new alerts in code changed by this pull request.
+- **Vercel:** combined status for this PR HEAD remains **FAILURE** because the Preview deployment is rate limited (`upgradeToPro=build-rate-limit`). This is separate from the successful GitHub Actions build; no Preview READY or Production deployment is claimed.
+- **Interpretation:** QA277 remains a deterministic `BASH_ENV`-injected `printf` failure (exit 52), not an OS-level filesystem fault or confirmed vulnerability. The final CI run proves the regression script completed successfully; it does not convert the stub into evidence of a production incident.
+- **Safety:** no Supabase production data, migration, schema, RLS policy, grant, secret, persistent PostgreSQL configuration, Production deployment, PR merge, or branch-protection setting was changed.
