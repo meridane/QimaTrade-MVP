@@ -433,3 +433,11 @@ The full remote history must be exported without truncation and joined to a comp
 - **Attempt history:** CI #1004 PostgreSQL job failed because the first test draft emitted doubled shell continuation backslashes (`env: '\\': No such file or directory`); the companion browser job was cancelled when the correction was pushed. This was a harness syntax error. Corrected commit: `f44f7006d0e737c4d6a64192f984c22b68e320c5`.
 - **Final evidence:** QIMA CI #1005 ([42470336296](https://github.com/meridane/QimaTrade-MVP/actions/runs/42470336296)) SUCCESS, including PostgreSQL integration and browser/build jobs; QIMA CodeQL #958 ([42470336308](https://github.com/meridane/QimaTrade-MVP/actions/runs/42470336308)) SUCCESS. PostgreSQL logs confirm the missing-baseline regression and setup regression passed, followed by real disposable PostgreSQL 16 restoration to baseline `0` with no QA266 residue. Browser/build logs confirm npm audit had **0 total findings**, TypeScript and Next.js build passed, and **322/322 Playwright tests (6.7s)** passed. Vercel status on this code HEAD was SUCCESS.
 - **Safety boundary:** this is a controlled CI regression, not a production vulnerability finding. No Supabase production data or migrations, schema, RLS, grants, secrets, or persistent database settings were touched; no Production deployment, PR merge, force-push, or branch-protection change occurred.
+
+
+### QA280 documentation-head verification — CI #1006 / CodeQL #959
+
+The QA280 entry above was present on PR HEAD `abd955099715a051259cd8ffc7ced2292da76cd4` and was revalidated after the register update:
+- QIMA CI #1006 ([42470593151](https://github.com/meridane/QimaTrade-MVP/actions/runs/42470593151)) — SUCCESS; PostgreSQL integration and browser/build jobs both passed. The restoration regression reported the missing-baseline guard; the real disposable PostgreSQL 16 QA267 restore returned to baseline `0` with no QA266 transaction or temporary database remaining. npm audit reported 0 total findings; TypeScript, Next.js build and **322/322 Playwright tests (10.1s)** passed.
+- QIMA CodeQL #959 ([42470593109](https://github.com/meridane/QimaTrade-MVP/actions/runs/42470593109)) — SUCCESS.
+- Vercel status for this documentation HEAD — SUCCESS. This is not a Production deployment claim.
