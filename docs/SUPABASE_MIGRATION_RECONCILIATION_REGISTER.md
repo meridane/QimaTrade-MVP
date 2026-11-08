@@ -245,3 +245,20 @@ The full remote history must be exported without truncation and joined to a comp
 - **Safety and interpretation:** QA269-A and QA269-B remain deterministic mocked failure-path tests, not proof of a real PostgreSQL outage or a confirmed vulnerability. QA267 separately verifies successful restoration on the ephemeral PostgreSQL 16 CI service. No Supabase production data, migration, schema, policy, grant, secret, persistent configuration, Production deployment, merge, or branch-protection setting was changed.
 
 - **Migration reconciliation:** this correction is a CI documentation note only; it does not resolve the separate remote Supabase authentication/parity blocker.
+
+
+## QA270 — post-restart configuration-read failure (8 November 2026)
+
+- The QA270 test was already present on the PR branch at the start of the subsequent maintenance run. It verifies that a successful readiness probe followed by a failed `SHOW max_prepared_transactions` psql query returns the original exit status 44 and prevents resource postcondition checks or a false success message.
+- QIMA CI #971 [run 42431842941](https://github.com/meridane/QimaTrade-MVP/actions/runs/42431842941) and CodeQL #924 [run 42431842966](https://github.com/meridane/QimaTrade-MVP/actions/runs/42431842966) both completed successfully. The CI PostgreSQL job also confirmed the real QA267 restoration on the ephemeral PostgreSQL service.
+- The Vercel combined status on the QA270 code HEAD was success. This was not a Production deployment.
+- This is a deterministic shell regression test for the read-query failure branch, not evidence of a production outage or vulnerability.
+
+## QA271 — postcondition query failure handling (8 November 2026)
+
+- The restoration runner now emits separate diagnostics and preserves the original psql exit code if the `pg_prepared_xacts` query fails or if the `pg_database` query fails.
+- The regression test injects psql exit 45 and 46, asserts the corresponding diagnostic and confirms that the QA267 success message is not emitted.
+- Commits: runner `24c8a67fabe1da553c70048f346bd63c5bc63c1b`; test `03c32a0fa1398cbba9634c8da9aa96e7127c7c4e`.
+- A focused local shell harness passed for both guarded query failures. At the time this entry was written, no QIMA CI or CodeQL run had been returned for HEAD `03c32a0fa1398cbba9634c8da9aa96e7127c7c4e`; final repository validation remains pending. Vercel reports `build-rate-limit`, which is separate from CI.
+- This work is limited to the disposable CI restoration harness. No production Supabase migration, data, policy, grant, secret, or configuration was touched.
+
