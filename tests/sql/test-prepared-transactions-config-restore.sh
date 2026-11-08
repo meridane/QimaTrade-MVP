@@ -50,12 +50,18 @@ case "$*" in
     printf '%s\n' "${MOCK_RESTORED_VALUE:-0}"
     ;;
   *"pg_prepared_xacts"*)
-    printf '%s\n' "${MOCK_PREPARED_COUNT:-0}"
     printf '%s\n' psql-prepared >> "$MOCK_EVENTS"
+    if [[ "${MOCK_PREPARED_STATUS:-0}" != "0" ]]; then
+      exit "$MOCK_PREPARED_STATUS"
+    fi
+    printf '%s\n' "${MOCK_PREPARED_COUNT:-0}"
     ;;
   *"pg_database"*)
-    printf '%s\n' "${MOCK_DATABASE_COUNT:-0}"
     printf '%s\n' psql-database >> "$MOCK_EVENTS"
+    if [[ "${MOCK_DATABASE_STATUS:-0}" != "0" ]]; then
+      exit "$MOCK_DATABASE_STATUS"
+    fi
+    printf '%s\n' "${MOCK_DATABASE_COUNT:-0}"
     ;;
   *)
     echo "Unexpected psql invocation." >&2
@@ -255,6 +261,35 @@ if [[ "$actual" != "$expected" ]] ||
   exit 1
 fi
 
+# QA271-A: the prepared-transaction postcondition query fails.
+# Preserve its psql exit status and do not run the database query or claim success.
+run_restore 45 env MOCK_PREPARED_STATUS=45
+expected="$(printf '%s\n' docker-ps pg-isready docker-exec-reset docker-restart pg-isready psql-show psql-prepared)"
+actual="$(cat "$EVENTS")"
+if [[ "$actual" != "$expected" ]] ||
+  ! grep -Fq "Could not verify QA266 prepared-transaction cleanup (psql exit 45)" "$OUTPUT" ||
+  grep -Fq "QA267 passed" "$OUTPUT" ||
+  [[ "$(grep -Fxc "psql-database" "$EVENTS" || true)" -ne 0 ]]; then
+  echo "ERROR: a failed prepared-transaction postcondition query was not reported fail-closed." >&2
+  printf 'Expected events:\n%s\nActual events:\n%s\n' "$expected" "$actual" >&2
+  cat "$OUTPUT" >&2
+  exit 1
+fi
+
+# QA271-B: the disposable-database postcondition query fails.
+# Preserve its psql exit status and do not claim that cleanup was verified.
+run_restore 46 env MOCK_DATABASE_STATUS=46
+expected="$(printf '%s\n' docker-ps pg-isready docker-exec-reset docker-restart pg-isready psql-show psql-prepared psql-database)"
+actual="$(cat "$EVENTS")"
+if [[ "$actual" != "$expected" ]] ||
+  ! grep -Fq "Could not verify disposable migration database cleanup (psql exit 46)" "$OUTPUT" ||
+  grep -Fq "QA267 passed" "$OUTPUT"; then
+  echo "ERROR: a failed disposable-database postcondition query was not reported fail-closed." >&2
+  printf 'Expected events:\n%s\nActual events:\n%s\n' "$expected" "$actual" >&2
+  cat "$OUTPUT" >&2
+  exit 1
+fi
+
 # The original baseline is explicit; do not reset against an unrecognized value.
 : > "$EVENTS"
 set +e
@@ -275,4 +310,4 @@ if grep -Fq "postgres:postgres" "$OUTPUT"; then
   exit 1
 fi
 
-echo "Prepared-transaction configuration restoration regression passed: reset/restart order, explicit RESET and restart failure handling with original exit codes, post-restart SHOW query failure propagation, unavailability and wrong-value rejection, no-op behavior, loopback URL guard, single-container guard, baseline guard, and residual-resource detection."
+echo "Prepared-transaction configuration restoration regression passed: reset/restart order, explicit RESET and restart failure handling with original exit codes, post-restart SHOW and residual-resource query failure propagation, unavailability and wrong-value rejection, no-op behavior, loopback URL guard, single-container guard, baseline guard, and residual-resource detection."
