@@ -21,9 +21,21 @@ if [[ -z "$REAL_PSQL" ]] || ! command -v docker >/dev/null 2>&1 || ! command -v 
   exit 127
 fi
 
-mapfile -t postgres_containers < <(docker ps --filter 'ancestor=postgres:16' --format '{{.ID}}')
+if container_output="$(docker ps --filter 'ancestor=postgres:16' --format '{{.ID}}')"; then
+  :
+else
+  docker_ps_status=$?
+  echo "::error::Could not discover the disposable PostgreSQL 16 service container (docker ps exit $docker_ps_status); no database or configuration operation was attempted." >&2
+  exit "$docker_ps_status"
+fi
+
+postgres_containers=()
+while IFS= read -r candidate; do
+  [[ -n "$candidate" ]] && postgres_containers+=("$candidate")
+done <<< "$container_output"
+
 if [[ "${#postgres_containers[@]}" -ne 1 ]]; then
-  echo "::error::Expected exactly one PostgreSQL 16 service container; found ${#postgres_containers[@]}." >&2
+  echo "::error::Expected exactly one PostgreSQL 16 service container; found ${#postgres_containers[@]}. No database or configuration operation was attempted." >&2
   exit 1
 fi
 container_id="${postgres_containers[0]}"
