@@ -398,9 +398,29 @@ if [[ "$baseline_status" -ne 2 || -s "$EVENTS" ]]; then
   exit 1
 fi
 
+# QA280: RESTORE_REQUIRED=true without a captured baseline must fail before Docker,
+# readiness probes, or any database/configuration operation.
+: > "$EVENTS"
+set +e
+env -u BASELINE_MAX_PREPARED_TRANSACTIONS \\
+  PATH="$MOCK_BIN:$PATH" MOCK_EVENTS="$EVENTS" \\
+  DATABASE_URL="postgresql://postgres:postgres@localhost:5432/qima_test" \\
+  RESTORE_REQUIRED=true \\
+  bash "$RESTORE_SCRIPT" > "$OUTPUT" 2>&1
+missing_baseline_status=$?
+set -e
+if [[ "$missing_baseline_status" -ne 2 || -s "$EVENTS" ]] ||
+  ! grep -Fq "Expected the captured disposable-service baseline to be 0" "$OUTPUT" ||
+  grep -Fq "QA267 passed" "$OUTPUT"; then
+  echo "ERROR: restoration did not reject a missing baseline before external commands." >&2
+  cat "$EVENTS" >&2
+  cat "$OUTPUT" >&2
+  exit 1
+fi
+
 if grep -Fq "postgres:postgres" "$OUTPUT"; then
   echo "ERROR: restoration output exposed disposable connection credentials." >&2
   exit 1
 fi
 
-echo "Prepared-transaction configuration restoration regression passed: docker ps partial-output failures preserve the exit code; zero/multiple container discovery fails before readiness or RESET; reset/restart order, explicit RESET and restart failure handling with original exit codes, post-restart SHOW and residual-resource query failure propagation, bounded transient recovery and configuration convergence, permanent unavailability and wrong-value rejection, no-op behavior, loopback URL guard, single-container guard, baseline guard, and residual-resource detection."
+echo "Prepared-transaction configuration restoration regression passed: docker ps partial-output failures preserve the exit code; zero/multiple container discovery fails before readiness or RESET; reset/restart order, explicit RESET and restart failure handling with original exit codes, post-restart SHOW and residual-resource query failure propagation, bounded transient recovery and configuration convergence, permanent unavailability and wrong-value rejection, no-op behavior, loopback URL guard, single-container guard, missing-baseline and unapproved-baseline guards, and residual-resource detection."
