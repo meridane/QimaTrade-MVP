@@ -525,3 +525,13 @@ The QA281 matrix and all three register updates were revalidated on PR HEAD `9e4
 - QIMA CI #1019 ([run 42491022728](https://github.com/meridane/QimaTrade-MVP/actions/runs/42491022728)): **SUCCESS**; 324/324 Playwright tests, TypeScript, Next.js build, audit enforcement, CREATE_OFFER PostgreSQL integration/concurrency, RLS, cleanup, QA266 and QA267 passed.
 - QIMA CodeQL #972 ([run 42491022811](https://github.com/meridane/QimaTrade-MVP/actions/runs/42491022811)): **SUCCESS**.
 - Vercel Preview: code commit **SUCCESS**; documentation HEAD rate-limited by `upgradeToPro=build-rate-limit`. No Production deployment or application build failure is inferred from this quota response.
+
+
+### QA286 — CREATE_OFFER empty optional-string replay (9 November 2026)
+
+- Disposable PostgreSQL 16 regression in tests/sql/create-offer-runtime.sql, code commit 485d69454a802b3e71804c841fdc294f76b81ba1.
+- Four empty optional strings are included in the request input and RPC parameters. The test checks the effective request hash and persisted offer values, then confirms an exact replay returns the same completed result with exactly one idempotency key, action execution, offer, and ACTION_SUCCEEDED event.
+- A same-key retry changing conditions from empty text to JSONB null / SQL NULL is rejected with IDEMPOTENCY_KEY_REUSE; no duplicate rows are added.
+- QIMA CI #1021 (https://github.com/meridane/QimaTrade-MVP/actions/runs/42493888884) — **SUCCESS**; the PostgreSQL log explicitly records QA286 passing, and the browser job passed 324/324 Playwright tests. QIMA CodeQL #974 (https://github.com/meridane/QimaTrade-MVP/actions/runs/42493888899) — **SUCCESS**.
+- QA266/QA267 real disposable PostgreSQL checks passed; the prepared-transaction configuration returned to baseline 0 and no disposable resource remained.
+- No Supabase production data, migration, schema, RLS policy, grant, secret, or persistent PostgreSQL configuration was modified. The existing migrations were executed only against the disposable CI database; no Production deployment or PR merge occurred.
