@@ -2164,3 +2164,11 @@ The canonical register's QA184 tail was inspected from commit `0eca4833bae236f32
 - **QIMA CI #1008** ([42473664227](https://github.com/meridane/QimaTrade-MVP/actions/runs/42473664227)) — **SUCCESS**; PostgreSQL and browser/build jobs passed. The PostgreSQL log includes the QA281 matrix and real PostgreSQL 16 QA267 restoration to baseline `0`, with no QA266 residue. Browser/build checks passed npm audit at the high threshold, TypeScript, Next.js build, and **322/322 Playwright tests (7.8s)**.
 - **QIMA CodeQL #961** ([42473664222](https://github.com/meridane/QimaTrade-MVP/actions/runs/42473664222)) — **SUCCESS**. Vercel combined status for the code HEAD — **SUCCESS**; no Production deployment is inferred.
 - **Safety:** test-only regression; no Supabase production data or migrations, schema, RLS, grants, secrets, or persistent database configuration were touched.
+
+### QA281 documentation-head verification — CI #1009 / CodeQL #962 (2026-11-08)
+
+- Final QA281 register contents were present on PR HEAD `9e45637dbc8df5ac2202baf8cd0e1dfc437e8e7c` and revalidated.
+- QIMA CI #1009 ([42473845549](https://github.com/meridane/QimaTrade-MVP/actions/runs/42473845549)) — **SUCCESS**: PostgreSQL integration and browser/build jobs passed; PostgreSQL logs confirm the QA281 matrix and real QA267 PostgreSQL 16 RESET/restart to baseline `0` with no QA266 residue. npm audit enforcement at the high threshold, TypeScript, Next.js build, and **322/322 Playwright tests (9.4s)** passed.
+- QIMA CodeQL #962 ([42473845560](https://github.com/meridane/QimaTrade-MVP/actions/runs/42473845560)) — **SUCCESS**.
+- Vercel combined status on this documentation HEAD — **FAILURE** due to `upgradeToPro=build-rate-limit`; no Preview READY or Production deployment is claimed.
+- No production Supabase object or migration was changed.
