@@ -6147,3 +6147,12 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **Interpretation:** QA278 verifies the tested OS-level permission-denial path in disposable CI; it does not establish a production filesystem fault or vulnerability.
 - **PR state:** PR #26 remains open and draft, mergeable, with 1042 commits ahead of `main`, 0 behind, 67 changed files, and no submitted reviews or review threads at the code-validation check.
 - **Safety:** no Supabase production data, migration, schema, RLS policy, grant, secret, persistent PostgreSQL configuration, Production deployment, PR merge, force-push, or branch-protection setting was changed.
+
+
+### QA278 — final canonical-register HEAD validation (2026-11-08)
+
+- Canonical register synchronization commit: `9c72ff80e8b59aeec89a8f5f57197f5d470452ee`, which adds the QA277 and QA278 records above.
+- QIMA CI #998 ([run 42462430988](https://github.com/meridane/QimaTrade-MVP/actions/runs/42462430988)) — **SUCCESS**, both jobs completed on the canonical-register HEAD. The PostgreSQL integration job passed the prepared-transaction setup regression, the live QA266 blocker case, and QA267 RESET/restart/restoration to baseline `0` with no residual prepared transaction or disposable database. The browser/build job passed TypeScript, npm audit enforcement, Next.js build, Chromium, and **322/322 Playwright tests (6.2s)**; npm audit reported zero findings in all five severity buckets for this run.
+- QIMA CodeQL #951 ([run 42462430730](https://github.com/meridane/QimaTrade-MVP/actions/runs/42462430730)) — **SUCCESS**.
+- The Vercel combined status on this HEAD is **FAILURE** due to the Preview deployment rate limit (`upgradeToPro=build-rate-limit`); this is not a GitHub Actions or Next.js build failure. No Preview READY or Production deployment is claimed.
+- This validation is scoped to the disposable CI services and current code-scanning run; it is not a general claim that production is vulnerability-free.
