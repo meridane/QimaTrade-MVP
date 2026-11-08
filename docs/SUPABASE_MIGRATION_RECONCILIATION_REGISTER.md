@@ -601,3 +601,17 @@ The QA281 matrix and all three register updates were revalidated on PR HEAD `9e4
 - Vercel combined status on code commit `9fb9df7da041767dae86bc037c1ea0ec2be40b06`: **SUCCESS** (Preview status only; no Production deployment).
 - Classification: positive API contract regression coverage. The mocked route fixture is not evidence of a production incident or confirmed vulnerability.
 - Safety: no Supabase production data, migrations, schema, RLS policies, grants, secrets, or persistent PostgreSQL configuration changed; no Production deployment, PR merge, force-push, or branch-protection change.
+
+
+
+### QA291 — CREATE_OFFER malformed successful RPC result at the HTTP boundary (9 November 2026)
+
+- Test location: `tests/e2e/create-offer-route-contract.spec.ts`; code commit: `158f25336f8db32fd5aec85809afa18db96a23c2`.
+- Extended the route fixture with a test-only RPC result override, removed from the submitted request body before dispatch. Added eight malformed RPC result cases: null result, missing/blank/non-string `executionId`, non-string `objectId`, and null/array/primitive nested `result` payloads.
+- For every malformed result, the real Next.js `POST` route is exercised through the mocked Supabase Auth/REST boundary. The route must return exactly HTTP 500 with `{"error":"ACTION_FAILED"}`, omit the internal `ACTION_RESULT_INVALID` code and a private sentinel, emit no authentication challenge, and call `execute_create_offer_v1` exactly once after the expected Auth/profile/membership/action-definition sequence.
+- Existing engine unit tests already cover the normalization rules; QA291 adds route-boundary regression coverage. No application route, engine, SQL, migration, or production configuration was changed.
+- QIMA CI #1033 (https://github.com/meridane/QimaTrade-MVP/actions/runs/42521070588): **SUCCESS**. Browser job passed **327/327 Playwright tests**, including QA291. npm ci, npm audit enforcement at the configured high threshold, TypeScript, Next.js production build, Chromium installation, and browser tests passed. The isolated PostgreSQL integration job also completed **SUCCESS**, including CREATE_OFFER integration/concurrency, legacy-message RLS, participant self-enrollment RLS, cleanup, and prepared-transaction QA266/QA267.
+- QIMA CodeQL #985 (https://github.com/meridane/QimaTrade-MVP/actions/runs/42521070573): **SUCCESS**; JavaScript/TypeScript analysis and result upload completed successfully.
+- Vercel status on code commit `158f25336f8db32fd5aec85809afa18db96a23c2`: **SUCCESS** (Preview only; no Production deployment).
+- Classification: synthetic route-contract regression coverage. The malformed RPC fixtures do not establish a production incident or confirmed vulnerability.
+- Safety: no Supabase production data, migrations, schema, RLS policies, grants, secrets, or persistent PostgreSQL configuration changed; no Production deployment, PR merge, force-push, or branch-protection change.
