@@ -272,7 +272,7 @@ qa278_show_count="$qa278_events.show-count"
 qa278_output="$qa278_dir/github-output"
 qa278_log="$qa278_dir/setup.log"
 : > "$qa278_events"
-: > "$qa278_show_count"
+printf '0\n' > "$qa278_show_count"
 : > "$qa278_output"
 
 if [[ "$(id -u)" -eq 0 ]]; then
