@@ -338,3 +338,13 @@ The full remote history must be exported without truncation and joined to a comp
 - The initial harness defect in commit `b6a7b0b` was corrected in `1190862` before the successful CI run.
 - Exact code HEAD: `1190862cdf5d38f9da7096453f978d09b805e3dd`; QIMA CI **#985** and CodeQL **#938** both completed successfully. PostgreSQL 16 integration, QA266 prepared-transaction cleanup and QA267 restoration passed in the ephemeral GitHub Actions service; no production database was used.
 - This is a deterministic test-stub failure path, not a finding of a production database fault or vulnerability. No Supabase production migration/data/schema/RLS/grant/secret was touched.
+
+## QA276 — disposable PostgreSQL baseline mismatch guard (2026-11-08)
+
+- The setup regression now covers a successful initial SHOW max_prepared_transactions that returns 5, while the disposable service contract requires baseline 0.
+- The setup script must reject the mismatch before writing either GitHub Actions output (baseline or restore_required=true), before ALTER SYSTEM SET, and before a container restart. The test checks the exact docker-ps then psql-show-1 event sequence and then verifies the if: always() restoration script safely no-ops with empty outputs.
+- The first QA276 test commit 0d8ff956b0e352cce627d75064b8d9d943c629bd contained a malformed Bash insertion and CI #987 failed with a syntax error in the setup regression file. The corrected test is in 68e4dc7493badca409b9309eeddbcecdba6c5529.
+- QIMA CI #988 (run 42452799606) — SUCCESS: both jobs completed, including CREATE_OFFER PostgreSQL integration, the setup regression, QA267 real PostgreSQL restoration, TypeScript, npm audit, Next.js build, Chromium and 322/322 Playwright tests. npm audit reported zero findings across info/low/moderate/high/critical for this run.
+- QIMA CodeQL #940 (run 42452623123) — SUCCESS on the initial QA276 code commit; no separate CodeQL run was returned for the shell-test-only correction commit.
+- Vercel combined status on corrected code HEAD was PENDING at last observation; no Preview READY or Production deployment is claimed.
+- QA276 is a deterministic stubbed regression, not a live production database finding. No Supabase production migration, data, schema, RLS, grant, secret, or persistent database configuration was changed.
