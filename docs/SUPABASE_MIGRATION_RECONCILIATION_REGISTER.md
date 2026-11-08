@@ -441,3 +441,10 @@ The QA280 entry above was present on PR HEAD `abd955099715a051259cd8ffc7ced2292d
 - QIMA CI #1006 ([42470593151](https://github.com/meridane/QimaTrade-MVP/actions/runs/42470593151)) — SUCCESS; PostgreSQL integration and browser/build jobs both passed. The restoration regression reported the missing-baseline guard; the real disposable PostgreSQL 16 QA267 restore returned to baseline `0` with no QA266 transaction or temporary database remaining. npm audit reported 0 total findings; TypeScript, Next.js build and **322/322 Playwright tests (10.1s)** passed.
 - QIMA CodeQL #959 ([42470593109](https://github.com/meridane/QimaTrade-MVP/actions/runs/42470593109)) — SUCCESS.
 - Vercel status for this documentation HEAD — SUCCESS. This is not a Production deployment claim.
+
+## QA281 — Noncanonical restoration baseline matrix (2026-11-08)
+
+- **Scope:** `tests/sql/test-prepared-transactions-config-restore.sh`; no production migration or database object changed.
+- **Inputs:** empty baseline, `10`, `00`, `-1`, leading-space ` 0`, and trailing-space `0 `. Each is rejected with exit `2` before Docker, readiness, or database commands; the event log remains empty and no restoration-success message appears. Exact baseline `0` remains accepted by the successful path.
+- **Validation:** QIMA CI #1008 ([42473664227](https://github.com/meridane/QimaTrade-MVP/actions/runs/42473664227)) SUCCESS; PostgreSQL regression log confirms QA281 and the real PostgreSQL 16 QA267 RESET/restart returned to `0` with no QA266 transaction or disposable database. Browser/build checks passed, including **322/322 Playwright tests (7.8s)** and npm audit enforcement at the high threshold. QIMA CodeQL #961 ([42473664222](https://github.com/meridane/QimaTrade-MVP/actions/runs/42473664222)) SUCCESS. Vercel status for the code HEAD SUCCESS; no Production deployment is claimed.
+- **Safety boundary:** this is deterministic CI coverage, not a production vulnerability finding. No Supabase production data, migrations, schema, RLS, grants, secrets, or persistent PostgreSQL settings were modified; no Production deployment, PR merge, force-push, or branch-protection change occurred.
