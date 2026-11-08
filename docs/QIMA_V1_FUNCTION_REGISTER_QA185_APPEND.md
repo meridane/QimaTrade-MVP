@@ -1975,3 +1975,15 @@ The canonical register's QA184 tail was inspected from commit `0eca4833bae236f32
 - QA272 modified only the disposable CI restoration regression test. No application code, SQL migration, dependency, Supabase production data/schema/RLS/grant, secret, or persistent database configuration was changed.
 - PostgreSQL configuration changes remain confined to the ephemeral GitHub Actions PostgreSQL 16 service.
 - No Production deployment, PR merge, or branch-protection change occurred.
+
+
+## QA273 — PostgreSQL setup cleanup marker (8 November 2026)
+
+- Extracted the prepared-transaction setup into `tests/sql/enable-prepared-transactions-config.sh`.
+- The setup validates the loopback `qima_test` URL, one PostgreSQL 16 container and baseline `0`; it writes `baseline=0` and `restore_required=true` to `GITHUB_OUTPUT` before `ALTER SYSTEM SET`.
+- New setup regression tests assert marker-before-mutation ordering and preservation after SET exit 47, restart exit 48, post-restart SHOW exit 49, and bounded readiness exhaustion. The workflow invokes this test and retains the existing `if: always()` restoration step.
+- QIMA CI #978 [run 42438738454](https://github.com/meridane/QimaTrade-MVP/actions/runs/42438738454) — **SUCCESS**; **322/322 Playwright tests**, PostgreSQL integration and QA273 setup regression passed. The PostgreSQL log also confirms real QA266 blocker handling and QA267 restoration to baseline `0`, with no residual prepared transaction or disposable database.
+- QIMA CodeQL #931 [run 42438738450](https://github.com/meridane/QimaTrade-MVP/actions/runs/42438738450) — **SUCCESS**. npm audit reported zero findings in all five severity categories for this run only.
+- Vercel combined status on the code HEAD was **SUCCESS** (Preview/check only; no Production deployment).
+- The negative setup paths use command stubs; they verify shell control flow and output persistence, not an actual Docker/production outage or a confirmed vulnerability. Successful PostgreSQL configuration and restoration are separately tested against the ephemeral CI service.
+- No production Supabase data, migration, schema, RLS policy, grant, secret, persistent configuration, Production deployment, merge or branch-protection setting was changed.
