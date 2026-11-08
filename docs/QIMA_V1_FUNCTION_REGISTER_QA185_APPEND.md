@@ -1903,3 +1903,16 @@ The canonical register's QA184 tail was inspected from commit `0eca4833bae236f32
 - **Follow-up behavior:** this correction is also documentation-only, but because the PR's aggregate diff still includes non-documentation paths, GitHub may start another pull-request CI and CodeQL run for the corrected documentation HEAD. The correction commit itself does not alter application or SQL code.
 - **Vercel:** the combined status on `c87c9212fc281b6667367b4a1e29944cb3ff50e3` was **FAILURE** with `upgradeToPro=build-rate-limit`. This is the deployment quota status, not a GitHub Actions failure; no Preview READY is claimed for that HEAD and no Production deployment occurred.
 - **Safety and interpretation:** QA269-A and QA269-B remain deterministic mocked failure-path tests, not proof of a real PostgreSQL outage or a confirmed vulnerability. QA267 separately verifies successful restoration on the ephemeral PostgreSQL 16 CI service. No Supabase production data, migration, schema, policy, grant, secret, persistent configuration, Production deployment, merge, or branch-protection setting was changed.
+
+
+## QA270 — post-restart SHOW query failure propagation (8 November 2026, 09:49 KST)
+
+- **PR:** [#26](https://github.com/meridane/QimaTrade-MVP/pull/26), branch `fix/create-offer-status-contract`.
+- **Validated code HEAD:** `f053712cfac205b03ce9696122460eb47a334682`.
+- **Changed files:** `tests/sql/restore-prepared-transactions-config.sh` and `tests/sql/test-prepared-transactions-config-restore.sh`; the existing CI step already executes the regression script.
+- **Guard:** a failed post-restart `SHOW max_prepared_transactions` query now emits an explicit unconfirmed-restoration error and preserves the psql exit code. The test uses exit 44 and verifies that no resource queries, retry sleep, or QA267 success output follows.
+- **QIMA CI #971:** [run 42431842941](https://github.com/meridane/QimaTrade-MVP/actions/runs/42431842941) — **SUCCESS**, including **322/322 Playwright tests** and the PostgreSQL integration job.
+- **QIMA CodeQL #924:** [run 42431842966](https://github.com/meridane/QimaTrade-MVP/actions/runs/42431842966) — **SUCCESS**.
+- **Vercel:** **SUCCESS** on the tested code HEAD; Preview/check only.
+- **Evidence boundary:** the SHOW-query failure is a deterministic stubbed failure-path test, not proof of a real PostgreSQL outage or vulnerability. QA267 separately validates successful restoration against the ephemeral PostgreSQL 16 service.
+- **Safety:** no production Supabase connection, data, migration, schema, policy, grant, secret, persistent configuration, Production deployment, PR merge, or branch-protection setting was touched.
