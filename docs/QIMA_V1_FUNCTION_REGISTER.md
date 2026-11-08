@@ -6267,3 +6267,18 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - QIMA CodeQL #972 ([run 42491022811](https://github.com/meridane/QimaTrade-MVP/actions/runs/42491022811)): **SUCCESS**.
 - Vercel status on the code-only QA285 commit was **SUCCESS** (Preview). On the documentation HEAD, Vercel returned `upgradeToPro=build-rate-limit`; this is a Preview quota limitation, not a failed GitHub Actions build. No Production deployment is claimed.
 - The CI/CodeQL result above validates the unchanged QA285 code together with the documented PR HEAD. No additional application or SQL changes were made after QA285 code validation.
+
+
+### QA286 — exact replay of four empty optional CREATE_OFFER strings
+
+- Date: 9 November 2026 (KST).
+- Test: tests/sql/create-offer-runtime.sql; code commit 485d69454a802b3e71804c841fdc294f76b81ba1.
+- On the disposable PostgreSQL 16 integration database, the test creates an offer with conditions, market, geography, and documentationStatus all set to empty text in both p_input and the corresponding RPC parameters. It verifies the exact effective-request hash, one COMPLETED idempotency row, one COMPLETED action execution, one offer with all four empty strings persisted unchanged, and one ACTION_SUCCEEDED event.
+- An identical replay with the same tenant/key and exact payload returns the exact persisted JSONB result and adds no rows.
+- Reusing the same key after changing only conditions from empty text to JSONB null / SQL NULL raises exactly IDEMPOTENCY_KEY_REUSE; idempotency, execution, offer, and success-event counts remain one.
+- QIMA CI #1021 (https://github.com/meridane/QimaTrade-MVP/actions/runs/42493888884): **SUCCESS**. The PostgreSQL integration log explicitly records QA286 passing. The browser job passed **324/324 Playwright tests**, npm installation and audit enforcement at the high threshold, TypeScript, Next.js build, Chromium, RLS, cleanup and concurrency checks.
+- QIMA CodeQL #974 (https://github.com/meridane/QimaTrade-MVP/actions/runs/42493888899): **SUCCESS**.
+- PostgreSQL QA266/QA267: the real prepared-transaction blocking test and subsequent ALTER SYSTEM RESET/restart passed; max_prepared_transactions returned to baseline 0, with no residual prepared transaction or disposable database.
+- Vercel combined status on code commit 485d69454a802b3e71804c841fdc294f76b81ba1: **SUCCESS** (Preview only; no Production deployment).
+- Classification: regression coverage of the existing CREATE_OFFER request-hash/idempotency contract, not evidence of a production incident or confirmed vulnerability.
+- Safety: no Supabase production data, migration, schema, RLS policy, grant, secret, or persistent PostgreSQL configuration changed; no Production deployment, PR merge, force-push, or branch-protection change.
