@@ -328,3 +328,13 @@ The full remote history must be exported without truncation and joined to a comp
 - **PR comparison at code validation:** fix/create-offer-status-contract was 1017 commits ahead of main, 0 behind, with 67 changed files. No PR reviews or review threads were recorded. PR #26 remains open; its description continues to identify it as a draft.
 - **Interpretation and limits:** the partial-output Docker failures are deterministic command-stub regressions; they do not prove that the Docker daemon failed or that a production vulnerability exists. The actual PostgreSQL setup, prepared-transaction blocker, cleanup and configuration restoration remain separately exercised on the ephemeral GitHub Actions PostgreSQL 16 service.
 - **Safety:** no Supabase production connection, data, schema, migration, RLS policy, grant, secret, persistent database configuration, Production deployment, PR merge, or branch-protection setting was changed. All PostgreSQL mutations and restarts remain confined to the disposable GitHub Actions service.
+
+
+## QA275 — initial baseline read failure and safe no-op cleanup (2026-11-08)
+
+- The disposable PostgreSQL setup regression now injects a first-call `SHOW max_prepared_transactions` failure with exit 50.
+- The setup script stops before publishing any restoration marker or executing `ALTER SYSTEM SET` / `docker restart`; the original `psql` exit status is retained.
+- The workflow's `if: always()` cleanup path is separately checked with an empty marker and exits as a no-op without Docker/PostgreSQL commands.
+- The initial harness defect in commit `b6a7b0b` was corrected in `1190862` before the successful CI run.
+- Exact code HEAD: `1190862cdf5d38f9da7096453f978d09b805e3dd`; QIMA CI **#985** and CodeQL **#938** both completed successfully. PostgreSQL 16 integration, QA266 prepared-transaction cleanup and QA267 restoration passed in the ephemeral GitHub Actions service; no production database was used.
+- This is a deterministic test-stub failure path, not a finding of a production database fault or vulnerability. No Supabase production migration/data/schema/RLS/grant/secret was touched.
