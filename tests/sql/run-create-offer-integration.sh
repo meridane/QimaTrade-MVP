@@ -194,6 +194,224 @@ SELECT 'CREATE_OFFER identical same-tenant concurrency assertions passed' AS res
 SQL
 
 
+# QA287: two first-time requests with the same tenant/key and four empty optional
+# strings must contend on one advisory lock, return the same stored result, and
+# create exactly one idempotency row, execution, offer, and success event.
+qa287_call_a=$(cat <<'SQL'
+SET application_name = 'qima-qa287-empty-a';
+SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+SET ROLE authenticated;
+SELECT public.execute_create_offer_v1(
+  p_tenant_id => '10000000-0000-4000-8000-000000000001',
+  p_idempotency_key => 'fixture-qa287-empty-optional-concurrency',
+  p_input => '{"case":"qa287-empty-optional-concurrency","conditions":"","market":"","geography":"","documentationStatus":""}'::jsonb,
+  p_name => 'QA287 Concurrent Empty Optional Offer',
+  p_demand_id => '50000000-0000-4000-8000-000000000001',
+  p_product_master_id => '40000000-0000-4000-8000-000000000001',
+  p_provider_actor_id => '30000000-0000-4000-8000-000000000001',
+  p_quantity => 5,
+  p_price => 28,
+  p_currency => 'USD',
+  p_conditions => '',
+  p_market => '',
+  p_geography => '',
+  p_attributes => '{}'::jsonb,
+  p_documentation_status => ''
+);
+SQL
+)
+
+qa287_call_b=$(cat <<'SQL'
+SET application_name = 'qima-qa287-empty-b';
+SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+SET ROLE authenticated;
+SELECT public.execute_create_offer_v1(
+  p_tenant_id => '10000000-0000-4000-8000-000000000001',
+  p_idempotency_key => 'fixture-qa287-empty-optional-concurrency',
+  p_input => '{"case":"qa287-empty-optional-concurrency","conditions":"","market":"","geography":"","documentationStatus":""}'::jsonb,
+  p_name => 'QA287 Concurrent Empty Optional Offer',
+  p_demand_id => '50000000-0000-4000-8000-000000000001',
+  p_product_master_id => '40000000-0000-4000-8000-000000000001',
+  p_provider_actor_id => '30000000-0000-4000-8000-000000000001',
+  p_quantity => 5,
+  p_price => 28,
+  p_currency => 'USD',
+  p_conditions => '',
+  p_market => '',
+  p_geography => '',
+  p_attributes => '{}'::jsonb,
+  p_documentation_status => ''
+);
+SQL
+)
+
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t -c "$qa287_call_a" > /tmp/qima-qa287-a.log 2>&1 &
+qa287_pid_a=$!
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t -c "$qa287_call_b" > /tmp/qima-qa287-b.log 2>&1 &
+qa287_pid_b=$!
+
+# Observe both sessions on the same exclusive advisory lock while the fixture
+# trigger holds the first transaction in pg_sleep and the other request waits.
+qa287_lock_snapshot=""
+for attempt in $(seq 1 200); do
+  qa287_lock_snapshot=$(psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -At -c "
+    SELECT
+      count(DISTINCT a.application_name)::text || '|' ||
+      count(*) FILTER (
+        WHERE l.granted AND a.wait_event = 'PgSleep'
+      )::text || '|' ||
+      count(*) FILTER (
+        WHERE NOT l.granted
+          AND a.wait_event_type = 'Lock'
+          AND a.wait_event = 'advisory'
+      )::text || '|' ||
+      count(DISTINCT (
+        l.classid::text || ':' || l.objid::text || ':' || l.objsubid::text
+      ))::text
+    FROM pg_stat_activity a
+    JOIN pg_locks l ON l.pid = a.pid
+    WHERE a.application_name IN ('qima-qa287-empty-a', 'qima-qa287-empty-b')
+      AND a.state = 'active'
+      AND l.locktype = 'advisory'
+      AND l.mode = 'ExclusiveLock';
+  " | tr -d '[:space:]')
+  if [[ "$qa287_lock_snapshot" == "2|1|1|1" ]]; then
+    break
+  fi
+  sleep 0.025
+done
+
+set +e
+wait "$qa287_pid_a"
+qa287_status_a=$?
+wait "$qa287_pid_b"
+qa287_status_b=$?
+set -e
+
+if [[ "$qa287_status_a" -ne 0 || "$qa287_status_b" -ne 0 ]]; then
+  echo "QA287 concurrent empty-string CREATE_OFFER calls failed (A=$qa287_status_a, B=$qa287_status_b)." >&2
+  cat /tmp/qima-qa287-a.log /tmp/qima-qa287-b.log >&2
+  exit 1
+fi
+
+if [[ "$qa287_lock_snapshot" != "2|1|1|1" ]]; then
+  echo "QA287 expected two sessions, one granted and one waiting on the same advisory lock; observed '$qa287_lock_snapshot'." >&2
+  cat /tmp/qima-qa287-a.log /tmp/qima-qa287-b.log >&2
+  exit 1
+fi
+
+if [[ ! -s /tmp/qima-qa287-a.log || ! -s /tmp/qima-qa287-b.log ]]; then
+  echo "QA287 both concurrent requests must return a JSONB result." >&2
+  cat /tmp/qima-qa287-a.log /tmp/qima-qa287-b.log >&2
+  exit 1
+fi
+
+if ! cmp -s /tmp/qima-qa287-a.log /tmp/qima-qa287-b.log; then
+  echo "QA287 identical concurrent empty-string requests returned different results." >&2
+  diff -u /tmp/qima-qa287-a.log /tmp/qima-qa287-b.log >&2 || true
+  exit 1
+fi
+
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t -c "
+  SELECT result::text
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-qa287-empty-optional-concurrency'
+    AND status = 'COMPLETED';
+" > /tmp/qima-qa287-stored-result.log
+
+if ! cmp -s /tmp/qima-qa287-a.log /tmp/qima-qa287-stored-result.log; then
+  echo "QA287 concurrent responses do not match the single persisted idempotency result." >&2
+  diff -u /tmp/qima-qa287-a.log /tmp/qima-qa287-stored-result.log >&2 || true
+  exit 1
+fi
+
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 <<'SQL'
+DO $qa287$
+DECLARE
+  v_input jsonb := '{
+    "case":"qa287-empty-optional-concurrency",
+    "conditions":"",
+    "market":"",
+    "geography":"",
+    "documentationStatus":""
+  }'::jsonb;
+  v_expected_hash text;
+  v_count integer;
+BEGIN
+  v_expected_hash := md5(jsonb_build_object(
+    'input', v_input,
+    'name', 'QA287 Concurrent Empty Optional Offer',
+    'demandId', '50000000-0000-4000-8000-000000000001'::uuid,
+    'productMasterId', '40000000-0000-4000-8000-000000000001'::uuid,
+    'providerActorId', '30000000-0000-4000-8000-000000000001'::uuid,
+    'quantity', 5::numeric,
+    'price', 28::numeric,
+    'currency', 'USD',
+    'conditions', '',
+    'market', '',
+    'geography', '',
+    'attributes', '{}'::jsonb,
+    'documentationStatus', '',
+    'lifecycle', NULL::text,
+    'offerType', NULL::text,
+    'pricingModel', NULL::text
+  )::text);
+
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-qa287-empty-optional-concurrency'
+    AND status = 'COMPLETED'
+    AND request_hash = v_expected_hash;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA287 expected exactly one completed idempotency row with the exact empty-string request hash, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND idempotency_key = 'fixture-qa287-empty-optional-concurrency'
+    AND status = 'COMPLETED'
+    AND input = v_input
+    AND object_type = 'Offer';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA287 expected exactly one completed execution preserving the four empty optional strings, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE name = 'QA287 Concurrent Empty Optional Offer'
+    AND conditions = ''
+    AND market = ''
+    AND geography = ''
+    AND documentation_status = ''
+    AND attributes = '{}'::jsonb;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA287 expected exactly one offer preserving all four empty optional strings, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_events e
+  JOIN public.action_executions x
+    ON x.id = e.execution_id
+   AND x.tenant_id = e.tenant_id
+  WHERE x.tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND x.idempotency_key = 'fixture-qa287-empty-optional-concurrency'
+    AND e.event_type = 'ACTION_SUCCEEDED'
+    AND e.object_id = x.object_id
+    AND e.payload = x.result;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA287 expected exactly one ACTION_SUCCEEDED event matching the persisted result, found %', v_count;
+  END IF;
+END
+$qa287$;
+SELECT 'QA287 concurrent first-time requests with four empty optional strings returned one persisted result and created no duplicates' AS result;
+SQL
+
+echo "QA287 observed one granted and one waiting advisory lock for two concurrent first-time requests with four empty optional strings; both responses matched the single stored result and exactly one offer/execution/event remained."
+
+
 # QA103: the first same-tenant request owns the advisory lock, then fails
 # during offer insertion. The identical second request must wake after rollback,
 # acquire the released lock, and complete with the same idempotency key.
