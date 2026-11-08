@@ -2183,3 +2183,12 @@ The canonical register's QA184 tail was inspected from commit `0eca4833bae236f32
 - **QIMA CodeQL #964** ([run 42475182036](https://github.com/meridane/QimaTrade-MVP/actions/runs/42475182036)) — **SUCCESS**.
 - **Vercel commit status:** **SUCCESS** (“Deployment has completed”) for the code commit. This is a Preview/check status only; no Production deployment is claimed.
 - **Classification and safety:** deterministic environment-marker regression coverage, not evidence of a production incident or vulnerability. No Supabase production data, migration, schema, RLS policy, grant, secret, or persistent PostgreSQL configuration was touched; no Production deployment, PR merge, force-push, or branch-protection change occurred.
+
+
+### QA282 documentation-head verification — CI #1012 / CodeQL #965 (8 November 2026)
+
+- **Validated PR HEAD:** `17e3596bad28482392b083bf46a070bf9671f3c9`, containing the QA282 regression and all three register updates.
+- **QIMA CI #1012** ([run 42475382591](https://github.com/meridane/QimaTrade-MVP/actions/runs/42475382591)) — **SUCCESS**. Both jobs completed: the PostgreSQL integration job passed CREATE_OFFER/concurrency, legacy messages RLS and cleanup regressions, prepared-transaction setup/restoration guards, and participant self-enrollment RLS; the browser/build job passed dependency installation and audit enforcement, TypeScript, Next.js production build, Chromium installation, and browser smoke tests.
+- **QIMA CodeQL #965** ([run 42475382387](https://github.com/meridane/QimaTrade-MVP/actions/runs/42475382387)) — **SUCCESS**; no new alerts in code changed by this pull request.
+- **Vercel status on this documentation HEAD:** **FAILURE** because the Preview deployment quota returned `upgradeToPro=build-rate-limit`. This is separate from the successful GitHub Actions build. No Preview READY or Production deployment is claimed.
+- **Safety:** documentation-head verification only; the code tested by CI #1011 is unchanged. No Supabase production data, migrations, schema, RLS policy, grants, secrets, or persistent PostgreSQL configuration were modified; no Production deployment, PR merge, force-push, or branch-protection change occurred.
