@@ -356,3 +356,10 @@ The full remote history must be exported without truncation and joined to a comp
 - **Vercel:** combined status on the documentation HEAD was **FAILURE**, target upgradeToPro=build-rate-limit. This is a Preview quota limitation, not a GitHub Actions or Next.js build failure; no Preview READY or Production deployment is claimed.
 - **PR comparison:** 1028 commits ahead of main, 0 behind, 67 changed files. PR #26 remains open and draft; no reviews or review threads were recorded.
 - **Scope:** the documentation-only follow-up records validation evidence; no application, SQL migration, production database, or persistent configuration changed.
+## QA277 — restoration-marker persistence failure guard (2026-11-08)
+
+- The setup regression injects a controlled `printf` failure (exit 52) when writing the exact `baseline` / `restore_required=true` GitHub Actions output block, after the disposable PostgreSQL container is discovered and the initial baseline `0` is read.
+- The test asserts a non-zero setup result, an empty output file, no `ALTER SYSTEM SET`, no restart, and the exact pre-mutation event sequence. It then verifies the workflow's `if: always()` restoration script safely no-ops with an empty marker.
+- The failure is injected by a temporary `BASH_ENV` shell hook; it is not a real filesystem permission/disk-full test and is not evidence of a production fault or vulnerability.
+- Initial harness commit `e33ca3a6da08a979a4bfaac0f01a56273797c0fb` was superseded because its test hook was incorrectly escaped. Corrected test commit: `6e3751ca76eeeb7eabe1363df8415c9e78120631`.
+- CI and CodeQL validation for the corrected QA277 commit are pending. No production Supabase migration/data/schema/RLS/grant/secret or persistent PostgreSQL configuration was changed.
