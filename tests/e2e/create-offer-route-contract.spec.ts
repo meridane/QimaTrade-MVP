@@ -20,7 +20,7 @@ async function postCreateOffer(
   profileMissing = false,
   createOfferRpcHttpStatus = 200,
   getActionDefinitionRpcHttpStatus = 200,
-  actionDefinition: { action_key: string; version: number; status: string } | null = {
+  actionDefinition: unknown = {
     action_key: "CREATE_OFFER",
     version: 1,
     status: "published",
@@ -1338,8 +1338,8 @@ test("CREATE_OFFER route rejects allowlisted codes when RPC messages include dia
   }
 });
 
-test("CREATE_OFFER route rejects missing or unpublished action definitions before execution", async () => {
-  const invalidDefinitions = [
+test("CREATE_OFFER route rejects malformed, mismatched, or unpublished action definitions before execution", async () => {
+  const invalidDefinitions: Array<{ label: string; definition: unknown }> = [
     { label: "missing definition", definition: null },
     {
       label: "draft definition",
@@ -1349,6 +1349,43 @@ test("CREATE_OFFER route rejects missing or unpublished action definitions befor
       label: "retired definition",
       definition: { action_key: "CREATE_OFFER", version: 1, status: "retired" },
     },
+    {
+      label: "wrong action key",
+      definition: { action_key: "PUBLISH_PRODUCT_REQUEST", version: 1, status: "published" },
+    },
+    {
+      label: "wrong action version",
+      definition: { action_key: "CREATE_OFFER", version: 2, status: "published" },
+    },
+    {
+      label: "non-numeric action version",
+      definition: { action_key: "CREATE_OFFER", version: "1", status: "published" },
+    },
+    {
+      label: "missing action key",
+      definition: { version: 1, status: "published" },
+    },
+    {
+      label: "missing action version",
+      definition: { action_key: "CREATE_OFFER", status: "published" },
+    },
+    {
+      label: "missing publication status",
+      definition: { action_key: "CREATE_OFFER", version: 1 },
+    },
+    {
+      label: "unsupported publication status",
+      definition: { action_key: "CREATE_OFFER", version: 1, status: "published_v2" },
+    },
+    { label: "empty RPC row set", definition: [] },
+    { label: "malformed primitive definition", definition: "not-an-action-definition" },
+  ];
+
+  const expectedRequestPaths = [
+    "/auth/v1/user",
+    "/rest/v1/profiles",
+    "/rest/v1/dt_memberships",
+    "/rest/v1/rpc/get_action_definition_v1",
   ];
 
   for (const invalidCase of invalidDefinitions) {
@@ -1370,15 +1407,29 @@ test("CREATE_OFFER route rejects missing or unpublished action definitions befor
     );
 
     expect(result.status, invalidCase.label).toBe(400);
-    expect(result.body, invalidCase.label).toMatchObject({ error: "ACTION_NOT_PUBLISHED" });
-    expect(
-      result.requests.some((request) => request.path === "/rest/v1/rpc/get_action_definition_v1"),
-      invalidCase.label,
-    ).toBe(true);
-    expect(
-      result.requests.some((request) => request.path === "/rest/v1/rpc/execute_create_offer_v1"),
-      invalidCase.label,
-    ).toBe(false);
+    expect(result.body, invalidCase.label).toEqual({ error: "ACTION_NOT_PUBLISHED" });
+    expect(result.wwwAuthenticate, invalidCase.label).toBeNull();
+    expect(result.requests.map((request) => request.path), invalidCase.label).toEqual(
+      expectedRequestPaths,
+    );
+
+    const definitionCalls = result.requests.filter(
+      (request) => request.path === "/rest/v1/rpc/get_action_definition_v1",
+    );
+    expect(definitionCalls, invalidCase.label).toHaveLength(1);
+    expect(definitionCalls[0].authorization, invalidCase.label).toBe("Bearer qima-route-test-token");
+    expect(definitionCalls[0].body, invalidCase.label).toEqual({
+      p_action_key: "CREATE_OFFER",
+      p_version: 1,
+    });
+
+    const executionCalls = result.requests.filter(
+      (request) => request.path === "/rest/v1/rpc/execute_create_offer_v1",
+    );
+    expect(executionCalls, invalidCase.label).toHaveLength(0);
+    expect(JSON.stringify(result.body), invalidCase.label).not.toMatch(
+      /PRIVATE_SENTINEL|XX000|TypeError|descriptor trap/i,
+    );
   }
 });
 
