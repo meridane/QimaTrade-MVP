@@ -6216,3 +6216,19 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **QIMA CodeQL #965** ([run 42475382387](https://github.com/meridane/QimaTrade-MVP/actions/runs/42475382387)) — **SUCCESS**, with no new alerts in code changed by the pull request.
 - **Vercel:** the validated documentation HEAD later reported **FAILURE** because Preview deployment quota returned `upgradeToPro=build-rate-limit`; this is separate from successful GitHub Actions builds. No Preview READY or Production deployment is claimed.
 - **Safety:** documentation-head verification only. No Supabase production data, migration, schema, RLS policy, grant, secret, or persistent PostgreSQL configuration was changed; no Production deployment, PR merge, force-push, or branch-protection change occurred.
+
+
+### QA283 — exact RESTORE_REQUIRED marker rejects whitespace, case, and newline variants
+
+- **Date:** 8 November 2026 (KST).
+- **Test file:** `tests/sql/test-prepared-transactions-config-restore.sh`.
+- **Code commit:** `882f8adea7d4c9fda0dfdc942e55382b4caf7af0`.
+- **Scenario:** the restoration guard receives leading/trailing spaces, mixed-case `True`, leading/trailing line feeds, and leading/trailing tabs in `RESTORE_REQUIRED`.
+- **Expected/observed:** all seven noncanonical values exit successfully as no-ops, before validating the deliberately remote `DATABASE_URL` or invalid baseline. The mock external-command event log remains empty; Docker, `pg_isready`, and `psql` are not invoked; no `QA267 passed` success message is emitted.
+- **Positive control:** the existing exact `RESTORE_REQUIRED=true` path with loopback `qima_test` and captured baseline `0` still executes the full restoration regression.
+- **QIMA CI #1014** ([run 42480565945](https://github.com/meridane/QimaTrade-MVP/actions/runs/42480565945)) — **SUCCESS**. Both jobs completed: PostgreSQL integration/cleanup tests and browser/build tests. Playwright reported **322 passed**; TypeScript, Next.js build, Chromium, dependency-audit enforcement, and the prepared-transaction restoration suite passed.
+- **QIMA CodeQL #967** ([run 42480565990](https://github.com/meridane/QimaTrade-MVP/actions/runs/42480565990)) — **SUCCESS**.
+- **PostgreSQL evidence:** the CI log explicitly reports the QA283 marker matrix passing, then QA266's real prepared-transaction cleanup test and QA267's real `ALTER SYSTEM RESET`/restart restoration to baseline `0` with no residual QA266 transaction or disposable database.
+- **Vercel:** Preview status was **PENDING** at the latest check for this code commit. No Preview READY or Production deployment is claimed.
+- **Classification:** deterministic environment-variable contract regression coverage, not evidence of a production incident or confirmed vulnerability.
+- **Safety:** no Supabase production data, migration, schema, RLS policy, grant, secret, or persistent PostgreSQL configuration was changed; no Production deployment, PR merge, force-push, or branch-protection change occurred.
