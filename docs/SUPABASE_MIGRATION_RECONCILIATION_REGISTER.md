@@ -274,3 +274,17 @@ The full remote history must be exported without truncation and joined to a comp
 - **Canonical register retrieval limitation:** `docs/QIMA_V1_FUNCTION_REGISTER.md` remains over the GitHub file-content connector's supported retrieval size; the connector returns its blob metadata but no body, including for line-range requests. It was not replaced or truncated. QA270/QA271 are recorded in this append-only companion register and in the migration reconciliation register.
 - **Safety:** no production Supabase data, migration, schema, RLS policy, grant, secret, persistent database configuration, Production deployment, PR merge, or branch-protection setting was changed.
 
+
+
+## QA272 — prepared-transaction restoration retry regression (8 November 2026)
+
+- No Supabase migration or database change was made. QA272 only extends the disposable PostgreSQL restoration shell regression test.
+- The new deterministic cases cover: two failed pre-reset readiness probes followed by recovery; two failed post-restart readiness probes followed by recovery; and two temporary `SHOW max_prepared_transactions = 10` results followed by convergence to baseline `0`.
+- Intermediate CI #975 [run 42435627687](https://github.com/meridane/QimaTrade-MVP/actions/runs/42435627687) failed because the test mock referenced an optional variable under Bash `set -u` without a default. The failure was diagnosed from the job log and corrected in commit `e56da2f80b2d4a37182b500c68b020ebae0cbcb9`; no production issue was inferred.
+- Final CI #976 [run 42435736103](https://github.com/meridane/QimaTrade-MVP/actions/runs/42435736103) — **SUCCESS**, including both CI jobs, **322/322 Playwright tests**, PostgreSQL integration, the QA272 retry regression, and real QA267 restoration on the ephemeral PostgreSQL 16 service.
+- CodeQL #929 [run 42435736264](https://github.com/meridane/QimaTrade-MVP/actions/runs/42435736264) — **SUCCESS**.
+- CI #976 npm audit reported 0 info, 0 low, 0 moderate, 0 high and 0 critical findings. This is an audit result for that run only.
+- Vercel on the code HEAD reported `upgradeToPro=build-rate-limit`; this is a Preview/deployment quota issue, not a GitHub Actions failure. No Preview READY or Production deployment is claimed.
+- QA272 retry/recovery cases use command stubs and do not prove an actual PostgreSQL outage or vulnerability. QA267 independently verifies the successful reset/restart and cleanup against the temporary PostgreSQL service.
+- The pre-existing remote Supabase migration-history authentication/parity blocker remains unresolved; QA272 does not attempt to bypass it.
+- No production data, migration, schema, RLS policy, grant, secret, persistent database configuration, Production deployment, merge, or branch-protection setting was changed.

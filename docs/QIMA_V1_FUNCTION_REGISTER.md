@@ -6001,3 +6001,41 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **Follow-up behavior:** this correction is also documentation-only, but because the PR's aggregate diff still includes non-documentation paths, GitHub may start another pull-request CI and CodeQL run for the corrected documentation HEAD. The correction commit itself does not alter application or SQL code.
 - **Vercel:** the combined status on `c87c9212fc281b6667367b4a1e29944cb3ff50e3` was **FAILURE** with `upgradeToPro=build-rate-limit`. This is the deployment quota status, not a GitHub Actions failure; no Preview READY is claimed for that HEAD and no Production deployment occurred.
 - **Safety and interpretation:** QA269-A and QA269-B remain deterministic mocked failure-path tests, not proof of a real PostgreSQL outage or a confirmed vulnerability. QA267 separately verifies successful restoration on the ephemeral PostgreSQL 16 CI service. No Supabase production data, migration, schema, policy, grant, secret, persistent configuration, Production deployment, merge, or branch-protection setting was changed.
+
+
+## QA270–QA272 — prepared-transaction restoration verification and bounded retries (8 November 2026)
+
+### QA270/QA271 validation correction
+
+- The PR branch already contained QA270 and QA271 when this run began. The current PR HEAD at inspection was `d7dc90e03e0b05c4223a494903098bd84d0b90d6`; the QA271 code commit was `03c32a0fa1398cbba9634c8da9aa96e7127c7c4e`.
+- **QIMA CI #974:** [run 42432503677](https://github.com/meridane/QimaTrade-MVP/actions/runs/42432503677) — **SUCCESS** on the PR documentation HEAD. Both CI jobs completed; the browser job reported **322/322 Playwright tests**, and the PostgreSQL job reported the prepared-transaction restoration regression and real QA267 restoration as successful.
+- **QIMA CodeQL #927:** [run 42432503657](https://github.com/meridane/QimaTrade-MVP/actions/runs/42432503657) — **SUCCESS**.
+- This later validation supersedes the earlier QA271 note that said CI/CodeQL were unavailable. QA271 is now validated by the runs above; no application or SQL migration code changed between its code commit and the validated documentation HEAD.
+
+### QA272 — transient readiness and configuration convergence
+
+- **Scope:** extended `tests/sql/test-prepared-transactions-config-restore.sh`; the existing CI workflow already invokes this test, so no workflow file change was needed.
+- **QA272-A:** the mocked `pg_isready` fails on the first two pre-reset probes, then succeeds. The runner must retry and continue through RESET, restart, configuration verification and resource postconditions.
+- **QA272-B:** the initial pre-reset readiness probe succeeds; the first two post-restart readiness probes fail, then a later probe succeeds. The runner must recover within its bounded retry loop.
+- **QA272-C:** the post-restart `SHOW max_prepared_transactions` mock returns the temporary value `10` for two polls, then the captured baseline `0`. The runner must retry and only verify residual resources after observing the baseline.
+- The tests assert exact event ordering, readiness/show call counts, retry sleeps, and the QA267 success message after convergence.
+- **Interpretation:** QA272's transient failure/recovery cases use deterministic command stubs. They validate retry behavior; they are not evidence of a real PostgreSQL outage or a confirmed vulnerability. The separate QA267 step continues to exercise `ALTER SYSTEM RESET`, PostgreSQL restart, and baseline/resource verification against the ephemeral PostgreSQL 16 service.
+
+### QA272 implementation and validation
+
+- Work branch: `work/qa272-transient-postgres-readiness-recovery-20261108-1044`.
+- Commits: `94c4283a2e6d757498a66b095e0a0171030d4943` (retry cases), `4b3543717062e0805c6e57df4d8fb10de567aecc` (correct event-format escape sequences), and `e56da2f80b2d4a37182b500c68b020ebae0cbcb9` (default the optional mock counter under Bash `set -u`).
+- **Intermediate QIMA CI #975:** [run 42435627687](https://github.com/meridane/QimaTrade-MVP/actions/runs/42435627687) — **FAILURE** in the restoration guard. The new SHOW mock referenced `MOCK_SHOW_WRONG_FIRST_CALLS` without a default inside an arithmetic expression while the script uses `set -u`; the runner reported the unset-variable error and did not claim restoration. This was a test-harness defect, not a production finding.
+- **Correction:** `e56da2f` assigns `MOCK_SHOW_WRONG_FIRST_CALLS` a default before numeric comparison, retaining strict nounset behavior.
+- **Final QIMA CI #976:** [run 42435736103](https://github.com/meridane/QimaTrade-MVP/actions/runs/42435736103) — **SUCCESS** on code HEAD `e56da2f80b2d4a37182b500c68b020ebae0cbcb9`. Both jobs completed successfully: TypeScript, npm audit, Next.js build, Chromium, **322/322 Playwright tests**, CREATE_OFFER PostgreSQL integration/concurrency, legacy RLS, QA262–QA272 regression guards, real QA267 restoration, and participant self-enrollment RLS.
+- The PostgreSQL job log contains the QA272 regression summary and the real QA267 message confirming `max_prepared_transactions` returned to baseline `0`, with no QA266 prepared transaction or disposable database remaining.
+- **QIMA CodeQL #929:** [run 42435736264](https://github.com/meridane/QimaTrade-MVP/actions/runs/42435736264) — **SUCCESS**.
+- The npm audit JSON reported 0 info, 0 low, 0 moderate, 0 high and 0 critical findings for CI #976. This is the result of that audit run, not a general guarantee of absence of vulnerabilities.
+- The combined Vercel status on QA272 code HEAD was **FAILURE**, target `upgradeToPro=build-rate-limit`. This is a deployment quota status, separate from GitHub Actions; no Preview READY is claimed for this HEAD and no Production deployment occurred.
+- **PR state at code validation:** PR #26 remained open and draft, mergeable, with 1001 commits ahead of `main`, 0 behind, 65 changed files, no reviews and no review threads.
+
+### Safety boundary
+
+- QA272 modified only the disposable CI restoration regression test. No application code, SQL migration, dependency, Supabase production data/schema/RLS/grant, secret, or persistent database configuration was changed.
+- PostgreSQL configuration changes remain confined to the ephemeral GitHub Actions PostgreSQL 16 service.
+- No Production deployment, PR merge, or branch-protection change occurred.
