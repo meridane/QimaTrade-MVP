@@ -379,3 +379,13 @@ The full remote history must be exported without truncation and joined to a comp
 - CI #992 completed the setup regression containing QA277, the PostgreSQL integration suite, and the real QA267 restoration to baseline 0. The browser/build job passed TypeScript, npm audit enforcement, Next.js build, Chromium and **322/322 Playwright tests (7.7s)**; npm audit reported zero findings in all five severity buckets for this run.
 - Vercel combined status remains a Preview rate-limit failure; no Preview READY or Production deployment is claimed.
 - QA277 is a controlled shell-hook regression, not a real filesystem failure or production vulnerability. No Supabase production migration/data/schema/RLS/grant/secret or persistent PostgreSQL configuration was changed.
+
+## QA278 — actual GITHUB_OUTPUT permission denial (2026-11-08)
+
+- The setup regression now exercises a real filesystem permission failure instead of relying only on QA277's injected printf hook: a regular output file is changed to mode 0444 and the script is executed as an unprivileged user.
+- On a root-invoked test process, the harness uses runuser -u nobody; otherwise it uses the current non-root runner account. The test requires an actual Permission denied diagnostic, an empty output file, and exactly the pre-mutation events docker-ps then psql-show-1.
+- The regression asserts no ALTER SYSTEM SET, no PostgreSQL restart, and a harmless if: always() cleanup no-op when the marker could not be written.
+- A separate local OS-level probe run as nobody returned exit 1, left the file at zero bytes, and emitted Permission denied.
+- The first code commit 2814d6be9eede293bc4c4a14314c2940014221ef failed QIMA CI run 42461613424 because the inserted test block was malformed (Bash syntax error at line 418). Corrected code commit: 813bd1601e043e422e494bb890505dbf963bafba. At this documentation revision, its QIMA CI and CodeQL checks were in progress; no final pass is claimed.
+- This is a regression test of an OS-level permission denial in disposable CI, not a finding of a production filesystem problem or security vulnerability. No production Supabase migration/data/schema/RLS/grant/secret or persistent PostgreSQL configuration was touched.
+
