@@ -423,3 +423,13 @@ The full remote history must be exported without truncation and joined to a comp
 - **QIMA CodeQL #955** ([run 42463101442](https://github.com/meridane/QimaTrade-MVP/actions/runs/42463101442)) — **SUCCESS**.
 - The combined Vercel status remains **FAILURE** due to the Preview build rate limit (`upgradeToPro=build-rate-limit`); this is separate from the successful GitHub Actions build. No Preview READY or Production deployment is claimed.
 - This is a deterministic partial-write regression in disposable CI, not evidence of a production filesystem fault or vulnerability. No Supabase production data, migration, schema, RLS policy, grant, secret, persistent PostgreSQL configuration, Production deployment, PR merge, force-push, or branch-protection setting was changed.
+
+
+## QA280 — Missing restoration baseline guard (2026-11-08)
+
+- **Tested artifact:** `tests/sql/test-prepared-transactions-config-restore.sh`; no migration file or remote Supabase object was changed.
+- **Input:** `RESTORE_REQUIRED=true`, a loopback-only `qima_test` URL, and `BASELINE_MAX_PREPARED_TRANSACTIONS` unset.
+- **Expected/observed:** restoration exits `2` with the baseline validation diagnostic before invoking Docker, `pg_isready`, or `psql`; the event log stays empty and no RESET/restart/success claim occurs. The restoration script's existing baseline guard was sufficient, so this QA item adds regression coverage only.
+- **Attempt history:** CI #1004 PostgreSQL job failed because the first test draft emitted doubled shell continuation backslashes (`env: '\\': No such file or directory`); the companion browser job was cancelled when the correction was pushed. This was a harness syntax error. Corrected commit: `f44f7006d0e737c4d6a64192f984c22b68e320c5`.
+- **Final evidence:** QIMA CI #1005 ([42470336296](https://github.com/meridane/QimaTrade-MVP/actions/runs/42470336296)) SUCCESS, including PostgreSQL integration and browser/build jobs; QIMA CodeQL #958 ([42470336308](https://github.com/meridane/QimaTrade-MVP/actions/runs/42470336308)) SUCCESS. PostgreSQL logs confirm the missing-baseline regression and setup regression passed, followed by real disposable PostgreSQL 16 restoration to baseline `0` with no QA266 residue. Browser/build logs confirm npm audit had **0 total findings**, TypeScript and Next.js build passed, and **322/322 Playwright tests (6.7s)** passed. Vercel status on this code HEAD was SUCCESS.
+- **Safety boundary:** this is a controlled CI regression, not a production vulnerability finding. No Supabase production data or migrations, schema, RLS, grants, secrets, or persistent database settings were touched; no Production deployment, PR merge, force-push, or branch-protection change occurred.
