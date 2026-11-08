@@ -6258,3 +6258,12 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - Vercel combined status on code commit `91cc390cf3dd129f683f9db1cfef3fd6e503f0f5`: **SUCCESS** (Preview status only; no Production deployment).
 - Classification: regression coverage of the existing route/RPC/idempotency contract, not evidence of a production incident or confirmed vulnerability.
 - Safety: no Supabase production data, migration, schema, RLS policy, grant, secret, or persistent PostgreSQL configuration changed; no Production deployment, PR merge, force-push, or branch-protection change.
+
+
+### QA285 — final PR HEAD revalidation
+
+- Documentation HEAD before this verification note: `ad66b98c6a56a667977873e8944d57027d05f43d`; QA285 code and SQL tests remained unchanged from `682ef4d` and `91cc390`.
+- QIMA CI #1019 ([run 42491022728](https://github.com/meridane/QimaTrade-MVP/actions/runs/42491022728)): **SUCCESS** on the PR HEAD. The route regression is present in the browser log and **324/324 Playwright tests passed**; TypeScript, Next.js build, Chromium, npm audit enforcement, CREATE_OFFER PostgreSQL integration/concurrency, RLS, cleanup and prepared-transaction QA266/QA267 passed.
+- QIMA CodeQL #972 ([run 42491022811](https://github.com/meridane/QimaTrade-MVP/actions/runs/42491022811)): **SUCCESS**.
+- Vercel status on the code-only QA285 commit was **SUCCESS** (Preview). On the documentation HEAD, Vercel returned `upgradeToPro=build-rate-limit`; this is a Preview quota limitation, not a failed GitHub Actions build. No Production deployment is claimed.
+- The CI/CodeQL result above validates the unchanged QA285 code together with the documented PR HEAD. No additional application or SQL changes were made after QA285 code validation.
