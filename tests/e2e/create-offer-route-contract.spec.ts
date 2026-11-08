@@ -334,14 +334,38 @@ test("CREATE_OFFER route enforces RFC 6750 b64token syntax before any Supabase r
   expect(authRequest?.authorization).toBe("Bearer " + validToken);
 });
 
-test("CREATE_OFFER route returns HTTP 409 for a non-succeeded execution status", async () => {
+test("CREATE_OFFER route preserves the failed execution result and maps it to HTTP 409", async () => {
   const result = await postCreateOffer("USD", {}, undefined, undefined, "failed");
 
   expect(result.status, JSON.stringify({ body: result.body, requests: result.requests })).toBe(409);
-  expect(result.body).toMatchObject({ status: "failed" });
-  expect(
-    result.requests.some((request) => request.path === "/rest/v1/rpc/execute_create_offer_v1"),
-  ).toBe(true);
+  expect(result.body).toEqual({
+    executionId: "10000000-0000-4000-8000-000000000001",
+    status: "failed",
+    objectId: "50000000-0000-4000-8000-000000000001",
+    result: { offerId: "70000000-0000-4000-8000-000000000001" },
+  });
+  expect(result.wwwAuthenticate).toBeNull();
+
+  const executionCalls = result.requests.filter(
+    (request) => request.path === "/rest/v1/rpc/execute_create_offer_v1",
+  );
+  expect(executionCalls).toHaveLength(1);
+});
+
+test("CREATE_OFFER route masks unsupported execution statuses as generic internal failures", async () => {
+  for (const unsupportedStatus of ["pending", "running", "completed", ""]) {
+    const result = await postCreateOffer("USD", {}, undefined, undefined, unsupportedStatus);
+
+    expect(result.status, unsupportedStatus || "<empty>").toBe(500);
+    expect(result.body, unsupportedStatus || "<empty>").toEqual({ error: "ACTION_FAILED" });
+    expect(JSON.stringify(result.body)).not.toContain("ACTION_RESULT_INVALID");
+    expect(result.wwwAuthenticate).toBeNull();
+
+    const executionCalls = result.requests.filter(
+      (request) => request.path === "/rest/v1/rpc/execute_create_offer_v1",
+    );
+    expect(executionCalls, unsupportedStatus || "<empty>").toHaveLength(1);
+  }
 });
 
 test('CREATE_OFFER route trims whitespace around a supported currency before the RPC', async () => {
