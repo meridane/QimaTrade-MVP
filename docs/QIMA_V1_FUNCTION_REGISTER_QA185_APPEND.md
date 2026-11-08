@@ -2155,3 +2155,12 @@ The canonical register's QA184 tail was inspected from commit `0eca4833bae236f32
 - **QIMA CI #1006** ([run 42470593151](https://github.com/meridane/QimaTrade-MVP/actions/runs/42470593151)) — **SUCCESS**; PostgreSQL integration job and browser/build job both completed successfully. The restoration regression log includes the missing-baseline guard; the setup regression passed; the real QA267 PostgreSQL 16 RESET/restart returned to baseline `0` with no QA266 residue. npm audit reported **0 total findings**; TypeScript and Next.js production build passed; Playwright reported **322 passed (10.1s)**.
 - **QIMA CodeQL #959** ([run 42470593109](https://github.com/meridane/QimaTrade-MVP/actions/runs/42470593109)) — **SUCCESS**.
 - The Vercel status for this documentation HEAD was **SUCCESS**. No Preview READY or Production deployment is inferred from the status check.
+
+### QA281 — noncanonical restoration baseline matrix (2026-11-08)
+
+- **Test:** `tests/sql/test-prepared-transactions-config-restore.sh`; the existing cleanup guard accepts only the exact captured baseline `0`.
+- **Matrix:** empty string, `10`, `00`, `-1`, ` 0`, and `0 ` are each supplied as `BASELINE_MAX_PREPARED_TRANSACTIONS`. Each case returns exit `2`, emits the exact-baseline diagnostic, leaves the external-command event log empty, and does not claim QA267 success. The normal exact-`0` restoration path remains successful.
+- **Code commit:** `9ca4c7641245afdff99ab3cf919eee44ef3ef4c9`.
+- **QIMA CI #1008** ([42473664227](https://github.com/meridane/QimaTrade-MVP/actions/runs/42473664227)) — **SUCCESS**; PostgreSQL and browser/build jobs passed. The PostgreSQL log includes the QA281 matrix and real PostgreSQL 16 QA267 restoration to baseline `0`, with no QA266 residue. Browser/build checks passed npm audit at the high threshold, TypeScript, Next.js build, and **322/322 Playwright tests (7.8s)**.
+- **QIMA CodeQL #961** ([42473664222](https://github.com/meridane/QimaTrade-MVP/actions/runs/42473664222)) — **SUCCESS**. Vercel combined status for the code HEAD — **SUCCESS**; no Production deployment is inferred.
+- **Safety:** test-only regression; no Supabase production data or migrations, schema, RLS, grants, secrets, or persistent database configuration were touched.
