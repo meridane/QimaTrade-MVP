@@ -66,6 +66,9 @@ if [[ "$*" == *"SHOW max_prepared_transactions"* ]]; then
   show_count=$((show_count + 1))
   printf '%s\n' "$show_count" > "$count_file"
   printf 'psql-show-%s\n' "$show_count" >> "$MOCK_EVENTS"
+  if (( show_count == 1 )) && [[ "${MOCK_INITIAL_SHOW_STATUS:-0}" != "0" ]]; then
+    exit "$MOCK_INITIAL_SHOW_STATUS"
+  fi
   if (( show_count > 1 )) && [[ "${MOCK_SHOW_STATUS:-0}" != "0" ]]; then
     exit "$MOCK_SHOW_STATUS"
   fi
@@ -139,6 +142,42 @@ actual="$(cat "$EVENTS")"
 if [[ "$actual" != "$expected" ]] || ! grep -Fq 'restarted with max_prepared_transactions=10' "$OUTPUT"; then
   echo "ERROR: successful setup did not follow the expected order." >&2
   printf 'Expected:\n%s\nActual:\n%s\n' "$expected" "$actual" >&2
+  cat "$OUTPUT" >&2
+  exit 1
+fi
+
+# QA275: failure to read the initial baseline must stop before publishing
+# restoration intent or performing any configuration mutation.
+run_setup 50 env MOCK_INITIAL_SHOW_STATUS=50
+expected="$(printf '%s\\n' docker-ps psql-show-1)"
+if [[ "$(cat "$EVENTS")" != "$expected" ]] ||
+  [[ -s "$GITHUB_OUTPUT_FILE" ]] ||
+  ! grep -Fq "Could not capture the disposable PostgreSQL baseline (psql exit 50)" "$OUTPUT" ||
+  grep -Fq "docker-exec-set" "$EVENTS" ||
+  grep -Fq "docker-restart" "$EVENTS"; then
+  echo "ERROR: an unreadable initial PostgreSQL baseline did not stop before marker publication and mutation." >&2
+  cat "$EVENTS" >&2
+  cat "$GITHUB_OUTPUT_FILE" >&2
+  cat "$OUTPUT" >&2
+  exit 1
+fi
+
+# The workflow's always() restoration step receives an empty marker after the
+# initial SHOW failure and must therefore be a harmless no-op.
+: > "$EVENTS"
+: > "$OUTPUT"
+set +e
+PATH="$MOCK_BIN:$PATH" MOCK_EVENTS="$EVENTS" \\
+  DATABASE_URL="postgresql://postgres:postgres@localhost:5432/qima_test" \\
+  RESTORE_REQUIRED="" BASELINE_MAX_PREPARED_TRANSACTIONS="" \\
+  bash "$RESTORE_SCRIPT" > "$OUTPUT" 2>&1
+restore_status=$?
+set -e
+if [[ "$restore_status" -ne 0 ]] ||
+  [[ -s "$EVENTS" ]] ||
+  ! grep -Fq "configuration was not changed; restoration is not required" "$OUTPUT"; then
+  echo "ERROR: always() restoration did not safely no-op when the initial baseline could not be read." >&2
+  cat "$EVENTS" >&2
   cat "$OUTPUT" >&2
   exit 1
 fi
