@@ -418,9 +418,23 @@ if [[ "$missing_baseline_status" -ne 2 || -s "$EVENTS" ]] ||
   exit 1
 fi
 
+# QA281: only the exact captured baseline "0" is accepted. Reject empty,
+# alternate numeric, signed, and whitespace-padded values before any external command.
+for invalid_baseline in "" "10" "00" "-1" " 0" "0 "; do
+  run_restore 2 env "BASELINE_MAX_PREPARED_TRANSACTIONS=$invalid_baseline"
+  if [[ -s "$EVENTS" ]] ||
+    ! grep -Fq "Expected the captured disposable-service baseline to be 0" "$OUTPUT" ||
+    grep -Fq "QA267 passed" "$OUTPUT"; then
+    echo "ERROR: noncanonical baseline was not rejected before external commands (value: [$invalid_baseline])." >&2
+    cat "$EVENTS" >&2
+    cat "$OUTPUT" >&2
+    exit 1
+  fi
+done
+
 if grep -Fq "postgres:postgres" "$OUTPUT"; then
   echo "ERROR: restoration output exposed disposable connection credentials." >&2
   exit 1
 fi
 
-echo "Prepared-transaction configuration restoration regression passed: docker ps partial-output failures preserve the exit code; zero/multiple container discovery fails before readiness or RESET; reset/restart order, explicit RESET and restart failure handling with original exit codes, post-restart SHOW and residual-resource query failure propagation, bounded transient recovery and configuration convergence, permanent unavailability and wrong-value rejection, no-op behavior, loopback URL guard, single-container guard, missing-baseline and unapproved-baseline guards, and residual-resource detection."
+echo "Prepared-transaction configuration restoration regression passed: docker ps partial-output failures preserve the exit code; zero/multiple container discovery fails before readiness or RESET; reset/restart order, explicit RESET and restart failure handling with original exit codes, post-restart SHOW and residual-resource query failure propagation, bounded transient recovery and configuration convergence, permanent unavailability and wrong-value rejection, no-op behavior, loopback URL guard, single-container guard, missing-baseline, QA281 noncanonical-baseline matrix, and unapproved-baseline guards, and residual-resource detection."
