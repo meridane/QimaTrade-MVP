@@ -6291,3 +6291,18 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - QIMA CodeQL #975 (https://github.com/meridane/QimaTrade-MVP/actions/runs/42494130392): **SUCCESS**.
 - Vercel on the QA286 code commit: **SUCCESS** (Preview). The final documentation HEAD returned upgradeToPro=build-rate-limit; this is a Preview quota limitation, not a failed GitHub Actions build. No Production deployment is claimed.
 - No application or SQL changes were made after the QA286 code validation. No production Supabase data, migrations, schema, RLS, grants, secrets, or persistent PostgreSQL configuration were changed.
+
+
+
+### QA287 — concurrent first-time CREATE_OFFER requests with four empty optional strings (9 November 2026)
+
+- Test location: `tests/sql/run-create-offer-integration.sh`; code commit: `1c1b40c82b41844e060de5bd529124f4381806a5`.
+- Two independent PostgreSQL sessions submit the same first-time CREATE_OFFER request for the same tenant and idempotency key. Both `p_input` and RPC parameters preserve `conditions`, `market`, `geography`, and `documentationStatus` as empty strings.
+- The integration runner observes the expected advisory-lock state `2|1|1|1`: two sessions on one tenant/key lock, one granted while inside the fixture delay and one waiting on that same lock.
+- Both concurrent calls succeed and return byte-for-byte identical JSONB output. The output also matches the single persisted idempotency result.
+- The PostgreSQL assertions verify the exact effective-request hash, exactly one completed idempotency row, one completed action execution preserving the four empty strings, one offer preserving all four empty columns, and one `ACTION_SUCCEEDED` event matching the execution result.
+- QIMA CI #1025 (https://github.com/meridane/QimaTrade-MVP/actions/runs/42500395727) — **SUCCESS**. The PostgreSQL job log explicitly records QA287 passing; the browser job passed **324/324 Playwright tests**. Dependency installation/audit enforcement, TypeScript, Next.js production build, CREATE_OFFER PostgreSQL integration/concurrency, RLS, cleanup, and QA266/QA267 passed.
+- QIMA CodeQL #977 (https://github.com/meridane/QimaTrade-MVP/actions/runs/42500395719) — **SUCCESS**.
+- Vercel status on the QA287 code commit: **SUCCESS** (Preview only). No Production deployment.
+- Classification: regression coverage of the existing same-tenant idempotency/advisory-lock contract; this synthetic fixture is not evidence of a production incident or confirmed vulnerability.
+- Safety: no Supabase production data, migrations, schema, RLS policies, grants, secrets, or persistent PostgreSQL configuration changed; no Production deployment, PR merge, force-push, or branch-protection change.
