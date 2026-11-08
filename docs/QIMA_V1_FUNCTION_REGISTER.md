@@ -6189,3 +6189,11 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - **QIMA CodeQL #961** ([run 42473664222](https://github.com/meridane/QimaTrade-MVP/actions/runs/42473664222)) — **SUCCESS**.
 - The combined Vercel status for this code HEAD is **SUCCESS**. This is not a claim of a Production deployment.
 - **Classification:** deterministic CI regression coverage for strict environment-value validation; not evidence of a production incident or vulnerability. No Supabase production data, migration, schema, RLS policy, grant, secret, persistent PostgreSQL configuration, Production deployment, PR merge, force-push, or branch-protection setting was changed.
+
+### QA281 documentation-head verification — CI #1009 / CodeQL #962 (8 November 2026)
+
+- The QA280/QA281 entry above was present on PR HEAD `9e45637dbc8df5ac2202baf8cd0e1dfc437e8e7c` and was revalidated after all three register updates.
+- **QIMA CI #1009** ([run 42473845549](https://github.com/meridane/QimaTrade-MVP/actions/runs/42473845549)) — **SUCCESS**; PostgreSQL integration and browser/build jobs both completed. The PostgreSQL log explicitly reports the QA281 noncanonical-baseline matrix passed, followed by real PostgreSQL 16 QA267 RESET/restart, baseline `0`, and no QA266 transaction or disposable database. The browser/build job passed npm installation, npm audit enforcement at the high threshold, TypeScript, Next.js production build, Chromium, and **322/322 Playwright tests (9.4s)**.
+- **QIMA CodeQL #962** ([run 42473845560](https://github.com/meridane/QimaTrade-MVP/actions/runs/42473845560)) — **SUCCESS**.
+- The combined Vercel status for this documentation HEAD is **FAILURE** because the Preview build rate limit returned `upgradeToPro=build-rate-limit`. This is separate from the successful GitHub Actions production build; no Preview READY or Production deployment is claimed.
+- **Safety:** documentation-head verification only. No Supabase production data, migration, schema, RLS policy, grant, secret, persistent PostgreSQL configuration, Production deployment, PR merge, force-push, or branch-protection setting was changed.
