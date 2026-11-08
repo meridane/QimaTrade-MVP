@@ -2046,3 +2046,11 @@ The canonical register's QA184 tail was inspected from commit `0eca4833bae236f32
 - **Interpretation:** the initial value 5 is supplied by a deterministic test stub to verify fail-closed handling. It is not evidence that a real production database had this value or that a vulnerability exists. Actual PostgreSQL configuration changes and restoration remain confined to the ephemeral GitHub Actions PostgreSQL 16 service.
 - **PR state:** PR #26 remains open and draft; at the code validation point it compared 1025 commits ahead of main, 0 behind, with 67 changed files and no reviews/review threads.
 - **Safety:** no Supabase production connection, data, schema, migration, RLS policy, grant, secret, persistent database configuration, Production deployment, PR merge, or branch-protection setting was changed.
+### QA276 — final documentation-head validation (8 November 2026)
+
+- **Code HEAD:** 68e4dc7493badca409b9309eeddbcecdba6c5529. QIMA CI #988 (run 42452799606) — **SUCCESS**; both jobs completed, including PostgreSQL integration and cleanup, setup/restore regression suites, **322/322 Playwright tests**, npm audit (0 total findings), TypeScript, Next.js build and Chromium.
+- **Documentation HEAD:** 50b53d6e7ade13e4bddef8adcc332408a534d600. QIMA CI #989 (run 42453014569) — **SUCCESS**; both jobs completed. The PostgreSQL log contains the setup regression summary and real QA267 restoration confirmation; the browser job reported **322 passed (7.0s)** and npm audit reported 0 info, 0 low, 0 moderate, 0 high and 0 critical findings.
+- **QIMA CodeQL #942:** run 42453014597 — **SUCCESS** on documentation HEAD 50b53d6e7ade13e4bddef8adcc332408a534d600.
+- **Vercel:** combined status on the documentation HEAD was **FAILURE**, target upgradeToPro=build-rate-limit. This is a Preview quota limitation, not a GitHub Actions or Next.js build failure; no Preview READY or Production deployment is claimed.
+- **PR comparison:** 1028 commits ahead of main, 0 behind, 67 changed files. PR #26 remains open and draft; no reviews or review threads were recorded.
+- **Scope:** the documentation-only follow-up records validation evidence; no application, SQL migration, production database, or persistent configuration changed.
