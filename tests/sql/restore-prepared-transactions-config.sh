@@ -91,10 +91,23 @@ if [[ "$restored" != true ]]; then
   exit 1
 fi
 
-prepared_count="$("$REAL_PSQL" "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -Atqc \
-  "SELECT count(*) FROM pg_prepared_xacts WHERE gid = 'qa266_prepared_cleanup_blocker'")"
-database_count="$("$REAL_PSQL" "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -Atqc \
-  "SELECT count(*) FROM pg_database WHERE datname = 'qima_message_migration_test'")"
+if prepared_count="$("$REAL_PSQL" "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -Atqc \
+  "SELECT count(*) FROM pg_prepared_xacts WHERE gid = 'qa266_prepared_cleanup_blocker'")"; then
+  :
+else
+  prepared_status=$?
+  echo "::error::Could not verify QA266 prepared-transaction cleanup (psql exit $prepared_status); restoration is not confirmed." >&2
+  exit "$prepared_status"
+fi
+
+if database_count="$("$REAL_PSQL" "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -Atqc \
+  "SELECT count(*) FROM pg_database WHERE datname = 'qima_message_migration_test'")"; then
+  :
+else
+  database_status=$?
+  echo "::error::Could not verify disposable migration database cleanup (psql exit $database_status); restoration is not confirmed." >&2
+  exit "$database_status"
+fi
 
 if [[ "$prepared_count" != "0" || "$database_count" != "0" ]]; then
   echo "::error::PostgreSQL configuration was restored, but disposable QA266 resources remain (prepared=$prepared_count database=$database_count)." >&2
