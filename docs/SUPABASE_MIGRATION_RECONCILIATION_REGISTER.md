@@ -842,3 +842,12 @@ The QA281 matrix and all three register updates were revalidated on PR HEAD `9e4
 - Validation on code commit `fbb8def4f75c04e979d55c8c0ea6f4be9046a481`: QIMA CI #1073 (https://github.com/meridane/QimaTrade-MVP/actions/runs/42616938896) **SUCCESS**. Browser/build job passed dependency installation, npm audit enforcement, TypeScript, Next.js production build, Chromium installation and **336/336 Playwright tests**. PostgreSQL 16 integration job **SUCCESS**, with QA308 explicitly present in the job log and all existing CREATE_OFFER, concurrency, RLS and cleanup checks successful. QIMA CodeQL #1025 (https://github.com/meridane/QimaTrade-MVP/actions/runs/42616938912) **SUCCESS**, with JavaScript/TypeScript analysis completed and results uploaded.
 - Vercel combined status for the code commit: **SUCCESS** (Preview only; no Production deployment).
 - QA308 is an isolated PostgreSQL 16 integration test of PostgreSQL JSONB canonicalization and the existing request-hash contract. It does not establish a production incident or confirm a vulnerability. No Supabase Production data/schema/RLS/grants/secrets, SQL migration, persistent PostgreSQL configuration, Production deployment, PR merge, force-push, or branch-protection change.
+
+
+### QA308 final-head validation follow-up — 9 November 2026
+
+- Documentation commit: `f9dd1ae25745cabcb01460374921088d019bea9c`.
+- The final documentation HEAD was independently validated: QIMA CI #1074 (https://github.com/meridane/QimaTrade-MVP/actions/runs/42617302829) **SUCCESS**. Both jobs completed successfully. The browser/build job passed dependency installation, npm audit enforcement, TypeScript, Next.js production build, Chromium installation and **336/336 Playwright tests**. The PostgreSQL 16 integration job passed QA308, CREATE_OFFER integration/concurrency, legacy-message RLS, participant self-enrollment RLS, disposable-resource cleanup and QA266/QA267 prepared-transaction restoration.
+- QIMA CodeQL #1026 (https://github.com/meridane/QimaTrade-MVP/actions/runs/42617302810) **SUCCESS**; JavaScript/TypeScript analysis completed and results were uploaded.
+- Vercel combined status on the documentation HEAD: **SUCCESS** (Preview only; no Production deployment).
+- This follow-up validates the documentation synchronization after the QA308 code commit. It does not infer a production incident or vulnerability. No Supabase Production data/schema/RLS/grants/secrets, SQL migration, persistent PostgreSQL configuration, Production deployment, PR merge, force-push, or branch-protection change.
