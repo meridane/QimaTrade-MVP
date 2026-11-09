@@ -145,3 +145,12 @@ This regression validates the migration's ACL semantics on disposable PostgreSQL
 - Corrected the test signature to the exact 18-argument identity and strengthened the precondition to assert that fresh PostgreSQL supplies a PUBLIC EXECUTE ACL before the migration, in addition to the explicit direct `anon` grant.
 - This is a test-fixture identity-string defect, not a failure of the migration SQL, application runtime, or live Supabase. No Production ACL was read or changed; live catalog access remains blocked by PostgreSQL `28P01`.
 - Validation of the corrected test and migration on the next CI SHA: **pending**. No Supabase Production data/schema/RLS/grants/secrets, production migration, persistent PostgreSQL configuration, Production deployment, PR merge, force-push, or branch-protection change.
+
+
+### CI #1103 follow-up — dollar-quote fixture correction — 10 November 2026
+
+- QIMA CI #1103 (https://github.com/meridane/QimaTrade-MVP/actions/runs/42703118503) passed the existing CREATE_OFFER PostgreSQL integration script, and the TypeScript/audit/build/browser job passed with **336/336 Playwright**. CodeQL #1055 completed **SUCCESS** and Vercel Preview Comments completed **SUCCESS**.
+- The new ACL regression step failed before including the hardening migration: the newly inserted PL/pgSQL precondition block was serialized with an incomplete `DO $` dollar-quote delimiter, producing a PostgreSQL syntax error at line 34. The corrected function identity string is now present; the failure is isolated to the test SQL delimiter, not the migration or live Supabase.
+- Replaced that block's delimiter with the distinct `$acl$` tag, leaving the existing postcondition block unchanged. The precondition now explicitly verifies both the default PUBLIC EXECUTE ACL and the simulated direct `anon` grant before migration.
+- The migration was **not executed** in CI #1103 because the syntax error occurred before the `\\ir` include. The runner's cleanup path executed as the job exited; the dedicated job container was then stopped. The next CI run must prove the migration and postconditions end-to-end.
+- Corrected regression validation: **pending next CI run**. Live Supabase catalog access remains blocked by PostgreSQL `28P01`; no Production ACL, schema, data, or migration was changed.

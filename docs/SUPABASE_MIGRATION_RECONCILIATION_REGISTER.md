@@ -1027,3 +1027,11 @@ The QA281 matrix and all three register updates were revalidated on PR HEAD `9e4
 - Corrected the test identity to the exact 18-argument signature and added an explicit assertion that PostgreSQL's fresh-database default PUBLIC EXECUTE ACL is present before the migration, as well as the simulated direct `anon` grant.
 - The failure is confined to the regression test's signature string. It does not establish a production ACL issue. Live Supabase catalog access remains blocked by PostgreSQL `28P01`; no Production ACL/migration/data change was made.
 - Corrected regression validation: **pending next CI run**.
+
+
+### RPC EXECUTE ACL regression follow-up — CI #1103
+
+- QIMA CI #1103 passed the existing CREATE_OFFER PostgreSQL integration suite and the TypeScript/audit/build/browser job (**336/336 Playwright**); CodeQL #1055 and Vercel Preview Comments passed.
+- The new ACL test stopped before applying the migration because its inserted precondition used an incomplete `DO $` delimiter. The function identity string correction from the prior attempt was present; this second failure is another test-fixture formatting defect, not a live ACL finding.
+- Changed the precondition delimiter to `$acl$` and retained the explicit default-PUBLIC and direct-`anon` precondition assertions. The migration was not executed in CI #1103; end-to-end validation remains pending.
+- Live Supabase catalog access remains blocked by PostgreSQL `28P01`. No Production ACL/data/schema/migration change was made.

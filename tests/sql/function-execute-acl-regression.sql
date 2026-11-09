@@ -29,7 +29,7 @@ GRANT EXECUTE ON FUNCTION public.execute_create_offer_v1(
   text, text, text, jsonb, text, text, text, text
 ) TO anon;
 
-DO $
+DO $acl$
 DECLARE
   v_function_oid oid;
   v_function_oids oid[] := ARRAY[
@@ -55,7 +55,7 @@ BEGIN
     END IF;
   END LOOP;
 END
-$;
+$acl$;
 
 \ir ../../supabase/migrations/20261110070000_harden_public_rpc_execute_acl.sql
 -- Reapplying the migration must remain safe and produce the same ACL.
