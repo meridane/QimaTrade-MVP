@@ -2751,3 +2751,13 @@ The canonical register's QA184 tail was inspected from commit `0eca4833bae236f32
 - The new ACL test stopped before applying the migration because its inserted precondition used an incomplete `DO $` delimiter. The function identity string correction from the prior attempt was present; this second failure is another test-fixture formatting defect, not a live ACL finding.
 - Changed the precondition delimiter to `$acl$` and retained the explicit default-PUBLIC and direct-`anon` precondition assertions. The migration was not executed in CI #1103; end-to-end validation remains pending.
 - Live Supabase catalog access remains blocked by PostgreSQL `28P01`. No Production ACL/data/schema/migration change was made.
+
+
+### RPC EXECUTE ACL hardening — CI validation complete — 10 November 2026
+
+- PR code HEAD `227a6dc95d521addb6f75fd1ae6cbe4e644864ea`: QIMA CI #1104 **SUCCESS**, CodeQL #1056 **SUCCESS**; the browser/build job passed **336/336 Playwright**.
+- The disposable PostgreSQL ACL step logged `function EXECUTE ACL regression PASS`: PostgreSQL default PUBLIC EXECUTE and a direct anon grant were removed for `current_profile_actor_id()`, `dt_select_product_master(uuid, uuid, uuid)`, and `execute_create_offer_v1(...)`; authenticated retained an explicit EXECUTE grant. The migration was applied twice in the dedicated temporary `qima_acl_test` database, and the runner completed successfully.
+- Existing CREATE_OFFER PostgreSQL integration, legacy-message RLS, participant self-enrollment RLS, prepared-transaction cleanup/restore, and database cleanup checks all passed. CI #1102 and #1103 fixture failures are documented above and superseded by #1104.
+- Vercel Preview Comments passed, but the combined Vercel status remains failed due to `upgradeToPro=build-rate-limit`; no Preview READY is confirmed.
+- This is disposable-CI migration evidence only. Live Supabase catalog access still fails with PostgreSQL `28P01`, so effective Production ACLs remain unverified; no Production vulnerability is confirmed and the migration has not been applied to Supabase Production.
+- Next gate: authorized read-only live ACL/owner/schema-privilege output and human review before any Production migration. No Supabase Production data/schema/RLS/grants/secrets, production migration, persistent PostgreSQL configuration, Production deployment, PR merge, force-push, or branch-protection change.
