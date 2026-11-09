@@ -7242,9 +7242,9 @@ psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 <<'SQL'
 CREATE TEMP TABLE qa310_first_results (
   label text PRIMARY KEY,
   result jsonb NOT NULL,
-  request_hash text NOT NULL,
-  execution_id uuid NOT NULL,
-  offer_id uuid NOT NULL
+  request_hash text,
+  execution_id uuid,
+  offer_id uuid
 );
 GRANT SELECT, INSERT, UPDATE ON qa310_first_results TO authenticated;
 
@@ -7253,15 +7253,11 @@ SET ROLE authenticated;
 
 -- Commit three first-time requests independently. Each retry below changes only
 -- one numeric representation: nested p_input JSONB, p_price, or p_quantity.
-INSERT INTO qa310_first_results (label, result, request_hash, execution_id, offer_id)
-SELECT
+
+INSERT INTO qa310_first_results (label, result)
+VALUES (
   'input-scale',
-  created.result,
-  idem.request_hash,
-  idem.execution_id,
-  (created.result->>'objectId')::uuid
-FROM (
-  SELECT public.execute_create_offer_v1(
+  public.execute_create_offer_v1(
     p_tenant_id => '10000000-0000-4000-8000-000000000001',
     p_idempotency_key => 'fixture-qa310-input-numeric-scale',
     p_input => '{"case":"qa310-input-numeric-scale","value":1}'::jsonb,
@@ -7280,21 +7276,22 @@ FROM (
     p_lifecycle => 'draft',
     p_offer_type => 'supplier_offer',
     p_pricing_model => 'fixed'
-  ) AS result
-) created
-JOIN public.idempotency_keys idem
-  ON idem.tenant_id = '10000000-0000-4000-8000-000000000001'
- AND idem.key = 'fixture-qa310-input-numeric-scale';
+  )
+);
+UPDATE qa310_first_results q
+SET request_hash = i.request_hash,
+    execution_id = i.execution_id,
+    offer_id = (q.result->>'objectId')::uuid
+FROM public.idempotency_keys i
+WHERE q.label = 'input-scale'
+  AND i.tenant_id = '10000000-0000-4000-8000-000000000001'
+  AND i.key = 'fixture-qa310-input-numeric-scale';
 
-INSERT INTO qa310_first_results (label, result, request_hash, execution_id, offer_id)
-SELECT
+
+INSERT INTO qa310_first_results (label, result)
+VALUES (
   'price-scale',
-  created.result,
-  idem.request_hash,
-  idem.execution_id,
-  (created.result->>'objectId')::uuid
-FROM (
-  SELECT public.execute_create_offer_v1(
+  public.execute_create_offer_v1(
     p_tenant_id => '10000000-0000-4000-8000-000000000001',
     p_idempotency_key => 'fixture-qa310-price-numeric-scale',
     p_input => '{"case":"qa310-price-numeric-scale"}'::jsonb,
@@ -7313,21 +7310,22 @@ FROM (
     p_lifecycle => 'draft',
     p_offer_type => 'supplier_offer',
     p_pricing_model => 'fixed'
-  ) AS result
-) created
-JOIN public.idempotency_keys idem
-  ON idem.tenant_id = '10000000-0000-4000-8000-000000000001'
- AND idem.key = 'fixture-qa310-price-numeric-scale';
+  )
+);
+UPDATE qa310_first_results q
+SET request_hash = i.request_hash,
+    execution_id = i.execution_id,
+    offer_id = (q.result->>'objectId')::uuid
+FROM public.idempotency_keys i
+WHERE q.label = 'price-scale'
+  AND i.tenant_id = '10000000-0000-4000-8000-000000000001'
+  AND i.key = 'fixture-qa310-price-numeric-scale';
 
-INSERT INTO qa310_first_results (label, result, request_hash, execution_id, offer_id)
-SELECT
+
+INSERT INTO qa310_first_results (label, result)
+VALUES (
   'quantity-scale',
-  created.result,
-  idem.request_hash,
-  idem.execution_id,
-  (created.result->>'objectId')::uuid
-FROM (
-  SELECT public.execute_create_offer_v1(
+  public.execute_create_offer_v1(
     p_tenant_id => '10000000-0000-4000-8000-000000000001',
     p_idempotency_key => 'fixture-qa310-quantity-numeric-scale',
     p_input => '{"case":"qa310-quantity-numeric-scale"}'::jsonb,
@@ -7346,17 +7344,32 @@ FROM (
     p_lifecycle => 'draft',
     p_offer_type => 'supplier_offer',
     p_pricing_model => 'fixed'
-  ) AS result
-) created
-JOIN public.idempotency_keys idem
-  ON idem.tenant_id = '10000000-0000-4000-8000-000000000001'
- AND idem.key = 'fixture-qa310-quantity-numeric-scale';
+  )
+);
+UPDATE qa310_first_results q
+SET request_hash = i.request_hash,
+    execution_id = i.execution_id,
+    offer_id = (q.result->>'objectId')::uuid
+FROM public.idempotency_keys i
+WHERE q.label = 'quantity-scale'
+  AND i.tenant_id = '10000000-0000-4000-8000-000000000001'
+  AND i.key = 'fixture-qa310-quantity-numeric-scale';
 
 DO $qa310$
 DECLARE
   v_error text;
   v_count integer;
 BEGIN
+
+  SELECT count(*) INTO v_count
+  FROM qa310_first_results
+  WHERE request_hash IS NOT NULL
+    AND execution_id IS NOT NULL
+    AND offer_id IS NOT NULL;
+  IF v_count <> 3 THEN
+    RAISE EXCEPTION 'QA310 expected three committed first-attempt snapshots, found %', v_count;
+  END IF;
+
   IF '{"value":1}'::jsonb IS DISTINCT FROM '{"value":1.0}'::jsonb THEN
     RAISE EXCEPTION 'QA310 expected PostgreSQL JSONB equality to treat 1 and 1.0 as equal';
   END IF;
