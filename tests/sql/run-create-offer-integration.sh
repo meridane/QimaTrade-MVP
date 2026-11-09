@@ -6950,3 +6950,286 @@ SELECT 'QA308 JSONB key order was canonicalized recursively; a distinct committe
 SQL
 
 echo "QA308 confirmed that reordering top-level and nested JSONB object keys does not change the complete CREATE_OFFER request hash; a second committed PostgreSQL transaction replayed the exact persisted result without duplicates."
+
+
+# QA309: JSONB array order is significant for idempotency. Unlike object keys,
+# array positions are part of the effective payload: reordering top-level and
+# nested arrays with the same tenant/key must be rejected after the first
+# transaction commits, without changing its hash, result, offer or event.
+qa309_first_call=$(cat <<'SQL'
+BEGIN;
+SET application_name = 'qima-qa309-jsonb-array-order-first';
+SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+SET ROLE authenticated;
+SELECT txid_current(), public.execute_create_offer_v1(
+  p_tenant_id => '10000000-0000-4000-8000-000000000001',
+  p_idempotency_key => 'fixture-qa309-jsonb-array-order',
+  p_input => '{"case":"qa309-jsonb-array-order","tags":["red","blue"],"nested":{"values":[1,2]}}'::jsonb,
+  p_name => 'QA309 JSONB Array Order Offer',
+  p_demand_id => '50000000-0000-4000-8000-000000000001',
+  p_product_master_id => '40000000-0000-4000-8000-000000000001',
+  p_provider_actor_id => '30000000-0000-4000-8000-000000000001',
+  p_quantity => 2,
+  p_price => 21.0,
+  p_currency => 'USD',
+  p_conditions => 'qa309-jsonb-array-order',
+  p_market => 'QA',
+  p_geography => 'KR',
+  p_attributes => '{"tags":["red","blue"],"nested":{"values":[1,2]}}'::jsonb,
+  p_documentation_status => 'verified',
+  p_lifecycle => 'draft',
+  p_offer_type => 'supplier_offer',
+  p_pricing_model => 'fixed'
+);
+COMMIT;
+SQL
+)
+
+qa309_changed_call=$(cat <<'SQL'
+BEGIN;
+SET application_name = 'qima-qa309-jsonb-array-order-changed';
+SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+SET ROLE authenticated;
+SELECT txid_current();
+SELECT public.execute_create_offer_v1(
+  p_tenant_id => '10000000-0000-4000-8000-000000000001',
+  p_idempotency_key => 'fixture-qa309-jsonb-array-order',
+  p_input => '{"case":"qa309-jsonb-array-order","tags":["blue","red"],"nested":{"values":[2,1]}}'::jsonb,
+  p_name => 'QA309 JSONB Array Order Offer',
+  p_demand_id => '50000000-0000-4000-8000-000000000001',
+  p_product_master_id => '40000000-0000-4000-8000-000000000001',
+  p_provider_actor_id => '30000000-0000-4000-8000-000000000001',
+  p_quantity => 2,
+  p_price => 21.0,
+  p_currency => 'USD',
+  p_conditions => 'qa309-jsonb-array-order',
+  p_market => 'QA',
+  p_geography => 'KR',
+  p_attributes => '{"tags":["blue","red"],"nested":{"values":[2,1]}}'::jsonb,
+  p_documentation_status => 'verified',
+  p_lifecycle => 'draft',
+  p_offer_type => 'supplier_offer',
+  p_pricing_model => 'fixed'
+);
+COMMIT;
+SQL
+)
+
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t -F '|' -c "$qa309_first_call" > /tmp/qima-qa309-first.log 2>&1
+qa309_first_rows=$(wc -l < /tmp/qima-qa309-first.log | tr -d '[:space:]')
+if [[ "$qa309_first_rows" != "1" ]]; then
+  echo "QA309 expected one committed first-transaction/result row." >&2
+  cat /tmp/qima-qa309-first.log >&2
+  exit 1
+fi
+IFS='|' read -r qa309_first_txid qa309_first_result < /tmp/qima-qa309-first.log
+if [[ ! "$qa309_first_txid" =~ ^[0-9]+$ || -z "$qa309_first_result" ]]; then
+  echo "QA309 first transaction did not return a valid transaction ID and result." >&2
+  cat /tmp/qima-qa309-first.log >&2
+  exit 1
+fi
+
+printf '%s\n' "$qa309_first_result" > /tmp/qima-qa309-original-result.log
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t -c "
+  SELECT request_hash
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-qa309-jsonb-array-order'
+    AND status = 'COMPLETED';
+" > /tmp/qima-qa309-original-hash.log
+qa309_hash_rows=$(wc -l < /tmp/qima-qa309-original-hash.log | tr -d '[:space:]')
+if [[ "$qa309_hash_rows" != "1" || ! -s /tmp/qima-qa309-original-hash.log ]]; then
+  echo "QA309 expected exactly one committed request hash before changing array order." >&2
+  cat /tmp/qima-qa309-original-hash.log >&2
+  exit 1
+fi
+
+set +e
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -q -A -t \
+  -c "$qa309_changed_call" > /tmp/qima-qa309-changed.log 2>&1
+qa309_changed_status=$?
+set -e
+
+qa309_changed_txid=$(sed -n '1p' /tmp/qima-qa309-changed.log | tr -d '[:space:]')
+if [[ "$qa309_changed_status" -eq 0 ]] ||
+   ! grep -Fq "IDEMPOTENCY_KEY_REUSE" /tmp/qima-qa309-changed.log; then
+  echo "QA309 changed JSONB array order must fail with IDEMPOTENCY_KEY_REUSE (exit=$qa309_changed_status)." >&2
+  cat /tmp/qima-qa309-changed.log >&2
+  exit 1
+fi
+if [[ ! "$qa309_changed_txid" =~ ^[0-9]+$ ||
+      "$qa309_changed_txid" == "$qa309_first_txid" ]]; then
+  echo "QA309 expected the changed-array attempt in a distinct transaction; first='$qa309_first_txid', changed='$qa309_changed_txid'." >&2
+  cat /tmp/qima-qa309-changed.log >&2
+  exit 1
+fi
+
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t -c "
+  SELECT result::text
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-qa309-jsonb-array-order'
+    AND status = 'COMPLETED';
+" > /tmp/qima-qa309-current-result.log
+if ! cmp -s /tmp/qima-qa309-original-result.log /tmp/qima-qa309-current-result.log; then
+  echo "QA309 changed-array rejection altered the committed idempotency result." >&2
+  diff -u /tmp/qima-qa309-original-result.log /tmp/qima-qa309-current-result.log >&2 || true
+  exit 1
+fi
+
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t -c "
+  SELECT request_hash
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-qa309-jsonb-array-order'
+    AND status = 'COMPLETED';
+" > /tmp/qima-qa309-current-hash.log
+if ! cmp -s /tmp/qima-qa309-original-hash.log /tmp/qima-qa309-current-hash.log; then
+  echo "QA309 changed-array rejection altered the committed request hash." >&2
+  diff -u /tmp/qima-qa309-original-hash.log /tmp/qima-qa309-current-hash.log >&2 || true
+  exit 1
+fi
+
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 <<'SQL'
+DO $qa309$
+DECLARE
+  v_result jsonb;
+  v_execution_id uuid;
+  v_offer_id uuid;
+  v_request_hash text;
+  v_expected_hash text;
+  v_count integer;
+BEGIN
+  SELECT result, execution_id, request_hash
+  INTO v_result, v_execution_id, v_request_hash
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-qa309-jsonb-array-order'
+    AND status = 'COMPLETED';
+
+  IF NOT FOUND OR jsonb_typeof(v_result) IS DISTINCT FROM 'object'
+     OR v_result->>'status' IS DISTINCT FROM 'succeeded'
+     OR nullif(v_result->>'executionId', '') IS NULL
+     OR nullif(v_result->>'objectId', '') IS NULL THEN
+    RAISE EXCEPTION 'QA309 expected the original committed success result to remain intact, got %',
+      coalesce(v_result::text, '<missing>');
+  END IF;
+
+  v_execution_id := (v_result->>'executionId')::uuid;
+  v_offer_id := (v_result->>'objectId')::uuid;
+  v_expected_hash := md5(jsonb_build_object(
+    'input', '{"case":"qa309-jsonb-array-order","tags":["red","blue"],"nested":{"values":[1,2]}}'::jsonb,
+    'name', 'QA309 JSONB Array Order Offer',
+    'demandId', '50000000-0000-4000-8000-000000000001'::uuid,
+    'productMasterId', '40000000-0000-4000-8000-000000000001'::uuid,
+    'providerActorId', '30000000-0000-4000-8000-000000000001'::uuid,
+    'quantity', 2,
+    'price', 21.0,
+    'currency', 'USD',
+    'conditions', 'qa309-jsonb-array-order',
+    'market', 'QA',
+    'geography', 'KR',
+    'attributes', '{"tags":["red","blue"],"nested":{"values":[1,2]}}'::jsonb,
+    'documentationStatus', 'verified',
+    'lifecycle', 'draft',
+    'offerType', 'supplier_offer',
+    'pricingModel', 'fixed'
+  )::text);
+
+  IF v_request_hash <> v_expected_hash THEN
+    RAISE EXCEPTION 'QA309 stored request hash does not match the original ordered-array payload';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-qa309-jsonb-array-order'
+    AND status = 'COMPLETED'
+    AND execution_id = v_execution_id
+    AND result = v_result
+    AND request_hash = v_expected_hash;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA309 expected exactly one unchanged completed idempotency row, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND idempotency_key = 'fixture-qa309-jsonb-array-order';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA309 expected exactly one execution after changed-array rejection, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND id = v_execution_id
+    AND idempotency_key = 'fixture-qa309-jsonb-array-order'
+    AND status = 'COMPLETED'
+    AND object_type = 'Offer'
+    AND object_id = v_offer_id
+    AND input = '{"case":"qa309-jsonb-array-order","tags":["red","blue"],"nested":{"values":[1,2]}}'::jsonb
+    AND result = v_result
+    AND completed_at IS NOT NULL;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA309 expected the original completed execution/input/result to remain unchanged, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE id = v_offer_id
+    AND name = 'QA309 JSONB Array Order Offer'
+    AND demand_id = '50000000-0000-4000-8000-000000000001'
+    AND product_master_id = '40000000-0000-4000-8000-000000000001'
+    AND provider_actor_id = '30000000-0000-4000-8000-000000000001'
+    AND quantity = 2
+    AND price = 21.0
+    AND currency = 'USD'
+    AND conditions = 'qa309-jsonb-array-order'
+    AND market = 'QA'
+    AND geography = 'KR'
+    AND attributes = '{"tags":["red","blue"],"nested":{"values":[1,2]}}'::jsonb
+    AND documentation_status = 'verified'
+    AND lifecycle = 'draft'
+    AND offer_type = 'supplier_offer'
+    AND pricing_model = 'fixed';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA309 expected exactly one offer preserving the original ordered arrays, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE name = 'QA309 JSONB Array Order Offer'
+    AND attributes = '{"tags":["blue","red"],"nested":{"values":[2,1]}}'::jsonb;
+  IF v_count <> 0 THEN
+    RAISE EXCEPTION 'QA309 rejected changed arrays must not create or mutate an offer, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_events
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND execution_id = v_execution_id
+    AND event_type = 'ACTION_SUCCEEDED'
+    AND object_type = 'Offer'
+    AND object_id = v_offer_id
+    AND payload = v_result;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA309 expected exactly one unchanged ACTION_SUCCEEDED event, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_events e
+  JOIN public.action_executions x
+    ON x.id = e.execution_id
+   AND x.tenant_id = e.tenant_id
+  WHERE x.tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND x.idempotency_key = 'fixture-qa309-jsonb-array-order';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA309 changed-array rejection must not create an additional event, found %', v_count;
+  END IF;
+END
+$qa309$;
+SELECT 'QA309 JSONB array order remains significant at top-level and nested paths; a changed-array request was rejected in a distinct committed transaction with IDEMPOTENCY_KEY_REUSE and the original hash/result/offer/execution/event remained unchanged' AS result;
+SQL
+
+echo "QA309 confirmed that changing top-level and nested JSONB array order changes the effective CREATE_OFFER payload; the distinct transaction was rejected with IDEMPOTENCY_KEY_REUSE and left the original committed state unchanged."
