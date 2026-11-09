@@ -903,3 +903,15 @@ The QA281 matrix and all three register updates were revalidated on PR HEAD `9e4
 - CodeQL #1033 completed JavaScript/TypeScript analysis and uploaded its results successfully.
 - The combined Vercel status for this HEAD is **FAILURE** with upgradeToPro=build-rate-limit; no READY Preview or Production deployment is claimed.
 - This validation is tied to the exact HEAD above. No Supabase Production data/schema/RLS/grants/secrets, migration, persistent PostgreSQL configuration, Production deployment, PR merge, force-push, or branch-protection change.
+
+ 
+### QA311 — PostgreSQL JSONB duplicate object keys and idempotency replay (10 November 2026)
+
+- Added a disposable PostgreSQL 16 integration regression to tests/sql/run-create-offer-integration.sh. The first committed transaction passes duplicate top-level and nested object keys in both p_input and p_attributes; the second independent committed transaction reuses the same tenant/idempotency key with the equivalent canonical objects after duplicate keys have been removed.
+- The duplicate-key inputs use conflicting earlier values followed by the intended final values. PostgreSQL JSONB parsing retains the last value for each duplicate object key, including nested objects. The test first asserts that each duplicate-key JSONB value is IS NOT DISTINCT FROM its canonical equivalent.
+- The replay must return the exact original JSONB result. Assertions verify distinct transaction IDs, the canonical full-request hash, one completed idempotency row, one completed execution with canonical input, one offer with canonical attributes, and one matching ACTION_SUCCEEDED event.
+- The PostgreSQL 16 integration step in QIMA CI #1083 (https://github.com/meridane/QimaTrade-MVP/actions/runs/42648204220) completed SUCCESS. Its job log explicitly reports: “QA311 JSONB duplicate top-level and nested object keys collapsed to the last values; a distinct committed transaction replayed the canonical result with one idempotency row, execution, offer, and success event.” All other steps in that PostgreSQL integration job also passed.
+- QIMA CodeQL #1035 (https://github.com/meridane/QimaTrade-MVP/actions/runs/42648204152) completed SUCCESS and uploaded its JavaScript/TypeScript analysis results.
+- At the time of this entry, the browser/build job in QIMA CI #1083 had passed npm ci, dependency audit enforcement, TypeScript, and the Next.js production build; Playwright Chromium installation was still IN PROGRESS, so the overall QIMA CI run was not yet complete and no Playwright pass is claimed for QA311.
+- The combined Vercel status for code commit 8bf95b09ed231bb4ebd3dada171debd901e45c4c was SUCCESS (Preview status only; no Production deployment).
+- QA311 characterizes PostgreSQL JSONB duplicate-key parsing and the existing idempotency hash contract. It does not establish a production incident or vulnerability. No Supabase Production data/schema/RLS/grants/secrets, SQL migration, persistent PostgreSQL configuration, Production deployment, PR merge, force-push, or branch-protection change.
