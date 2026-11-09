@@ -6599,3 +6599,14 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - QIMA CodeQL #1026 (https://github.com/meridane/QimaTrade-MVP/actions/runs/42617302810) **SUCCESS**; JavaScript/TypeScript analysis completed and results were uploaded.
 - Vercel combined status on the documentation HEAD: **SUCCESS** (Preview only; no Production deployment).
 - This follow-up validates the documentation synchronization after the QA308 code commit. It does not infer a production incident or vulnerability. No Supabase Production data/schema/RLS/grants/secrets, SQL migration, persistent PostgreSQL configuration, Production deployment, PR merge, force-push, or branch-protection change.
+
+
+### QA309 — JSONB array order remains significant — 9 November 2026
+
+- Added an isolated PostgreSQL 16 integration scenario to `tests/sql/run-create-offer-integration.sh`.
+- The first committed transaction creates an offer using `p_input` arrays `["red","blue"]` and nested `[1,2]`, with matching ordered arrays in `p_attributes`.
+- A second independent transaction reuses the same tenant/idempotency key but reverses both top-level and nested array values in `p_input` and `p_attributes`.
+- Expected contract: the changed effective JSONB payload is rejected with `IDEMPOTENCY_KEY_REUSE`; the second transaction must not create or mutate an offer.
+- Assertions preserve the original request hash and JSONB result, require distinct transaction IDs, and verify exactly one completed idempotency row, one completed execution with the original input, one offer with the original ordered arrays, and one `ACTION_SUCCEEDED` event.
+- This is a PostgreSQL integration regression test. Its CI execution and CodeQL status are **pending at the time of this documentation commit**; no pass is claimed until GitHub reports results for the exact code commit.
+- The test distinguishes JSONB object-key canonicalization (QA308) from array-order semantics. It does not establish a production incident or vulnerability. No Supabase Production data/schema/RLS/grants/secrets, SQL migration, persistent PostgreSQL configuration, Production deployment, PR merge, force-push, or branch-protection change.
