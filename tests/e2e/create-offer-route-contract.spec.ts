@@ -1383,6 +1383,20 @@ test("CREATE_OFFER route rejects malformed, mismatched, or unpublished action de
       label: "PostgREST row array with wrong action key in first row",
       definition: [{ action_key: "PUBLISH_PRODUCT_REQUEST", version: 1, status: "published" }],
     },
+    {
+      label: "PostgREST row array does not skip a null first row for a later published row",
+      definition: [
+        null,
+        { action_key: "CREATE_OFFER", version: 1, status: "published" },
+      ],
+    },
+    {
+      label: "PostgREST row array does not skip a mismatched first row for a later published row",
+      definition: [
+        { action_key: "PUBLISH_PRODUCT_REQUEST", version: 1, status: "published" },
+        { action_key: "CREATE_OFFER", version: 1, status: "published" },
+      ],
+    },
     { label: "malformed primitive definition", definition: "not-an-action-definition" },
   ];
 
