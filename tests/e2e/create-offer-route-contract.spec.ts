@@ -171,14 +171,17 @@ async function postCreateOffer(
             objectId: demandId,
             result: { offerId: "70000000-0000-4000-8000-000000000001" },
           };
-      if (createOfferRpcTransportFailureAfterCommit) {
-        if (!createOfferReplayState) {
-          throw new Error("QA304 replay state is required for a post-commit response loss");
-        }
+      if (createOfferRpcTransportFailureAfterCommit && !createOfferReplayState) {
+        throw new Error("QA304 replay state is required for a post-commit response loss");
+      }
+      if (createOfferReplayState && !createOfferReplayState.committed) {
+        // Model the durable idempotency record for both a successful response and a lost response.
         createOfferReplayState.committed = true;
         createOfferReplayState.createCount += 1;
         createOfferReplayState.firstRpcInput = body ?? {};
         createOfferReplayState.result = rpcResult as Record<string, unknown>;
+      }
+      if (createOfferRpcTransportFailureAfterCommit) {
         throw new Error("ECONNRESET: CREATE_OFFER_RESPONSE_LOST_AFTER_COMMIT_PRIVATE_SENTINEL");
       }
       return Response.json(rpcResult);
@@ -2240,6 +2243,90 @@ test("CREATE_OFFER route rejects a changed payload after a lost post-commit resp
     result: { offerId: "70000000-0000-4000-8000-000000000001" },
   });
   expect(replayState.createCount).toBe(1);
+});
+
+test("CREATE_OFFER route replays numerically equivalent payloads after input normalization", async () => {
+  const bearer = "Bearer qima-route-test-token";
+  const idempotencyKey = "qa306-normalized-numeric-replay";
+  const expectedPaths = [
+    "/auth/v1/user",
+    "/rest/v1/profiles",
+    "/rest/v1/dt_memberships",
+    "/rest/v1/rpc/get_action_definition_v1",
+    "/rest/v1/rpc/execute_create_offer_v1",
+  ];
+  const replayState: CreateOfferReplayState = {
+    committed: false,
+    result: null,
+    createCount: 0,
+    replayCount: 0,
+    firstRpcInput: null,
+    replayRpcInput: null,
+  };
+  const invoke = (currency: unknown, price: unknown, quantity: unknown) =>
+    postCreateOffer(
+      currency,
+      { idempotencyKey, price, quantity },
+      undefined,
+      undefined,
+      "succeeded",
+      bearer,
+      200,
+      200,
+      200,
+      undefined,
+      false,
+      200,
+      200,
+      undefined,
+      undefined,
+      undefined,
+      null,
+      null,
+      null,
+      null,
+      false,
+      false,
+      replayState,
+    );
+
+  // The first request uses numeric strings and surrounding currency whitespace.
+  const firstAttempt = await invoke(" USD ", "10.00", "01");
+  expect(firstAttempt.status).toBe(200);
+  expect(firstAttempt.body).toMatchObject({
+    executionId: "10000000-0000-4000-8000-000000000001",
+    status: "succeeded",
+    objectId: "50000000-0000-4000-8000-000000000001",
+    result: { offerId: "70000000-0000-4000-8000-000000000001" },
+  });
+  expect(firstAttempt.requests.map((request) => request.path)).toEqual(expectedPaths);
+  expect(firstAttempt.requests.every((request) => request.authorization === bearer)).toBe(true);
+  expect(replayState).toMatchObject({
+    committed: true,
+    createCount: 1,
+    replayCount: 0,
+  });
+  expect(replayState.firstRpcInput).toMatchObject({
+    p_idempotency_key: idempotencyKey,
+    p_input: expect.objectContaining({
+      currency: "USD",
+      price: 10,
+      quantity: 1,
+    }),
+  });
+
+  // The second request uses canonical JSON number values and the already-normalized currency.
+  const replayAttempt = await invoke("USD", 10, 1);
+  expect(replayAttempt.status).toBe(200);
+  expect(replayAttempt.body).toEqual(firstAttempt.body);
+  expect(replayAttempt.requests.map((request) => request.path)).toEqual(expectedPaths);
+  expect(replayAttempt.requests.every((request) => request.authorization === bearer)).toBe(true);
+  expect(replayState.replayRpcInput).toEqual(replayState.firstRpcInput);
+  expect(replayState).toMatchObject({
+    committed: true,
+    createCount: 1,
+    replayCount: 1,
+  });
 });
 
 test("CREATE_OFFER route masks execution RPC errors across upstream HTTP statuses", async () => {
