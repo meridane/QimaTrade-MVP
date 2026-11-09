@@ -27,6 +27,8 @@ async function postCreateOffer(
   },
   createOfferRpcErrorMessage = "CREATE_OFFER RPC unavailable",
   getActionDefinitionRpcErrorMessage = "Action definition lookup unavailable",
+  createOfferRpcErrorDetails: string | null = null,
+  createOfferRpcErrorHint: string | null = null,
 ) {
   process.env.NEXT_PUBLIC_SUPABASE_URL ??= "https://example.supabase.co";
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??= "ci-placeholder-anon-key";
@@ -122,7 +124,7 @@ async function postCreateOffer(
     if (url.pathname === "/rest/v1/rpc/execute_create_offer_v1") {
       if (createOfferRpcHttpStatus !== 200) {
         return Response.json(
-          { message: createOfferRpcErrorMessage, code: "XX000", details: null, hint: null },
+          { message: createOfferRpcErrorMessage, code: "XX000", details: createOfferRpcErrorDetails, hint: createOfferRpcErrorHint },
           { status: createOfferRpcHttpStatus },
         );
       }
@@ -1877,4 +1879,76 @@ test("CREATE_OFFER route masks execution RPC errors across upstream HTTP statuse
       label,
     ).toBe(true);
   }
+});
+
+
+test("CREATE_OFFER route exposes only the allowlisted SQL error and never leaks PostgREST details or hints", async () => {
+  const bearer = "Bearer qima-route-test-token";
+  const expectedPaths = [
+    "/auth/v1/user",
+    "/rest/v1/profiles",
+    "/rest/v1/dt_memberships",
+    "/rest/v1/rpc/get_action_definition_v1",
+    "/rest/v1/rpc/execute_create_offer_v1",
+  ];
+
+  const domainConflict = await postCreateOffer(
+    "USD",
+    {},
+    undefined,
+    undefined,
+    "succeeded",
+    bearer,
+    200,
+    200,
+    200,
+    "30000000-0000-4000-8000-000000000001",
+    false,
+    400,
+    200,
+    undefined,
+    "IDEMPOTENCY_KEY_REUSE",
+    undefined,
+    "IDEMPOTENCY_DETAILS_PRIVATE_SENTINEL",
+    "IDEMPOTENCY_HINT_PRIVATE_SENTINEL",
+  );
+
+  expect(domainConflict.status).toBe(400);
+  expect(domainConflict.body).toEqual({ error: "IDEMPOTENCY_KEY_REUSE" });
+  expect(domainConflict.wwwAuthenticate).toBeNull();
+  expect(JSON.stringify(domainConflict.body)).not.toMatch(
+    /IDEMPOTENCY_(?:DETAILS|HINT)_PRIVATE_SENTINEL|XX000/i,
+  );
+  expect(domainConflict.requests.map((request) => request.path)).toEqual(expectedPaths);
+  expect(domainConflict.requests.every((request) => request.authorization === bearer)).toBe(true);
+
+  const internalFailure = await postCreateOffer(
+    "USD",
+    {},
+    undefined,
+    undefined,
+    "succeeded",
+    bearer,
+    200,
+    200,
+    200,
+    "30000000-0000-4000-8000-000000000001",
+    false,
+    400,
+    200,
+    undefined,
+    "duplicate key value violates unique constraint PRIVATE_INTERNAL_MESSAGE_SENTINEL",
+    undefined,
+    "EXECUTE_DETAILS_PRIVATE_SENTINEL",
+    "EXECUTE_HINT_PRIVATE_SENTINEL",
+  );
+
+  expect(internalFailure.status).toBe(500);
+  expect(internalFailure.body).toEqual({ error: "ACTION_FAILED" });
+  expect(internalFailure.wwwAuthenticate).toBeNull();
+  expect(JSON.stringify(internalFailure.body)).not.toMatch(
+    /PRIVATE_(?:INTERNAL_MESSAGE|EXECUTE_DETAILS|EXECUTE_HINT)_SENTINEL|XX000/i,
+  );
+  expect(internalFailure.requests.map((request) => request.path)).toEqual(expectedPaths);
+  expect(internalFailure.requests.every((request) => request.authorization === bearer)).toBe(true);
 });
