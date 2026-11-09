@@ -8418,3 +8418,332 @@ SELECT 'QA313 duplicate keys ending in JSON null replay as canonical explicit-nu
 SQL
 
 echo "QA313 confirmed that duplicate JSON object keys ending in JSON null collapse to explicit-null properties in p_input and p_attributes; canonical explicit-null replay succeeds, absent-property retries are rejected, and original records remain unchanged."
+
+
+# QA314: duplicate JSON keys ending in JSON null inside JSONB array objects.
+# Canonical explicit-null array objects replay; omitting those object properties
+# changes the effective payload and must be rejected without mutating the
+# original idempotency result, execution, offer, or success event.
+qa314_first_call=$(cat <<'SQL'
+BEGIN;
+SET application_name = 'qima-qa314-array-duplicate-null-first';
+SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+SET ROLE authenticated;
+SELECT txid_current(), public.execute_create_offer_v1(
+  p_tenant_id => '10000000-0000-4000-8000-000000000001',
+  p_idempotency_key => 'fixture-qa314-array-duplicate-null',
+  p_input => '{"case":"qa314-array-duplicate-null","items":[{"sku":"legacy","sku":null,"meta":{"state":"old","state":null}},{"sku":"second","position":2}]}'::jsonb,
+  p_name => 'QA314 JSONB Array Duplicate Null Offer',
+  p_demand_id => '50000000-0000-4000-8000-000000000001',
+  p_product_master_id => '40000000-0000-4000-8000-000000000001',
+  p_provider_actor_id => '30000000-0000-4000-8000-000000000001',
+  p_quantity => 5,
+  p_price => 20.25,
+  p_currency => 'USD',
+  p_conditions => 'qa314-array-duplicate-null',
+  p_market => 'QA',
+  p_geography => 'KR',
+  p_attributes => '{"labels":[{"name":"legacy","name":null,"metadata":{"verified":false,"verified":null}},{"name":"second","rank":2}]} '::jsonb,
+  p_documentation_status => 'verified',
+  p_lifecycle => 'draft',
+  p_offer_type => 'supplier_offer',
+  p_pricing_model => 'fixed'
+);
+COMMIT;
+SQL
+)
+
+qa314_replay_call=$(cat <<'SQL'
+BEGIN;
+SET application_name = 'qima-qa314-array-duplicate-null-replay';
+SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+SET ROLE authenticated;
+SELECT txid_current(), public.execute_create_offer_v1(
+  p_tenant_id => '10000000-0000-4000-8000-000000000001',
+  p_idempotency_key => 'fixture-qa314-array-duplicate-null',
+  p_input => '{"case":"qa314-array-duplicate-null","items":[{"sku":null,"meta":{"state":null}},{"sku":"second","position":2}]}'::jsonb,
+  p_name => 'QA314 JSONB Array Duplicate Null Offer',
+  p_demand_id => '50000000-0000-4000-8000-000000000001',
+  p_product_master_id => '40000000-0000-4000-8000-000000000001',
+  p_provider_actor_id => '30000000-0000-4000-8000-000000000001',
+  p_quantity => 5,
+  p_price => 20.25,
+  p_currency => 'USD',
+  p_conditions => 'qa314-array-duplicate-null',
+  p_market => 'QA',
+  p_geography => 'KR',
+  p_attributes => '{"labels":[{"name":null,"metadata":{"verified":null}},{"name":"second","rank":2}]} '::jsonb,
+  p_documentation_status => 'verified',
+  p_lifecycle => 'draft',
+  p_offer_type => 'supplier_offer',
+  p_pricing_model => 'fixed'
+);
+COMMIT;
+SQL
+)
+
+# Execute first and canonical replay in separate committed PostgreSQL sessions.
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t -F '|' -c "$qa314_first_call" > /tmp/qima-qa314-first.log 2>&1
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t -F '|' -c "$qa314_replay_call" > /tmp/qima-qa314-replay.log 2>&1
+
+qa314_first_rows=$(wc -l < /tmp/qima-qa314-first.log | tr -d '[:space:]')
+qa314_replay_rows=$(wc -l < /tmp/qima-qa314-replay.log | tr -d '[:space:]')
+if [[ "$qa314_first_rows" != "1" || "$qa314_replay_rows" != "1" ]]; then
+  echo "QA314 expected one transaction/result row from each independent psql process." >&2
+  cat /tmp/qima-qa314-first.log /tmp/qima-qa314-replay.log >&2
+  exit 1
+fi
+
+IFS='|' read -r qa314_first_txid qa314_first_result < /tmp/qima-qa314-first.log
+IFS='|' read -r qa314_replay_txid qa314_replay_result < /tmp/qima-qa314-replay.log
+if [[ ! "$qa314_first_txid" =~ ^[0-9]+$ ||
+      ! "$qa314_replay_txid" =~ ^[0-9]+$ ||
+      "$qa314_first_txid" == "$qa314_replay_txid" ]]; then
+  echo "QA314 expected distinct committed PostgreSQL transaction IDs; first='$qa314_first_txid', replay='$qa314_replay_txid'." >&2
+  cat /tmp/qima-qa314-first.log /tmp/qima-qa314-replay.log >&2
+  exit 1
+fi
+if [[ -z "$qa314_first_result" || "$qa314_first_result" != "$qa314_replay_result" ]]; then
+  echo "QA314 duplicate-key and canonical explicit-null array objects did not replay the same result." >&2
+  diff -u /tmp/qima-qa314-first.log /tmp/qima-qa314-replay.log >&2 || true
+  exit 1
+fi
+
+printf '%s\n' "$qa314_replay_result" > /tmp/qima-qa314-replay-result.log
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t -c "
+  SELECT result::text
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-qa314-array-duplicate-null'
+    AND status = 'COMPLETED';
+" > /tmp/qima-qa314-stored-result.log
+if ! cmp -s /tmp/qima-qa314-replay-result.log /tmp/qima-qa314-stored-result.log; then
+  echo "QA314 replay result does not match the persisted idempotency result." >&2
+  diff -u /tmp/qima-qa314-replay-result.log /tmp/qima-qa314-stored-result.log >&2 || true
+  exit 1
+fi
+
+# Changed-payload retries run as authenticated in a fresh session, matching
+# the RPC preconditions of the first creation and canonical replay.
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 <<'SQL'
+SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+SET ROLE authenticated;
+DO $qa314_reject$
+DECLARE
+  v_error text;
+BEGIN
+  BEGIN
+    PERFORM public.execute_create_offer_v1(
+      p_tenant_id => '10000000-0000-4000-8000-000000000001',
+      p_idempotency_key => 'fixture-qa314-array-duplicate-null',
+      p_input => '{"case":"qa314-array-duplicate-null","items":[{"meta":{"state":null}},{"sku":"second","position":2}]}'::jsonb,
+      p_name => 'QA314 JSONB Array Duplicate Null Offer',
+      p_demand_id => '50000000-0000-4000-8000-000000000001',
+      p_product_master_id => '40000000-0000-4000-8000-000000000001',
+      p_provider_actor_id => '30000000-0000-4000-8000-000000000001',
+      p_quantity => 5,
+      p_price => 20.25,
+      p_currency => 'USD',
+      p_conditions => 'qa314-array-duplicate-null',
+      p_market => 'QA',
+      p_geography => 'KR',
+      p_attributes => '{"labels":[{"name":null,"metadata":{"verified":null}},{"name":"second","rank":2}]} '::jsonb,
+      p_documentation_status => 'verified',
+      p_lifecycle => 'draft',
+      p_offer_type => 'supplier_offer',
+      p_pricing_model => 'fixed'
+    );
+    RAISE EXCEPTION 'QA314 expected IDEMPOTENCY_KEY_REUSE when the first array object's p_input property is absent';
+  EXCEPTION WHEN raise_exception THEN
+    GET STACKED DIAGNOSTICS v_error = MESSAGE_TEXT;
+    IF v_error <> 'IDEMPOTENCY_KEY_REUSE' THEN
+      RAISE EXCEPTION 'QA314 absent p_input array property returned unexpected error: %', v_error;
+    END IF;
+  END;
+
+  BEGIN
+    PERFORM public.execute_create_offer_v1(
+      p_tenant_id => '10000000-0000-4000-8000-000000000001',
+      p_idempotency_key => 'fixture-qa314-array-duplicate-null',
+      p_input => '{"case":"qa314-array-duplicate-null","items":[{"sku":null,"meta":{"state":null}},{"sku":"second","position":2}]}'::jsonb,
+      p_name => 'QA314 JSONB Array Duplicate Null Offer',
+      p_demand_id => '50000000-0000-4000-8000-000000000001',
+      p_product_master_id => '40000000-0000-4000-8000-000000000001',
+      p_provider_actor_id => '30000000-0000-4000-8000-000000000001',
+      p_quantity => 5,
+      p_price => 20.25,
+      p_currency => 'USD',
+      p_conditions => 'qa314-array-duplicate-null',
+      p_market => 'QA',
+      p_geography => 'KR',
+      p_attributes => '{"labels":[{"metadata":{"verified":null}},{"name":"second","rank":2}]} '::jsonb,
+      p_documentation_status => 'verified',
+      p_lifecycle => 'draft',
+      p_offer_type => 'supplier_offer',
+      p_pricing_model => 'fixed'
+    );
+    RAISE EXCEPTION 'QA314 expected IDEMPOTENCY_KEY_REUSE when the first array object's p_attributes property is absent';
+  EXCEPTION WHEN raise_exception THEN
+    GET STACKED DIAGNOSTICS v_error = MESSAGE_TEXT;
+    IF v_error <> 'IDEMPOTENCY_KEY_REUSE' THEN
+      RAISE EXCEPTION 'QA314 absent p_attributes array property returned unexpected error: %', v_error;
+    END IF;
+  END;
+END
+$qa314_reject$;
+SQL
+
+# Verify JSONB canonicalization, array order, the persisted hash/result, and
+# exactly one idempotency row, execution, offer, and success event.
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 <<'SQL'
+DO $qa314$
+DECLARE
+  v_input jsonb := '{"case":"qa314-array-duplicate-null","items":[{"sku":null,"meta":{"state":null}},{"sku":"second","position":2}]}'::jsonb;
+  v_input_absent jsonb := '{"case":"qa314-array-duplicate-null","items":[{"meta":{"state":null}},{"sku":"second","position":2}]}'::jsonb;
+  v_attributes jsonb := '{"labels":[{"name":null,"metadata":{"verified":null}},{"name":"second","rank":2}]}'::jsonb;
+  v_attributes_absent jsonb := '{"labels":[{"metadata":{"verified":null}},{"name":"second","rank":2}]}'::jsonb;
+  v_expected_hash text;
+  v_result jsonb;
+  v_execution_id uuid;
+  v_offer_id uuid;
+  v_count integer;
+BEGIN
+  IF '{"case":"qa314-array-duplicate-null","items":[{"sku":"legacy","sku":null,"meta":{"state":"old","state":null}},{"sku":"second","position":2}]}'::jsonb
+       IS DISTINCT FROM v_input THEN
+    RAISE EXCEPTION 'QA314 duplicate keys ending in JSON null inside p_input array objects did not collapse to canonical explicit-null values';
+  END IF;
+  IF '{"labels":[{"name":"legacy","name":null,"metadata":{"verified":false,"verified":null}},{"name":"second","rank":2}]}'::jsonb
+       IS DISTINCT FROM v_attributes THEN
+    RAISE EXCEPTION 'QA314 duplicate keys ending in JSON null inside p_attributes array objects did not collapse to canonical explicit-null values';
+  END IF;
+
+  IF jsonb_array_length(v_input -> 'items') <> 2
+     OR jsonb_typeof(v_input #> '{items,0,sku}') IS DISTINCT FROM 'null'
+     OR jsonb_typeof(v_input #> '{items,0,meta,state}') IS DISTINCT FROM 'null'
+     OR v_input #>> '{items,1,sku}' IS DISTINCT FROM 'second'
+     OR (v_input #>> '{items,1,position}')::integer <> 2
+     OR jsonb_array_length(v_attributes -> 'labels') <> 2
+     OR jsonb_typeof(v_attributes #> '{labels,0,name}') IS DISTINCT FROM 'null'
+     OR jsonb_typeof(v_attributes #> '{labels,0,metadata,verified}') IS DISTINCT FROM 'null'
+     OR v_attributes #>> '{labels,1,name}' IS DISTINCT FROM 'second'
+     OR (v_attributes #>> '{labels,1,rank}')::integer <> 2 THEN
+    RAISE EXCEPTION 'QA314 expected explicit-null object properties and original array order to be preserved';
+  END IF;
+
+  IF (v_input_absent #> '{items,0,sku}') IS NOT NULL
+     OR (v_attributes_absent #> '{labels,0,name}') IS NOT NULL THEN
+    RAISE EXCEPTION 'QA314 absent-property controls unexpectedly contain the explicit-null array properties';
+  END IF;
+
+  v_expected_hash := md5(jsonb_build_object(
+    'input', v_input,
+    'name', 'QA314 JSONB Array Duplicate Null Offer',
+    'demandId', '50000000-0000-4000-8000-000000000001'::uuid,
+    'productMasterId', '40000000-0000-4000-8000-000000000001'::uuid,
+    'providerActorId', '30000000-0000-4000-8000-000000000001'::uuid,
+    'quantity', 5,
+    'price', 20.25,
+    'currency', 'USD',
+    'conditions', 'qa314-array-duplicate-null',
+    'market', 'QA',
+    'geography', 'KR',
+    'attributes', v_attributes,
+    'documentationStatus', 'verified',
+    'lifecycle', 'draft',
+    'offerType', 'supplier_offer',
+    'pricingModel', 'fixed'
+  )::text);
+
+  SELECT result, execution_id
+  INTO v_result, v_execution_id
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-qa314-array-duplicate-null'
+    AND status = 'COMPLETED';
+
+  IF NOT FOUND
+     OR v_result ->> 'status' IS DISTINCT FROM 'succeeded'
+     OR nullif(v_result ->> 'executionId', '') IS NULL
+     OR nullif(v_result ->> 'objectId', '') IS NULL THEN
+    RAISE EXCEPTION 'QA314 expected the original completed success result, got %', coalesce(v_result::text, '<missing>');
+  END IF;
+
+  v_offer_id := (v_result ->> 'objectId')::uuid;
+
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-qa314-array-duplicate-null'
+    AND status = 'COMPLETED'
+    AND execution_id = v_execution_id
+    AND request_hash = v_expected_hash
+    AND result = v_result;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA314 expected one unchanged completed idempotency row with the explicit-null array hash/result, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND id = v_execution_id
+    AND idempotency_key = 'fixture-qa314-array-duplicate-null'
+    AND status = 'COMPLETED'
+    AND input = v_input
+    AND result = v_result
+    AND completed_at IS NOT NULL;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA314 expected one completed execution preserving canonical array input, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE id = v_offer_id
+    AND name = 'QA314 JSONB Array Duplicate Null Offer'
+    AND quantity = 5
+    AND price = 20.25
+    AND currency = 'USD'
+    AND conditions = 'qa314-array-duplicate-null'
+    AND market = 'QA'
+    AND geography = 'KR'
+    AND attributes = v_attributes
+    AND documentation_status = 'verified'
+    AND lifecycle = 'draft'
+    AND offer_type = 'supplier_offer'
+    AND pricing_model = 'fixed';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA314 expected one original offer preserving canonical array attributes, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_events
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND execution_id = v_execution_id
+    AND event_type = 'ACTION_SUCCEEDED'
+    AND object_type = 'Offer'
+    AND object_id = v_offer_id
+    AND payload = v_result;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA314 expected one success event matching the original result, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-qa314-array-duplicate-null';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA314 retries created duplicate idempotency rows: %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND idempotency_key = 'fixture-qa314-array-duplicate-null';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA314 retries created duplicate executions: %', v_count;
+  END IF;
+END
+$qa314$;
+SELECT 'QA314 duplicate keys ending in JSON null inside p_input and p_attributes array objects replay as canonical explicit-null objects; absent-property retries are rejected, array order and original records remain unchanged' AS result;
+SQL
+
+echo "QA314 confirmed duplicate JSON keys ending in JSON null inside array objects in p_input and p_attributes; canonical explicit-null replay succeeded, absent-property retries were rejected, array order and original records were preserved."
