@@ -101,3 +101,14 @@ Required isolated tests and fix constraints are documented in `docs/LEGACY_MESSA
 HEAD `fac4c83853350bab61ce97a0a0881bcc9470f332` : QIMA CI **SUCCESS**, CodeQL **SUCCESS**, Vercel Preview **SUCCESS**. La CI inclut les tests PostgreSQL isolés CREATE_OFFER, legacy messages et auto-inscription aux participants.
 
 Limite de preuve : les deux suites RLS supplémentaires reproduisent des politiques simplifiées dans des schémas de test dédiés. Elles ne constituent pas un replay des politiques exactes de Supabase live et ne valident pas l'application des propositions RLS à la base de production. Le Security Gate demeure **NOT PASS**. La règle tenant↔demande, le chemin historique de brouillon, la revue des permissions RPC et la réconciliation des migrations restent ouverts. Aucune écriture ou migration production n'a été exécutée.
+
+
+### Source-only ACL revalidation — 10 November 2026
+
+A source-only review scanned all 18 branch SQL migrations and the relevant Decision Tree RPC callers. The detailed function/ACL/search_path inventory is recorded in [SECURITY_DEFINER_ACL_SOURCE_AUDIT_2026-11-10.md](SECURITY_DEFINER_ACL_SOURCE_AUDIT_2026-11-10.md).
+
+The source shows candidate ACL hardening items for `current_profile_actor_id()`, `execute_create_offer_v1(...)`, and the SECURITY INVOKER `dt_select_product_master(...)`; the low-level `create_offer_v1(...)` restriction does not explicitly revoke a possible direct `anon` grant. These are not effective live ACL findings because prior ACLs/default privileges may alter the result. The reviewed SECURITY DEFINER functions use `search_path = public`; public-schema CREATE privileges were not verified.
+
+Live catalog verification was blocked before execution: both Supabase read-only interfaces returned PostgreSQL `28P01` authentication failures (for `postgres` and `supabase_read_only_user`). No catalog rows were returned. No ACL, schema, data, or migration changes were made. No production vulnerability is confirmed.
+
+The reviewed HEAD `a1152a8831509e472f2817d7c46743e7bbf99f82` had QIMA CI #1099 **SUCCESS** (336/336 Playwright and PostgreSQL integration), CodeQL #1051 **SUCCESS**, and Vercel combined status **SUCCESS**. These checks do not substitute for the missing live catalog evidence. The next gate is an authorized catalog-only SELECT of effective function ACLs, owners, and `public` schema USAGE/CREATE privileges before proposing a new migration.
