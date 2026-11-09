@@ -8553,7 +8553,7 @@ BEGIN
       p_offer_type => 'supplier_offer',
       p_pricing_model => 'fixed'
     );
-    RAISE EXCEPTION 'QA314 expected IDEMPOTENCY_KEY_REUSE when the first array object's p_input property is absent';
+    RAISE EXCEPTION 'QA314 expected IDEMPOTENCY_KEY_REUSE when the first array object p_input property is absent';
   EXCEPTION WHEN raise_exception THEN
     GET STACKED DIAGNOSTICS v_error = MESSAGE_TEXT;
     IF v_error <> 'IDEMPOTENCY_KEY_REUSE' THEN
@@ -8582,7 +8582,7 @@ BEGIN
       p_offer_type => 'supplier_offer',
       p_pricing_model => 'fixed'
     );
-    RAISE EXCEPTION 'QA314 expected IDEMPOTENCY_KEY_REUSE when the first array object's p_attributes property is absent';
+    RAISE EXCEPTION 'QA314 expected IDEMPOTENCY_KEY_REUSE when the first array object p_attributes property is absent';
   EXCEPTION WHEN raise_exception THEN
     GET STACKED DIAGNOSTICS v_error = MESSAGE_TEXT;
     IF v_error <> 'IDEMPOTENCY_KEY_REUSE' THEN
