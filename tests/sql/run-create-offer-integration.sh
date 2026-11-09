@@ -7233,3 +7233,344 @@ SELECT 'QA309 JSONB array order remains significant at top-level and nested path
 SQL
 
 echo "QA309 confirmed that changing top-level and nested JSONB array order changes the effective CREATE_OFFER payload; the distinct transaction was rejected with IDEMPOTENCY_KEY_REUSE and left the original committed state unchanged."
+
+echo "QA310: characterize numeric-scale differences in the effective CREATE_OFFER idempotency hash."
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 <<'SQL'
+-- QA310 is a characterization test, not a decision to normalize numeric scale.
+-- PostgreSQL JSONB equality treats 1 and 1.0 as equal, while jsonb::text may
+-- preserve their display scale. The current request hash is built from that text.
+CREATE TEMP TABLE qa310_first_results (
+  label text PRIMARY KEY,
+  result jsonb NOT NULL,
+  request_hash text NOT NULL,
+  execution_id uuid NOT NULL,
+  offer_id uuid NOT NULL
+);
+GRANT SELECT, INSERT, UPDATE ON qa310_first_results TO authenticated;
+
+SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+SET ROLE authenticated;
+
+-- Commit three first-time requests independently. Each retry below changes only
+-- one numeric representation: nested p_input JSONB, p_price, or p_quantity.
+INSERT INTO qa310_first_results (label, result, request_hash, execution_id, offer_id)
+SELECT
+  'input-scale',
+  created.result,
+  idem.request_hash,
+  idem.execution_id,
+  (created.result->>'objectId')::uuid
+FROM (
+  SELECT public.execute_create_offer_v1(
+    p_tenant_id => '10000000-0000-4000-8000-000000000001',
+    p_idempotency_key => 'fixture-qa310-input-numeric-scale',
+    p_input => '{"case":"qa310-input-numeric-scale","value":1}'::jsonb,
+    p_name => 'QA310 Input Numeric Scale Offer',
+    p_demand_id => '50000000-0000-4000-8000-000000000001',
+    p_product_master_id => '40000000-0000-4000-8000-000000000001',
+    p_provider_actor_id => '30000000-0000-4000-8000-000000000001',
+    p_quantity => 2::numeric,
+    p_price => 21::numeric,
+    p_currency => 'USD',
+    p_conditions => 'qa310-numeric-scale',
+    p_market => 'QA',
+    p_geography => 'KR',
+    p_attributes => '{}'::jsonb,
+    p_documentation_status => 'verified',
+    p_lifecycle => 'draft',
+    p_offer_type => 'supplier_offer',
+    p_pricing_model => 'fixed'
+  ) AS result
+) created
+JOIN public.idempotency_keys idem
+  ON idem.tenant_id = '10000000-0000-4000-8000-000000000001'
+ AND idem.key = 'fixture-qa310-input-numeric-scale';
+
+INSERT INTO qa310_first_results (label, result, request_hash, execution_id, offer_id)
+SELECT
+  'price-scale',
+  created.result,
+  idem.request_hash,
+  idem.execution_id,
+  (created.result->>'objectId')::uuid
+FROM (
+  SELECT public.execute_create_offer_v1(
+    p_tenant_id => '10000000-0000-4000-8000-000000000001',
+    p_idempotency_key => 'fixture-qa310-price-numeric-scale',
+    p_input => '{"case":"qa310-price-numeric-scale"}'::jsonb,
+    p_name => 'QA310 Price Numeric Scale Offer',
+    p_demand_id => '50000000-0000-4000-8000-000000000001',
+    p_product_master_id => '40000000-0000-4000-8000-000000000001',
+    p_provider_actor_id => '30000000-0000-4000-8000-000000000001',
+    p_quantity => 2::numeric,
+    p_price => 21::numeric,
+    p_currency => 'USD',
+    p_conditions => 'qa310-numeric-scale',
+    p_market => 'QA',
+    p_geography => 'KR',
+    p_attributes => '{}'::jsonb,
+    p_documentation_status => 'verified',
+    p_lifecycle => 'draft',
+    p_offer_type => 'supplier_offer',
+    p_pricing_model => 'fixed'
+  ) AS result
+) created
+JOIN public.idempotency_keys idem
+  ON idem.tenant_id = '10000000-0000-4000-8000-000000000001'
+ AND idem.key = 'fixture-qa310-price-numeric-scale';
+
+INSERT INTO qa310_first_results (label, result, request_hash, execution_id, offer_id)
+SELECT
+  'quantity-scale',
+  created.result,
+  idem.request_hash,
+  idem.execution_id,
+  (created.result->>'objectId')::uuid
+FROM (
+  SELECT public.execute_create_offer_v1(
+    p_tenant_id => '10000000-0000-4000-8000-000000000001',
+    p_idempotency_key => 'fixture-qa310-quantity-numeric-scale',
+    p_input => '{"case":"qa310-quantity-numeric-scale"}'::jsonb,
+    p_name => 'QA310 Quantity Numeric Scale Offer',
+    p_demand_id => '50000000-0000-4000-8000-000000000001',
+    p_product_master_id => '40000000-0000-4000-8000-000000000001',
+    p_provider_actor_id => '30000000-0000-4000-8000-000000000001',
+    p_quantity => 2::numeric,
+    p_price => 21::numeric,
+    p_currency => 'USD',
+    p_conditions => 'qa310-numeric-scale',
+    p_market => 'QA',
+    p_geography => 'KR',
+    p_attributes => '{}'::jsonb,
+    p_documentation_status => 'verified',
+    p_lifecycle => 'draft',
+    p_offer_type => 'supplier_offer',
+    p_pricing_model => 'fixed'
+  ) AS result
+) created
+JOIN public.idempotency_keys idem
+  ON idem.tenant_id = '10000000-0000-4000-8000-000000000001'
+ AND idem.key = 'fixture-qa310-quantity-numeric-scale';
+
+DO $qa310$
+DECLARE
+  v_error text;
+  v_count integer;
+BEGIN
+  IF '{"value":1}'::jsonb IS DISTINCT FROM '{"value":1.0}'::jsonb THEN
+    RAISE EXCEPTION 'QA310 expected PostgreSQL JSONB equality to treat 1 and 1.0 as equal';
+  END IF;
+  IF ('{"value":1}'::jsonb)::text = ('{"value":1.0}'::jsonb)::text THEN
+    RAISE EXCEPTION 'QA310 expected JSONB text to preserve the numeric display-scale distinction';
+  END IF;
+
+  IF md5(jsonb_build_object(
+       'input', '{"value":1}'::jsonb,
+       'price', 21::numeric,
+       'quantity', 2::numeric
+     )::text)
+     = md5(jsonb_build_object(
+       'input', '{"value":1.0}'::jsonb,
+       'price', 21::numeric,
+       'quantity', 2::numeric
+     )::text) THEN
+    RAISE EXCEPTION 'QA310 expected the input numeric-scale representation to affect the current hash';
+  END IF;
+
+  IF md5(jsonb_build_object(
+       'input', '{"case":"price-scale"}'::jsonb,
+       'price', 21::numeric,
+       'quantity', 2::numeric
+     )::text)
+     = md5(jsonb_build_object(
+       'input', '{"case":"price-scale"}'::jsonb,
+       'price', 21.0::numeric,
+       'quantity', 2::numeric
+     )::text) THEN
+    RAISE EXCEPTION 'QA310 expected the price numeric-scale representation to affect the current hash';
+  END IF;
+
+  IF md5(jsonb_build_object(
+       'input', '{"case":"quantity-scale"}'::jsonb,
+       'price', 21::numeric,
+       'quantity', 2::numeric
+     )::text)
+     = md5(jsonb_build_object(
+       'input', '{"case":"quantity-scale"}'::jsonb,
+       'price', 21::numeric,
+       'quantity', 2.0::numeric
+     )::text) THEN
+    RAISE EXCEPTION 'QA310 expected the quantity numeric-scale representation to affect the current hash';
+  END IF;
+
+  BEGIN
+    PERFORM public.execute_create_offer_v1(
+      p_tenant_id => '10000000-0000-4000-8000-000000000001',
+      p_idempotency_key => 'fixture-qa310-input-numeric-scale',
+      p_input => '{"case":"qa310-input-numeric-scale","value":1.0}'::jsonb,
+      p_name => 'QA310 Input Numeric Scale Offer',
+      p_demand_id => '50000000-0000-4000-8000-000000000001',
+      p_product_master_id => '40000000-0000-4000-8000-000000000001',
+      p_provider_actor_id => '30000000-0000-4000-8000-000000000001',
+      p_quantity => 2::numeric,
+      p_price => 21::numeric,
+      p_currency => 'USD',
+      p_conditions => 'qa310-numeric-scale',
+      p_market => 'QA',
+      p_geography => 'KR',
+      p_attributes => '{}'::jsonb,
+      p_documentation_status => 'verified',
+      p_lifecycle => 'draft',
+      p_offer_type => 'supplier_offer',
+      p_pricing_model => 'fixed'
+    );
+    RAISE EXCEPTION 'QA310 expected IDEMPOTENCY_KEY_REUSE for input numeric scale';
+  EXCEPTION WHEN raise_exception THEN
+    GET STACKED DIAGNOSTICS v_error = MESSAGE_TEXT;
+    IF v_error <> 'IDEMPOTENCY_KEY_REUSE' THEN
+      RAISE EXCEPTION 'QA310 input numeric-scale retry returned unexpected error: %', v_error;
+    END IF;
+  END;
+
+  BEGIN
+    PERFORM public.execute_create_offer_v1(
+      p_tenant_id => '10000000-0000-4000-8000-000000000001',
+      p_idempotency_key => 'fixture-qa310-price-numeric-scale',
+      p_input => '{"case":"qa310-price-numeric-scale"}'::jsonb,
+      p_name => 'QA310 Price Numeric Scale Offer',
+      p_demand_id => '50000000-0000-4000-8000-000000000001',
+      p_product_master_id => '40000000-0000-4000-8000-000000000001',
+      p_provider_actor_id => '30000000-0000-4000-8000-000000000001',
+      p_quantity => 2::numeric,
+      p_price => 21.0::numeric,
+      p_currency => 'USD',
+      p_conditions => 'qa310-numeric-scale',
+      p_market => 'QA',
+      p_geography => 'KR',
+      p_attributes => '{}'::jsonb,
+      p_documentation_status => 'verified',
+      p_lifecycle => 'draft',
+      p_offer_type => 'supplier_offer',
+      p_pricing_model => 'fixed'
+    );
+    RAISE EXCEPTION 'QA310 expected IDEMPOTENCY_KEY_REUSE for price numeric scale';
+  EXCEPTION WHEN raise_exception THEN
+    GET STACKED DIAGNOSTICS v_error = MESSAGE_TEXT;
+    IF v_error <> 'IDEMPOTENCY_KEY_REUSE' THEN
+      RAISE EXCEPTION 'QA310 price numeric-scale retry returned unexpected error: %', v_error;
+    END IF;
+  END;
+
+  BEGIN
+    PERFORM public.execute_create_offer_v1(
+      p_tenant_id => '10000000-0000-4000-8000-000000000001',
+      p_idempotency_key => 'fixture-qa310-quantity-numeric-scale',
+      p_input => '{"case":"qa310-quantity-numeric-scale"}'::jsonb,
+      p_name => 'QA310 Quantity Numeric Scale Offer',
+      p_demand_id => '50000000-0000-4000-8000-000000000001',
+      p_product_master_id => '40000000-0000-4000-8000-000000000001',
+      p_provider_actor_id => '30000000-0000-4000-8000-000000000001',
+      p_quantity => 2.0::numeric,
+      p_price => 21::numeric,
+      p_currency => 'USD',
+      p_conditions => 'qa310-numeric-scale',
+      p_market => 'QA',
+      p_geography => 'KR',
+      p_attributes => '{}'::jsonb,
+      p_documentation_status => 'verified',
+      p_lifecycle => 'draft',
+      p_offer_type => 'supplier_offer',
+      p_pricing_model => 'fixed'
+    );
+    RAISE EXCEPTION 'QA310 expected IDEMPOTENCY_KEY_REUSE for quantity numeric scale';
+  EXCEPTION WHEN raise_exception THEN
+    GET STACKED DIAGNOSTICS v_error = MESSAGE_TEXT;
+    IF v_error <> 'IDEMPOTENCY_KEY_REUSE' THEN
+      RAISE EXCEPTION 'QA310 quantity numeric-scale retry returned unexpected error: %', v_error;
+    END IF;
+  END;
+
+  SELECT count(*) INTO v_count
+  FROM qa310_first_results q
+  JOIN public.idempotency_keys i
+    ON i.tenant_id = '10000000-0000-4000-8000-000000000001'
+   AND i.key = CASE q.label
+     WHEN 'input-scale' THEN 'fixture-qa310-input-numeric-scale'
+     WHEN 'price-scale' THEN 'fixture-qa310-price-numeric-scale'
+     WHEN 'quantity-scale' THEN 'fixture-qa310-quantity-numeric-scale'
+   END
+   AND i.status = 'COMPLETED'
+   AND i.request_hash = q.request_hash
+   AND i.execution_id = q.execution_id
+   AND i.result = q.result;
+  IF v_count <> 3 THEN
+    RAISE EXCEPTION 'QA310 expected all three original idempotency rows/hashes/results to remain unchanged, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM qa310_first_results q
+  JOIN public.action_executions x
+    ON x.tenant_id = '10000000-0000-4000-8000-000000000001'
+   AND x.id = q.execution_id
+   AND x.status = 'COMPLETED'
+   AND x.object_id = q.offer_id
+   AND x.result = q.result;
+  IF v_count <> 3 THEN
+    RAISE EXCEPTION 'QA310 expected exactly three unchanged completed executions, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM qa310_first_results q
+  JOIN public.offers o ON o.id = q.offer_id
+  WHERE o.price = 21::numeric
+    AND o.quantity = 2::numeric;
+  IF v_count <> 3 THEN
+    RAISE EXCEPTION 'QA310 expected exactly three original offers with unchanged numeric values, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM qa310_first_results q
+  JOIN public.action_events e
+    ON e.tenant_id = '10000000-0000-4000-8000-000000000001'
+   AND e.execution_id = q.execution_id
+   AND e.event_type = 'ACTION_SUCCEEDED'
+   AND e.object_id = q.offer_id
+   AND e.payload = q.result;
+  IF v_count <> 3 THEN
+    RAISE EXCEPTION 'QA310 expected exactly three unchanged success events, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key IN (
+      'fixture-qa310-input-numeric-scale',
+      'fixture-qa310-price-numeric-scale',
+      'fixture-qa310-quantity-numeric-scale'
+    );
+  IF v_count <> 3 THEN
+    RAISE EXCEPTION 'QA310 expected exactly three idempotency rows, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND idempotency_key IN (
+      'fixture-qa310-input-numeric-scale',
+      'fixture-qa310-price-numeric-scale',
+      'fixture-qa310-quantity-numeric-scale'
+    );
+  IF v_count <> 3 THEN
+    RAISE EXCEPTION 'QA310 expected exactly three executions, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE id IN (SELECT offer_id FROM qa310_first_results);
+  IF v_count <> 3 THEN
+    RAISE EXCEPTION 'QA310 expected exactly three offers, found %', v_count;
+  END IF;
+END
+$qa310$;
+SELECT 'QA310 characterized numeric scale: JSONB 1 and 1.0 compare equal, but the current text-based request hash distinguishes p_input, price, and quantity scale; changed-scale retries were rejected and original records remained unchanged' AS result;
+SQL
