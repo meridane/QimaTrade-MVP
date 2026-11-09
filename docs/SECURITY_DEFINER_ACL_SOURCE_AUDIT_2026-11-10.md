@@ -165,3 +165,19 @@ This regression validates the migration's ACL semantics on disposable PostgreSQL
 - The earlier CI #1102 signature-string defect and CI #1103 incomplete dollar-quote delimiter are retained in the history above; both were test-fixture defects and are superseded by the passing CI #1104 run.
 - This proves the migration's intended ACL semantics on disposable PostgreSQL, not the effective ACL of the live Supabase project. The read-only live catalog attempt remains blocked by PostgreSQL `28P01`; effective Production ACLs are still unverified and no Production vulnerability is confirmed. The migration is in this draft PR only and has **not** been applied to Supabase Production.
 - Current next gate: obtain authorized read-only live catalog output, compare the three effective ACLs/owners and public-schema CREATE privileges with this migration, then request normal human review/approval before any Production migration. Do not apply the migration from this automation.
+
+
+## Follow-up: direct anon ACL hardening for authenticated-only helpers — 10 November 2026
+
+A second, narrowly scoped migration was added after reviewing the branch call sites for four helpers that already revoke PUBLIC and explicitly grant authenticated, but do not explicitly revoke a separate direct grant to `anon`:
+
+- `public.dt_has_tenant_access(uuid)`: used by RLS policies declared for `authenticated`.
+- `public.dt_submit_answer(uuid, uuid, integer, uuid, text, text, uuid)`: the server helper obtains the current user before invoking the RPC; the function itself checks `auth.uid() = p_user_id`.
+- `public.dt_publish_product_request(uuid, uuid)`: the API route authenticates with `auth.getUser()` and passes the current session token; the function checks the same user binding.
+- `public.is_message_participant(uuid, uuid, uuid)`: the legacy message authorization helper is used by the authenticated message RLS path and checks the current profile actor.
+
+The additive migration `20261110080000_harden_authenticated_helper_anon_acl.sql` applies `REVOKE ALL ... FROM PUBLIC, anon` and re-grants EXECUTE to `authenticated` for these four signatures. It is branch-only; no Production migration was applied. The low-level `create_offer_v1(...)` function remains untouched because its effective owner/caller relationship still requires live catalog evidence.
+
+The disposable regression was expanded from three to seven signatures. It creates each stub with PostgreSQL's default PUBLIC EXECUTE ACL, adds a direct `anon` grant, applies both ACL migrations twice, and checks that PUBLIC/anon no longer have effective EXECUTE while authenticated retains an explicit grant. This test is synthetic ACL semantics only; it does not establish the live Supabase catalog state.
+
+Validation at documentation time: QIMA CI #1106 (https://github.com/meridane/QimaTrade-MVP/actions/runs/42710206948) and CodeQL #1058 (https://github.com/meridane/QimaTrade-MVP/actions/runs/42710207078) were still **IN PROGRESS**. Final validation must be recorded after the PostgreSQL job completes. Live catalog access remains blocked by PostgreSQL `28P01`; no Production vulnerability is confirmed.
