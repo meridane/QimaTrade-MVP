@@ -8081,3 +8081,329 @@ SELECT 'QA312 JSONB duplicate keys inside array objects collapsed to the last va
 SQL
 
 echo "QA312 confirmed that duplicate JSON object keys inside arrays in p_input and p_attributes collapse to PostgreSQL JSONB's last-value representation; a second committed transaction replayed the exact result without duplicates."
+
+
+# QA313: duplicate object keys whose final values are JSON null must collapse
+# to the canonical explicit-null representation. An equivalent explicit-null
+# retry replays; omitting the same properties is a changed payload and must be
+# rejected without replacing the original idempotency result.
+qa313_first_call=$(cat <<'SQL'
+BEGIN;
+SET application_name = 'qima-qa313-duplicate-null-first';
+SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+SET ROLE authenticated;
+SELECT txid_current(), public.execute_create_offer_v1(
+  p_tenant_id => '10000000-0000-4000-8000-000000000001',
+  p_idempotency_key => 'fixture-qa313-jsonb-duplicate-null',
+  p_input => '{"case":"qa313-jsonb-duplicate-null","optional":"legacy","optional":null,"nested":{"state":"old","state":null}}'::jsonb,
+  p_name => 'QA313 JSONB Duplicate Null Offer',
+  p_demand_id => '50000000-0000-4000-8000-000000000001',
+  p_product_master_id => '40000000-0000-4000-8000-000000000001',
+  p_provider_actor_id => '30000000-0000-4000-8000-000000000001',
+  p_quantity => 4,
+  p_price => 19.25,
+  p_currency => 'USD',
+  p_conditions => 'qa313-jsonb-duplicate-null',
+  p_market => 'QA',
+  p_geography => 'KR',
+  p_attributes => '{"label":"legacy","label":null,"metadata":{"verified":false,"verified":null}}'::jsonb,
+  p_documentation_status => 'verified',
+  p_lifecycle => 'draft',
+  p_offer_type => 'supplier_offer',
+  p_pricing_model => 'fixed'
+);
+COMMIT;
+SQL
+)
+
+qa313_replay_call=$(cat <<'SQL'
+BEGIN;
+SET application_name = 'qima-qa313-duplicate-null-replay';
+SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+SET ROLE authenticated;
+SELECT txid_current(), public.execute_create_offer_v1(
+  p_tenant_id => '10000000-0000-4000-8000-000000000001',
+  p_idempotency_key => 'fixture-qa313-jsonb-duplicate-null',
+  p_input => '{"case":"qa313-jsonb-duplicate-null","optional":null,"nested":{"state":null}}'::jsonb,
+  p_name => 'QA313 JSONB Duplicate Null Offer',
+  p_demand_id => '50000000-0000-4000-8000-000000000001',
+  p_product_master_id => '40000000-0000-4000-8000-000000000001',
+  p_provider_actor_id => '30000000-0000-4000-8000-000000000001',
+  p_quantity => 4,
+  p_price => 19.25,
+  p_currency => 'USD',
+  p_conditions => 'qa313-jsonb-duplicate-null',
+  p_market => 'QA',
+  p_geography => 'KR',
+  p_attributes => '{"label":null,"metadata":{"verified":null}}'::jsonb,
+  p_documentation_status => 'verified',
+  p_lifecycle => 'draft',
+  p_offer_type => 'supplier_offer',
+  p_pricing_model => 'fixed'
+);
+COMMIT;
+SQL
+)
+
+# The first and canonical explicit-null requests run in separate committed
+# PostgreSQL transactions. Their transaction IDs must differ while their
+# returned result payloads remain byte-for-byte identical.
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t -F '|' -c "$qa313_first_call" > /tmp/qima-qa313-first.log 2>&1
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t -F '|' -c "$qa313_replay_call" > /tmp/qima-qa313-replay.log 2>&1
+
+qa313_first_rows=$(wc -l < /tmp/qima-qa313-first.log | tr -d '[:space:]')
+qa313_replay_rows=$(wc -l < /tmp/qima-qa313-replay.log | tr -d '[:space:]')
+if [[ "$qa313_first_rows" != "1" || "$qa313_replay_rows" != "1" ]]; then
+  echo "QA313 expected one transaction/result row from each independent psql process." >&2
+  cat /tmp/qima-qa313-first.log /tmp/qima-qa313-replay.log >&2
+  exit 1
+fi
+
+IFS='|' read -r qa313_first_txid qa313_first_result < /tmp/qima-qa313-first.log
+IFS='|' read -r qa313_replay_txid qa313_replay_result < /tmp/qima-qa313-replay.log
+if [[ ! "$qa313_first_txid" =~ ^[0-9]+$ ||
+      ! "$qa313_replay_txid" =~ ^[0-9]+$ ||
+      "$qa313_first_txid" == "$qa313_replay_txid" ]]; then
+  echo "QA313 expected distinct committed PostgreSQL transaction IDs; first='$qa313_first_txid', replay='$qa313_replay_txid'." >&2
+  cat /tmp/qima-qa313-first.log /tmp/qima-qa313-replay.log >&2
+  exit 1
+fi
+
+if [[ -z "$qa313_first_result" || "$qa313_first_result" != "$qa313_replay_result" ]]; then
+  echo "QA313 duplicate-key and canonical explicit-null requests did not replay the same result." >&2
+  diff -u /tmp/qima-qa313-first.log /tmp/qima-qa313-replay.log >&2 || true
+  exit 1
+fi
+
+printf '%s\n' "$qa313_replay_result" > /tmp/qima-qa313-replay-result.log
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t -c "
+  SELECT result::text
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-qa313-jsonb-duplicate-null'
+    AND status = 'COMPLETED';
+" > /tmp/qima-qa313-stored-result.log
+if ! cmp -s /tmp/qima-qa313-replay-result.log /tmp/qima-qa313-stored-result.log; then
+  echo "QA313 replay result does not match the persisted idempotency result." >&2
+  diff -u /tmp/qima-qa313-replay-result.log /tmp/qima-qa313-stored-result.log >&2 || true
+  exit 1
+fi
+
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 <<'SQL'
+DO $qa313$
+DECLARE
+  v_input jsonb := '{"case":"qa313-jsonb-duplicate-null","optional":null,"nested":{"state":null}}'::jsonb;
+  v_input_absent jsonb := '{"case":"qa313-jsonb-duplicate-null","nested":{}}'::jsonb;
+  v_attributes jsonb := '{"label":null,"metadata":{"verified":null}}'::jsonb;
+  v_attributes_absent jsonb := '{"metadata":{}}'::jsonb;
+  v_expected_hash text;
+  v_error text;
+  v_result jsonb;
+  v_execution_id uuid;
+  v_offer_id uuid;
+  v_count integer;
+BEGIN
+  IF '{"case":"qa313-jsonb-duplicate-null","optional":"legacy","optional":null,"nested":{"state":"old","state":null}}'::jsonb
+       IS DISTINCT FROM v_input THEN
+    RAISE EXCEPTION 'QA313 duplicate p_input keys ending in JSON null did not collapse to the canonical explicit-null object';
+  END IF;
+  IF '{"label":"legacy","label":null,"metadata":{"verified":false,"verified":null}}'::jsonb
+       IS DISTINCT FROM v_attributes THEN
+    RAISE EXCEPTION 'QA313 duplicate p_attributes keys ending in JSON null did not collapse to the canonical explicit-null object';
+  END IF;
+
+  IF NOT (v_input ? 'optional')
+     OR jsonb_typeof(v_input -> 'optional') IS DISTINCT FROM 'null'
+     OR jsonb_typeof(v_input #> '{nested,state}') IS DISTINCT FROM 'null'
+     OR NOT (v_attributes ? 'label')
+     OR jsonb_typeof(v_attributes -> 'label') IS DISTINCT FROM 'null'
+     OR jsonb_typeof(v_attributes #> '{metadata,verified}') IS DISTINCT FROM 'null' THEN
+    RAISE EXCEPTION 'QA313 expected final duplicate-key JSON null values to remain present as explicit JSON null properties';
+  END IF;
+
+  IF v_input_absent ? 'optional'
+     OR v_input_absent #> '{nested,state}' IS NOT NULL
+     OR v_attributes_absent ? 'label'
+     OR v_attributes_absent #> '{metadata,verified}' IS NOT NULL THEN
+    RAISE EXCEPTION 'QA313 absent-property controls unexpectedly contain explicit-null properties';
+  END IF;
+
+  -- A same-key retry that omits the p_input properties must be rejected.
+  BEGIN
+    PERFORM public.execute_create_offer_v1(
+      p_tenant_id => '10000000-0000-4000-8000-000000000001',
+      p_idempotency_key => 'fixture-qa313-jsonb-duplicate-null',
+      p_input => v_input_absent,
+      p_name => 'QA313 JSONB Duplicate Null Offer',
+      p_demand_id => '50000000-0000-4000-8000-000000000001',
+      p_product_master_id => '40000000-0000-4000-8000-000000000001',
+      p_provider_actor_id => '30000000-0000-4000-8000-000000000001',
+      p_quantity => 4,
+      p_price => 19.25,
+      p_currency => 'USD',
+      p_conditions => 'qa313-jsonb-duplicate-null',
+      p_market => 'QA',
+      p_geography => 'KR',
+      p_attributes => v_attributes,
+      p_documentation_status => 'verified',
+      p_lifecycle => 'draft',
+      p_offer_type => 'supplier_offer',
+      p_pricing_model => 'fixed'
+    );
+    RAISE EXCEPTION 'QA313 expected IDEMPOTENCY_KEY_REUSE for absent p_input properties';
+  EXCEPTION WHEN raise_exception THEN
+    GET STACKED DIAGNOSTICS v_error = MESSAGE_TEXT;
+    IF v_error <> 'IDEMPOTENCY_KEY_REUSE' THEN
+      RAISE EXCEPTION 'QA313 absent p_input retry returned unexpected error: %', v_error;
+    END IF;
+  END;
+
+  -- The same-key retry must also reject omission from p_attributes.
+  BEGIN
+    PERFORM public.execute_create_offer_v1(
+      p_tenant_id => '10000000-0000-4000-8000-000000000001',
+      p_idempotency_key => 'fixture-qa313-jsonb-duplicate-null',
+      p_input => v_input,
+      p_name => 'QA313 JSONB Duplicate Null Offer',
+      p_demand_id => '50000000-0000-4000-8000-000000000001',
+      p_product_master_id => '40000000-0000-4000-8000-000000000001',
+      p_provider_actor_id => '30000000-0000-4000-8000-000000000001',
+      p_quantity => 4,
+      p_price => 19.25,
+      p_currency => 'USD',
+      p_conditions => 'qa313-jsonb-duplicate-null',
+      p_market => 'QA',
+      p_geography => 'KR',
+      p_attributes => v_attributes_absent,
+      p_documentation_status => 'verified',
+      p_lifecycle => 'draft',
+      p_offer_type => 'supplier_offer',
+      p_pricing_model => 'fixed'
+    );
+    RAISE EXCEPTION 'QA313 expected IDEMPOTENCY_KEY_REUSE for absent p_attributes properties';
+  EXCEPTION WHEN raise_exception THEN
+    GET STACKED DIAGNOSTICS v_error = MESSAGE_TEXT;
+    IF v_error <> 'IDEMPOTENCY_KEY_REUSE' THEN
+      RAISE EXCEPTION 'QA313 absent p_attributes retry returned unexpected error: %', v_error;
+    END IF;
+  END;
+
+  v_expected_hash := md5(jsonb_build_object(
+    'input', v_input,
+    'name', 'QA313 JSONB Duplicate Null Offer',
+    'demandId', '50000000-0000-4000-8000-000000000001'::uuid,
+    'productMasterId', '40000000-0000-4000-8000-000000000001'::uuid,
+    'providerActorId', '30000000-0000-4000-8000-000000000001'::uuid,
+    'quantity', 4,
+    'price', 19.25,
+    'currency', 'USD',
+    'conditions', 'qa313-jsonb-duplicate-null',
+    'market', 'QA',
+    'geography', 'KR',
+    'attributes', v_attributes,
+    'documentationStatus', 'verified',
+    'lifecycle', 'draft',
+    'offerType', 'supplier_offer',
+    'pricingModel', 'fixed'
+  )::text);
+
+  SELECT result, execution_id
+  INTO v_result, v_execution_id
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-qa313-jsonb-duplicate-null'
+    AND status = 'COMPLETED';
+
+  IF NOT FOUND
+     OR v_result ->> 'status' IS DISTINCT FROM 'succeeded'
+     OR nullif(v_result ->> 'executionId', '') IS NULL
+     OR nullif(v_result ->> 'objectId', '') IS NULL THEN
+    RAISE EXCEPTION 'QA313 expected the original completed success result, got %', coalesce(v_result::text, '<missing>');
+  END IF;
+
+  v_offer_id := (v_result ->> 'objectId')::uuid;
+
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-qa313-jsonb-duplicate-null'
+    AND status = 'COMPLETED'
+    AND execution_id = v_execution_id
+    AND request_hash = v_expected_hash
+    AND result = v_result;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA313 expected one unchanged completed idempotency row with the explicit-null hash/result, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND id = v_execution_id
+    AND idempotency_key = 'fixture-qa313-jsonb-duplicate-null'
+    AND status = 'COMPLETED'
+    AND input = v_input
+    AND result = v_result
+    AND completed_at IS NOT NULL;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA313 expected one completed execution preserving explicit-null input, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE id = v_offer_id
+    AND name = 'QA313 JSONB Duplicate Null Offer'
+    AND quantity = 4
+    AND price = 19.25
+    AND currency = 'USD'
+    AND conditions = 'qa313-jsonb-duplicate-null'
+    AND market = 'QA'
+    AND geography = 'KR'
+    AND attributes = v_attributes
+    AND documentation_status = 'verified'
+    AND lifecycle = 'draft'
+    AND offer_type = 'supplier_offer'
+    AND pricing_model = 'fixed';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA313 expected one original offer preserving explicit-null attributes, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_events
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND execution_id = v_execution_id
+    AND event_type = 'ACTION_SUCCEEDED'
+    AND object_type = 'Offer'
+    AND object_id = v_offer_id
+    AND payload = v_result;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA313 expected one success event matching the original result, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-qa313-jsonb-duplicate-null';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA313 retries created duplicate idempotency rows: %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND idempotency_key = 'fixture-qa313-jsonb-duplicate-null';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA313 retries created duplicate executions: %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE id = v_offer_id;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA313 retries changed the original offer count: %', v_count;
+  END IF;
+END
+$qa313$;
+SELECT 'QA313 duplicate keys ending in JSON null replay as canonical explicit-null properties; same-key retries omitting those properties are rejected and the original idempotency result, execution, offer, and success event remain unchanged' AS result;
+SQL
+
+echo "QA313 confirmed that duplicate JSON object keys ending in JSON null collapse to explicit-null properties in p_input and p_attributes; canonical explicit-null replay succeeds, absent-property retries are rejected, and original records remain unchanged."
