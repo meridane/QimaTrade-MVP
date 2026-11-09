@@ -6316,3 +6316,193 @@ $qa116$;
 SQL
 
 echo "CREATE_OFFER QA116 characterizes JSONB array/string/number/boolean p_attributes at the authenticated RPC fixture: each shape is hashed, persisted, exactly replayed and represented by one offer/event."
+
+
+# QA298: create an offer in one committed PostgreSQL transaction, then replay
+# the exact request from a second independent transaction. The second response
+# must equal the persisted JSONB result and must not create duplicate rows.
+qa298_call_first=$(cat <<'SQL'
+BEGIN;
+SET application_name = 'qima-qa298-first-transaction';
+SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+SET ROLE authenticated;
+SELECT txid_current(), public.execute_create_offer_v1(
+  p_tenant_id => '10000000-0000-4000-8000-000000000001',
+  p_idempotency_key => 'fixture-qa298-cross-transaction-replay',
+  p_input => '{"case":"qa298-cross-transaction-replay"}'::jsonb,
+  p_name => 'QA298 Cross Transaction Replay Offer',
+  p_demand_id => '50000000-0000-4000-8000-000000000001',
+  p_product_master_id => '40000000-0000-4000-8000-000000000001',
+  p_provider_actor_id => '30000000-0000-4000-8000-000000000001',
+  p_quantity => 7,
+  p_price => 31.5,
+  p_currency => 'EUR',
+  p_conditions => 'cross-transaction',
+  p_market => 'QA',
+  p_geography => 'KR',
+  p_attributes => '{"source":"qa298"}'::jsonb,
+  p_documentation_status => 'verified'
+);
+COMMIT;
+SQL
+)
+
+qa298_call_replay=$(cat <<'SQL'
+BEGIN;
+SET application_name = 'qima-qa298-replay-transaction';
+SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+SET ROLE authenticated;
+SELECT txid_current(), public.execute_create_offer_v1(
+  p_tenant_id => '10000000-0000-4000-8000-000000000001',
+  p_idempotency_key => 'fixture-qa298-cross-transaction-replay',
+  p_input => '{"case":"qa298-cross-transaction-replay"}'::jsonb,
+  p_name => 'QA298 Cross Transaction Replay Offer',
+  p_demand_id => '50000000-0000-4000-8000-000000000001',
+  p_product_master_id => '40000000-0000-4000-8000-000000000001',
+  p_provider_actor_id => '30000000-0000-4000-8000-000000000001',
+  p_quantity => 7,
+  p_price => 31.5,
+  p_currency => 'EUR',
+  p_conditions => 'cross-transaction',
+  p_market => 'QA',
+  p_geography => 'KR',
+  p_attributes => '{"source":"qa298"}'::jsonb,
+  p_documentation_status => 'verified'
+);
+COMMIT;
+SQL
+)
+
+# Each psql process owns a separate explicit transaction. Capture the transaction
+# ID beside the JSONB result so the test proves the replay happened after commit.
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t -F $'\t' \
+  -c "$qa298_call_first" > /tmp/qima-qa298-first.log 2>&1
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t -F $'\t' \
+  -c "$qa298_call_replay" > /tmp/qima-qa298-replay.log 2>&1
+
+qa298_first_rows=$(wc -l < /tmp/qima-qa298-first.log | tr -d '[:space:]')
+qa298_replay_rows=$(wc -l < /tmp/qima-qa298-replay.log | tr -d '[:space:]')
+if [[ "$qa298_first_rows" != "1" || "$qa298_replay_rows" != "1" ]]; then
+  echo "QA298 expected one transaction/result row from each independent psql process." >&2
+  cat /tmp/qima-qa298-first.log /tmp/qima-qa298-replay.log >&2
+  exit 1
+fi
+
+IFS=$'\t' read -r qa298_first_txid qa298_first_result < /tmp/qima-qa298-first.log
+IFS=$'\t' read -r qa298_replay_txid qa298_replay_result < /tmp/qima-qa298-replay.log
+if [[ ! "$qa298_first_txid" =~ ^[0-9]+$ ||
+      ! "$qa298_replay_txid" =~ ^[0-9]+$ ||
+      "$qa298_first_txid" == "$qa298_replay_txid" ]]; then
+  echo "QA298 expected distinct committed PostgreSQL transaction IDs; first='$qa298_first_txid', replay='$qa298_replay_txid'." >&2
+  cat /tmp/qima-qa298-first.log /tmp/qima-qa298-replay.log >&2
+  exit 1
+fi
+
+if [[ -z "$qa298_first_result" || "$qa298_first_result" != "$qa298_replay_result" ]]; then
+  echo "QA298 independent-transaction replay did not return the exact first JSONB result." >&2
+  diff -u /tmp/qima-qa298-first.log /tmp/qima-qa298-replay.log >&2 || true
+  exit 1
+fi
+
+printf '%s\n' "$qa298_replay_result" > /tmp/qima-qa298-replay-result.log
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t -c "
+  SELECT result::text
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-qa298-cross-transaction-replay'
+    AND status = 'COMPLETED';
+" > /tmp/qima-qa298-stored-result.log
+if ! cmp -s /tmp/qima-qa298-replay-result.log /tmp/qima-qa298-stored-result.log; then
+  echo "QA298 second-transaction response does not match the persisted idempotency result." >&2
+  diff -u /tmp/qima-qa298-replay-result.log /tmp/qima-qa298-stored-result.log >&2 || true
+  exit 1
+fi
+
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 <<'SQL'
+DO $qa298$
+DECLARE
+  v_result jsonb;
+  v_execution_id uuid;
+  v_offer_id uuid;
+  v_count integer;
+BEGIN
+  SELECT result INTO v_result
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-qa298-cross-transaction-replay'
+    AND status = 'COMPLETED';
+
+  IF NOT FOUND OR jsonb_typeof(v_result) IS DISTINCT FROM 'object'
+     OR v_result->>'status' IS DISTINCT FROM 'succeeded'
+     OR v_result->>'objectType' IS DISTINCT FROM 'Offer'
+     OR nullif(v_result->>'executionId', '') IS NULL
+     OR nullif(v_result->>'objectId', '') IS NULL THEN
+    RAISE EXCEPTION 'QA298 expected one completed object-shaped success result, got %',
+      coalesce(v_result::text, '<missing>');
+  END IF;
+
+  v_execution_id := (v_result->>'executionId')::uuid;
+  v_offer_id := (v_result->>'objectId')::uuid;
+
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-qa298-cross-transaction-replay'
+    AND status = 'COMPLETED'
+    AND execution_id = v_execution_id
+    AND result = v_result
+    AND completed_at IS NOT NULL;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA298 expected exactly one completed idempotency row, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND id = v_execution_id
+    AND idempotency_key = 'fixture-qa298-cross-transaction-replay'
+    AND status = 'COMPLETED'
+    AND object_type = 'Offer'
+    AND object_id = v_offer_id
+    AND result = v_result
+    AND completed_at IS NOT NULL;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA298 expected exactly one completed execution matching the replay result, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE id = v_offer_id
+    AND name = 'QA298 Cross Transaction Replay Offer'
+    AND demand_id = '50000000-0000-4000-8000-000000000001'
+    AND product_master_id = '40000000-0000-4000-8000-000000000001'
+    AND provider_actor_id = '30000000-0000-4000-8000-000000000001'
+    AND quantity = 7
+    AND price = 31.5
+    AND currency = 'EUR'
+    AND conditions = 'cross-transaction'
+    AND market = 'QA'
+    AND geography = 'KR'
+    AND attributes = '{"source":"qa298"}'::jsonb
+    AND documentation_status = 'verified';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA298 expected exactly one offer preserving the original request, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_events
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND execution_id = v_execution_id
+    AND event_type = 'ACTION_SUCCEEDED'
+    AND object_type = 'Offer'
+    AND object_id = v_offer_id
+    AND payload = v_result;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA298 expected exactly one success event matching the persisted result, found %', v_count;
+  END IF;
+END
+$qa298$;
+SELECT 'QA298 cross-transaction replay returned the exact persisted JSONB result from a distinct committed transaction and left one idempotency row, execution, offer, and success event' AS result;
+SQL
+
+echo "QA298 committed first-time CREATE_OFFER in one PostgreSQL transaction; a second independent transaction replayed the identical JSONB result and persisted exactly one idempotency row, execution, offer, and success event."
