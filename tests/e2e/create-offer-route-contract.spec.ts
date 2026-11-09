@@ -31,6 +31,7 @@ async function postCreateOffer(
   createOfferRpcErrorHint: string | null = null,
   getActionDefinitionRpcErrorDetails: string | null = null,
   getActionDefinitionRpcErrorHint: string | null = null,
+  getActionDefinitionRpcTransportError = false,
 ) {
   process.env.NEXT_PUBLIC_SUPABASE_URL ??= "https://example.supabase.co";
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??= "ci-placeholder-anon-key";
@@ -115,6 +116,9 @@ async function postCreateOffer(
       return Response.json(membershipRows);
     }
     if (url.pathname === "/rest/v1/rpc/get_action_definition_v1") {
+      if (getActionDefinitionRpcTransportError) {
+        throw new Error("ECONNRESET: GET_ACTION_DEFINITION_TRANSPORT_PRIVATE_SENTINEL");
+      }
       if (getActionDefinitionRpcHttpStatus !== 200) {
         return Response.json(
           {
@@ -1936,6 +1940,60 @@ test("CREATE_OFFER route never maps action-definition RPC errors through the exe
     ),
   ).toHaveLength(1);
 });
+
+test("CREATE_OFFER route masks action-definition RPC transport rejections and never calls execution RPC", async () => {
+  const bearer = "Bearer qima-route-test-token";
+  const definitionPaths = [
+    "/auth/v1/user",
+    "/rest/v1/profiles",
+    "/rest/v1/dt_memberships",
+    "/rest/v1/rpc/get_action_definition_v1",
+  ];
+
+  const result = await postCreateOffer(
+    "USD",
+    {},
+    undefined,
+    undefined,
+    "succeeded",
+    bearer,
+    200,
+    200,
+    200,
+    "30000000-0000-4000-8000-000000000001",
+    false,
+    200,
+    200,
+    undefined,
+    "CREATE_OFFER RPC unavailable",
+    "Action definition lookup unavailable",
+    null,
+    null,
+    null,
+    null,
+    true,
+  );
+
+  expect(result.status).toBe(500);
+  expect(result.body).toEqual({ error: "ACTION_FAILED" });
+  expect(result.wwwAuthenticate).toBeNull();
+  expect(JSON.stringify(result.body)).not.toMatch(
+    /ECONNRESET|GET_ACTION_DEFINITION_TRANSPORT_PRIVATE_SENTINEL|ACTION_DEFINITION_LOOKUP_FAILED/i,
+  );
+  expect(result.requests.map((request) => request.path)).toEqual(definitionPaths);
+  expect(result.requests.every((request) => request.authorization === bearer)).toBe(true);
+  expect(
+    result.requests.filter(
+      (request) => request.path === "/rest/v1/rpc/get_action_definition_v1",
+    ),
+  ).toHaveLength(1);
+  expect(
+    result.requests.filter(
+      (request) => request.path === "/rest/v1/rpc/execute_create_offer_v1",
+    ),
+  ).toHaveLength(0);
+});
+
 
 test("CREATE_OFFER route masks execution RPC errors across upstream HTTP statuses", async () => {
   const bearer = "Bearer qima-route-test-token";
