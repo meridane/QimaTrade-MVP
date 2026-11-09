@@ -2393,3 +2393,16 @@ The canonical register's QA184 tail was inspected from commit `0eca4833bae236f32
 - QIMA CodeQL #997 (https://github.com/meridane/QimaTrade-MVP/actions/runs/42539491319): **SUCCESS**; JavaScript/TypeScript analysis and result upload completed successfully.
 - Vercel combined status on code commit `dab975ab38decc74102d4f4390d07a52a0e0d471`: **FAILURE** with `upgradeToPro=build-rate-limit` (Preview rate limit; not a GitHub build failure). No Preview READY status is confirmed for this commit; no Production deployment was performed.
 - Safety: no Supabase production data, migrations, schema, RLS policies, grants, secrets, or persistent PostgreSQL configuration changed; no Production deployment, PR merge, force-push, or branch-protection change.
+
+
+### QA296 — CREATE_OFFER RPC JSON object result contract (9 November 2026)
+
+- Test location: `tests/e2e/create-offer-route-contract.spec.ts`; code commit: `5e06f5e5f793334f8bea023a3c9f9a5390956c23`.
+- Added five malformed execution RPC fixtures: an array containing a valid-looking `succeeded` object, an empty array, a string primitive, a numeric primitive, and a boolean primitive.
+- The engine's result normalizer rejects arrays and primitives; the public route must return HTTP 500 with exactly `{"error":"ACTION_FAILED"}`, never expose `ACTION_RESULT_INVALID` or a private sentinel, and make exactly one execution RPC call without retry. The test also verifies the expected request order and that `__rpcResultOverride` is not forwarded in `p_input`.
+- The SQL function returns `jsonb`, which can represent non-object JSON values; QA296 verifies the stricter object-shaped application action-result contract at the HTTP boundary. No application implementation or SQL migration was changed.
+- These are synthetic route-contract regressions, not evidence of a production incident or confirmed vulnerability. No Supabase production data, schema, RLS policy, grant, secret, or persistent PostgreSQL configuration was changed.
+- QIMA CI #1047 (https://github.com/meridane/QimaTrade-MVP/actions/runs/42547297646): **SUCCESS**; **328/328 Playwright tests passed**. npm ci, dependency audit enforcement at the configured high threshold, TypeScript, Next.js production build, Chromium installation, browser tests, isolated CREATE_OFFER PostgreSQL integration/concurrency, legacy-message RLS, participant self-enrollment RLS, disposable-database cleanup, and prepared-transaction QA266/QA267 restoration all passed.
+- QIMA CodeQL #999 (https://github.com/meridane/QimaTrade-MVP/actions/runs/42547297568): **SUCCESS**; JavaScript/TypeScript analysis and result upload completed (75/75 TypeScript files, 3/3 GitHub Actions files, 1/1 JavaScript file).
+- Vercel on code commit `5e06f5e5f793334f8bea023a3c9f9a5390956c23`: **SUCCESS** (Preview only; no Production deployment).
+- Safety: no Supabase production data, migrations, schema, RLS policies, grants, secrets, or persistent PostgreSQL configuration changed; no Production deployment, PR merge, force-push, or branch-protection change.
