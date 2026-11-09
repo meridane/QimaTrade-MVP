@@ -7587,3 +7587,244 @@ END
 $qa310$;
 SELECT 'QA310 characterized numeric scale: JSONB 1 and 1.0 compare equal, but the current text-based request hash distinguishes p_input, price, and quantity scale; changed-scale retries were rejected and original records remained unchanged' AS result;
 SQL
+
+
+# QA311: duplicate keys in JSON object input are collapsed by PostgreSQL JSONB
+# using the last value. A request containing duplicate top-level and nested
+# keys in both p_input and p_attributes must replay identically to the
+# equivalent canonical JSONB objects with those duplicate keys removed.
+qa311_first_call=$(cat <<'SQL'
+BEGIN;
+SET application_name = 'qima-qa311-jsonb-duplicate-keys-first';
+SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+SET ROLE authenticated;
+SELECT txid_current(), public.execute_create_offer_v1(
+  p_tenant_id => '10000000-0000-4000-8000-000000000001',
+  p_idempotency_key => 'fixture-qa311-jsonb-duplicate-keys',
+  p_input => '{"case":"qa311-jsonb-duplicate-keys","sku":"legacy","sku":"final","nested":{"state":"old","state":"current"}}'::jsonb,
+  p_name => 'QA311 JSONB Duplicate Keys Offer',
+  p_demand_id => '50000000-0000-4000-8000-000000000001',
+  p_product_master_id => '40000000-0000-4000-8000-000000000001',
+  p_provider_actor_id => '30000000-0000-4000-8000-000000000001',
+  p_quantity => 4,
+  p_price => 18.5,
+  p_currency => 'USD',
+  p_conditions => 'qa311-jsonb-duplicate-keys',
+  p_market => 'QA',
+  p_geography => 'KR',
+  p_attributes => '{"grade":"legacy","grade":"A","nested":{"verified":false,"verified":true}}'::jsonb,
+  p_documentation_status => 'verified',
+  p_lifecycle => 'draft',
+  p_offer_type => 'supplier_offer',
+  p_pricing_model => 'fixed'
+);
+COMMIT;
+SQL
+)
+
+qa311_replay_call=$(cat <<'SQL'
+BEGIN;
+SET application_name = 'qima-qa311-jsonb-duplicate-keys-replay';
+SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+SET ROLE authenticated;
+SELECT txid_current(), public.execute_create_offer_v1(
+  p_tenant_id => '10000000-0000-4000-8000-000000000001',
+  p_idempotency_key => 'fixture-qa311-jsonb-duplicate-keys',
+  p_input => '{"case":"qa311-jsonb-duplicate-keys","sku":"final","nested":{"state":"current"}}'::jsonb,
+  p_name => 'QA311 JSONB Duplicate Keys Offer',
+  p_demand_id => '50000000-0000-4000-8000-000000000001',
+  p_product_master_id => '40000000-0000-4000-8000-000000000001',
+  p_provider_actor_id => '30000000-0000-4000-8000-000000000001',
+  p_quantity => 4,
+  p_price => 18.5,
+  p_currency => 'USD',
+  p_conditions => 'qa311-jsonb-duplicate-keys',
+  p_market => 'QA',
+  p_geography => 'KR',
+  p_attributes => '{"grade":"A","nested":{"verified":true}}'::jsonb,
+  p_documentation_status => 'verified',
+  p_lifecycle => 'draft',
+  p_offer_type => 'supplier_offer',
+  p_pricing_model => 'fixed'
+);
+COMMIT;
+SQL
+)
+
+# Both requests execute in independent committed transactions. JSONB parsing
+# keeps the last occurrence of a duplicate object key, including nested keys.
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t -F '|' -c "$qa311_first_call" > /tmp/qima-qa311-first.log 2>&1
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t -F '|' -c "$qa311_replay_call" > /tmp/qima-qa311-replay.log 2>&1
+
+qa311_first_rows=$(wc -l < /tmp/qima-qa311-first.log | tr -d '[:space:]')
+qa311_replay_rows=$(wc -l < /tmp/qima-qa311-replay.log | tr -d '[:space:]')
+if [[ "$qa311_first_rows" != "1" || "$qa311_replay_rows" != "1" ]]; then
+  echo "QA311 expected one transaction/result row from each independent psql process." >&2
+  cat /tmp/qima-qa311-first.log /tmp/qima-qa311-replay.log >&2
+  exit 1
+fi
+
+IFS='|' read -r qa311_first_txid qa311_first_result < /tmp/qima-qa311-first.log
+IFS='|' read -r qa311_replay_txid qa311_replay_result < /tmp/qima-qa311-replay.log
+if [[ ! "$qa311_first_txid" =~ ^[0-9]+$ ||
+      ! "$qa311_replay_txid" =~ ^[0-9]+$ ||
+      "$qa311_first_txid" == "$qa311_replay_txid" ]]; then
+  echo "QA311 expected distinct committed PostgreSQL transaction IDs; first='$qa311_first_txid', replay='$qa311_replay_txid'." >&2
+  cat /tmp/qima-qa311-first.log /tmp/qima-qa311-replay.log >&2
+  exit 1
+fi
+
+if [[ -z "$qa311_first_result" || "$qa311_first_result" != "$qa311_replay_result" ]]; then
+  echo "QA311 duplicate-key and canonical JSONB requests did not replay the same result." >&2
+  diff -u /tmp/qima-qa311-first.log /tmp/qima-qa311-replay.log >&2 || true
+  exit 1
+fi
+
+printf '%s\n' "$qa311_replay_result" > /tmp/qima-qa311-replay-result.log
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t -c "
+  SELECT result::text
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-qa311-jsonb-duplicate-keys'
+    AND status = 'COMPLETED';
+" > /tmp/qima-qa311-stored-result.log
+if ! cmp -s /tmp/qima-qa311-replay-result.log /tmp/qima-qa311-stored-result.log; then
+  echo "QA311 replay result does not match the persisted idempotency result." >&2
+  diff -u /tmp/qima-qa311-replay-result.log /tmp/qima-qa311-stored-result.log >&2 || true
+  exit 1
+fi
+
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 <<'SQL'
+DO $qa311$
+DECLARE
+  v_result jsonb;
+  v_execution_id uuid;
+  v_offer_id uuid;
+  v_request_hash text;
+  v_expected_hash text;
+  v_input jsonb := '{"case":"qa311-jsonb-duplicate-keys","sku":"final","nested":{"state":"current"}}'::jsonb;
+  v_attributes jsonb := '{"grade":"A","nested":{"verified":true}}'::jsonb;
+  v_count integer;
+BEGIN
+  IF '{"case":"qa311-jsonb-duplicate-keys","sku":"legacy","sku":"final","nested":{"state":"old","state":"current"}}'::jsonb
+       IS DISTINCT FROM v_input THEN
+    RAISE EXCEPTION 'QA311 duplicate top-level/nested p_input keys did not collapse to their last values';
+  END IF;
+  IF '{"grade":"legacy","grade":"A","nested":{"verified":false,"verified":true}}'::jsonb
+       IS DISTINCT FROM v_attributes THEN
+    RAISE EXCEPTION 'QA311 duplicate top-level/nested p_attributes keys did not collapse to their last values';
+  END IF;
+
+  SELECT result, execution_id, request_hash
+  INTO v_result, v_execution_id, v_request_hash
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-qa311-jsonb-duplicate-keys'
+    AND status = 'COMPLETED';
+
+  IF NOT FOUND OR jsonb_typeof(v_result) IS DISTINCT FROM 'object'
+     OR v_result->>'status' IS DISTINCT FROM 'succeeded'
+     OR nullif(v_result->>'executionId', '') IS NULL
+     OR nullif(v_result->>'objectId', '') IS NULL THEN
+    RAISE EXCEPTION 'QA311 expected the original committed success result, got %',
+      coalesce(v_result::text, '<missing>');
+  END IF;
+
+  v_offer_id := (v_result->>'objectId')::uuid;
+  v_expected_hash := md5(jsonb_build_object(
+    'input', v_input,
+    'name', 'QA311 JSONB Duplicate Keys Offer',
+    'demandId', '50000000-0000-4000-8000-000000000001'::uuid,
+    'productMasterId', '40000000-0000-4000-8000-000000000001'::uuid,
+    'providerActorId', '30000000-0000-4000-8000-000000000001'::uuid,
+    'quantity', 4,
+    'price', 18.5,
+    'currency', 'USD',
+    'conditions', 'qa311-jsonb-duplicate-keys',
+    'market', 'QA',
+    'geography', 'KR',
+    'attributes', v_attributes,
+    'documentationStatus', 'verified',
+    'lifecycle', 'draft',
+    'offerType', 'supplier_offer',
+    'pricingModel', 'fixed'
+  )::text);
+
+  IF v_request_hash <> v_expected_hash THEN
+    RAISE EXCEPTION 'QA311 stored request hash does not match canonical JSONB after duplicate-key collapse';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-qa311-jsonb-duplicate-keys'
+    AND status = 'COMPLETED'
+    AND execution_id = v_execution_id
+    AND result = v_result
+    AND request_hash = v_expected_hash;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA311 expected exactly one unchanged completed idempotency row, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND id = v_execution_id
+    AND idempotency_key = 'fixture-qa311-jsonb-duplicate-keys'
+    AND status = 'COMPLETED'
+    AND object_type = 'Offer'
+    AND object_id = v_offer_id
+    AND input = v_input
+    AND result = v_result
+    AND completed_at IS NOT NULL;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA311 expected one completed execution with canonical JSONB input, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE id = v_offer_id
+    AND name = 'QA311 JSONB Duplicate Keys Offer'
+    AND demand_id = '50000000-0000-4000-8000-000000000001'
+    AND product_master_id = '40000000-0000-4000-8000-000000000001'
+    AND provider_actor_id = '30000000-0000-4000-8000-000000000001'
+    AND quantity = 4
+    AND price = 18.5
+    AND currency = 'USD'
+    AND conditions = 'qa311-jsonb-duplicate-keys'
+    AND market = 'QA'
+    AND geography = 'KR'
+    AND attributes = v_attributes
+    AND documentation_status = 'verified'
+    AND lifecycle = 'draft'
+    AND offer_type = 'supplier_offer'
+    AND pricing_model = 'fixed';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA311 expected one offer preserving canonical JSONB attributes, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_events
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND execution_id = v_execution_id
+    AND event_type = 'ACTION_SUCCEEDED'
+    AND object_type = 'Offer'
+    AND object_id = v_offer_id
+    AND payload = v_result;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA311 expected exactly one success event matching the original result, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-qa311-jsonb-duplicate-keys';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA311 replay created duplicate idempotency rows: %', v_count;
+  END IF;
+END
+$qa311$;
+SELECT 'QA311 JSONB duplicate top-level and nested object keys collapsed to the last values; a distinct committed transaction replayed the canonical result with one idempotency row, execution, offer, and success event' AS result;
+SQL
+
+echo "QA311 confirmed that duplicate top-level and nested JSON object keys in p_input and p_attributes collapse to PostgreSQL JSONB's last-value representation; a second committed transaction replayed the exact result without duplicates."
