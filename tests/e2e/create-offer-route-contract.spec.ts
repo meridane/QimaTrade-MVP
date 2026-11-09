@@ -3,6 +3,14 @@ import { readFileSync } from "node:fs";
 import { POST } from "../../app/api/actions/create-offer/route";
 
 type MockRequest = { path: string; query: string; body?: Record<string, unknown>; authorization?: string };
+type CreateOfferReplayState = {
+  committed: boolean;
+  result: Record<string, unknown> | null;
+  createCount: number;
+  replayCount: number;
+  firstRpcInput: Record<string, unknown> | null;
+  replayRpcInput: Record<string, unknown> | null;
+};
 
 test.describe.configure({ mode: "serial" });
 
@@ -32,6 +40,8 @@ async function postCreateOffer(
   getActionDefinitionRpcErrorDetails: string | null = null,
   getActionDefinitionRpcErrorHint: string | null = null,
   getActionDefinitionRpcTransportError = false,
+  createOfferRpcTransportFailureAfterCommit = false,
+  createOfferReplayState?: CreateOfferReplayState,
 ) {
   process.env.NEXT_PUBLIC_SUPABASE_URL ??= "https://example.supabase.co";
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??= "ci-placeholder-anon-key";
@@ -139,6 +149,20 @@ async function postCreateOffer(
           { status: createOfferRpcHttpStatus },
         );
       }
+      if (createOfferReplayState?.committed) {
+        createOfferReplayState.replayCount += 1;
+        createOfferReplayState.replayRpcInput = body ?? {};
+        if (
+          JSON.stringify(createOfferReplayState.replayRpcInput) !==
+          JSON.stringify(createOfferReplayState.firstRpcInput)
+        ) {
+          return Response.json(
+            { message: "IDEMPOTENCY_KEY_REUSE", code: "XX000" },
+            { status: 400 },
+          );
+        }
+        return Response.json(createOfferReplayState.result);
+      }
       const rpcResult = hasRpcResultOverride
         ? rpcResultOverride
         : {
@@ -147,6 +171,16 @@ async function postCreateOffer(
             objectId: demandId,
             result: { offerId: "70000000-0000-4000-8000-000000000001" },
           };
+      if (createOfferRpcTransportFailureAfterCommit) {
+        if (!createOfferReplayState) {
+          throw new Error("QA304 replay state is required for a post-commit response loss");
+        }
+        createOfferReplayState.committed = true;
+        createOfferReplayState.createCount += 1;
+        createOfferReplayState.firstRpcInput = body ?? {};
+        createOfferReplayState.result = rpcResult as Record<string, unknown>;
+        throw new Error("ECONNRESET: CREATE_OFFER_RESPONSE_LOST_AFTER_COMMIT_PRIVATE_SENTINEL");
+      }
       return Response.json(rpcResult);
     }
 
@@ -1994,6 +2028,103 @@ test("CREATE_OFFER route masks action-definition RPC transport rejections and ne
   ).toHaveLength(0);
 });
 
+
+
+test("CREATE_OFFER route does not retry a lost post-commit response and a same-key retry replays the committed result", async () => {
+  const bearer = "Bearer qima-route-test-token";
+  const idempotencyKey = "qa304-lost-response-after-commit";
+  const expectedPaths = [
+    "/auth/v1/user",
+    "/rest/v1/profiles",
+    "/rest/v1/dt_memberships",
+    "/rest/v1/rpc/get_action_definition_v1",
+    "/rest/v1/rpc/execute_create_offer_v1",
+  ];
+  const replayState: CreateOfferReplayState = {
+    committed: false,
+    result: null,
+    createCount: 0,
+    replayCount: 0,
+    firstRpcInput: null,
+    replayRpcInput: null,
+  };
+  const invoke = (loseResponse: boolean) =>
+    postCreateOffer(
+      "USD",
+      {
+        idempotencyKey,
+        conditions: "qa304-committed-before-response-loss",
+      },
+      undefined,
+      undefined,
+      "succeeded",
+      bearer,
+      200,
+      200,
+      200,
+      undefined,
+      false,
+      200,
+      200,
+      undefined,
+      undefined,
+      undefined,
+      null,
+      null,
+      null,
+      null,
+      false,
+      loseResponse,
+      replayState,
+    );
+
+  const firstAttempt = await invoke(true);
+  expect(firstAttempt.status).toBe(500);
+  expect(firstAttempt.body).toEqual({ error: "ACTION_FAILED" });
+  expect(firstAttempt.wwwAuthenticate).toBeNull();
+  expect(JSON.stringify(firstAttempt.body)).not.toMatch(
+    /ECONNRESET|CREATE_OFFER_RESPONSE_LOST_AFTER_COMMIT_PRIVATE_SENTINEL/,
+  );
+  expect(firstAttempt.requests.map((request) => request.path)).toEqual(expectedPaths);
+  expect(
+    firstAttempt.requests.filter(
+      (request) => request.path === "/rest/v1/rpc/execute_create_offer_v1",
+    ),
+  ).toHaveLength(1);
+  expect(replayState).toMatchObject({
+    committed: true,
+    createCount: 1,
+    replayCount: 0,
+  });
+  expect(replayState.firstRpcInput).toMatchObject({
+    p_idempotency_key: idempotencyKey,
+    p_input: expect.objectContaining({
+      name: "Currency contract fixture",
+      demandId: "50000000-0000-4000-8000-000000000001",
+      conditions: "qa304-committed-before-response-loss",
+    }),
+  });
+
+  const replayAttempt = await invoke(false);
+  expect(replayAttempt.status).toBe(200);
+  expect(replayAttempt.body).toEqual(replayState.result);
+  expect(replayAttempt.body).toMatchObject({
+    executionId: "10000000-0000-4000-8000-000000000001",
+    status: "succeeded",
+    objectId: "50000000-0000-4000-8000-000000000001",
+    result: { offerId: "70000000-0000-4000-8000-000000000001" },
+  });
+  expect(replayAttempt.wwwAuthenticate).toBeNull();
+  expect(replayAttempt.requests.map((request) => request.path)).toEqual(expectedPaths);
+  expect(
+    replayAttempt.requests.filter(
+      (request) => request.path === "/rest/v1/rpc/execute_create_offer_v1",
+    ),
+  ).toHaveLength(1);
+  expect(replayState.createCount).toBe(1);
+  expect(replayState.replayCount).toBe(1);
+  expect(replayState.replayRpcInput).toEqual(replayState.firstRpcInput);
+});
 
 test("CREATE_OFFER route masks execution RPC errors across upstream HTTP statuses", async () => {
   const bearer = "Bearer qima-route-test-token";
