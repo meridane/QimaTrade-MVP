@@ -29,6 +29,8 @@ async function postCreateOffer(
   getActionDefinitionRpcErrorMessage = "Action definition lookup unavailable",
   createOfferRpcErrorDetails: string | null = null,
   createOfferRpcErrorHint: string | null = null,
+  getActionDefinitionRpcErrorDetails: string | null = null,
+  getActionDefinitionRpcErrorHint: string | null = null,
 ) {
   process.env.NEXT_PUBLIC_SUPABASE_URL ??= "https://example.supabase.co";
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??= "ci-placeholder-anon-key";
@@ -115,7 +117,12 @@ async function postCreateOffer(
     if (url.pathname === "/rest/v1/rpc/get_action_definition_v1") {
       if (getActionDefinitionRpcHttpStatus !== 200) {
         return Response.json(
-          { message: getActionDefinitionRpcErrorMessage, code: "XX000", details: null, hint: null },
+          {
+            message: getActionDefinitionRpcErrorMessage,
+            code: "XX000",
+            details: getActionDefinitionRpcErrorDetails,
+            hint: getActionDefinitionRpcErrorHint,
+          },
           { status: getActionDefinitionRpcHttpStatus },
         );
       }
@@ -1837,6 +1844,97 @@ test("CREATE_OFFER route masks action-definition RPC errors across upstream HTTP
       label,
     ).toBe(true);
   }
+});
+
+test("CREATE_OFFER route never maps action-definition RPC errors through the execution-domain allowlist", async () => {
+  const bearer = "Bearer qima-route-test-token";
+  const definitionPaths = [
+    "/auth/v1/user",
+    "/rest/v1/profiles",
+    "/rest/v1/dt_memberships",
+    "/rest/v1/rpc/get_action_definition_v1",
+  ];
+
+  const definitionFailure = await postCreateOffer(
+    "USD",
+    {},
+    undefined,
+    undefined,
+    "succeeded",
+    bearer,
+    200,
+    200,
+    200,
+    "30000000-0000-4000-8000-000000000001",
+    false,
+    200,
+    400,
+    undefined,
+    "CREATE_OFFER RPC unavailable",
+    "IDEMPOTENCY_KEY_REUSE",
+    null,
+    null,
+    "DEFINITION_DETAILS_PRIVATE_SENTINEL",
+    "DEFINITION_HINT_PRIVATE_SENTINEL",
+  );
+
+  expect(definitionFailure.status).toBe(500);
+  expect(definitionFailure.body).toEqual({ error: "ACTION_FAILED" });
+  expect(definitionFailure.wwwAuthenticate).toBeNull();
+  expect(JSON.stringify(definitionFailure.body)).not.toMatch(
+    /IDEMPOTENCY_KEY_REUSE|DEFINITION_(?:DETAILS|HINT)_PRIVATE_SENTINEL|XX000/i,
+  );
+  expect(definitionFailure.requests.map((request) => request.path)).toEqual(definitionPaths);
+  expect(definitionFailure.requests.every((request) => request.authorization === bearer)).toBe(true);
+  expect(
+    definitionFailure.requests.filter(
+      (request) => request.path === "/rest/v1/rpc/get_action_definition_v1",
+    ),
+  ).toHaveLength(1);
+  expect(
+    definitionFailure.requests.filter(
+      (request) => request.path === "/rest/v1/rpc/execute_create_offer_v1",
+    ),
+  ).toHaveLength(0);
+
+  // The same exact SQL domain code remains public when it originates from execution.
+  const executionConflict = await postCreateOffer(
+    "USD",
+    {},
+    undefined,
+    undefined,
+    "succeeded",
+    bearer,
+    200,
+    200,
+    200,
+    "30000000-0000-4000-8000-000000000001",
+    false,
+    400,
+    200,
+    undefined,
+    "IDEMPOTENCY_KEY_REUSE",
+    "Action definition lookup unavailable",
+    "EXECUTION_DETAILS_PRIVATE_SENTINEL",
+    "EXECUTION_HINT_PRIVATE_SENTINEL",
+  );
+
+  expect(executionConflict.status).toBe(400);
+  expect(executionConflict.body).toEqual({ error: "IDEMPOTENCY_KEY_REUSE" });
+  expect(executionConflict.wwwAuthenticate).toBeNull();
+  expect(JSON.stringify(executionConflict.body)).not.toMatch(
+    /EXECUTION_(?:DETAILS|HINT)_PRIVATE_SENTINEL|XX000/i,
+  );
+  expect(executionConflict.requests.map((request) => request.path)).toEqual([
+    ...definitionPaths,
+    "/rest/v1/rpc/execute_create_offer_v1",
+  ]);
+  expect(executionConflict.requests.every((request) => request.authorization === bearer)).toBe(true);
+  expect(
+    executionConflict.requests.filter(
+      (request) => request.path === "/rest/v1/rpc/execute_create_offer_v1",
+    ),
+  ).toHaveLength(1);
 });
 
 test("CREATE_OFFER route masks execution RPC errors across upstream HTTP statuses", async () => {

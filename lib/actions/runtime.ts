@@ -18,18 +18,23 @@ export async function executeUniversalAction(
 
   return executeAction(context, input, {
     getDefinition: async (actionKey, version) => {
-      const { data, error } = await supabase.rpc("get_action_definition_v1", {
-        p_action_key: actionKey,
-        p_version: version,
-      });
-      if (error) throw new Error(error.message);
-      const definition = Array.isArray(data) ? data[0] : data;
-      if (!definition) return null;
-      return {
-        actionKey: definition.action_key,
-        version: definition.version,
-        status: definition.status,
-      };
+      try {
+        const { data, error } = await supabase.rpc("get_action_definition_v1", {
+          p_action_key: actionKey,
+          p_version: version,
+        });
+        if (error) throw new Error("ACTION_DEFINITION_LOOKUP_FAILED");
+        const definition = Array.isArray(data) ? data[0] : data;
+        if (!definition) return null;
+        return {
+          actionKey: definition.action_key,
+          version: definition.version,
+          status: definition.status,
+        };
+      } catch {
+        // Definition lookup failures are infrastructure failures, never CREATE_OFFER domain errors.
+        throw new Error("ACTION_DEFINITION_LOOKUP_FAILED");
+      }
     },
     handlers: {
       CREATE_OFFER: async (actionContext, actionInput) => {
