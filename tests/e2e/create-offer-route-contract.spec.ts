@@ -1378,6 +1378,11 @@ test("CREATE_OFFER route rejects malformed, mismatched, or unpublished action de
       definition: { action_key: "CREATE_OFFER", version: 1, status: "published_v2" },
     },
     { label: "empty RPC row set", definition: [] },
+    { label: "PostgREST row array with null first row", definition: [null] },
+    {
+      label: "PostgREST row array with wrong action key in first row",
+      definition: [{ action_key: "PUBLISH_PRODUCT_REQUEST", version: 1, status: "published" }],
+    },
     { label: "malformed primitive definition", definition: "not-an-action-definition" },
   ];
 
