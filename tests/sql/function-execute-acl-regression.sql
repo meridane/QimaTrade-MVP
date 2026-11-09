@@ -20,6 +20,34 @@ RETURNS jsonb
 LANGUAGE sql
 AS 'SELECT ''{}''::jsonb';
 
+CREATE OR REPLACE FUNCTION public.dt_has_tenant_access(uuid)
+RETURNS boolean
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS 'SELECT false';
+
+CREATE OR REPLACE FUNCTION public.dt_submit_answer(uuid, uuid, integer, uuid, text, text, uuid)
+RETURNS jsonb
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS 'SELECT ''{}''::jsonb';
+
+CREATE OR REPLACE FUNCTION public.dt_publish_product_request(uuid, uuid)
+RETURNS jsonb
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS 'SELECT ''{}''::jsonb';
+
+CREATE OR REPLACE FUNCTION public.is_message_participant(uuid, uuid, uuid)
+RETURNS boolean
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS 'SELECT false';
+
 -- Add a direct anon grant as well, so the migration must remove both inherited
 -- PUBLIC access and a possible pre-existing direct anon grant.
 GRANT EXECUTE ON FUNCTION public.current_profile_actor_id() TO anon;
@@ -28,6 +56,10 @@ GRANT EXECUTE ON FUNCTION public.execute_create_offer_v1(
   uuid, text, jsonb, text, uuid, uuid, uuid, numeric, numeric, text,
   text, text, text, jsonb, text, text, text, text
 ) TO anon;
+GRANT EXECUTE ON FUNCTION public.dt_has_tenant_access(uuid) TO anon;
+GRANT EXECUTE ON FUNCTION public.dt_submit_answer(uuid, uuid, integer, uuid, text, text, uuid) TO anon;
+GRANT EXECUTE ON FUNCTION public.dt_publish_product_request(uuid, uuid) TO anon;
+GRANT EXECUTE ON FUNCTION public.is_message_participant(uuid, uuid, uuid) TO anon;
 
 DO $acl$
 DECLARE
@@ -35,7 +67,11 @@ DECLARE
   v_function_oids oid[] := ARRAY[
     'public.current_profile_actor_id()'::regprocedure::oid,
     'public.dt_select_product_master(uuid,uuid,uuid)'::regprocedure::oid,
-    'public.execute_create_offer_v1(uuid,text,jsonb,text,uuid,uuid,uuid,numeric,numeric,text,text,text,text,jsonb,text,text,text,text)'::regprocedure::oid
+    'public.execute_create_offer_v1(uuid,text,jsonb,text,uuid,uuid,uuid,numeric,numeric,text,text,text,text,jsonb,text,text,text,text)'::regprocedure::oid,
+    'public.dt_has_tenant_access(uuid)'::regprocedure::oid,
+    'public.dt_submit_answer(uuid,uuid,integer,uuid,text,text,uuid)'::regprocedure::oid,
+    'public.dt_publish_product_request(uuid,uuid)'::regprocedure::oid,
+    'public.is_message_participant(uuid,uuid,uuid)'::regprocedure::oid
   ];
 BEGIN
   FOREACH v_function_oid IN ARRAY v_function_oids LOOP
@@ -58,8 +94,10 @@ END
 $acl$;
 
 \ir ../../supabase/migrations/20261110070000_harden_public_rpc_execute_acl.sql
--- Reapplying the migration must remain safe and produce the same ACL.
+\ir ../../supabase/migrations/20261110080000_harden_authenticated_helper_anon_acl.sql
+-- Reapplying both migrations must remain safe and produce the same ACL.
 \ir ../../supabase/migrations/20261110070000_harden_public_rpc_execute_acl.sql
+\ir ../../supabase/migrations/20261110080000_harden_authenticated_helper_anon_acl.sql
 
 DO $$
 DECLARE
@@ -113,3 +151,4 @@ END
 $$;
 
 SELECT 'function EXECUTE ACL regression PASS' AS result;
+SELECT 'covered functions: 7' AS result;
