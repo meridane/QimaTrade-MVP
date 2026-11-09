@@ -108,7 +108,11 @@ DECLARE
   v_function_oids oid[] := ARRAY[
     'public.current_profile_actor_id()'::regprocedure::oid,
     'public.dt_select_product_master(uuid,uuid,uuid)'::regprocedure::oid,
-    'public.execute_create_offer_v1(uuid,text,jsonb,text,uuid,uuid,uuid,numeric,numeric,text,text,text,text,jsonb,text,text,text,text)'::regprocedure::oid
+    'public.execute_create_offer_v1(uuid,text,jsonb,text,uuid,uuid,uuid,numeric,numeric,text,text,text,text,jsonb,text,text,text,text)'::regprocedure::oid,
+    'public.dt_has_tenant_access(uuid)'::regprocedure::oid,
+    'public.dt_submit_answer(uuid,uuid,integer,uuid,text,text,uuid)'::regprocedure::oid,
+    'public.dt_publish_product_request(uuid,uuid)'::regprocedure::oid,
+    'public.is_message_participant(uuid,uuid,uuid)'::regprocedure::oid
   ];
 BEGIN
   SELECT oid INTO v_anon_oid FROM pg_roles WHERE rolname = 'anon';
