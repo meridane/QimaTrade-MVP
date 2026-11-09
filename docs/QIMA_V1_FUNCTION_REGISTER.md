@@ -6713,3 +6713,15 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - QIMA CodeQL #1044 (https://github.com/meridane/QimaTrade-MVP/actions/runs/42664781025) completed SUCCESS; JavaScript/TypeScript analysis results were uploaded and processing completed.
 - GitHub's Vercel status on the code HEAD reported the Free-plan api-deployments-free-per-day rate limit. This is recorded as a Preview quota limitation, not a code-test failure; no Production deployment was performed.
 - QA313 characterizes PostgreSQL JSONB duplicate-key handling and the existing idempotency contract. It does not establish a production incident or vulnerability. No Supabase Production data/schema/RLS/grants/secrets, SQL migration, persistent PostgreSQL configuration, Production deployment, PR merge, force-push, or branch-protection change.
+
+
+
+### QA314 duplicate JSON keys ending in JSON null inside JSONB array objects — 10 novembre 2026
+
+- Added a disposable PostgreSQL 16 integration regression in `tests/sql/run-create-offer-integration.sh`. The first committed transaction supplies duplicate keys inside objects contained in arrays in both `p_input` and `p_attributes`, with the final occurrence set to JSON null. Each array also contains a second element so the test can assert that array length and element order remain unchanged.
+- A second independent committed transaction reuses the same idempotency key with the canonical array objects in which the duplicate keys have been collapsed to their explicit-null values. It must return the exact original result with a distinct transaction ID.
+- Two further retries run in an authenticated session and omit the affected first-element properties, one in `p_input` and one in `p_attributes`. Both changed effective payloads must raise `IDEMPOTENCY_KEY_REUSE`.
+- Assertions verify recursive JSONB duplicate-key collapse, explicit-null presence, unchanged second array elements and order, the canonical full-request hash, persisted result, one completed idempotency row, one completed execution, one original offer, and one matching `ACTION_SUCCEEDED` event.
+- Code commit: `b7b78136215a030fd4372ff7155062a74d3549f1`. QIMA CI #1094 (https://github.com/meridane/QimaTrade-MVP/actions/runs/42673032219) and QIMA CodeQL #1046 (https://github.com/meridane/QimaTrade-MVP/actions/runs/42673031636) were created for this exact code SHA and were **QUEUED** at the time this entry was written; no test result is claimed until those runs complete.
+- GitHub's Vercel Preview Comments check completed successfully. The separate Vercel deployment status was still pending; no Preview READY or Production deployment is claimed.
+- QA314 characterizes PostgreSQL JSONB behavior and the existing idempotency contract on disposable CI infrastructure. It does not establish a production incident or vulnerability. No Supabase Production data/schema/RLS/grants/secrets, SQL migration, persistent PostgreSQL configuration, Production deployment, PR merge, force-push, or branch-protection change.

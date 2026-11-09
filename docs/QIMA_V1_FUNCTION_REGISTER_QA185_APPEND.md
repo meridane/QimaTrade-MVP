@@ -2681,3 +2681,12 @@ The canonical register's QA184 tail was inspected from commit `0eca4833bae236f32
 - QIMA CodeQL #1044 (https://github.com/meridane/QimaTrade-MVP/actions/runs/42664781025) completed SUCCESS; JavaScript/TypeScript analysis results were uploaded and processing completed.
 - GitHub's Vercel status on the code HEAD reported the Free-plan api-deployments-free-per-day rate limit. This is recorded as a Preview quota limitation, not a code-test failure; no Production deployment was performed.
 - QA313 characterizes PostgreSQL JSONB duplicate-key handling and the existing idempotency contract. It does not establish a production incident or vulnerability. No Supabase Production data/schema/RLS/grants/secrets, SQL migration, persistent PostgreSQL configuration, Production deployment, PR merge, force-push, or branch-protection change.
+
+
+
+### QA314 duplicate JSON keys ending in JSON null inside JSONB array objects — 10 novembre 2026
+
+- Added a disposable PostgreSQL 16 integration regression for duplicate keys ending in JSON null inside array objects in both `p_input` and `p_attributes`. A separate committed transaction with the canonical explicit-null array objects must replay the exact original result; same-key retries omitting either property must raise `IDEMPOTENCY_KEY_REUSE`.
+- The test asserts recursive last-key-wins JSONB canonicalization, explicit-null values, array length/order, distinct transaction IDs, canonical request hash, persisted result, and exactly one idempotency row, execution, offer, and matching success event.
+- Code commit: `b7b78136215a030fd4372ff7155062a74d3549f1`. QIMA CI #1094 and CodeQL #1046 were **QUEUED** for this SHA when recorded. Their results are intentionally not inferred from earlier QA313 runs.
+- The Preview Comments check succeeded; the separate Vercel deployment status remained pending. No Production deployment or production database changes.

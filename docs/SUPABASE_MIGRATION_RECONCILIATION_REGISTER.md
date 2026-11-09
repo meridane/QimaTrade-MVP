@@ -965,3 +965,12 @@ The QA281 matrix and all three register updates were revalidated on PR HEAD `9e4
 - QIMA CodeQL #1044 (https://github.com/meridane/QimaTrade-MVP/actions/runs/42664781025) completed SUCCESS; JavaScript/TypeScript analysis results were uploaded and processing completed.
 - GitHub's Vercel status on the code HEAD reported the Free-plan api-deployments-free-per-day rate limit. This is recorded as a Preview quota limitation, not a code-test failure; no Production deployment was performed.
 - QA313 characterizes PostgreSQL JSONB duplicate-key handling and the existing idempotency contract. It does not establish a production incident or vulnerability. No Supabase Production data/schema/RLS/grants/secrets, SQL migration, persistent PostgreSQL configuration, Production deployment, PR merge, force-push, or branch-protection change.
+
+
+
+### QA314 duplicate JSON keys ending in JSON null inside JSONB array objects — 10 novembre 2026
+
+- Added a disposable PostgreSQL 16 regression for duplicate keys ending in JSON null inside objects within JSONB arrays in `p_input` and `p_attributes`. A canonical explicit-null retry in a distinct committed transaction must replay the original result; retries omitting either first-element property must be rejected with `IDEMPOTENCY_KEY_REUSE`.
+- The regression verifies array order and length, explicit-null canonicalization, the unchanged request hash/result, and exactly one completed idempotency row, execution, offer, and success event.
+- Code commit: `b7b78136215a030fd4372ff7155062a74d3549f1`. QIMA CI #1094 and CodeQL #1046 were **QUEUED** when this entry was written; no final CI result is claimed here.
+- No Supabase Production data/schema/RLS/grants/secrets, migration, persistent PostgreSQL configuration, or Production deployment was modified.
