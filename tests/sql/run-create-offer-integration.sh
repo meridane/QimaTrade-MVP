@@ -8589,6 +8589,65 @@ BEGIN
       RAISE EXCEPTION 'QA314 absent p_attributes array property returned unexpected error: %', v_error;
     END IF;
   END;
+
+  BEGIN
+    PERFORM public.execute_create_offer_v1(
+      p_tenant_id => '10000000-0000-4000-8000-000000000001',
+      p_idempotency_key => 'fixture-qa314-array-duplicate-null',
+      p_input => '{"case":"qa314-array-duplicate-null","items":[{"sku":null,"meta":{}},{"sku":"second","position":2}]}'::jsonb,
+      p_name => 'QA314 JSONB Array Duplicate Null Offer',
+      p_demand_id => '50000000-0000-4000-8000-000000000001',
+      p_product_master_id => '40000000-0000-4000-8000-000000000001',
+      p_provider_actor_id => '30000000-0000-4000-8000-000000000001',
+      p_quantity => 5,
+      p_price => 20.25,
+      p_currency => 'USD',
+      p_conditions => 'qa314-array-duplicate-null',
+      p_market => 'QA',
+      p_geography => 'KR',
+      p_attributes => '{"labels":[{"name":null,"metadata":{"verified":null}},{"name":"second","rank":2}]} '::jsonb,
+      p_documentation_status => 'verified',
+      p_lifecycle => 'draft',
+      p_offer_type => 'supplier_offer',
+      p_pricing_model => 'fixed'
+    );
+    RAISE EXCEPTION 'QA314 expected IDEMPOTENCY_KEY_REUSE when the nested p_input array-object property is absent';
+  EXCEPTION WHEN raise_exception THEN
+    GET STACKED DIAGNOSTICS v_error = MESSAGE_TEXT;
+    IF v_error <> 'IDEMPOTENCY_KEY_REUSE' THEN
+      RAISE EXCEPTION 'QA314 absent nested p_input array property returned unexpected error: %', v_error;
+    END IF;
+  END;
+
+  BEGIN
+    PERFORM public.execute_create_offer_v1(
+      p_tenant_id => '10000000-0000-4000-8000-000000000001',
+      p_idempotency_key => 'fixture-qa314-array-duplicate-null',
+      p_input => '{"case":"qa314-array-duplicate-null","items":[{"sku":null,"meta":{"state":null}},{"sku":"second","position":2}]}'::jsonb,
+      p_name => 'QA314 JSONB Array Duplicate Null Offer',
+      p_demand_id => '50000000-0000-4000-8000-000000000001',
+      p_product_master_id => '40000000-0000-4000-8000-000000000001',
+      p_provider_actor_id => '30000000-0000-4000-8000-000000000001',
+      p_quantity => 5,
+      p_price => 20.25,
+      p_currency => 'USD',
+      p_conditions => 'qa314-array-duplicate-null',
+      p_market => 'QA',
+      p_geography => 'KR',
+      p_attributes => '{"labels":[{"name":null,"metadata":{}},{"name":"second","rank":2}]} '::jsonb,
+      p_documentation_status => 'verified',
+      p_lifecycle => 'draft',
+      p_offer_type => 'supplier_offer',
+      p_pricing_model => 'fixed'
+    );
+    RAISE EXCEPTION 'QA314 expected IDEMPOTENCY_KEY_REUSE when the nested p_attributes array-object property is absent';
+  EXCEPTION WHEN raise_exception THEN
+    GET STACKED DIAGNOSTICS v_error = MESSAGE_TEXT;
+    IF v_error <> 'IDEMPOTENCY_KEY_REUSE' THEN
+      RAISE EXCEPTION 'QA314 absent nested p_attributes array property returned unexpected error: %', v_error;
+    END IF;
+  END;
+
 END
 $qa314_reject$;
 SQL
@@ -8600,8 +8659,10 @@ DO $qa314$
 DECLARE
   v_input jsonb := '{"case":"qa314-array-duplicate-null","items":[{"sku":null,"meta":{"state":null}},{"sku":"second","position":2}]}'::jsonb;
   v_input_absent jsonb := '{"case":"qa314-array-duplicate-null","items":[{"meta":{"state":null}},{"sku":"second","position":2}]}'::jsonb;
+  v_input_nested_absent jsonb := '{"case":"qa314-array-duplicate-null","items":[{"sku":null,"meta":{}},{"sku":"second","position":2}]}'::jsonb;
   v_attributes jsonb := '{"labels":[{"name":null,"metadata":{"verified":null}},{"name":"second","rank":2}]}'::jsonb;
   v_attributes_absent jsonb := '{"labels":[{"metadata":{"verified":null}},{"name":"second","rank":2}]}'::jsonb;
+  v_attributes_nested_absent jsonb := '{"labels":[{"name":null,"metadata":{}},{"name":"second","rank":2}]}'::jsonb;
   v_expected_hash text;
   v_result jsonb;
   v_execution_id uuid;
@@ -8631,7 +8692,9 @@ BEGIN
   END IF;
 
   IF (v_input_absent #> '{items,0,sku}') IS NOT NULL
-     OR (v_attributes_absent #> '{labels,0,name}') IS NOT NULL THEN
+     OR (v_attributes_absent #> '{labels,0,name}') IS NOT NULL
+     OR (v_input_nested_absent #> '{items,0,meta,state}') IS NOT NULL
+     OR (v_attributes_nested_absent #> '{labels,0,metadata,verified}') IS NOT NULL THEN
     RAISE EXCEPTION 'QA314 absent-property controls unexpectedly contain the explicit-null array properties';
   END IF;
 
