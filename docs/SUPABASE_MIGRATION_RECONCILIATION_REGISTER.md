@@ -882,3 +882,14 @@ The QA281 matrix and all three register updates were revalidated on PR HEAD `9e4
 - Whether mathematically equal numeric values with different display scales should be treated as the same idempotent request remains an API/product-contract decision. No runtime normalization or migration change is included pending that decision.
 - Code test commit: 47f07ad59637d81e92c0ce2c842fc1b1562c3a0f. QIMA CI #1080 and CodeQL #1032 were queued/in progress when this entry was added; no pass is claimed until their results are checked for the exact commit.
 - QA310 uses only the disposable PostgreSQL integration database. It does not establish a production incident or vulnerability. No Supabase Production data/schema/RLS/grants/secrets, migration, persistent PostgreSQL configuration, Production deployment, PR merge, force-push, or branch-protection change.
+
+
+### QA310 final validation follow-up — 10 November 2026
+
+- Validated code commit 47f07ad59637d81e92c0ce2c842fc1b1562c3a0f.
+- QIMA CI #1080 (https://github.com/meridane/QimaTrade-MVP/actions/runs/42642188204) **SUCCESS**. TypeScript, production build, dependency audit, Chromium and **336/336 Playwright tests** passed. The disposable PostgreSQL 16 integration job passed all CREATE_OFFER, legacy-message RLS, participant self-enrollment RLS, cleanup, and prepared-transaction checks. Its log explicitly reports the QA310 assertions: JSONB 1 and 1.0 compare equal, while the current text-based request hash distinguishes the p_input, price, and quantity numeric scales; all three changed-scale retries were rejected and the original records remained unchanged.
+- QIMA CodeQL #1032 (https://github.com/meridane/QimaTrade-MVP/actions/runs/42642188233) **SUCCESS**; JavaScript/TypeScript analysis and result upload completed.
+- The combined Vercel status for the code commit was **FAILURE**. A READY Preview for this commit is not claimed; the combined-status response did not provide a failure reason.
+- The PostgreSQL log also shows pre-existing QA111 and QA112 coverage for numeric scale in p_input/p_attributes and p_price/p_quantity. QA310 is therefore a consolidated cross-check with explicit snapshots of all three first results, not a newly discovered production issue or a claim that the underlying numeric-scale behavior was previously untested.
+- The current behavior remains a contract question: whether mathematically equal numbers with different display scales should share an idempotency key. No runtime normalization is introduced without an explicit API/product decision.
+- QA310 was executed only against the disposable PostgreSQL 16 CI service. It does not establish a production incident or vulnerability. No Supabase Production data/schema/RLS/grants/secrets, migration, persistent PostgreSQL configuration, Production deployment, PR merge, force-push, or branch-protection change.
