@@ -2380,3 +2380,16 @@ The canonical register's QA184 tail was inspected from commit `0eca4833bae236f32
 - QIMA CodeQL #995 (https://github.com/meridane/QimaTrade-MVP/actions/runs/42538857062): **SUCCESS**; JavaScript/TypeScript analysis and result upload completed successfully.
 - Vercel on final documentation HEAD `5b55f749e4fceb8727d543cb9a8ef7974da9b9bd`: **SUCCESS** (Preview only; no Production deployment).
 - The CI log contains expected negative-test PostgreSQL messages such as `IDEMPOTENCY_KEY_REUSE`, a deliberately missing relation, and prepared-transaction cleanup guards; the corresponding regression jobs completed **SUCCESS**. These are expected test assertions, not observed production incidents.
+
+
+### QA295 — no fall-through from an invalid first PostgREST row (9 November 2026)
+
+- Test location: `tests/e2e/create-offer-route-contract.spec.ts`; code commit: `dab975ab38decc74102d4f4390d07a52a0e0d471`.
+- Extended the existing invalid action-definition matrix with two multi-row fixtures: `[null, valid CREATE_OFFER definition]` and `[published PUBLISH_PRODUCT_REQUEST definition, published CREATE_OFFER definition]`.
+- The runtime contract selects only the first PostgREST row (`Array.isArray(data) ? data[0] : data)); it must not scan later rows or fall through to a later valid definition when the first row is null or mismatched.
+- Both scenarios must return exactly HTTP 400 with `{"error":"ACTION_NOT_PUBLISHED"}`, make one authenticated `get_action_definition_v1` call with `p_action_key = CREATE_OFFER` and `p_version = 1`, stop at definition lookup, and make zero `execute_create_offer_v1` calls. Existing empty-array, null-first-row, wrong-first-row, and valid single-row tests remain in the same contract suite.
+- No application runtime, route, action-engine, SQL, migration, production data, or persistent configuration was changed. QA295 adds synthetic route-contract regression fixtures; they are not evidence of a production incident or confirmed vulnerability.
+- QIMA CI #1045 (https://github.com/meridane/QimaTrade-MVP/actions/runs/42539491350): **SUCCESS**; Playwright passed **328/328**. npm ci, dependency audit enforcement at the configured `high` threshold, TypeScript, Next.js production build, Chromium installation, browser tests, isolated CREATE_OFFER PostgreSQL integration/concurrency, legacy-message RLS, participant self-enrollment RLS, disposable-database cleanup, and prepared-transaction QA266/QA267 restoration all completed successfully.
+- QIMA CodeQL #997 (https://github.com/meridane/QimaTrade-MVP/actions/runs/42539491319): **SUCCESS**; JavaScript/TypeScript analysis and result upload completed successfully.
+- Vercel combined status on code commit `dab975ab38decc74102d4f4390d07a52a0e0d471`: **FAILURE** with `upgradeToPro=build-rate-limit` (Preview rate limit; not a GitHub build failure). No Preview READY status is confirmed for this commit; no Production deployment was performed.
+- Safety: no Supabase production data, migrations, schema, RLS policies, grants, secrets, or persistent PostgreSQL configuration changed; no Production deployment, PR merge, force-push, or branch-protection change.
