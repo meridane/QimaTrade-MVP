@@ -2588,3 +2588,13 @@ The canonical register's QA184 tail was inspected from commit `0eca4833bae236f32
 - The `Vercel Preview Comments` check completed successfully. The separate combined `Vercel` status remained **FAILURE** with `api-deployments-free-per-day`; a READY Preview deployment for this final HEAD is therefore not claimed.
 - This validation is tied to the exact PR head above. Although the follow-up commits only change documentation, this PR also contains non-documentation code changes, so GitHub's pull_request path filtering still queues CI and CodeQL on the updated PR head. The runs for documentation HEAD `02cc31056308acbe61ff509fccc0b922bfaf48d8` were observed queued after this follow-up; they are distinct from the completed validation of `efde24b491e0ba70c0d38394f9f34f8bfe439e67` recorded above.
 - QA309 is a disposable PostgreSQL 16 regression test, not evidence of a production incident or vulnerability. No Supabase Production data/schema/RLS/grants/secrets, SQL migration, persistent PostgreSQL configuration, Production deployment, PR merge, force-push, or branch-protection change.
+
+
+### QA310 — numeric-scale idempotency characterization — 10 November 2026
+
+- Added a disposable PostgreSQL 16 integration scenario for three isolated same-key retries: a numeric value inside p_input (1 versus 1.0), p_price (21 versus 21.0), and p_quantity (2 versus 2.0).
+- The characterization asserts PostgreSQL JSONB equality for 1 and 1.0, compares the corresponding JSONB text/hash representations, and exercises execute_create_offer_v1 with each changed representation after the first request has committed.
+- The current implementation is expected to distinguish the text-based effective-request hashes and return IDEMPOTENCY_KEY_REUSE for each changed-scale retry, while preserving the original hash, result, completed execution, offer, and success event. This is a characterization of the current implementation, not a claim that the behavior is the desired product contract.
+- Whether mathematically equal numeric values with different display scales should be treated as the same idempotent request remains an API/product-contract decision. No runtime normalization or migration change is included pending that decision.
+- Code test commit: 47f07ad59637d81e92c0ce2c842fc1b1562c3a0f. QIMA CI #1080 and CodeQL #1032 were queued/in progress when this entry was added; no pass is claimed until their results are checked for the exact commit.
+- QA310 uses only the disposable PostgreSQL integration database. It does not establish a production incident or vulnerability. No Supabase Production data/schema/RLS/grants/secrets, migration, persistent PostgreSQL configuration, Production deployment, PR merge, force-push, or branch-protection change.
