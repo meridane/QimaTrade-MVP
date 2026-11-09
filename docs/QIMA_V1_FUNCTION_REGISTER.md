@@ -6759,3 +6759,13 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - Baseline on exact reviewed HEAD: QIMA CI #1099 **SUCCESS** (both browser/build and PostgreSQL integration jobs; Playwright **336/336**), CodeQL #1051 **SUCCESS**, combined Vercel status **SUCCESS**. These checks do not validate live ACLs.
 - No production vulnerability is confirmed. Next gate: restore authorized read-only catalog access or have a project maintainer run the catalog-only SELECTs in the detailed report; only then decide whether a minimal new migration and isolated positive/negative tests are justified.
 - No Supabase Production data/schema/RLS/grants/secrets, SQL migration, persistent PostgreSQL configuration, Production deployment, PR merge, force-push, or branch-protection change.
+
+
+### Explicit RPC EXECUTE ACL hardening prepared — 10 November 2026
+
+- Rechecked the defining migrations and authenticated call sites for `current_profile_actor_id()`, `dt_select_product_master(uuid, uuid, uuid)`, and `execute_create_offer_v1(...)`. Each has an authenticated caller, while the branch migrations do not explicitly revoke the PostgreSQL default PUBLIC EXECUTE privilege. No `ALTER DEFAULT PRIVILEGES` statement exists in the 18 reviewed migrations. This is a clean-install source configuration observation, not proof of the live project's effective ACL.
+- Added `supabase/migrations/20261110070000_harden_public_rpc_execute_acl.sql`: revoke all function privileges from PUBLIC and `anon`, then explicitly grant EXECUTE to `authenticated` for those three entry points. The low-level `create_offer_v1(...)` remains unchanged pending effective owner/catalog verification.
+- Added `tests/sql/function-execute-acl-regression.sql` and `tests/sql/run-function-execute-acl-regression.sh`. The runner is restricted to the dedicated loopback `qima_test` CI URL, creates a separate `qima_acl_test` database, applies the migration twice, verifies PUBLIC/anon denial and authenticated EXECUTE, and cleans up its temporary database and any roles it created.
+- Added the regression runner to the PostgreSQL integration job. This test validates the migration on disposable PostgreSQL; it does not validate the live Supabase catalog.
+- Live Supabase catalog verification remains blocked by PostgreSQL `28P01`; effective Production ACLs remain unverified. No Production vulnerability is confirmed and the migration has not been applied to Supabase Production.
+- Validation on this code commit: **pending**. No Supabase Production data/schema/RLS/grants/secrets, production migration, persistent PostgreSQL configuration, Production deployment, PR merge, force-push, or branch-protection change.

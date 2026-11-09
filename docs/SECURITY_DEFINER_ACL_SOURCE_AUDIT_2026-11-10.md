@@ -12,7 +12,7 @@
 
 The migration source shows several functions for which the branch does not explicitly establish a non-PUBLIC execute ACL, and several SECURITY DEFINER functions use `SET search_path = public`. These are source-level hardening candidates, not proof of effective grants or exploitability. `CREATE OR REPLACE FUNCTION` preserves an existing function ACL, and grants in migrations are additive; the effective catalog state must be inspected before changing privileges.
 
-No SQL migration was applied, no production data or schema was changed, and no function ACL or search_path was modified.
+No migration was applied to Supabase Production, no production data or schema was changed, and no live Supabase function ACL or search_path was modified. The follow-up section below records a repository-only hardening migration and its disposable-CI regression.
 
 ## Validation baseline read before this audit
 
@@ -105,7 +105,7 @@ SELECT
 FROM (VALUES ('anon'), ('authenticated')) AS roles(role_name);
 ```
 
-The resulting catalog output should be reviewed before preparing any targeted ACL or search_path migration. In particular, do not bulk-revoke EXECUTE from helpers used by authenticated RLS policies.
+The resulting catalog output should be reviewed before applying any targeted ACL or search_path migration to Supabase Production. In particular, do not bulk-revoke EXECUTE from helpers used by authenticated RLS policies.
 
 ## Next gate
 
@@ -119,3 +119,20 @@ The resulting catalog output should be reviewed before preparing any targeted AC
 ## Safety statement
 
 This is a source-level configuration review with a failed live-catalog connection attempt. It does **not** confirm an exploitable vulnerability or production incident. No Supabase Production data/schema/policy/grant/secret, SQL migration, persistent PostgreSQL configuration, deployment, PR merge, force-push, or branch-protection setting was changed.
+
+
+## Follow-up: explicit RPC EXECUTE ACL hardening prepared in the PR
+
+A source-level review of the three API entry points found that their defining migrations create/replace the functions and grant EXECUTE to `authenticated`, but do not explicitly revoke the PostgreSQL default PUBLIC EXECUTE privilege. The 18 branch migrations contain no `ALTER DEFAULT PRIVILEGES` statement. On a clean PostgreSQL installation with default function ACLs, newly created functions receive EXECUTE for PUBLIC; a direct grant to `anon` can also survive unless it is explicitly revoked. This is a **fresh-install source configuration observation**, not evidence of the effective ACL on the live Supabase project.
+
+A narrowly scoped additive migration has been prepared:
+
+- `public.current_profile_actor_id()`: revoke all from PUBLIC and anon; explicitly grant authenticated.
+- `public.dt_select_product_master(uuid, uuid, uuid)`: revoke all from PUBLIC and anon; explicitly grant authenticated.
+- `public.execute_create_offer_v1(...)`: revoke all from PUBLIC and anon; explicitly grant authenticated.
+
+The authenticated grants preserve the callers found in the application: the offers INSERT RLS helper, the signed-in Decision Tree selection route, and the authenticated CREATE_OFFER route/server action. The low-level `create_offer_v1(...)` ACL is deliberately unchanged pending effective-owner/catalog verification.
+
+A dedicated regression runner creates a separate `qima_acl_test` database on the loopback PostgreSQL CI service, defines stub functions with PostgreSQL's default PUBLIC ACL plus a direct anon grant, applies the migration twice, and asserts that PUBLIC/anon no longer have EXECUTE while authenticated retains an explicit EXECUTE grant. The runner refuses any DATABASE_URL other than the dedicated loopback `qima_test` service and removes its temporary database and any roles it created.
+
+This regression validates the migration's ACL semantics on disposable PostgreSQL only. It does not read or change the live Supabase catalog. The live read-only catalog query remains blocked by PostgreSQL `28P01` authentication failure, so effective Production ACLs remain unverified and no Production vulnerability is confirmed. The migration is committed to the PR only; it has not been applied to Supabase Production.
