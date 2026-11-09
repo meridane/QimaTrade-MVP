@@ -2126,6 +2126,122 @@ test("CREATE_OFFER route does not retry a lost post-commit response and a same-k
   expect(replayState.replayRpcInput).toEqual(replayState.firstRpcInput);
 });
 
+test("CREATE_OFFER route rejects a changed payload after a lost post-commit response without replacing the committed result", async () => {
+  const bearer = "Bearer qima-route-test-token";
+  const idempotencyKey = "qa305-lost-response-changed-payload";
+  const expectedPaths = [
+    "/auth/v1/user",
+    "/rest/v1/profiles",
+    "/rest/v1/dt_memberships",
+    "/rest/v1/rpc/get_action_definition_v1",
+    "/rest/v1/rpc/execute_create_offer_v1",
+  ];
+  const replayState: CreateOfferReplayState = {
+    committed: false,
+    result: null,
+    createCount: 0,
+    replayCount: 0,
+    firstRpcInput: null,
+    replayRpcInput: null,
+  };
+  const invoke = (price: number, loseResponse = false) =>
+    postCreateOffer(
+      "USD",
+      {
+        idempotencyKey,
+        conditions: "qa305-committed-before-response-loss",
+        price,
+      },
+      undefined,
+      undefined,
+      "succeeded",
+      bearer,
+      200,
+      200,
+      200,
+      undefined,
+      false,
+      200,
+      200,
+      undefined,
+      undefined,
+      undefined,
+      null,
+      null,
+      null,
+      null,
+      false,
+      loseResponse,
+      replayState,
+    );
+
+  const firstAttempt = await invoke(10, true);
+  expect(firstAttempt.status).toBe(500);
+  expect(firstAttempt.body).toEqual({ error: "ACTION_FAILED" });
+  expect(firstAttempt.wwwAuthenticate).toBeNull();
+  expect(JSON.stringify(firstAttempt.body)).not.toMatch(
+    /ECONNRESET|CREATE_OFFER_RESPONSE_LOST_AFTER_COMMIT_PRIVATE_SENTINEL|IDEMPOTENCY_KEY_REUSE/,
+  );
+  expect(firstAttempt.requests.map((request) => request.path)).toEqual(expectedPaths);
+  expect(
+    firstAttempt.requests.filter(
+      (request) => request.path === "/rest/v1/rpc/execute_create_offer_v1",
+    ),
+  ).toHaveLength(1);
+  expect(replayState).toMatchObject({
+    committed: true,
+    createCount: 1,
+    replayCount: 0,
+  });
+  expect(replayState.firstRpcInput).toMatchObject({
+    p_idempotency_key: idempotencyKey,
+    p_input: expect.objectContaining({
+      price: 10,
+      conditions: "qa305-committed-before-response-loss",
+    }),
+  });
+
+  const changedPayloadAttempt = await invoke(12);
+  expect(changedPayloadAttempt.status).toBe(400);
+  expect(changedPayloadAttempt.body).toEqual({ error: "IDEMPOTENCY_KEY_REUSE" });
+  expect(changedPayloadAttempt.wwwAuthenticate).toBeNull();
+  expect(JSON.stringify(changedPayloadAttempt.body)).not.toMatch(
+    /PRIVATE|XX000|CREATE_OFFER_RESPONSE_LOST_AFTER_COMMIT/i,
+  );
+  expect(changedPayloadAttempt.requests.map((request) => request.path)).toEqual(expectedPaths);
+  expect(changedPayloadAttempt.requests.every((request) => request.authorization === bearer)).toBe(true);
+  expect(
+    changedPayloadAttempt.requests.filter(
+      (request) => request.path === "/rest/v1/rpc/execute_create_offer_v1",
+    ),
+  ).toHaveLength(1);
+
+  expect(replayState).toMatchObject({
+    committed: true,
+    createCount: 1,
+    replayCount: 1,
+  });
+  expect(replayState.replayRpcInput).toMatchObject({
+    p_idempotency_key: idempotencyKey,
+    p_input: expect.objectContaining({
+      price: 12,
+      conditions: "qa305-committed-before-response-loss",
+    }),
+  });
+  expect(replayState.replayRpcInput).not.toEqual(replayState.firstRpcInput);
+  expect(replayState.firstRpcInput).toMatchObject({
+    p_idempotency_key: idempotencyKey,
+    p_input: expect.objectContaining({ price: 10 }),
+  });
+  expect(replayState.result).toMatchObject({
+    executionId: "10000000-0000-4000-8000-000000000001",
+    status: "succeeded",
+    objectId: "50000000-0000-4000-8000-000000000001",
+    result: { offerId: "70000000-0000-4000-8000-000000000001" },
+  });
+  expect(replayState.createCount).toBe(1);
+});
+
 test("CREATE_OFFER route masks execution RPC errors across upstream HTTP statuses", async () => {
   const bearer = "Bearer qima-route-test-token";
 
