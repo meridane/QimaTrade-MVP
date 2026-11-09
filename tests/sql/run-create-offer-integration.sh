@@ -6506,3 +6506,221 @@ SELECT 'QA298 cross-transaction replay returned the exact persisted JSONB result
 SQL
 
 echo "QA298 committed first-time CREATE_OFFER in one PostgreSQL transaction; a second independent transaction replayed the identical JSONB result and persisted exactly one idempotency row, execution, offer, and success event."
+
+
+# QA299: after QA298 commits a successful request, a second independent
+# transaction reuses the same tenant/key with a changed effective payload.
+# It must fail with IDEMPOTENCY_KEY_REUSE and leave the committed result intact.
+qa299_changed_call=$(cat <<'SQL'
+BEGIN;
+SET application_name = 'qima-qa299-changed-payload-transaction';
+SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+SET ROLE authenticated;
+SELECT txid_current();
+SELECT public.execute_create_offer_v1(
+  p_tenant_id => '10000000-0000-4000-8000-000000000001',
+  p_idempotency_key => 'fixture-qa298-cross-transaction-replay',
+  p_input => '{"case":"qa298-cross-transaction-replay","price":32.0,"conditions":"cross-transaction-modified"}'::jsonb,
+  p_name => 'QA298 Cross Transaction Replay Offer',
+  p_demand_id => '50000000-0000-4000-8000-000000000001',
+  p_product_master_id => '40000000-0000-4000-8000-000000000001',
+  p_provider_actor_id => '30000000-0000-4000-8000-000000000001',
+  p_quantity => 7,
+  p_price => 32.0,
+  p_currency => 'EUR',
+  p_conditions => 'cross-transaction-modified',
+  p_market => 'QA',
+  p_geography => 'KR',
+  p_attributes => '{"source":"qa298"}'::jsonb,
+  p_documentation_status => 'verified'
+);
+COMMIT;
+SQL
+)
+
+# Capture the committed request hash before attempting the changed payload.
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t -c "
+  SELECT request_hash
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-qa298-cross-transaction-replay'
+    AND status = 'COMPLETED';
+" > /tmp/qima-qa299-original-hash.log
+qa299_hash_rows=$(wc -l < /tmp/qima-qa299-original-hash.log | tr -d '[:space:]')
+if [[ "$qa299_hash_rows" != "1" || ! -s /tmp/qima-qa299-original-hash.log ]]; then
+  echo "QA299 expected exactly one committed request hash before the changed-payload attempt." >&2
+  cat /tmp/qima-qa299-original-hash.log >&2
+  exit 1
+fi
+
+set +e
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -q -A -t \
+  -c "$qa299_changed_call" > /tmp/qima-qa299-changed.log 2>&1
+qa299_changed_status=$?
+set -e
+
+qa299_changed_txid=$(sed -n '1p' /tmp/qima-qa299-changed.log | tr -d '[:space:]')
+if [[ "$qa299_changed_status" -eq 0 ]] ||
+   ! grep -Fq "IDEMPOTENCY_KEY_REUSE" /tmp/qima-qa299-changed.log; then
+  echo "QA299 changed payload after a committed success must fail with IDEMPOTENCY_KEY_REUSE (exit=$qa299_changed_status)." >&2
+  cat /tmp/qima-qa299-changed.log >&2
+  exit 1
+fi
+
+if [[ ! "$qa299_changed_txid" =~ ^[0-9]+$ ||
+      "$qa299_changed_txid" == "$qa298_first_txid" ]]; then
+  echo "QA299 expected the rejected changed-payload attempt to run in a distinct PostgreSQL transaction; first='$qa298_first_txid', changed='$qa299_changed_txid'." >&2
+  cat /tmp/qima-qa299-changed.log >&2
+  exit 1
+fi
+
+# The rejected transaction must not replace the committed JSONB result or hash.
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t -c "
+  SELECT result::text
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-qa298-cross-transaction-replay'
+    AND status = 'COMPLETED';
+" > /tmp/qima-qa299-stored-result.log
+if ! cmp -s /tmp/qima-qa298-stored-result.log /tmp/qima-qa299-stored-result.log; then
+  echo "QA299 rejected changed payload altered the committed idempotency result." >&2
+  diff -u /tmp/qima-qa298-stored-result.log /tmp/qima-qa299-stored-result.log >&2 || true
+  exit 1
+fi
+
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t -c "
+  SELECT request_hash
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-qa298-cross-transaction-replay'
+    AND status = 'COMPLETED';
+" > /tmp/qima-qa299-current-hash.log
+if ! cmp -s /tmp/qima-qa299-original-hash.log /tmp/qima-qa299-current-hash.log; then
+  echo "QA299 rejected changed payload altered the committed request hash." >&2
+  diff -u /tmp/qima-qa299-original-hash.log /tmp/qima-qa299-current-hash.log >&2 || true
+  exit 1
+fi
+
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 <<'SQL'
+DO $qa299$
+DECLARE
+  v_result jsonb;
+  v_execution_id uuid;
+  v_offer_id uuid;
+  v_count integer;
+BEGIN
+  SELECT result INTO v_result
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-qa298-cross-transaction-replay'
+    AND status = 'COMPLETED';
+
+  IF NOT FOUND OR jsonb_typeof(v_result) IS DISTINCT FROM 'object'
+     OR v_result->>'status' IS DISTINCT FROM 'succeeded'
+     OR v_result->>'objectType' IS DISTINCT FROM 'Offer'
+     OR nullif(v_result->>'executionId', '') IS NULL
+     OR nullif(v_result->>'objectId', '') IS NULL THEN
+    RAISE EXCEPTION 'QA299 expected the original committed object-shaped success result to remain intact, got %',
+      coalesce(v_result::text, '<missing>');
+  END IF;
+
+  v_execution_id := (v_result->>'executionId')::uuid;
+  v_offer_id := (v_result->>'objectId')::uuid;
+
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-qa298-cross-transaction-replay'
+    AND status = 'COMPLETED'
+    AND execution_id = v_execution_id
+    AND result = v_result
+    AND completed_at IS NOT NULL;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA299 expected exactly one unchanged completed idempotency row, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND idempotency_key = 'fixture-qa298-cross-transaction-replay';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA299 expected exactly one execution after the changed-payload rejection, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND id = v_execution_id
+    AND idempotency_key = 'fixture-qa298-cross-transaction-replay'
+    AND status = 'COMPLETED'
+    AND object_type = 'Offer'
+    AND object_id = v_offer_id
+    AND input = '{"case":"qa298-cross-transaction-replay"}'::jsonb
+    AND result = v_result
+    AND completed_at IS NOT NULL;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA299 expected the original completed execution/input/result to remain unchanged, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE name = 'QA298 Cross Transaction Replay Offer';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA299 expected exactly one offer after changed-payload rejection, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE id = v_offer_id
+    AND name = 'QA298 Cross Transaction Replay Offer'
+    AND demand_id = '50000000-0000-4000-8000-000000000001'
+    AND product_master_id = '40000000-0000-4000-8000-000000000001'
+    AND provider_actor_id = '30000000-0000-4000-8000-000000000001'
+    AND quantity = 7
+    AND price = 31.5
+    AND currency = 'EUR'
+    AND conditions = 'cross-transaction'
+    AND market = 'QA'
+    AND geography = 'KR'
+    AND attributes = '{"source":"qa298"}'::jsonb
+    AND documentation_status = 'verified';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA299 expected the original offer fields to remain unchanged, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE name = 'QA298 Cross Transaction Replay Offer'
+    AND price = 32.0;
+  IF v_count <> 0 THEN
+    RAISE EXCEPTION 'QA299 rejected changed payload must not create or mutate an offer to the changed price, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_events
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND execution_id = v_execution_id
+    AND event_type = 'ACTION_SUCCEEDED'
+    AND object_type = 'Offer'
+    AND object_id = v_offer_id
+    AND payload = v_result;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA299 expected exactly one unchanged ACTION_SUCCEEDED event, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_events e
+  JOIN public.action_executions x
+    ON x.id = e.execution_id
+   AND x.tenant_id = e.tenant_id
+  WHERE x.tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND x.idempotency_key = 'fixture-qa298-cross-transaction-replay';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA299 rejected changed payload must not create an additional event, found %', v_count;
+  END IF;
+END
+$qa299$;
+SELECT 'QA299 changed payload after a committed CREATE_OFFER was rejected with IDEMPOTENCY_KEY_REUSE in a distinct transaction; original hash/result/offer/execution/event remained unchanged with no duplicates' AS result;
+SQL
+
+echo "QA299 rejected a changed effective payload after QA298 committed the original request; the second transaction received IDEMPOTENCY_KEY_REUSE and left the original idempotency hash/result and single offer/execution/success event unchanged."
