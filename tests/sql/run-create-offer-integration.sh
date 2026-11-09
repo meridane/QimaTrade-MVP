@@ -8083,6 +8083,8 @@ SQL
 echo "QA312 confirmed that duplicate JSON object keys inside arrays in p_input and p_attributes collapse to PostgreSQL JSONB's last-value representation; a second committed transaction replayed the exact result without duplicates."
 
 
+
+
 # QA313: duplicate object keys whose final values are JSON null must collapse
 # to the canonical explicit-null representation. An equivalent explicit-null
 # retry replays; omitting the same properties is a changed payload and must be
@@ -8189,6 +8191,76 @@ if ! cmp -s /tmp/qima-qa313-replay-result.log /tmp/qima-qa313-stored-result.log;
   exit 1
 fi
 
+# Changed-payload retries execute in a fresh authenticated session. This keeps
+# the RPC's JWT/role preconditions identical to the first-time and replay calls.
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 <<'SQL'
+SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+SET ROLE authenticated;
+DO $qa313_reject$
+DECLARE
+  v_error text;
+BEGIN
+  BEGIN
+    PERFORM public.execute_create_offer_v1(
+      p_tenant_id => '10000000-0000-4000-8000-000000000001',
+      p_idempotency_key => 'fixture-qa313-jsonb-duplicate-null',
+      p_input => '{"case":"qa313-jsonb-duplicate-null","nested":{}}'::jsonb,
+      p_name => 'QA313 JSONB Duplicate Null Offer',
+      p_demand_id => '50000000-0000-4000-8000-000000000001',
+      p_product_master_id => '40000000-0000-4000-8000-000000000001',
+      p_provider_actor_id => '30000000-0000-4000-8000-000000000001',
+      p_quantity => 4,
+      p_price => 19.25,
+      p_currency => 'USD',
+      p_conditions => 'qa313-jsonb-duplicate-null',
+      p_market => 'QA',
+      p_geography => 'KR',
+      p_attributes => '{"label":null,"metadata":{"verified":null}}'::jsonb,
+      p_documentation_status => 'verified',
+      p_lifecycle => 'draft',
+      p_offer_type => 'supplier_offer',
+      p_pricing_model => 'fixed'
+    );
+    RAISE EXCEPTION 'QA313 expected IDEMPOTENCY_KEY_REUSE for absent p_input properties';
+  EXCEPTION WHEN raise_exception THEN
+    GET STACKED DIAGNOSTICS v_error = MESSAGE_TEXT;
+    IF v_error <> 'IDEMPOTENCY_KEY_REUSE' THEN
+      RAISE EXCEPTION 'QA313 absent p_input retry returned unexpected error: %', v_error;
+    END IF;
+  END;
+
+  BEGIN
+    PERFORM public.execute_create_offer_v1(
+      p_tenant_id => '10000000-0000-4000-8000-000000000001',
+      p_idempotency_key => 'fixture-qa313-jsonb-duplicate-null',
+      p_input => '{"case":"qa313-jsonb-duplicate-null","optional":null,"nested":{"state":null}}'::jsonb,
+      p_name => 'QA313 JSONB Duplicate Null Offer',
+      p_demand_id => '50000000-0000-4000-8000-000000000001',
+      p_product_master_id => '40000000-0000-4000-8000-000000000001',
+      p_provider_actor_id => '30000000-0000-4000-8000-000000000001',
+      p_quantity => 4,
+      p_price => 19.25,
+      p_currency => 'USD',
+      p_conditions => 'qa313-jsonb-duplicate-null',
+      p_market => 'QA',
+      p_geography => 'KR',
+      p_attributes => '{"metadata":{}}'::jsonb,
+      p_documentation_status => 'verified',
+      p_lifecycle => 'draft',
+      p_offer_type => 'supplier_offer',
+      p_pricing_model => 'fixed'
+    );
+    RAISE EXCEPTION 'QA313 expected IDEMPOTENCY_KEY_REUSE for absent p_attributes properties';
+  EXCEPTION WHEN raise_exception THEN
+    GET STACKED DIAGNOSTICS v_error = MESSAGE_TEXT;
+    IF v_error <> 'IDEMPOTENCY_KEY_REUSE' THEN
+      RAISE EXCEPTION 'QA313 absent p_attributes retry returned unexpected error: %', v_error;
+    END IF;
+  END;
+END
+$qa313_reject$;
+SQL
+
 psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 <<'SQL'
 DO $qa313$
 DECLARE
@@ -8197,7 +8269,6 @@ DECLARE
   v_attributes jsonb := '{"label":null,"metadata":{"verified":null}}'::jsonb;
   v_attributes_absent jsonb := '{"metadata":{}}'::jsonb;
   v_expected_hash text;
-  v_error text;
   v_result jsonb;
   v_execution_id uuid;
   v_offer_id uuid;
@@ -8227,77 +8298,6 @@ BEGIN
      OR v_attributes_absent #> '{metadata,verified}' IS NOT NULL THEN
     RAISE EXCEPTION 'QA313 absent-property controls unexpectedly contain explicit-null properties';
   END IF;
-
-
-# Execute changed-payload retries in a fresh authenticated session, matching the
-# role/JWT context used by the first-time and canonical replay RPC calls.
-psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 <<'SQL'
-SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
-SET ROLE authenticated;
-DO $qa313_reject$
-DECLARE
-  v_error text;
-BEGIN
-  BEGIN
-    PERFORM public.execute_create_offer_v1(
-      p_tenant_id => '10000000-0000-4000-8000-000000000001',
-      p_idempotency_key => 'fixture-qa313-jsonb-duplicate-null',
-      p_input => v_input_absent,
-      p_name => 'QA313 JSONB Duplicate Null Offer',
-      p_demand_id => '50000000-0000-4000-8000-000000000001',
-      p_product_master_id => '40000000-0000-4000-8000-000000000001',
-      p_provider_actor_id => '30000000-0000-4000-8000-000000000001',
-      p_quantity => 4,
-      p_price => 19.25,
-      p_currency => 'USD',
-      p_conditions => 'qa313-jsonb-duplicate-null',
-      p_market => 'QA',
-      p_geography => 'KR',
-      p_attributes => v_attributes,
-      p_documentation_status => 'verified',
-      p_lifecycle => 'draft',
-      p_offer_type => 'supplier_offer',
-      p_pricing_model => 'fixed'
-    );
-    RAISE EXCEPTION 'QA313 expected IDEMPOTENCY_KEY_REUSE for absent p_input properties';
-  EXCEPTION WHEN raise_exception THEN
-    GET STACKED DIAGNOSTICS v_error = MESSAGE_TEXT;
-    IF v_error <> 'IDEMPOTENCY_KEY_REUSE' THEN
-      RAISE EXCEPTION 'QA313 absent p_input retry returned unexpected error: %', v_error;
-    END IF;
-  END;
-
-  BEGIN
-    PERFORM public.execute_create_offer_v1(
-      p_tenant_id => '10000000-0000-4000-8000-000000000001',
-      p_idempotency_key => 'fixture-qa313-jsonb-duplicate-null',
-      p_input => v_input,
-      p_name => 'QA313 JSONB Duplicate Null Offer',
-      p_demand_id => '50000000-0000-4000-8000-000000000001',
-      p_product_master_id => '40000000-0000-4000-8000-000000000001',
-      p_provider_actor_id => '30000000-0000-4000-8000-000000000001',
-      p_quantity => 4,
-      p_price => 19.25,
-      p_currency => 'USD',
-      p_conditions => 'qa313-jsonb-duplicate-null',
-      p_market => 'QA',
-      p_geography => 'KR',
-      p_attributes => v_attributes_absent,
-      p_documentation_status => 'verified',
-      p_lifecycle => 'draft',
-      p_offer_type => 'supplier_offer',
-      p_pricing_model => 'fixed'
-    );
-    RAISE EXCEPTION 'QA313 expected IDEMPOTENCY_KEY_REUSE for absent p_attributes properties';
-  EXCEPTION WHEN raise_exception THEN
-    GET STACKED DIAGNOSTICS v_error = MESSAGE_TEXT;
-    IF v_error <> 'IDEMPOTENCY_KEY_REUSE' THEN
-      RAISE EXCEPTION 'QA313 absent p_attributes retry returned unexpected error: %', v_error;
-    END IF;
-  END;
-END
-$qa313_reject$;
-SQL
 
   v_expected_hash := md5(jsonb_build_object(
     'input', v_input,
