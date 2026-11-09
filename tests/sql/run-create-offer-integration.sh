@@ -6724,3 +6724,229 @@ SELECT 'QA299 changed payload after a committed CREATE_OFFER was rejected with I
 SQL
 
 echo "QA299 rejected a changed effective payload after QA298 committed the original request; the second transaction received IDEMPOTENCY_KEY_REUSE and left the original idempotency hash/result and single offer/execution/success event unchanged."
+
+# QA308: JSONB object-key order is not a business-payload change. Exercise the
+# same idempotency key from two committed PostgreSQL transactions, changing only
+# the order of top-level and nested keys in p_input and p_attributes.
+qa308_first_call=$(cat <<'SQL'
+BEGIN;
+SET application_name = 'qima-qa308-jsonb-key-order-first';
+SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+SET ROLE authenticated;
+SELECT txid_current(), public.execute_create_offer_v1(
+  p_tenant_id => '10000000-0000-4000-8000-000000000001',
+  p_idempotency_key => 'fixture-qa308-jsonb-key-order-replay',
+  p_input => '{"alpha":1,"nested":{"left":"L","right":"R"},"omega":2}'::jsonb,
+  p_name => 'QA308 JSONB Key Order Replay Offer',
+  p_demand_id => '50000000-0000-4000-8000-000000000001',
+  p_product_master_id => '40000000-0000-4000-8000-000000000001',
+  p_provider_actor_id => '30000000-0000-4000-8000-000000000001',
+  p_quantity => 3,
+  p_price => 17.25,
+  p_currency => 'USD',
+  p_conditions => 'qa308-jsonb-key-order',
+  p_market => 'QA',
+  p_geography => 'KR',
+  p_attributes => '{"a":1,"nested":{"x":1,"y":2},"z":3}'::jsonb,
+  p_documentation_status => 'verified',
+  p_lifecycle => 'draft',
+  p_offer_type => 'supplier_offer',
+  p_pricing_model => 'fixed'
+);
+COMMIT;
+SQL
+)
+
+qa308_replay_call=$(cat <<'SQL'
+BEGIN;
+SET application_name = 'qima-qa308-jsonb-key-order-replay';
+SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+SET ROLE authenticated;
+SELECT txid_current(), public.execute_create_offer_v1(
+  p_tenant_id => '10000000-0000-4000-8000-000000000001',
+  p_idempotency_key => 'fixture-qa308-jsonb-key-order-replay',
+  p_input => '{"omega":2,"nested":{"right":"R","left":"L"},"alpha":1}'::jsonb,
+  p_name => 'QA308 JSONB Key Order Replay Offer',
+  p_demand_id => '50000000-0000-4000-8000-000000000001',
+  p_product_master_id => '40000000-0000-4000-8000-000000000001',
+  p_provider_actor_id => '30000000-0000-4000-8000-000000000001',
+  p_quantity => 3,
+  p_price => 17.25,
+  p_currency => 'USD',
+  p_conditions => 'qa308-jsonb-key-order',
+  p_market => 'QA',
+  p_geography => 'KR',
+  p_attributes => '{"z":3,"nested":{"y":2,"x":1},"a":1}'::jsonb,
+  p_documentation_status => 'verified',
+  p_lifecycle => 'draft',
+  p_offer_type => 'supplier_offer',
+  p_pricing_model => 'fixed'
+);
+COMMIT;
+SQL
+)
+
+# Each call runs in its own committed transaction. PostgreSQL JSONB canonicalizes
+# object key order recursively, so both complete request hashes must be identical.
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t -F '|' -c "$qa308_first_call" > /tmp/qima-qa308-first.log 2>&1
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t -F '|' -c "$qa308_replay_call" > /tmp/qima-qa308-replay.log 2>&1
+
+qa308_first_rows=$(wc -l < /tmp/qima-qa308-first.log | tr -d '[:space:]')
+qa308_replay_rows=$(wc -l < /tmp/qima-qa308-replay.log | tr -d '[:space:]')
+if [[ "$qa308_first_rows" != "1" || "$qa308_replay_rows" != "1" ]]; then
+  echo "QA308 expected one transaction/result row from each independent psql process." >&2
+  cat /tmp/qima-qa308-first.log /tmp/qima-qa308-replay.log >&2
+  exit 1
+fi
+
+IFS='|' read -r qa308_first_txid qa308_first_result < /tmp/qima-qa308-first.log
+IFS='|' read -r qa308_replay_txid qa308_replay_result < /tmp/qima-qa308-replay.log
+if [[ ! "$qa308_first_txid" =~ ^[0-9]+$ ||
+      ! "$qa308_replay_txid" =~ ^[0-9]+$ ||
+      "$qa308_first_txid" == "$qa308_replay_txid" ]]; then
+  echo "QA308 expected distinct committed PostgreSQL transaction IDs; first='$qa308_first_txid', replay='$qa308_replay_txid'." >&2
+  cat /tmp/qima-qa308-first.log /tmp/qima-qa308-replay.log >&2
+  exit 1
+fi
+
+if [[ -z "$qa308_first_result" || "$qa308_first_result" != "$qa308_replay_result" ]]; then
+  echo "QA308 reordered JSONB object keys changed the persisted idempotency result." >&2
+  diff -u /tmp/qima-qa308-first.log /tmp/qima-qa308-replay.log >&2 || true
+  exit 1
+fi
+
+printf '%s\n' "$qa308_replay_result" > /tmp/qima-qa308-replay-result.log
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t -c "
+  SELECT result::text
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-qa308-jsonb-key-order-replay'
+    AND status = 'COMPLETED';
+" > /tmp/qima-qa308-stored-result.log
+if ! cmp -s /tmp/qima-qa308-replay-result.log /tmp/qima-qa308-stored-result.log; then
+  echo "QA308 replay result does not match the persisted idempotency result." >&2
+  diff -u /tmp/qima-qa308-replay-result.log /tmp/qima-qa308-stored-result.log >&2 || true
+  exit 1
+fi
+
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 <<'SQL'
+DO $qa308$
+DECLARE
+  v_result jsonb;
+  v_execution_id uuid;
+  v_offer_id uuid;
+  v_request_hash text;
+  v_expected_hash text;
+  v_count integer;
+BEGIN
+  SELECT result, execution_id, request_hash
+  INTO v_result, v_execution_id, v_request_hash
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-qa308-jsonb-key-order-replay'
+    AND status = 'COMPLETED';
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'QA308 expected one completed idempotency result';
+  END IF;
+  IF jsonb_typeof(v_result) IS DISTINCT FROM 'object' THEN
+    RAISE EXCEPTION 'QA308 expected the stored result to be a JSONB object';
+  END IF;
+
+  v_offer_id := (v_result->>'objectId')::uuid;
+  v_expected_hash := md5(jsonb_build_object(
+    'input', '{"alpha":1,"nested":{"left":"L","right":"R"},"omega":2}'::jsonb,
+    'name', 'QA308 JSONB Key Order Replay Offer',
+    'demandId', '50000000-0000-4000-8000-000000000001'::uuid,
+    'productMasterId', '40000000-0000-4000-8000-000000000001'::uuid,
+    'providerActorId', '30000000-0000-4000-8000-000000000001'::uuid,
+    'quantity', 3,
+    'price', 17.25,
+    'currency', 'USD',
+    'conditions', 'qa308-jsonb-key-order',
+    'market', 'QA',
+    'geography', 'KR',
+    'attributes', '{"a":1,"nested":{"x":1,"y":2},"z":3}'::jsonb,
+    'documentationStatus', 'verified',
+    'lifecycle', 'draft',
+    'offerType', 'supplier_offer',
+    'pricingModel', 'fixed'
+  )::text);
+
+  IF v_request_hash <> v_expected_hash THEN
+    RAISE EXCEPTION 'QA308 stored request hash does not match the canonical JSONB payload';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-qa308-jsonb-key-order-replay'
+    AND status = 'COMPLETED'
+    AND execution_id = v_execution_id
+    AND result = v_result
+    AND request_hash = v_expected_hash;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA308 expected exactly one canonical completed idempotency row, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND id = v_execution_id
+    AND idempotency_key = 'fixture-qa308-jsonb-key-order-replay'
+    AND status = 'COMPLETED'
+    AND object_type = 'Offer'
+    AND object_id = v_offer_id
+    AND input = '{"alpha":1,"nested":{"left":"L","right":"R"},"omega":2}'::jsonb
+    AND result = v_result;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA308 expected exactly one completed execution with canonical JSONB input, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE id = v_offer_id
+    AND name = 'QA308 JSONB Key Order Replay Offer'
+    AND demand_id = '50000000-0000-4000-8000-000000000001'
+    AND product_master_id = '40000000-0000-4000-8000-000000000001'
+    AND provider_actor_id = '30000000-0000-4000-8000-000000000001'
+    AND quantity = 3
+    AND price = 17.25
+    AND currency = 'USD'
+    AND conditions = 'qa308-jsonb-key-order'
+    AND market = 'QA'
+    AND geography = 'KR'
+    AND attributes = '{"a":1,"nested":{"x":1,"y":2},"z":3}'::jsonb
+    AND documentation_status = 'verified'
+    AND lifecycle = 'draft'
+    AND offer_type = 'supplier_offer'
+    AND pricing_model = 'fixed';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA308 expected exactly one offer preserving the canonical JSONB attributes, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_events
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND execution_id = v_execution_id
+    AND event_type = 'ACTION_SUCCEEDED'
+    AND object_type = 'Offer'
+    AND object_id = v_offer_id
+    AND payload = v_result;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA308 expected exactly one success event matching the replay result, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-qa308-jsonb-key-order-replay';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA308 replay created duplicate idempotency rows: %', v_count;
+  END IF;
+END
+$qa308$;
+SELECT 'QA308 JSONB key order was canonicalized recursively; a distinct committed transaction replayed the exact result with one idempotency row, execution, offer, and success event' AS result;
+SQL
+
+echo "QA308 confirmed that reordering top-level and nested JSONB object keys does not change the complete CREATE_OFFER request hash; a second committed PostgreSQL transaction replayed the exact persisted result without duplicates."
