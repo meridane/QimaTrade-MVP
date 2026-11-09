@@ -8228,7 +8228,16 @@ BEGIN
     RAISE EXCEPTION 'QA313 absent-property controls unexpectedly contain explicit-null properties';
   END IF;
 
-  -- A same-key retry that omits the p_input properties must be rejected.
+
+# Execute changed-payload retries in a fresh authenticated session, matching the
+# role/JWT context used by the first-time and canonical replay RPC calls.
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 <<'SQL'
+SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+SET ROLE authenticated;
+DO $qa313_reject$
+DECLARE
+  v_error text;
+BEGIN
   BEGIN
     PERFORM public.execute_create_offer_v1(
       p_tenant_id => '10000000-0000-4000-8000-000000000001',
@@ -8258,7 +8267,6 @@ BEGIN
     END IF;
   END;
 
-  -- The same-key retry must also reject omission from p_attributes.
   BEGIN
     PERFORM public.execute_create_offer_v1(
       p_tenant_id => '10000000-0000-4000-8000-000000000001',
@@ -8287,6 +8295,9 @@ BEGIN
       RAISE EXCEPTION 'QA313 absent p_attributes retry returned unexpected error: %', v_error;
     END IF;
   END;
+END
+$qa313_reject$;
+SQL
 
   v_expected_hash := md5(jsonb_build_object(
     'input', v_input,
