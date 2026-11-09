@@ -6403,3 +6403,12 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - QIMA CodeQL #994 (https://github.com/meridane/QimaTrade-MVP/actions/runs/42538658800): **SUCCESS**; JavaScript/TypeScript analysis and result upload completed successfully (75/75 TypeScript files, 3/3 GitHub Actions files, and 1/1 JavaScript file scanned).
 - Vercel on code commit `1c60b03340f2ed1c9eec9c204d54d3347bbe1f03`: **SUCCESS** (Preview only; no Production deployment).
 - Safety: no Supabase production data, migrations, schema, RLS policies, grants, secrets, or persistent PostgreSQL configuration changed; no Production deployment, PR merge, force-push, or branch-protection change.
+
+
+### QA294 final PR-head validation (9 November 2026)
+
+- Final documentation HEAD `5b55f749e4fceb8727d543cb9a8ef7974da9b9bd` was revalidated after all three QA294 register updates.
+- QIMA CI #1043 (https://github.com/meridane/QimaTrade-MVP/actions/runs/42538857184): **SUCCESS**; browser job passed **328/328 Playwright tests**. npm ci, npm audit enforcement at the configured high threshold, TypeScript, Next.js production build, Chromium installation, browser tests, and the isolated PostgreSQL integration/RLS/cleanup/prepared-transaction jobs all completed successfully.
+- QIMA CodeQL #995 (https://github.com/meridane/QimaTrade-MVP/actions/runs/42538857062): **SUCCESS**; JavaScript/TypeScript analysis and result upload completed successfully.
+- Vercel on final documentation HEAD `5b55f749e4fceb8727d543cb9a8ef7974da9b9bd`: **SUCCESS** (Preview only; no Production deployment).
+- The CI log contains expected negative-test PostgreSQL messages such as `IDEMPOTENCY_KEY_REUSE`, a deliberately missing relation, and prepared-transaction cleanup guards; the corresponding regression jobs completed **SUCCESS**. These are expected test assertions, not observed production incidents.
