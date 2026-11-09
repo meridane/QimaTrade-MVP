@@ -427,6 +427,19 @@ test("CREATE_OFFER route masks malformed succeeded RPC results as generic intern
         result: "PRIVATE_MALFORMED_RESULT_SENTINEL",
       },
     },
+    {
+      label: "array RPC result containing an otherwise valid succeeded object",
+      result: [{
+        executionId: "10000000-0000-4000-8000-000000000001",
+        status: "succeeded",
+        objectId: "50000000-0000-4000-8000-000000000001",
+        result: { offerId: "70000000-0000-4000-8000-000000000001" },
+      }],
+    },
+    { label: "empty array RPC result", result: [] },
+    { label: "string primitive RPC result", result: "PRIVATE_MALFORMED_RESULT_SENTINEL" },
+    { label: "numeric primitive RPC result", result: 42 },
+    { label: "boolean primitive RPC result", result: false },
   ];
 
   for (const malformedCase of malformedResults) {
