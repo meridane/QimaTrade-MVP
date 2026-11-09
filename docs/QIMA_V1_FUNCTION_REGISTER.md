@@ -6515,3 +6515,25 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - Vercel Preview Comments check on code commit `cc7a61c410e40356730a58f7d4d719007e1d1486`: **SUCCESS**. This check alone is not treated as proof that a new Preview deployment is READY. No Production deployment was performed.
 - QA302 uses synthetic route-contract fixtures and source inspection; it does not establish a confirmed production vulnerability or incident. No SQL migration, Supabase Production data/schema/RLS/grants/secrets, or persistent PostgreSQL configuration was changed. No Production deployment, PR merge, force-push, or branch-protection change.
 
+
+### QA303 — mask rejected action-definition RPC transport failures (9 November 2026)
+
+- Code commit: `f9e80a0039038e1a7df9ccc7b6f29787c3758a0e`; test file: `tests/e2e/create-offer-route-contract.spec.ts`.
+- The route test harness rejects the mocked `fetch` call for `get_action_definition_v1` with an `ECONNRESET` sentinel after recording the authenticated request. This exercises a rejected transport promise, not an upstream HTTP error response.
+- The route must return HTTP 500 with exactly `{"error":"ACTION_FAILED"}`, no authentication challenge, no transport/internal marker disclosure, exactly one definition RPC request, and zero execution RPC calls. The QA302 positive control remains: the exact `IDEMPOTENCY_KEY_REUSE` returned by the execution RPC remains HTTP 400.
+- QIMA CI #1064 (https://github.com/meridane/QimaTrade-MVP/actions/runs/42583578314): **SUCCESS**; browser and PostgreSQL 16 integration jobs passed, including 332/332 Playwright tests.
+- QIMA CodeQL #1016 (https://github.com/meridane/QimaTrade-MVP/actions/runs/42583578317): **SUCCESS**; analysis and result upload completed.
+- Final HEAD validation: QIMA CI #1065 (https://github.com/meridane/QimaTrade-MVP/actions/runs/42584014889) **SUCCESS**; CodeQL #1017 (https://github.com/meridane/QimaTrade-MVP/actions/runs/42584014907) **SUCCESS**. The combined Vercel status for that HEAD was **SUCCESS** (Preview only).
+- QA303 is a synthetic route-transport regression and does not establish a production incident or confirmed vulnerability. No production data/schema/RLS/grants/secrets, migration, persistent PostgreSQL configuration, or production deployment was changed.
+
+
+### QA304 — lost CREATE_OFFER response after simulated commit and same-key replay (9 November 2026)
+
+- Code commit: `9cdbad10542c604e2ada4c6941022125754fa721`; test file: `tests/e2e/create-offer-route-contract.spec.ts`.
+- Extended the route mock with shared replay state. On the first execution-RPC request, the fixture records the exact RPC input and a successful result as committed, then rejects the fetch promise with `ECONNRESET: CREATE_OFFER_RESPONSE_LOST_AFTER_COMMIT_PRIVATE_SENTINEL`. The first HTTP request must return only HTTP 500 `{"error":"ACTION_FAILED"}`, without exposing the transport marker.
+- The test asserts exactly one `execute_create_offer_v1` request on the first attempt (no automatic retry), one simulated committed creation, and no replay yet. A second HTTP request with the same idempotency key and identical effective RPC input returns the stored successful result; the fixture verifies the RPC input is byte-for-byte JSON-equivalent and increments the replay count without incrementing the creation count.
+- QIMA CI #1066 (https://github.com/meridane/QimaTrade-MVP/actions/runs/42588763511): **SUCCESS**. Both jobs completed successfully. The browser job passed dependency installation, npm audit, TypeScript, Next.js production build, Chromium installation, Playwright browser tests, and audit-report upload. The PostgreSQL 16 job passed CREATE_OFFER integration/concurrency, legacy-message RLS, participant self-enrollment RLS, disposable-resource cleanup, and QA266/QA267 prepared-transaction restoration.
+- QIMA CodeQL #1018 (https://github.com/meridane/QimaTrade-MVP/actions/runs/42588763612): **SUCCESS**; JavaScript/TypeScript analysis completed and results were uploaded.
+- Vercel combined status on code commit `9cdbad10542c604e2ada4c6941022125754fa721`: **SUCCESS** (Preview status only; no Production deployment).
+- QA304 is a deterministic synthetic route-level transport fixture. It models a durable commit followed by a lost response and a subsequent idempotent replay; it is not a real network fault injected into PostgreSQL and does not establish a production incident or vulnerability. QA298 remains the separate PostgreSQL 16 integration proof for cross-transaction replay. No application runtime change, SQL migration, Supabase Production data/schema/RLS/grants/secrets, or persistent PostgreSQL configuration was modified. No Production deployment, PR merge, force-push, or branch-protection change.
+
