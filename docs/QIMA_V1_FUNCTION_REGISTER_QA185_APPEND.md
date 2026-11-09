@@ -2734,3 +2734,12 @@ The canonical register's QA184 tail was inspected from commit `0eca4833bae236f32
 - Added the regression runner to the PostgreSQL integration job. This test validates the migration on disposable PostgreSQL; it does not validate the live Supabase catalog.
 - Live Supabase catalog verification remains blocked by PostgreSQL `28P01`; effective Production ACLs remain unverified. No Production vulnerability is confirmed and the migration has not been applied to Supabase Production.
 - Validation on this code commit: **pending**. No Supabase Production data/schema/RLS/grants/secrets, production migration, persistent PostgreSQL configuration, Production deployment, PR merge, force-push, or branch-protection change.
+
+
+### RPC EXECUTE ACL regression follow-up — 10 November 2026
+
+- Code commit `4f768c103aecb50a7a53a939021020af072c228f` added the additive ACL migration and disposable PostgreSQL runner. QIMA CI #1102 passed the existing CREATE_OFFER PostgreSQL integration suite, TypeScript, dependency audit, Next.js build, and **336/336 Playwright**; CodeQL #1054 and Vercel Preview Comments also passed.
+- The new ACL regression step failed at its post-migration `regprocedure` lookup because the test identity string for `execute_create_offer_v1(...)` omitted one `text` argument. The actual migration signature is 18 arguments and the migration itself was applied twice in the disposable database before the assertion error.
+- Corrected the test identity to the exact 18-argument signature and added an explicit assertion that PostgreSQL's fresh-database default PUBLIC EXECUTE ACL is present before the migration, as well as the simulated direct `anon` grant.
+- The failure is confined to the regression test's signature string. It does not establish a production ACL issue. Live Supabase catalog access remains blocked by PostgreSQL `28P01`; no Production ACL/migration/data change was made.
+- Corrected regression validation: **pending next CI run**.
