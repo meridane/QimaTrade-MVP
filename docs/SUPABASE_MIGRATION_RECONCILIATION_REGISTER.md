@@ -893,3 +893,13 @@ The QA281 matrix and all three register updates were revalidated on PR HEAD `9e4
 - The PostgreSQL log also shows pre-existing QA111 and QA112 coverage for numeric scale in p_input/p_attributes and p_price/p_quantity. QA310 is therefore a consolidated cross-check with explicit snapshots of all three first results, not a newly discovered production issue or a claim that the underlying numeric-scale behavior was previously untested.
 - The current behavior remains a contract question: whether mathematically equal numbers with different display scales should share an idempotency key. No runtime normalization is introduced without an explicit API/product decision.
 - QA310 was executed only against the disposable PostgreSQL 16 CI service. It does not establish a production incident or vulnerability. No Supabase Production data/schema/RLS/grants/secrets, migration, persistent PostgreSQL configuration, Production deployment, PR merge, force-push, or branch-protection change.
+
+
+### QA310 final PR-head verification — 10 November 2026
+
+- Final documentation HEAD 0eb019da64b5479cc8a192a849863505112ed30a passed QIMA CI #1081 (https://github.com/meridane/QimaTrade-MVP/actions/runs/42642690279) **SUCCESS** and QIMA CodeQL #1033 (https://github.com/meridane/QimaTrade-MVP/actions/runs/42642690438) **SUCCESS**.
+- CI #1081 completed TypeScript, dependency audit, Next.js production build, Chromium, **336/336 Playwright tests**, the full disposable PostgreSQL 16 CREATE_OFFER integration/concurrency suite (including QA310), legacy-message RLS, participant self-enrollment RLS, prepared-transaction restoration, and disposable-resource cleanup.
+- The PostgreSQL job log explicitly reports the QA310 result: JSONB 1 and 1.0 compare equal, but the current text-based effective-request hash distinguishes p_input, price, and quantity scale; all three changed-scale retries were rejected and the first hashes/results/executions/offers/events remained unchanged.
+- CodeQL #1033 completed JavaScript/TypeScript analysis and uploaded its results successfully.
+- The combined Vercel status for this HEAD is **FAILURE** with upgradeToPro=build-rate-limit; no READY Preview or Production deployment is claimed.
+- This validation is tied to the exact HEAD above. No Supabase Production data/schema/RLS/grants/secrets, migration, persistent PostgreSQL configuration, Production deployment, PR merge, force-push, or branch-protection change.
