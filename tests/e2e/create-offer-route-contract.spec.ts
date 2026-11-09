@@ -1952,3 +1952,63 @@ test("CREATE_OFFER route exposes only the allowlisted SQL error and never leaks 
   expect(internalFailure.requests.map((request) => request.path)).toEqual(expectedPaths);
   expect(internalFailure.requests.every((request) => request.authorization === bearer)).toBe(true);
 });
+
+test("CREATE_OFFER route matches allowlisted SQL error messages exactly", async () => {
+  const bearer = "Bearer qima-route-test-token";
+  const expectedPaths = [
+    "/auth/v1/user",
+    "/rest/v1/profiles",
+    "/rest/v1/dt_memberships",
+    "/rest/v1/rpc/get_action_definition_v1",
+    "/rest/v1/rpc/execute_create_offer_v1",
+  ];
+  const nearMisses = [
+    { label: "trailing whitespace", message: "IDEMPOTENCY_KEY_REUSE " },
+    { label: "suffix after allowlisted code", message: "IDEMPOTENCY_KEY_REUSE: PRIVATE_INTERNAL_SENTINEL" },
+    { label: "lowercase variant", message: "idempotency_key_reuse" },
+    { label: "SQLSTATE-prefixed text", message: "XX000: IDEMPOTENCY_KEY_REUSE" },
+    { label: "private prefix before allowlisted code", message: "PRIVATE_INTERNAL_SENTINEL IDEMPOTENCY_KEY_REUSE" },
+  ];
+
+  for (const [index, fixture] of nearMisses.entries()) {
+    const details = `ALLOWLIST_DETAILS_PRIVATE_SENTINEL_${index}`;
+    const hint = `ALLOWLIST_HINT_PRIVATE_SENTINEL_${index}`;
+    const result = await postCreateOffer(
+      "USD",
+      {},
+      undefined,
+      undefined,
+      "succeeded",
+      bearer,
+      200,
+      200,
+      200,
+      "30000000-0000-4000-8000-000000000001",
+      false,
+      400,
+      200,
+      undefined,
+      fixture.message,
+      undefined,
+      details,
+      hint,
+    );
+
+    expect(result.status, fixture.label).toBe(500);
+    expect(result.body, fixture.label).toEqual({ error: "ACTION_FAILED" });
+    expect(result.wwwAuthenticate, fixture.label).toBeNull();
+    expect(JSON.stringify(result.body), fixture.label).not.toContain(fixture.message);
+    expect(JSON.stringify(result.body), fixture.label).not.toMatch(
+      /XX000|PRIVATE_INTERNAL_SENTINEL|ALLOWLIST_(?:DETAILS|HINT)_PRIVATE_SENTINEL/,
+    );
+    expect(result.requests.map((request) => request.path), fixture.label).toEqual(expectedPaths);
+    expect(
+      result.requests.every((request) => request.authorization === bearer),
+      fixture.label,
+    ).toBe(true);
+    expect(
+      result.requests.filter((request) => request.path === "/rest/v1/rpc/execute_create_offer_v1"),
+      fixture.label,
+    ).toHaveLength(1);
+  }
+});
