@@ -218,12 +218,12 @@ jobs:
         run: bash tests/sql/run-participant-self-enrollment-regression.sh
 
   postgres17-create-offer-compatibility:
-    name: CREATE_OFFER PostgreSQL 17 compatibility
+    name: CREATE_OFFER PostgreSQL 17.6 compatibility
     runs-on: ubuntu-latest
     timeout-minutes: 15
     services:
       postgres:
-        image: postgres:17
+        image: postgres:17.6
         env:
           POSTGRES_DB: qima_test
           POSTGRES_USER: postgres
@@ -244,15 +244,15 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y postgresql-client
-      - name: Assert PostgreSQL 17 server version
+      - name: Assert PostgreSQL 17.6 server version
         shell: bash
         run: |
           version_num="$(psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t -c 'SHOW server_version_num')"
-          if [[ "$version_num" -lt 170000 || "$version_num" -ge 180000 ]]; then
-            echo "::error::Expected PostgreSQL 17; received server_version_num=${version_num}."
+          if [[ "$version_num" -lt 170006 || "$version_num" -ge 170007 ]]; then
+            echo "::error::Expected PostgreSQL 17.6; received server_version_num=${version_num}."
             exit 1
           fi
-          echo "PostgreSQL 17 compatibility server_version_num=${version_num}"
+          echo "PostgreSQL 17.6 compatibility server_version_num=${version_num}"
       - name: Run CREATE_OFFER integration and concurrency tests on PostgreSQL 17
         run: bash tests/sql/run-create-offer-integration.sh
       - name: Run CREATE_OFFER wrapper-owner and membership regressions on PostgreSQL 17
