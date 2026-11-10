@@ -55,6 +55,13 @@ SECURITY DEFINER
 SET search_path = public
 AS 'SELECT false';
 
+-- Snapshot ownership before ACL changes. REVOKE cannot remove an owner's implicit privileges,
+-- so the fixture must not accidentally model anon/authenticated as function owners.
+CREATE TEMP TABLE qima_acl_function_owner_snapshot (
+  function_oid oid PRIMARY KEY,
+  owner_oid oid NOT NULL
+) ON COMMIT PRESERVE ROWS;
+
 -- Add a direct anon grant as well, so the migration must remove both inherited
 -- PUBLIC access and a possible pre-existing direct anon grant.
 GRANT EXECUTE ON FUNCTION public.current_profile_actor_id() TO anon;
@@ -72,6 +79,8 @@ DO $acl$
 DECLARE
   v_function_oid oid;
   v_anon_oid oid;
+  v_authenticated_oid oid;
+  v_owner_oid oid;
   v_expected_security_definer boolean[] := ARRAY[true, false, true, true, true, true, true];
   v_is_security_definer boolean;
   v_has_pinned_search_path boolean;
@@ -87,12 +96,20 @@ DECLARE
   ];
 BEGIN
   SELECT oid INTO v_anon_oid FROM pg_roles WHERE rolname = 'anon';
-  IF v_anon_oid IS NULL THEN
-    RAISE EXCEPTION 'ACL regression fixture requires the anon role';
+  SELECT oid INTO v_authenticated_oid FROM pg_roles WHERE rolname = 'authenticated';
+  IF v_anon_oid IS NULL OR v_authenticated_oid IS NULL THEN
+    RAISE EXCEPTION 'ACL regression fixture requires anon and authenticated roles';
   END IF;
 
   FOREACH v_function_oid IN ARRAY v_function_oids LOOP
     v_index := v_index + 1;
+
+    SELECT p.proowner INTO v_owner_oid FROM pg_proc p WHERE p.oid = v_function_oid;
+    IF v_owner_oid IN (v_anon_oid, v_authenticated_oid) THEN
+      RAISE EXCEPTION 'ACL regression fixture owner must not be anon/authenticated on %', v_function_oid::regprocedure;
+    END IF;
+    INSERT INTO qima_acl_function_owner_snapshot(function_oid, owner_oid)
+    VALUES (v_function_oid, v_owner_oid);
 
     IF NOT has_function_privilege('anon', v_function_oid, 'EXECUTE') THEN
       RAISE EXCEPTION 'ACL regression fixture did not establish anon EXECUTE before migration on %', v_function_oid::regprocedure;
@@ -150,6 +167,8 @@ DECLARE
   v_function_oid oid;
   v_anon_oid oid;
   v_authenticated_oid oid;
+  v_owner_oid oid;
+  v_expected_owner_oid oid;
   v_public_or_anon_execute boolean;
   v_expected_security_definer boolean[] := ARRAY[true, false, true, true, true, true, true];
   v_is_security_definer boolean;
@@ -170,6 +189,14 @@ BEGIN
 
   FOREACH v_function_oid IN ARRAY v_function_oids LOOP
     v_index := v_index + 1;
+
+    SELECT p.proowner INTO v_owner_oid FROM pg_proc p WHERE p.oid = v_function_oid;
+    SELECT s.owner_oid INTO v_expected_owner_oid
+      FROM qima_acl_function_owner_snapshot s
+     WHERE s.function_oid = v_function_oid;
+    IF v_expected_owner_oid IS NULL OR v_owner_oid IS DISTINCT FROM v_expected_owner_oid THEN
+      RAISE EXCEPTION 'Function owner changed during ACL migration on %', v_function_oid::regprocedure;
+    END IF;
 
     IF has_function_privilege('anon', v_function_oid, 'EXECUTE') THEN
       RAISE EXCEPTION 'anon still has effective EXECUTE on %', v_function_oid::regprocedure;
