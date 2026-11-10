@@ -280,3 +280,24 @@ The change is test-only. It does not assert or infer the owner of any live Supab
 - During CI #1116, the PR head advanced from `fe7df943` to documentation-only commit `acd2b4bb`. GitHub continued to report CI #1116 as **IN PROGRESS** rather than cancelling it, and the run later completed **SUCCESS**. No replacement CI run was created for the docs-only commit because the workflow ignores `docs/**`. This is an observed non-cancellation on a head advance, not a multi-run concurrency stress test.
 - The prior code HEAD `353068e759005d0e519d208dc0d037e9e02d9f4f` had CI #1115 and CodeQL #1067 **SUCCESS**; its Vercel failure was the free build-rate limit. These results are separate from CI #1116.
 - The canonical function register and QA185 addendum now contain this workflow change and the final CI/CodeQL evidence. Live Supabase ACL/owner/schema-privilege verification remains blocked by PostgreSQL `28P01`; disposable PostgreSQL tests do not establish a Production vulnerability. No Supabase Production data/schema/RLS/grants/secrets, Production migration, persistent PostgreSQL configuration, Production deployment, PR merge, force-push, or branch-protection setting was changed.
+
+### CREATE_OFFER wrapper-owner privilege path — 10 November 2026
+
+The direct-RPC restriction has a required privilege-path invariant: `execute_create_offer_v1(...)` is SECURITY DEFINER, so it calls `create_offer_v1(...)` as the wrapper function's owner. If those two functions have different owners, revoking PUBLIC from the low-level function can remove a privilege the wrapper owner previously inherited. The repository does not currently prove that this owner mismatch exists on Supabase Production; this was treated as a conditional compatibility risk only.
+
+The branch-only migration `20261027100000_restrict_direct_create_offer_rpc.sql` now:
+1. Revokes low-level EXECUTE from PUBLIC, anon, and authenticated.
+2. Resolves the exact supported wrapper by its full signature.
+3. Fails closed if the wrapper is missing, is not SECURITY DEFINER, or is owned by anon/authenticated.
+4. Grants low-level EXECUTE to the trusted wrapper owner discovered through `pg_proc`.
+5. Grants authenticated EXECUTE on the supported wrapper.
+
+A new disposable PostgreSQL 16 regression deliberately gives the wrapper to a separate NOLOGIN/NOSUPERUSER role while the low-level function remains owned by postgres. It verifies the direct client paths are denied, the wrapper owner has an explicit ACL entry, authenticated can invoke the wrapper, and the wrapper can invoke the low-level function. The migration is applied twice to check idempotence. The runner rejects non-loopback/non-`qima_test` URLs and cleans the temporary database and role.
+
+Validation history:
+- QIMA CI #1122 failed in the new fixture before its SQL ran because the file contained doubled backslashes before psql meta commands. The main CREATE_OFFER integration and browser/build job passed; Playwright was 336/336. CodeQL #1074 passed.
+- Commit `84de16dead7fbc0182ba80e8b886561527d53d72` corrected `\\set`/`\\ir` to `\set`/`\ir`.
+- QIMA CI #1123 passed in full. The wrapper-owner step emitted **CREATE_OFFER wrapper-owner EXECUTE regression PASS**; all PostgreSQL integration, ACL, RLS, cleanup, build, audit, TypeScript, and browser checks passed, including 336/336 Playwright.
+- CodeQL #1075 passed. Vercel remains rate-limited (`build-rate-limit`); the GitHub production build passed. No Production deployment was made.
+
+The live Supabase catalog remains unavailable due PostgreSQL authentication error `28P01`. Therefore the actual Production owners, role memberships, and ACLs remain unverified. This regression proves the migration's behavior in the disposable fixture only; it does not establish a Production vulnerability or the Production owner relationship.
