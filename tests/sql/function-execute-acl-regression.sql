@@ -174,9 +174,6 @@ $schema_create_before$;
 -- Reapplying both migrations must remain safe and produce the same ACL.
 \ir ../../supabase/migrations/20261110070000_harden_public_rpc_execute_acl.sql
 \ir ../../supabase/migrations/20261110080000_harden_authenticated_helper_anon_acl.sql
--- Reapplying both migrations must remain safe and produce the same ACL.
-\ir ../../supabase/migrations/20261110070000_harden_public_rpc_execute_acl.sql
-\ir ../../supabase/migrations/20261110080000_harden_authenticated_helper_anon_acl.sql
 
 -- The RPC ACL migrations must not broaden client CREATE on the public schema.
 -- This assertion covers the disposable fixture only; production privileges are
@@ -192,7 +189,7 @@ BEGIN
 END
 $schema_create_after$;
 
-DO $
+DO $$
 DECLARE
   v_function_oid oid;
   v_anon_oid oid;
