@@ -91,6 +91,10 @@ if [[ "$(psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t -c "SELECT 1 FROM p
   echo "::error::Refusing to reuse existing ${TEST_ROLE}; no role was modified." >&2
   exit 2
 fi
+if [[ "$(psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t -c "SELECT 1 FROM pg_roles WHERE rolname = '${TEST_DELEGATE_ROLE}'")" == "1" ]]; then
+  echo "::error::Refusing to reuse existing ${TEST_DELEGATE_ROLE}; no role was modified." >&2
+  exit 2
+fi
 psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -c "CREATE ROLE ${TEST_ROLE} NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT"
 created_role=1
 psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -c "CREATE ROLE ${TEST_DELEGATE_ROLE} NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT"
@@ -113,6 +117,8 @@ run_negative_case() {
   local security_clause="SECURITY DEFINER"
   local log_file
   local membership_state
+  local membership_usage_state
+  local membership_set_state
 
   create_database "$database"
 
@@ -185,6 +191,14 @@ SQL
     if [[ "$membership_state" != "t" ]]; then
       echo "::error::Expected ${client_member} to be a member of ${TEST_ROLE} for scenario ${scenario} (${membership_kind})." >&2
       return 1
+    fi
+    if [[ "$membership_kind" == "indirect" ]]; then
+      membership_usage_state="$(psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t -c "SELECT pg_has_role('${client_member}', '${TEST_ROLE}', 'USAGE')")"
+      membership_set_state="$(psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t -c "SELECT pg_has_role('${client_member}', '${TEST_ROLE}', 'SET')")"
+      if [[ "$membership_usage_state" != "f" || "$membership_set_state" != "f" ]]; then
+        echo "::error::Indirect membership fixture must disable both inherited privilege usage and SET ROLE for ${client_member}." >&2
+        return 1
+      fi
     fi
   fi
 
