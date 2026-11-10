@@ -19,11 +19,20 @@ unsafe_urls=(
   "postgresql://postgres:postgres@db.example:5432/qima_test"
   "postgresql://postgres:postgres@localhost:5432/production"
   "postgresql://postgres:postgres@localhost:5432/qima_test?sslmode=require"
+  "postgresql://postgres:postgres@localhost:5433/qima_test"
+  "https://postgres:postgres@localhost:5432/qima_test"
+  "postgresql://postgres:postgres@localhost.evil:5432/qima_test"
+  "postgresql://postgres:postgres@127.0.0.2:5432/qima_test"
 )
 
 for unsafe_url in "${unsafe_urls[@]}"; do
-  if PATH="$TEMP_DIR:$PATH" DATABASE_URL="$unsafe_url" bash "$RUNNER" >"$OUTPUT" 2>&1; then
-    echo "ERROR: migration runner accepted an unsafe DATABASE_URL" >&2
+  set +e
+  PATH="$TEMP_DIR:$PATH" DATABASE_URL="$unsafe_url" bash "$RUNNER" >"$OUTPUT" 2>&1
+  runner_status=$?
+  set -e
+
+  if [[ "$runner_status" -ne 2 ]]; then
+    echo "ERROR: migration runner expected URL-guard exit 2, received $runner_status" >&2
     cat "$OUTPUT" >&2
     exit 1
   fi
@@ -39,7 +48,27 @@ for unsafe_url in "${unsafe_urls[@]}"; do
     cat "$OUTPUT" >&2
     exit 1
   fi
+
+  if grep -Fq "postgres:postgres" "$OUTPUT"; then
+    echo "ERROR: migration runner refusal output exposed DATABASE_URL credentials" >&2
+    cat "$OUTPUT" >&2
+    exit 1
+  fi
 done
+
+# An unset destination must fail closed before psql, just like a malformed URL.
+set +e
+env -u DATABASE_URL PATH="$TEMP_DIR:$PATH" bash "$RUNNER" >"$OUTPUT" 2>&1
+missing_url_status=$?
+set -e
+if [[ "$missing_url_status" -ne 1 ]] ||
+  ! grep -Fq "DATABASE_URL must point to a disposable PostgreSQL database" "$OUTPUT" ||
+  grep -Fq "psql must not be invoked" "$OUTPUT" ||
+  grep -Fq "postgres:postgres" "$OUTPUT"; then
+  echo "ERROR: migration runner did not safely reject an unset DATABASE_URL before psql." >&2
+  cat "$OUTPUT" >&2
+  exit 1
+fi
 
 
 
