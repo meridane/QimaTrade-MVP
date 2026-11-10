@@ -4,6 +4,7 @@ import { createLegacyOfferHandler } from "../../lib/offers/create-legacy-offer";
 const AUTH_USER_ID = "40000000-0000-4000-8000-000000000101";
 const PROFILE_ACTOR_ID = "30000000-0000-4000-8000-000000000101";
 const SPOOFED_ACTOR_ID = "90000000-0000-4000-8000-000000000101";
+const SPOOFED_TENANT_ID = "20000000-0000-4000-8000-000000000199";
 const DEMAND_ID = "50000000-0000-4000-8000-000000000101";
 const PRODUCT_MASTER_ID = "60000000-0000-4000-8000-000000000101";
 const EXPLICIT_PRODUCT_MASTER_ID = "60000000-0000-4000-8000-000000000102";
@@ -197,12 +198,14 @@ async function expectInvalidFormBeforeSupabase(
   expect(calls.insertPayload).toBeNull();
 }
 
-test("legacy offers route derives provider_actor_id from the authenticated user's profile", async () => {
+test("legacy offers route derives provider_actor_id from the authenticated user's profile and ignores client actor/tenant identifiers", async () => {
   const { client, calls } = createSupabaseMock();
   const handler = createHandler(client);
   const request = createFormRequest({
     provider_actor_id: SPOOFED_ACTOR_ID,
     providerActorId: SPOOFED_ACTOR_ID,
+    tenant_id: SPOOFED_TENANT_ID,
+    tenantId: SPOOFED_TENANT_ID,
   });
 
   const response = await handler(request);
@@ -217,6 +220,8 @@ test("legacy offers route derives provider_actor_id from the authenticated user'
     offer_type: "supplier_offer",
   });
   expect(calls.insertPayload?.provider_actor_id).not.toBe(SPOOFED_ACTOR_ID);
+  expect(calls.insertPayload).not.toHaveProperty("tenant_id");
+  expect(calls.insertPayload).not.toHaveProperty("tenantId");
 });
 
 test("legacy offers route refuses a profile without an actor before inserting an offer", async () => {
