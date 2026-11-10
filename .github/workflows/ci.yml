@@ -169,6 +169,9 @@ jobs:
       - name: Run isolated CREATE_OFFER integration and concurrency tests
         run: bash tests/sql/run-create-offer-integration.sh
 
+      - name: Verify SECURITY DEFINER wrapper retains low-level CREATE_OFFER access after direct-call revocation
+        run: bash tests/sql/run-create-offer-wrapper-owner-regression.sh
+
       - name: Verify explicit RPC EXECUTE ACLs on disposable PostgreSQL
         run: bash tests/sql/run-function-execute-acl-regression.sh
 
