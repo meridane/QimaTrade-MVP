@@ -1,4 +1,4 @@
-\\set ON_ERROR_STOP on
+\set ON_ERROR_STOP on
 
 -- Isolated regression: the wrapper owner is deliberately different from the
 -- low-level create_offer_v1 owner. The migration must preserve only the
@@ -66,9 +66,9 @@ ALTER FUNCTION public.execute_create_offer_v1(
 ) OWNER TO qima_wrapper_owner_test;
 REVOKE CREATE ON SCHEMA public FROM qima_wrapper_owner_test;
 
-\\ir ../../supabase/migrations/20261027100000_restrict_direct_create_offer_rpc.sql
+\ir ../../supabase/migrations/20261027100000_restrict_direct_create_offer_rpc.sql
 -- Reapplying the additive REVOKE/GRANT migration must remain safe.
-\\ir ../../supabase/migrations/20261027100000_restrict_direct_create_offer_rpc.sql
+\ir ../../supabase/migrations/20261027100000_restrict_direct_create_offer_rpc.sql
 
 DO $assertions$
 DECLARE
