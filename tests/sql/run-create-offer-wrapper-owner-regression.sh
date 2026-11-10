@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-: "\${DATABASE_URL:?DATABASE_URL must point to the disposable PostgreSQL CI database}"
+: "${DATABASE_URL:?DATABASE_URL must point to the disposable PostgreSQL CI database}"
 
 # This runner creates and drops dedicated databases and roles. Fail closed
 # unless DATABASE_URL is the exact loopback qima_test service used by CI.
@@ -10,10 +10,10 @@ if [[ ! "$DATABASE_URL" =~ ^postgres(ql)?://[^@]+@(localhost|127\.0\.0\.1|\[::1\
   exit 2
 fi
 
-ROOT="$(cd "$(dirname "\${BASH_SOURCE[0]}")/../.." && pwd)"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 TEST_DATABASE="qima_wrapper_owner_test_db"
 TEST_ROLE="qima_wrapper_owner_test"
-TEST_DATABASE_URL="\${DATABASE_URL%/qima_test}/\${TEST_DATABASE}"
+TEST_DATABASE_URL="${DATABASE_URL%/qima_test}/${TEST_DATABASE}"
 created_databases=()
 created_role=0
 created_anon=0
@@ -24,17 +24,17 @@ cleanup() {
   local status=$?
   trap - EXIT
 
-  for database in "\${created_databases[@]}"; do
-    psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -c "DROP DATABASE IF EXISTS \${database} WITH (FORCE)" >/dev/null || status=1
-    remaining="$(psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t -c "SELECT 1 FROM pg_database WHERE datname = '\${database}'" 2>/dev/null || true)"
+  for database in "${created_databases[@]}"; do
+    psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -c "DROP DATABASE IF EXISTS ${database} WITH (FORCE)" >/dev/null || status=1
+    remaining="$(psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t -c "SELECT 1 FROM pg_database WHERE datname = '${database}'" 2>/dev/null || true)"
     if [[ "$remaining" == "1" ]]; then
-      echo "::error::Disposable wrapper-owner database \${database} was not removed." >&2
+      echo "::error::Disposable wrapper-owner database ${database} was not removed." >&2
       status=1
     fi
   done
 
   if [[ "$created_role" == "1" ]]; then
-    psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -c "DROP ROLE \${TEST_ROLE}" >/dev/null || status=1
+    psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -c "DROP ROLE ${TEST_ROLE}" >/dev/null || status=1
   fi
   if [[ "$created_authenticated" == "1" ]]; then
     psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -c "DROP ROLE authenticated" >/dev/null || status=1
@@ -43,8 +43,8 @@ cleanup() {
     psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -c "DROP ROLE anon" >/dev/null || status=1
   fi
 
-  if (("\${#temporary_files[@]}" > 0)); then
-    rm -f -- "\${temporary_files[@]}"
+  if ((${#temporary_files[@]} > 0)); then
+    rm -f -- "${temporary_files[@]}"
   fi
   exit "$status"
 }
@@ -52,8 +52,8 @@ trap cleanup EXIT
 
 assert_database_absent() {
   local database="$1"
-  if [[ "$(psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t -c "SELECT 1 FROM pg_database WHERE datname = '\${database}'")" == "1" ]]; then
-    echo "::error::Refusing to reuse existing \${database}; no database was modified." >&2
+  if [[ "$(psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t -c "SELECT 1 FROM pg_database WHERE datname = '${database}'")" == "1" ]]; then
+    echo "::error::Refusing to reuse existing ${database}; no database was modified." >&2
     return 2
   fi
 }
@@ -61,7 +61,7 @@ assert_database_absent() {
 create_database() {
   local database="$1"
   assert_database_absent "$database"
-  psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -c "CREATE DATABASE \${database} TEMPLATE template0"
+  psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -c "CREATE DATABASE ${database} TEMPLATE template0"
   created_databases+=("$database")
 }
 
@@ -73,11 +73,11 @@ if [[ "$(psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t -c "SELECT 1 FROM p
   psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -c "CREATE ROLE authenticated NOLOGIN"
   created_authenticated=1
 fi
-if [[ "$(psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t -c "SELECT 1 FROM pg_roles WHERE rolname = '\${TEST_ROLE}'")" == "1" ]]; then
-  echo "::error::Refusing to reuse existing \${TEST_ROLE}; no role was modified." >&2
+if [[ "$(psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t -c "SELECT 1 FROM pg_roles WHERE rolname = '${TEST_ROLE}'")" == "1" ]]; then
+  echo "::error::Refusing to reuse existing ${TEST_ROLE}; no role was modified." >&2
   exit 2
 fi
-psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -c "CREATE ROLE \${TEST_ROLE} NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT"
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -c "CREATE ROLE ${TEST_ROLE} NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT"
 created_role=1
 
 # Positive path: distinct trusted wrapper owner, exact-overload isolation,
@@ -90,8 +90,8 @@ run_negative_case() {
   local wrapper_mode="$2"
   local wrapper_owner="$3"
   local expected_error="$4"
-  local database="qima_wrapper_negative_\${scenario}"
-  local database_url="\${DATABASE_URL%/qima_test}/\${database}"
+  local database="qima_wrapper_negative_${scenario}"
+  local database_url="${DATABASE_URL%/qima_test}/${database}"
   local security_clause="SECURITY DEFINER"
   local log_file
 
@@ -127,7 +127,7 @@ SQL
     fi
 
     if [[ "$wrapper_owner" == "anon" || "$wrapper_owner" == "authenticated" ]]; then
-      psql "$database_url" -X -v ON_ERROR_STOP=1 -q -c "GRANT CREATE ON SCHEMA public TO \${wrapper_owner}"
+      psql "$database_url" -X -v ON_ERROR_STOP=1 -q -c "GRANT CREATE ON SCHEMA public TO ${wrapper_owner}"
     fi
 
     psql "$database_url" -X -v ON_ERROR_STOP=1 <<SQL
@@ -137,29 +137,29 @@ CREATE FUNCTION public.execute_create_offer_v1(
 )
 RETURNS jsonb
 LANGUAGE sql
-\${security_clause}
+${security_clause}
 SET search_path = public
-AS \\$wrapper\\$
+AS \$wrapper\$
   SELECT '{}'::jsonb
-\\$wrapper\\$;
+\$wrapper\$;
 
 ALTER FUNCTION public.execute_create_offer_v1(
   uuid, text, jsonb, text, uuid, uuid, uuid, numeric, numeric, text,
   text, text, text, jsonb, text, text, text, text
-) OWNER TO \${wrapper_owner};
+) OWNER TO ${wrapper_owner};
 SQL
   fi
 
   log_file="$(mktemp)"
   temporary_files+=("$log_file")
   if psql "$database_url" -X -v ON_ERROR_STOP=1 -f "$ROOT/supabase/migrations/20261027100000_restrict_direct_create_offer_rpc.sql" >"$log_file" 2>&1; then
-    echo "::error::Expected CREATE_OFFER migration failure for scenario \${scenario}, but it succeeded." >&2
+    echo "::error::Expected CREATE_OFFER migration failure for scenario ${scenario}, but it succeeded." >&2
     cat "$log_file" >&2
     return 1
   fi
 
   if ! grep -Fq "$expected_error" "$log_file"; then
-    echo "::error::Scenario \${scenario} failed for an unexpected reason." >&2
+    echo "::error::Scenario ${scenario} failed for an unexpected reason." >&2
     cat "$log_file" >&2
     return 1
   fi
@@ -189,17 +189,17 @@ SELECT
       AND a.privilege_type = 'EXECUTE'
   )
 FROM pg_proc p
-WHERE p.oid = 'public.create_offer_v1(text,uuid,uuid,numeric,numeric,text,text,text,text,jsonb,text,text,text,text)'::regprocedure;
+WHERE p.oid = 'public.create_offer_v1(text,uuid,uuid,uuid,numeric,numeric,text,text,text,text,jsonb,text,text,text,text)'::regprocedure;
 SQL
 )"
 
   if [[ "$rollback_state" != "t" ]]; then
-    echo "::error::Scenario \${scenario} did not preserve the complete pre-migration ACL after the expected failure (result: \${rollback_state:-no row})." >&2
+    echo "::error::Scenario ${scenario} did not preserve the complete pre-migration ACL after the expected failure (result: ${rollback_state:-no row})." >&2
     cat "$log_file" >&2
     return 1
   fi
 
-  echo "CREATE_OFFER negative migration scenario PASS: \${scenario} (expected failure; ACL transaction rolled back)"
+  echo "CREATE_OFFER negative migration scenario PASS: ${scenario} (expected failure; ACL transaction rolled back)"
 }
 
 run_negative_case "missing_wrapper" "missing" "qima_wrapper_owner_test" \
