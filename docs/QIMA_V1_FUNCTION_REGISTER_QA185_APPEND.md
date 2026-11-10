@@ -3125,3 +3125,38 @@ The change is test-only. It does not assert or infer the owner of any live Supab
 - **Canonical register:** `docs/QIMA_V1_FUNCTION_REGISTER.md` was re-read on the PR branch. The connector returned blob SHA `0f1c8a802d0bfa95b4726808fa5f418829a81924` but no body because of the large-file retrieval limit. It was not overwritten or truncated; this result is recorded in this append-only QA register.
 - **Production/business gates:** no Supabase Production connection was attempted in this run. The earlier read-only catalogue attempt remains blocked by PostgreSQL `28P01`; live owners/ACLs/memberships remain unverified. MKT-1.1 provider/demand eligibility still requires an explicit business ownership decision.
 - **Safety:** this guard limits the integration runner to the ephemeral loopback CI database and rejects remote or non-`qima_test` targets before `psql`. No Supabase Production data, schema, migration, RLS policy, grant, secret, persistent configuration, Production deployment, PR merge, force update, or branch-protection setting was changed.
+
+
+## QA322 — CREATE_OFFER integration runner URL guard CI evidence
+
+- **Exact code SHA:** `043942e096d9656749ea97360cac93771c012eca`; the PR branch was advanced from baseline `a776df21395d2e96af8c5cacdc3d3a8d8025f4ea` by a verified non-force fast-forward.
+- **QIMA CI #1170:** run `42877621065` — **SUCCESS**, all three jobs. [Workflow run](https://github.com/meridane/QimaTrade-MVP/actions/runs/42877621065).
+  - PostgreSQL 16 job: new `test-create-offer-integration-runner-guard.sh` emitted the exact marker `CREATE_OFFER integration runner URL guard regression PASS: 7 unsafe URLs rejected before psql; 3 supported loopback URLs accepted.` The real CREATE_OFFER integration/concurrency, wrapper-owner, seven-function ACL, legacy RLS/cleanup, prepared-transaction cleanup/restoration, and participant self-enrollment suites all passed.
+  - PostgreSQL 17.6 job: `server_version_num=170006`; CREATE_OFFER integration/concurrency, wrapper-owner/membership, and seven-function EXECUTE ACL regressions passed.
+  - Browser/build job: npm ci, dependency audit, TypeScript, Next.js build, Chromium, and Playwright all passed; Playwright reported **336 passed, 0 failed**.
+- **CodeQL #1121:** run `42877620867` — **SUCCESS**. [CodeQL run](https://github.com/meridane/QimaTrade-MVP/actions/runs/42877620867).
+- **Vercel:** code SHA `043942e` had a successful Preview status. A later documentation-only SHA `4649a051e03034794d6739d1b9665b69332c295c` reported `api-deployments-free-per-day`; this is a Preview quota failure, not a GitHub build failure and not a Production deployment.
+- **Documentation-trigger behavior:** the docs-only commit `4649a05` had no PR-triggered CI/CodeQL run because the workflows ignore `docs/**`. The executable code remained unchanged from the fully validated SHA `043942e`.
+- **Safety:** no Production database, data, migration, RLS policy, grant, secret, deployment, PR merge, force update, or branch protection was changed.
+
+## QA323 — fail-closed DATABASE_URL guard for participant self-enrollment regression runner
+
+- **Priority/finding:** a focused audit of the remaining CI SQL runners found that `tests/sql/run-participant-self-enrollment-regression.sh` had no destination guard. Its fixture creates a schema and roles, replaces test policies, and executes `TRUNCATE ... RESTART IDENTITY CASCADE` against `qima_participant_test` tables. A mistaken remote `DATABASE_URL` could therefore target a non-disposable database. This is a test-runner safety gap, not evidence that Production was modified or exploited.
+- **Code change:** the runner now rejects any URI except PostgreSQL with credentials, host `localhost`, `127.0.0.1`, or `[::1]`, port `5432`, database `qima_test`, and no query string. It exits 2 before `psql` and does not echo the URL or credentials.
+- **Regression test:** new `tests/sql/test-participant-self-enrollment-runner-guard.sh`. It verifies seven unsafe URLs are rejected before the psql stub is invoked and three supported loopback forms pass the guard and reach the stub. The stub never opens a database connection.
+- **CI wiring:** `.github/workflows/ci.yml` runs the new guard test immediately before the participant self-enrollment SQL regression.
+- **Work branch:** `work/participant-runner-url-guard-20261111-0344`, created from PR head `4649a051e03034794d6739d1b9665b69332c295c`; three commits were fast-forwarded to the PR branch with expected-head verification:
+  - `98fdba5ee8779baf9b806aec4160eae6415790ee` — runner guard.
+  - `5036eda90039549fdf48d7987c0c4d9ee40b7bb1` — regression test.
+  - `402219c2e0e0898351b0a16aaa20f824a4323bae` — CI wiring.
+- **Local harness:** Bash syntax checks and a stubbed guard harness passed for seven rejected and three accepted URI cases. The committed repository test was then executed by GitHub Actions.
+- **QIMA CI #1171:** run `42878201327` on code SHA `402219c2e0e0898351b0a16aaa20f824a4323bae` — **SUCCESS**, all three jobs. [Workflow run](https://github.com/meridane/QimaTrade-MVP/actions/runs/42878201327).
+  - PostgreSQL 16 job: both CREATE_OFFER runner URL guard and participant self-enrollment runner URL guard emitted their exact PASS markers (7 unsafe rejected before psql; 3 loopback accepted). CREATE_OFFER integration/concurrency, wrapper-owner, seven-function ACL, legacy-message RLS/cleanup, prepared-transaction setup/restore/cleanup, and participant self-enrollment synthetic RLS tests passed.
+  - PostgreSQL 17.6 job: `server_version_num=170006`; CREATE_OFFER integration/concurrency, wrapper-owner/membership, and seven-function EXECUTE ACL regressions passed.
+  - Browser/build job: npm ci, dependency audit, TypeScript, Next.js build, Chromium, and Playwright passed; Playwright reported **336 passed, 0 failed**.
+- **CodeQL #1122:** run `42878201168` — **SUCCESS**. [CodeQL run](https://github.com/meridane/QimaTrade-MVP/actions/runs/42878201168).
+- **Current PR metadata before this documentation-only update:** OPEN, DRAFT, unmerged, `mergeable=true`; code head `402219c2e0e0898351b0a16aaa20f824a4323bae`; 1,322 commits ahead of `main`, 0 behind, 81 changed files.
+- **Vercel:** current code head's combined status reports Preview failure `api-deployments-free-per-day` / `build-rate-limit`. GitHub CI and CodeQL are successful; this quota does not indicate a build/test failure. No Production deployment was attempted.
+- **Production/business gates:** no Supabase Production connection was attempted. The prior PostgreSQL `28P01` read-only catalogue access blocker remains unresolved; live function owners/ACLs/memberships remain unverified. MKT-1.1 demand/provider eligibility still requires an explicit business ownership decision.
+- **Canonical register:** `docs/QIMA_V1_FUNCTION_REGISTER.md` was queried again; connector returned blob SHA `0f1c8a802d0bfa95b4726808fa5f418829a81924` but no body due the large-file retrieval limit. The canonical historical file was not overwritten or truncated; evidence remains append-only here.
+- **Safety:** no Supabase Production data, schema, migration, RLS policy, grant, secret, persistent configuration, Production deployment, PR merge, force update, or branch-protection setting was changed.
