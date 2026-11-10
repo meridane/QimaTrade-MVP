@@ -6817,3 +6817,12 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - Vercel Preview Comments completed **SUCCESS** and the combined Vercel status for HEAD `3c7a2e2` was **SUCCESS**. No Production deployment was made.
 - Live Supabase catalog access remains blocked by PostgreSQL `28P01`; effective Production ACLs and owners remain unverified. These tests establish migration semantics on disposable PostgreSQL only, not a Production vulnerability. Neither ACL migration has been applied to Supabase Production.
 - Next gate: obtain authorized read-only catalog output for function owners/effective ACLs and `public` schema CREATE privileges. Keep the low-level `create_offer_v1(...)` ACL unchanged until its effective owner and SECURITY DEFINER caller relationship are verified.
+
+
+### ACL regression postcondition coverage correction — 10 November 2026
+
+- Review of `tests/sql/function-execute-acl-regression.sql` found that the pre-migration fixture and direct-`anon` grant covered seven function signatures, but the post-migration `v_function_oids` array contained only the first three. The test therefore did not assert the final ACL state for the four helper functions in `20261110080000_harden_authenticated_helper_anon_acl.sql`, despite printing `covered functions: 7`.
+- Expanded the postcondition array to all seven exact signatures: `current_profile_actor_id()`, `dt_select_product_master(uuid,uuid,uuid)`, `execute_create_offer_v1(...)`, `dt_has_tenant_access(uuid)`, `dt_submit_answer(...)`, `dt_publish_product_request(uuid,uuid)`, and `is_message_participant(uuid,uuid,uuid)`. The existing loop now checks effective anon denial, effective authenticated access, and explicit absence of PUBLIC/direct-anon EXECUTE ACL entries for all seven.
+- This is a regression-test coverage correction, not evidence of a Production ACL weakness. Both ACL migrations remain PR-only and have not been applied to Supabase Production.
+- Code commit: `614c07a11cfc42ddc41e9d9ac40e0d28b6dc7da1`. QIMA CI #1109 and CodeQL #1061 were **IN PROGRESS** when this note was prepared; no result is claimed here. Vercel status was **PENDING**.
+- Next gate: inspect the PostgreSQL job log for all seven postconditions, verify the full CI/CodeQL outcome, then append final results. Live Supabase catalog access remains blocked by PostgreSQL `28P01`; no Production vulnerability is confirmed.
