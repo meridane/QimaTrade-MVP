@@ -3291,3 +3291,19 @@ The change is test-only. It does not assert or infer the owner of any live Supab
 - **Current PR branch comparison:** `fix/create-offer-status-contract` compared as 1,337 commits ahead of `main`, 0 behind. The PR remains open and its description still marks it as a draft; no review submissions or inline review threads were returned.
 - **Documentation:** this reconciliation is append-only. The documentation-only commit is ignored by the current CI/CodeQL path filters; the in-progress workflows validate code SHA `9973ef7`, not the later documentation HEAD.
 - **Next step:** inspect the final CI #1184 and CodeQL #1135 conclusions and append their exact outcomes. If either fails, investigate the failing step before describing QA329 as validated.
+
+
+
+## QA329 — final validation reconciliation (11 November 2026)
+
+- **Validated code SHA:** `9973ef7937ec55cd9e83a808a8d09512d7d06ddd`.
+- **QIMA CI #1184:** run `42923166660` — **SUCCESS**, all three jobs completed successfully. [Workflow run](https://github.com/meridane/QimaTrade-MVP/actions/runs/42923166660).
+  - Build/browser job: npm ci, npm audit at the configured high threshold, TypeScript, Next.js production build, Chromium installation, and Playwright all succeeded. The log confirms **336 passed, 0 failed**. It also shows the updated identity-provenance test: `legacy offers route derives provider_actor_id from the authenticated user's profile and ignores client actor/tenant identifiers`.
+  - PostgreSQL 16 integration job: CREATE_OFFER integration/concurrency, wrapper-owner and seven-function ACL tests, Legacy Messages migration/RLS cleanup, active-session cleanup, prepared-transaction setup/restoration/cleanup, participant self-enrollment runner guard and RLS regression all succeeded.
+  - PostgreSQL 17.6 compatibility job: the pinned service version assertion, CREATE_OFFER integration/concurrency, wrapper-owner/membership, and seven-function EXECUTE ACL checks all succeeded.
+- **QIMA CodeQL #1135:** run `42923166454` — **SUCCESS**; JavaScript/TypeScript analysis completed. [CodeQL run](https://github.com/meridane/QimaTrade-MVP/actions/runs/42923166454).
+- **Vercel Preview:** combined status for code SHA `9973ef7937ec55cd9e83a808a8d09512d7d06ddd` — **SUCCESS** at https://vercel.com/bmk1/qimatrade-mvp/9ZuHsb7EsX3KLipW8rKbZ8fbKYhy. Preview only; no Production deployment.
+- **Failures:** no GitHub Actions job, Playwright test, PostgreSQL job, or CodeQL job failed. PostgreSQL server logs include expected negative-test errors for idempotency, deliberate rollback, wrapper-owner rejection, injected SQL failure, and prepared-transaction cleanup blocking; the corresponding assertions passed and all jobs concluded successfully.
+- **PR branch:** after the code and documentation fast-forwards, `fix/create-offer-status-contract` compares as 1,338 commits ahead of `main`, 0 behind, with 82 changed files. PR #26 remains open, draft, and unmerged. No reviews or inline review threads were returned.
+- **Interpretation:** QA329 is a mocked-client regression for the independent legacy draft route. It confirms that the route derives the provider actor from the authenticated profile and does not forward client-supplied tenant fields into its insert payload. It does not prove production tenant/demand eligibility or resolve the MKT-1.1 business decision.
+- **Safety:** no production Supabase data, migration, RLS policy, grant, secret, persistent configuration, Production deployment, merge, force update, or branch-protection setting was changed.
