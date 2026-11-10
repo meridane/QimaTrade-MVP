@@ -59,7 +59,7 @@ BEGIN
 END
 $qa191_shadow_preflight$;
 
-DO $
+DO $$
 DECLARE
   first_result jsonb;
   retry_result jsonb;
@@ -1300,34 +1300,7 @@ BEGIN
     NULL;
   END;
 
-  SELECT count(*) IN
-
--- The successful RPC above must have used public-qualified relations, not any
--- of the empty temporary shadows created for this regression.
-DO $qa191_shadow_assert$
-DECLARE
-  v_table text;
-  v_count bigint;
-BEGIN
-  FOREACH v_table IN ARRAY ARRAY[
-    'dt_memberships', 'profiles', 'product_masters', 'demands',
-    'action_definitions', 'idempotency_keys', 'action_executions',
-    'offers', 'action_events'
-  ] LOOP
-    EXECUTE format('SELECT count(*) FROM pg_temp.%I', v_table) INTO v_count;
-    IF v_count <> 0 THEN
-      RAISE EXCEPTION 'QA191 unexpected rows written to temp shadow relation %: %', v_table, v_count;
-    END IF;
-  END LOOP;
-END
-$qa191_shadow_assert$;
-
-DROP TABLE pg_temp.action_events, pg_temp.offers, pg_temp.action_executions,
-  pg_temp.idempotency_keys, pg_temp.action_definitions, pg_temp.demands,
-  pg_temp.product_masters, pg_temp.profiles, pg_temp.dt_memberships;
-
-SELECT 'QA191 SECURITY DEFINER relation lookups and writes bypassed all temporary shadows and used schema-qualified public objects' AS result;
-TO v_count
+  SELECT count(*) INTO v_count
   FROM public.action_executions
   WHERE idempotency_key = 'fixture-rollback';
   IF v_count <> 0 THEN RAISE EXCEPTION 'Rollback left an orphan action execution'; END IF;
@@ -1367,6 +1340,33 @@ TO v_count
   END;
 END
 $$;
+
+-- The successful RPC above must have used public-qualified relations, not any
+-- of the empty temporary shadows created for this regression.
+DO $qa191_shadow_assert$
+DECLARE
+  v_table text;
+  v_count bigint;
+BEGIN
+  FOREACH v_table IN ARRAY ARRAY[
+    'dt_memberships', 'profiles', 'product_masters', 'demands',
+    'action_definitions', 'idempotency_keys', 'action_executions',
+    'offers', 'action_events'
+  ] LOOP
+    EXECUTE format('SELECT count(*) FROM pg_temp.%I', v_table) INTO v_count;
+    IF v_count <> 0 THEN
+      RAISE EXCEPTION 'QA191 unexpected rows written to temp shadow relation %: %', v_table, v_count;
+    END IF;
+  END LOOP;
+END
+$qa191_shadow_assert$;
+
+DROP TABLE pg_temp.action_events, pg_temp.offers, pg_temp.action_executions,
+  pg_temp.idempotency_keys, pg_temp.action_definitions, pg_temp.demands,
+  pg_temp.product_masters, pg_temp.profiles, pg_temp.dt_memberships;
+
+SELECT 'QA191 SECURITY DEFINER relation lookups and writes bypassed all temporary shadows and used schema-qualified public objects' AS result;
+
 
 RESET ROLE;
 
