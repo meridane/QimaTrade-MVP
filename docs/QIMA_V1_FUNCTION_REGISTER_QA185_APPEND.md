@@ -3071,3 +3071,37 @@ The change is test-only. It does not assert or infer the owner of any live Supab
 - **Code validation remains valid for unchanged code:** CI #1165 and CodeQL #1117 both succeeded on parent code head `5543acb0a7f2973773897279dd0f620ddf2eb8c0`. CI #1165's PostgreSQL 16 and PostgreSQL 17.6 logs both contain the QA191 success marker; the browser/build job reports 336 passed and 0 failed.
 - **Next gate:** no additional code change is needed to close QA315. Preserve the validated code baseline. Investigate the unexplained PR `mergeable=false` metadata without changing branch protection or rebasing; continue to require read-only live Supabase catalog access before any Production ACL conclusion.
 - **Safety:** this correction is documentation-only. No Supabase Production data, schema, migration, RLS policy, grant, secret, persistent configuration, Production deployment, merge, force update, or branch-protection setting was changed.
+
+
+
+## QA319 — QA315 authenticated-caller precondition regression
+
+- **Priority:** harden the QA315 test itself so the temporary-relation shadow scenario cannot silently run under the privileged CI database owner instead of the intended client role.
+- **Code commit:** `ebb6da9c35e338113a6cc1b53d88792a0649f73f` on work branch `work/qa315-authenticated-context-guard-20261111-0243`; fast-forwarded to `fix/create-offer-status-contract`.
+- **File:** `tests/sql/create-offer-runtime.sql` only.
+- **Preflight assertions added:** after `SET ROLE authenticated` and creation of the nine `pg_temp` shadows, the test now requires `current_user = 'authenticated'` and `pg_my_temp_schema() <> 0` before checking that unqualified relation resolution reaches each temporary shadow.
+- **Postcondition assertion added:** before checking the nine temporary tables remain empty, the test again requires `current_user = 'authenticated'`. This protects against a future accidental `RESET ROLE` or role-context change between setup and assertion.
+- **Diff:** 12 insertions, 0 deletions in the SQL regression file. The prior QA315 test body and runtime function/migration code are unchanged.
+- **QIMA CI #1168:** run `42868091678` on exact code commit `ebb6da9c35e338113a6cc1b53d88792a0649f73f` — **SUCCESS**, all 3 jobs. [Workflow run](https://github.com/meridane/QimaTrade-MVP/actions/runs/42868091678).
+  - PostgreSQL 16 integration job `130011717745`: **SUCCESS**. Its decoded log contains the exact marker `QA191 SECURITY DEFINER relation lookups and writes bypassed all temporary shadows and used schema-qualified public objects`. The new authenticated-caller preflight and postcondition completed without exception. CREATE_OFFER integration/replay/rollback/concurrency, wrapper-owner regression, seven-function EXECUTE ACL, legacy RLS/cleanup, prepared-transaction restoration/cleanup, and participant self-enrollment checks passed.
+  - PostgreSQL 17.6 compatibility job `130011717680`: **SUCCESS**. Server version assertion reported `server_version_num=170006`; the decoded log contains the same QA191 marker. The new caller-role assertions passed, as did CREATE_OFFER integration/concurrency, wrapper-owner/membership, and seven-function EXECUTE ACL tests.
+  - Browser/build job `130011717180`: **SUCCESS**. Workflow-concurrency guard, PostgreSQL version-guard boundary cases, npm ci, dependency audit, TypeScript, Next.js production build, Chromium installation, and Playwright passed. Playwright reported **336 passed, 0 failed**.
+- **CodeQL #1119:** run `42868091679` on the same code commit — **SUCCESS**. [Workflow run](https://github.com/meridane/QimaTrade-MVP/actions/runs/42868091679).
+- **Vercel Preview:** combined commit status is **SUCCESS** for `ebb6da9`; this is a Preview status, not a Production deployment.
+- **PR metadata correction:** at the start of this run, PR #26 was OPEN, DRAFT and unmerged at head `551d751cb6d86440544ca0708f5d39361d47907f`, with 1,312 commits ahead of `main`, 0 behind, and `mergeable=true`. This supersedes the stale `mergeable=false` observation recorded in QA318. After the code fast-forward, the PR head is `ebb6da9c35e338113a6cc1b53d88792a0649f73f`, 1,313 commits ahead, 0 behind; GitHub again reports `mergeable=true`.
+- **Review state:** the latest read returned no submitted PR reviews and no inline review threads. The PR remains DRAFT; no readiness or merge action was taken.
+- **Validation interpretation:** CI #1168 and CodeQL #1119 validate the test change on disposable PostgreSQL 16 and 17.6. They do not prove the live Supabase function definitions, owners, grants, memberships, or search-path settings, and do not establish a Production vulnerability.
+- **Canonical register:** `docs/QIMA_V1_FUNCTION_REGISTER.md` was queried at the PR branch; the connector returned blob SHA `0f1c8a802d0bfa95b4726808fa5f418829a81924` but no body. It was not overwritten. This evidence is appended to the reviewable QA185 addendum.
+- **Production/business gates:** the previously recorded Supabase read-only catalog query remains blocked by PostgreSQL `28P01` authentication failure; no new Production connection was attempted in this run. MKT-1.1 demand/provider eligibility still requires an explicit business ownership decision.
+- **Safety:** no Supabase Production data, schema, migration, RLS policy, grant, secret, persistent configuration, Production deployment, PR merge, force update, or branch-protection setting was changed.
+
+
+## QA320 — latest PR and check reconciliation after QA319
+
+- **Current code head:** `ebb6da9c35e338113a6cc1b53d88792a0649f73f` is the code commit validated by CI #1168 and CodeQL #1119.
+- **Latest checks:** QIMA CI #1168 and CodeQL #1119 both completed **SUCCESS** on the exact code SHA. Vercel Preview status for the same SHA is **SUCCESS**.
+- **PR state:** OPEN, DRAFT, unmerged, mergeable=true; 1,313 commits ahead of `main`, 0 behind, 79 changed files.
+- **Last commit before this documentation update:** `ebb6da9` changes only `tests/sql/create-offer-runtime.sql` (12 additions, 0 deletions).
+- **Next validation rule:** record any subsequent CI/CodeQL result against its exact SHA; do not attribute CI #1168 / CodeQL #1119 to a later documentation-only commit unless GitHub reports those checks on that exact SHA.
+- **Next work:** retain the QA315 passing baseline; prioritize read-only Supabase catalog access and the separately blocked MKT-1.1 business contract before adding speculative authorization/ACL changes.
+- **Safety:** documentation-only entry. No Supabase Production data, schema, migration, RLS policy, grant, secret, persistent configuration, Production deployment, PR merge, force update, or branch-protection setting was changed.
