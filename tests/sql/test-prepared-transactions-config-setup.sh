@@ -135,6 +135,60 @@ assert_restore_intent() {
   fi
 }
 
+# QA328: exercise the setup script's DATABASE_URL allowlist before any
+# Docker discovery, PostgreSQL query, or restoration-marker write.
+allowed_setup_urls=(
+  "postgresql://postgres:postgres@localhost:5432/qima_test"
+  "postgres://postgres:postgres@127.0.0.1:5432/qima_test"
+  "postgresql://postgres:postgres@[::1]:5432/qima_test"
+)
+for allowed_url in "${allowed_setup_urls[@]}"; do
+  run_setup 0 env DATABASE_URL="$allowed_url"
+  assert_restore_intent
+  expected="$(printf '%s\\n' docker-ps psql-show-1 docker-exec-set docker-restart pg-isready psql-show-2)"
+  if [[ "$(cat "$EVENTS")" != "$expected" ]] ||
+    ! grep -Fq "restarted with max_prepared_transactions=10" "$OUTPUT"; then
+    echo "ERROR: an explicitly supported loopback DATABASE_URL did not complete the setup sequence." >&2
+    cat "$EVENTS" >&2
+    cat "$OUTPUT" >&2
+    exit 1
+  fi
+done
+
+unsafe_setup_urls=(
+  "postgresql://postgres:postgres@db.example:5432/qima_test"
+  "postgresql://postgres:postgres@localhost:5432/production"
+  "postgresql://postgres:postgres@localhost:5432/qima_test?sslmode=require"
+  "postgresql://postgres:postgres@localhost:5433/qima_test"
+  "https://postgres:postgres@localhost:5432/qima_test"
+  "postgresql://postgres:postgres@localhost.evil:5432/qima_test"
+  "postgresql://postgres:postgres@127.0.0.2:5432/qima_test"
+)
+for unsafe_url in "${unsafe_setup_urls[@]}"; do
+  run_setup 2 env DATABASE_URL="$unsafe_url"
+  if [[ -s "$EVENTS" ]] || [[ -s "$GITHUB_OUTPUT_FILE" ]] ||
+    ! grep -Fq "Refusing prepared-transaction setup" "$OUTPUT" ||
+    grep -Fq "postgres:postgres" "$OUTPUT"; then
+    echo "ERROR: prepared-transaction setup did not reject an unsafe DATABASE_URL before external operations and marker publication." >&2
+    cat "$EVENTS" >&2
+    cat "$GITHUB_OUTPUT_FILE" >&2
+    cat "$OUTPUT" >&2
+    exit 1
+  fi
+done
+
+# An unset destination must also fail closed before Docker, psql, or output writes.
+run_setup 2 env -u DATABASE_URL
+if [[ -s "$EVENTS" ]] || [[ -s "$GITHUB_OUTPUT_FILE" ]] ||
+  ! grep -Fq "Refusing prepared-transaction setup" "$OUTPUT" ||
+  grep -Fq "postgres:postgres" "$OUTPUT"; then
+  echo "ERROR: missing DATABASE_URL was not rejected before external operations and marker publication." >&2
+  cat "$EVENTS" >&2
+  cat "$GITHUB_OUTPUT_FILE" >&2
+  cat "$OUTPUT" >&2
+  exit 1
+fi
+
 # Success: baseline is captured, restoration intent is persisted, then SET/restart/verify run.
 run_setup 0
 assert_restore_intent
@@ -485,3 +539,5 @@ if [[ "$restore_status" -ne 0 ]] ||
 fi
 
 echo "Prepared-transaction setup regression passed: docker ps partial-output failures preserve the exit code; zero/multiple container discovery fails before database access; initial SHOW and non-pristine baseline failures stop before mutation; marker write failures and partial GITHUB_OUTPUT writes stop before mutation with safe always() no-op cleanup; SET, restart, post-restart SHOW and readiness failures preserve the cleanup marker; retry exhaustion is bounded; workflow invokes setup and always() restoration."
+
+echo "QA328 prepared-transaction setup URL guard PASS: 3 supported loopback URLs accepted; 7 unsafe URLs and an unset DATABASE_URL rejected before Docker/psql or restoration-marker writes."
