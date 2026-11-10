@@ -3003,3 +3003,13 @@ The change is test-only. It does not assert or infer the owner of any live Supab
 - **Interpretation rule:** record workflow/check evidence against the exact commit SHA. Do not infer why a workflow did or did not trigger solely from `paths-ignore` or from a previous documentation update.
 - **PR state at this checkpoint:** PR #26 remains OPEN, DRAFT and unmerged; latest head `095cf03fd2cd992fc4c406ba283397a6bab9e9d5`, 1,304 commits and 79 changed files. GitHub returned `mergeable=null` / `mergeable_state=unknown` while recalculating; mergeability is not asserted at this checkpoint.
 - **Safety:** no Supabase Production data, schema, migration, RLS policy, grant, secret, persistent configuration, Production deployment, merge, force update, or branch-protection setting was changed.
+
+
+## QA190 — Supabase read-only catalog access retry
+
+- **Project metadata:** Supabase `get_project` returned project `yyulzlnrfcbaxovzjbnh`, name `QIMA`, status `ACTIVE_HEALTHY`, region `ap-southeast-1`, PostgreSQL `17.6.1.166` (engine 17).
+- **Read-only query attempted:** a single SELECT-only catalog query resolved the exact wrapper and low-level CREATE_OFFER signatures and requested their owners, SECURITY DEFINER flags, `proconfig`, function ACLs, effective EXECUTE privileges, owner schema USAGE/CREATE, direct role memberships, and client schema CREATE privileges. No DDL or DML was included.
+- **Result:** Supabase `execute_sql` failed before returning query rows with `FATAL: 28P01: password authentication failed for user "postgres"`. No catalog row was returned; the query did not execute successfully.
+- **Interpretation:** project metadata reports ACTIVE_HEALTHY, but the SQL execution path is currently blocked by database authentication. This is an access failure, not evidence that either CREATE_OFFER function has an ACL defect. Production ownership, grants, role memberships, and schema privileges remain unverified.
+- **Next required input:** a working read-only SQL/catalog access path for project `yyulzlnrfcbaxovzjbnh`. Do not change the database password, secrets, roles, grants, schema, or project configuration to bypass this failure.
+- **Safety:** no Supabase Production data, schema, migration, RLS policy, grant, secret, or persistent configuration was changed. No Production deployment or PR merge occurred.
