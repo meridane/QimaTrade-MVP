@@ -17,6 +17,7 @@ REVOKE ALL ON FUNCTION public.create_offer_v1(
 DO $wrapper_owner$
 DECLARE
   v_wrapper_oid oid;
+  v_wrapper_owner_oid oid;
   v_wrapper_owner name;
   v_wrapper_is_security_definer boolean;
 BEGIN
@@ -28,8 +29,8 @@ BEGIN
     RAISE EXCEPTION 'Expected CREATE_OFFER SECURITY DEFINER wrapper is missing';
   END IF;
 
-  SELECT r.rolname, p.prosecdef
-  INTO v_wrapper_owner, v_wrapper_is_security_definer
+  SELECT r.oid, r.rolname, p.prosecdef
+  INTO v_wrapper_owner_oid, v_wrapper_owner, v_wrapper_is_security_definer
   FROM pg_proc p
   JOIN pg_roles r ON r.oid = p.proowner
   WHERE p.oid = v_wrapper_oid;
@@ -40,6 +41,13 @@ BEGIN
 
   IF v_wrapper_owner IS NULL OR v_wrapper_owner IN ('anon', 'authenticated') THEN
     RAISE EXCEPTION 'CREATE_OFFER wrapper must have a trusted non-client owner';
+  END IF;
+
+  -- A trusted owner role must not be reachable through membership by either
+  -- client-facing role; otherwise its low-level EXECUTE grant could be inherited.
+  IF pg_has_role('anon', v_wrapper_owner_oid, 'MEMBER')
+     OR pg_has_role('authenticated', v_wrapper_owner_oid, 'MEMBER') THEN
+    RAISE EXCEPTION 'CREATE_OFFER wrapper owner must not be a member of a client-facing role';
   END IF;
 
   EXECUTE format(
