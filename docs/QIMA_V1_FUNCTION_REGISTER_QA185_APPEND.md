@@ -2992,3 +2992,14 @@ The change is test-only. It does not assert or infer the owner of any live Supab
 - **CodeQL #1112:** run `42840867798` on the same addendum HEAD — **SUCCESS**. [Workflow run](https://github.com/meridane/QimaTrade-MVP/actions/runs/42840867798).
 - **Code validation remains anchored to code commit:** CI #1159 (`42840191031`) and CodeQL #1111 (`42840190999`) both succeeded on code HEAD `254ff8e0e025188ff80c33ac5bc45606e1a2dbec`. CI #1160 and CodeQL #1112 also succeeded on the subsequent addendum HEAD, which contains the same code plus documentation.
 - **Final safety:** no Supabase Production data, schema, migration, RLS policy, grant, secret, persistent configuration, Production deployment, merge, force update, or branch-protection setting was changed.
+
+
+## QA189 — exact per-commit workflow evidence
+
+- **Evidence correction:** QA188 correctly records that QIMA CI #1160 and CodeQL #1112 were created for addendum head `fe2db85651cf55ae38d494ae98489e78c2ffb9aa` and both completed successfully. However, the explanation in QA188 attributing the trigger to the PR-wide diff is not established by the available evidence and should not be treated as a confirmed explanation.
+- **Observed current-head behavior:** commit `095cf03fd2cd992fc4c406ba283397a6bab9e9d5` changes only the QA185 documentation addendum. At the final check, `fetch_commit_workflow_runs` returned no workflow runs for this SHA and its check-runs endpoint returned zero checks. Therefore no CI or CodeQL result is claimed for this exact documentation-only commit.
+- **Adjacent documentation checkpoint:** CI #1161 (run `42841136683`) was created for earlier addendum head `97ab8713ee79f7a9b3290c6e2f4dd41a2f28d2ba` and remained **IN PROGRESS** at this checkpoint. CodeQL #1113 (run `42841136723`) for that same SHA completed **SUCCESS**. These are not checks attached to current HEAD `095cf03`.
+- **Code verification:** code HEAD `254ff8e0e025188ff80c33ac5bc45606e1a2dbec` is fully validated by QIMA CI #1159 (run `42840191031`) and CodeQL #1111 (run `42840190999`), both **SUCCESS**. The subsequent addendum head `fe2db85651cf55ae38d494ae98489e78c2ffb9aa` is also fully validated by CI #1160 and CodeQL #1112, both **SUCCESS**.
+- **Interpretation rule:** record workflow/check evidence against the exact commit SHA. Do not infer why a workflow did or did not trigger solely from `paths-ignore` or from a previous documentation update.
+- **PR state at this checkpoint:** PR #26 remains OPEN, DRAFT and unmerged; latest head `095cf03fd2cd992fc4c406ba283397a6bab9e9d5`, 1,304 commits and 79 changed files. GitHub returned `mergeable=null` / `mergeable_state=unknown` while recalculating; mergeability is not asserted at this checkpoint.
+- **Safety:** no Supabase Production data, schema, migration, RLS policy, grant, secret, persistent configuration, Production deployment, merge, force update, or branch-protection setting was changed.
