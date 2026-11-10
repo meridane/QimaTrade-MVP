@@ -7118,3 +7118,16 @@ Validation on the new code commit: pending GitHub Actions. No Supabase Productio
 - PR #26 remains OPEN, DRAFT, and mergeable; it is 1,284 commits ahead of main, zero behind, with 77 changed files. No review submissions or inline review threads were present at the latest check.
 - Supabase project metadata reports ACTIVE_HEALTHY and PostgreSQL 17.6.1.166. Read-only execute_sql still fails before executing SQL with 28P01; Security Advisors reports a contradictory hibernated-project error. Live Production function owners, ACLs, schema grants, and role memberships remain unverified.
 - All migration edits remain branch-only. No Supabase Production data, schema, migration, RLS policy, grant, secret, or configuration was changed. No Production deployment, PR merge, force-push, or branch-protection change occurred.
+
+
+#### Public schema CREATE privilege regression guard — 10 November 2026
+
+- Source-review context: the SECURITY DEFINER source audit already identified effective CREATE/USAGE on schema public for anon and authenticated as a live-catalog verification gate. The live Supabase catalog query in this run again failed before SQL execution with PostgreSQL 28P01; no production ACL conclusion is available.
+- Branch-only test addition: tests/sql/function-execute-acl-regression.sql now asserts, before and after both RPC EXECUTE ACL migrations, that anon and authenticated do not have effective CREATE on public in the disposable PostgreSQL fixture. This guards against the tested ACL migrations accidentally broadening schema CREATE while keeping the live Supabase question explicitly unresolved.
+- Evidence boundary: the assertion is a synthetic CI fixture invariant on PostgreSQL 16/17. It does not prove that anon/authenticated lack CREATE on the live QIMA project and does not justify a production grant/revoke.
+- Code commit: d02da82a76bb0f99bfbc0be7b4492f7e443feacc (test(security): guard client CREATE on public schema; follow-up fix commit restores the existing two-migration replay block and DO dollar-quote delimiter).
+- Intermediate test-edit commit 375a37cd31d319a7244c7a523523d0360040f5d4 was superseded by d02da82 before validation completed. QIMA CI #1148 on the intermediate commit reported a PostgreSQL 17 SQL syntax failure at DO dollar quoting; this was a test-file editing defect, not a product-code or production finding. The corrected HEAD has exactly two applications of each ACL migration and a restored DO $$ block.
+- On corrected code HEAD d02da82, QIMA CI #1149 was queued/pending at this checkpoint and CodeQL #1101 was still in progress. Do not mark the new assertion validated until #1149 PostgreSQL 16 and PostgreSQL 17 jobs finish successfully.
+- PR #26 remains OPEN and DRAFT, mergeable, 1,287 commits ahead of main and zero behind, with 77 changed files. No review submissions or inline review threads were present.
+- Combined Vercel status on the corrected code HEAD reports FAILURE with the provider build-rate-limit quota target. This is separate from GitHub Actions and is not evidence of a Next.js compilation failure.
+- No Supabase Production data, schema, migration, grant, RLS policy, secret, or configuration was changed. No Production deployment, PR merge, force-push, or branch-protection change occurred.
