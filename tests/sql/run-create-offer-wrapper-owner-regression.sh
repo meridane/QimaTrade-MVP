@@ -16,6 +16,8 @@ TEST_ROLE="qima_wrapper_owner_test"
 TEST_DATABASE_URL="${DATABASE_URL%/qima_test}/${TEST_DATABASE}"
 created_database=0
 created_role=0
+created_anon=0
+created_authenticated=0
 
 cleanup() {
   local status=$?
@@ -33,6 +35,12 @@ cleanup() {
   if [[ "$created_role" == "1" ]]; then
     psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -c "DROP ROLE ${TEST_ROLE}" >/dev/null || status=1
   fi
+  if [[ "$created_authenticated" == "1" ]]; then
+    psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -c "DROP ROLE authenticated" >/dev/null || status=1
+  fi
+  if [[ "$created_anon" == "1" ]]; then
+    psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -c "DROP ROLE anon" >/dev/null || status=1
+  fi
 
   exit "$status"
 }
@@ -45,6 +53,15 @@ fi
 if [[ "$(psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t -c "SELECT 1 FROM pg_roles WHERE rolname = '${TEST_ROLE}'")" == "1" ]]; then
   echo "::error::Refusing to reuse existing ${TEST_ROLE}; no role was modified." >&2
   exit 2
+fi
+
+if [[ "$(psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t -c "SELECT 1 FROM pg_roles WHERE rolname = 'anon'")" != "1" ]]; then
+  psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -c "CREATE ROLE anon NOLOGIN"
+  created_anon=1
+fi
+if [[ "$(psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t -c "SELECT 1 FROM pg_roles WHERE rolname = 'authenticated'")" != "1" ]]; then
+  psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -c "CREATE ROLE authenticated NOLOGIN"
+  created_authenticated=1
 fi
 
 psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -c "CREATE ROLE ${TEST_ROLE} NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT"
