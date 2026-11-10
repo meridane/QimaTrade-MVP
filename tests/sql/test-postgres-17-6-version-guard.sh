@@ -30,5 +30,6 @@ assert_rejected "human-readable version" "17.6"
 assert_rejected "non-numeric server value" "not-a-version"
 assert_rejected "empty server value" ""
 assert_rejected "missing server value"
+assert_rejected "extra positional argument" 170006 unexpected
 
-echo "PostgreSQL 17.6 version guard regression PASS: exact 170006 accepted; 9 invalid/missing cases rejected."
+echo "PostgreSQL 17.6 version guard regression PASS: exact 170006 accepted; 10 invalid/missing/arity cases rejected."
