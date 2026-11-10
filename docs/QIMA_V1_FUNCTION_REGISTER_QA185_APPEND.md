@@ -3316,3 +3316,14 @@ The change is test-only. It does not assert or infer the owner of any live Supab
 - **Observed consequence:** documentation HEAD `d6dbc520f199329151635cfeb6ffb0d934f7b3b1` has QIMA CI #1187 (run `42923434198`) **PENDING** and CodeQL #1138 (run `42923434189`) **IN PROGRESS** at this correction. No QIMA CI jobs had been assigned yet; CodeQL checkout and initialization had succeeded and analysis was running.
 - **Code validation remains distinct:** code commit `9973ef7937ec55cd9e83a808a8d09512d7d06ddd` already passed QIMA CI #1184 (3/3 jobs, 336/336 Playwright) and CodeQL #1135. Its Vercel Preview status was SUCCESS. The documentation HEAD's combined Vercel status returned the free-quota `build-rate-limit` failure; this does not invalidate the successful Preview on the code SHA.
 - **No application/test change:** this entry corrects workflow interpretation and records observed statuses only. It does not change the QA329 test conclusion or establish production authorization behavior.
+
+
+
+## QA329 — final PR-head check reconciliation (11 November 2026)
+
+- **Latest PR branch head before this reconciliation:** `662b99b36aa820b96e62e314eb8bebe73c78d66c`. The branch compared as 1,340 commits ahead of `main`, 0 behind, with 82 changed files.
+- **Code validation:** QIMA CI #1184 (run `42923166660`) on code SHA `9973ef7937ec55cd9e83a808a8d09512d7d06ddd` completed **SUCCESS** across all three jobs, including **336/336 Playwright** and PostgreSQL 16/17.6. QIMA CodeQL #1135 (run `42923166454`) also completed **SUCCESS**. The code SHA's Vercel Preview combined status was **SUCCESS**.
+- **Later documentation-head workflows:** QIMA CodeQL #1138 (run `42923434189`) on documentation HEAD `d6dbc520f199329151635cfeb6ffb0d934f7b3b1` completed **SUCCESS**. QIMA CI #1187 (run `42923434198`) on that same documentation HEAD ended **CANCELLED** before any job was returned; it is not a test failure and is not a CI pass. No explanation beyond the cancelled conclusion was exposed by the connector.
+- **Latest documentation correction commit:** `662b99b36aa820b96e62e314eb8bebe73c78d66c` records the PR path-filter correction. At the latest check, no workflow run was yet associated with this exact SHA. Its Vercel combined status was **FAILURE** with the free deployment quota `build-rate-limit`; this does not invalidate the successful Preview status on the tested code SHA.
+- **Interpretation:** the application/test change is validated by CI #1184 and CodeQL #1135. The later documentation-only HEAD has a successful CodeQL run on its parent documentation SHA, but CI #1187 was cancelled and the newest documentation SHA has no observed workflow run at this check. Do not claim that the final documentation HEAD has a completed CI pass.
+- **Safety:** no application runtime code, SQL, migration, Supabase Production data, policy, grant, secret, persistent configuration, Production deployment, PR merge, force update, or branch-protection setting was changed.
