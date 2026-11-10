@@ -216,3 +216,46 @@ jobs:
 
       - name: Run isolated participant self-enrollment RLS regression tests
         run: bash tests/sql/run-participant-self-enrollment-regression.sh
+
+  postgres17-create-offer-compatibility:
+    name: CREATE_OFFER PostgreSQL 17 compatibility
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: qima_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d qima_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/qima_test
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+      - name: Assert PostgreSQL 17 server version
+        shell: bash
+        run: |
+          version_num="$(psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t -c 'SHOW server_version_num')"
+          if [[ "$version_num" -lt 170000 || "$version_num" -ge 180000 ]]; then
+            echo "::error::Expected PostgreSQL 17; received server_version_num=${version_num}."
+            exit 1
+          fi
+          echo "PostgreSQL 17 compatibility server_version_num=${version_num}"
+      - name: Run CREATE_OFFER integration and concurrency tests on PostgreSQL 17
+        run: bash tests/sql/run-create-offer-integration.sh
+      - name: Run CREATE_OFFER wrapper-owner and membership regressions on PostgreSQL 17
+        run: bash tests/sql/run-create-offer-wrapper-owner-regression.sh
+      - name: Run seven-function EXECUTE ACL regression on PostgreSQL 17
+        run: bash tests/sql/run-function-execute-acl-regression.sh
