@@ -7059,3 +7059,12 @@ Validation on the new code commit: pending GitHub Actions. No Supabase Productio
 - CodeQL #1092 (https://github.com/meridane/QimaTrade-MVP/actions/runs/42790757827) completed SUCCESS on HEAD af1d9c8.
 - A documentation-only follow-up commit recorded this final CI result. The new PR HEAD is bf0e122ab37f1b86b38c841202b03ae860f9ce70; QIMA CI #1141 (https://github.com/meridane/QimaTrade-MVP/actions/runs/42791028327) and CodeQL #1093 (https://github.com/meridane/QimaTrade-MVP/actions/runs/42791028292) were IN PROGRESS at the time of this update. Refresh these before claiming final validation of the documentation HEAD.
 - The combined Vercel status on the PR HEAD remains a deployment quota failure (api-deployments-free-per-day / build-rate-limit). The GitHub Actions production build succeeded; no Vercel Production deployment was made.
+
+
+#### Follow-up validation of documentation HEAD — 10 November 2026
+
+- QIMA CI #1141 (https://github.com/meridane/QimaTrade-MVP/actions/runs/42791028327) completed SUCCESS on documentation HEAD bf0e122ab37f1b86b38c841202b03ae860f9ce70. All three jobs passed: the full PostgreSQL 16 integration suite, the TypeScript/dependency-audit/Next.js-build/Playwright job (336 passed), and PostgreSQL 17 CREATE_OFFER compatibility. The PostgreSQL 17 job again reported server_version_num 170011 and passed CREATE_OFFER integration/concurrency, wrapper-owner positive/negative rollback, and seven-function ACL checks.
+- CodeQL #1093 (https://github.com/meridane/QimaTrade-MVP/actions/runs/42791028292) completed SUCCESS on HEAD bf0e122.
+- On the next documentation HEAD 3029a8fa45121e90960ebd25923a51d1a327a158, QIMA CI #1142 (https://github.com/meridane/QimaTrade-MVP/actions/runs/42791113852) is IN PROGRESS and CodeQL #1094 (https://github.com/meridane/QimaTrade-MVP/actions/runs/42791113878) completed SUCCESS. At the latest check, the three CI jobs were starting; do not claim CI #1142 complete until all jobs finish.
+- The PR remains open, draft, mergeable, 1,280 commits ahead of main and zero behind. The combined Vercel status continues to report the deployment quota limit; GitHub Actions builds are independent and passed on the preceding validated HEAD.
+- Supabase project metadata confirms PostgreSQL 17.6.1.166, but read-only catalog SQL still fails before execution with 28P01. PostgreSQL 17.11 CI compatibility is a major-version test only, not proof of Production catalog state.
