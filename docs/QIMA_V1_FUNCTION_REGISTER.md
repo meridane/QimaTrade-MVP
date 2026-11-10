@@ -7104,3 +7104,17 @@ Validation on the new code commit: pending GitHub Actions. No Supabase Productio
 - PR #26 remains OPEN and DRAFT, mergeable, 1,283 commits ahead of main and zero behind, with 77 changed files. No reviews or inline review threads were present.
 - Supabase get_project reports ACTIVE_HEALTHY and PostgreSQL 17.6.1.166. The read-only execute_sql attempt failed before SQL execution with 28P01 (password authentication failed for user postgres); the Security Advisors endpoint separately reported the project as hibernated. These connector responses conflict, so Production owners and ACLs remain unverified.
 - The schema USAGE grant is committed only in the GitHub branch. No Production data, schema, migration, grant, RLS policy, secret, or configuration was changed; no Production deployment, merge, force-push, or branch-protection change occurred.
+
+
+#### Final documentation-head validation — 10 November 2026
+
+- QIMA CI #1145 (https://github.com/meridane/QimaTrade-MVP/actions/runs/42800658853) completed SUCCESS. All three jobs succeeded on the documentation HEAD 0593b308961adcc775c02b2a55290d1adc98bd32; no test failures were reported.
+- PostgreSQL 16: CREATE_OFFER integration/concurrency PASS; wrapper-owner positive and negative rollback regression PASS; seven-function EXECUTE ACL regression PASS (covered functions: 7); legacy messages RLS, disposable database cleanup, active/multiple-session cleanup, prepared-transaction setup/cleanup/restoration, and participant self-enrollment RLS PASS.
+- PostgreSQL 17: server_version_num=170011; CREATE_OFFER integration/concurrency PASS; wrapper-owner and membership regression PASS; seven-function EXECUTE ACL regression PASS (covered functions: 7).
+- Browser/build: npm ci PASS; npm audit --audit-level=high PASS; TypeScript PASS; Next.js production build PASS; Chromium installation PASS; Playwright 336 passed (7.0s); audit enforcement, audit-report upload, and committed-lockfile upload PASS.
+- CodeQL #1097 (https://github.com/meridane/QimaTrade-MVP/actions/runs/42800658826) completed SUCCESS.
+- A later documentation-only commit moved the PR to HEAD 3e8f946fadc6b6dbbc23e773ea1b7ec7f1971218; no code or migration file changed after code HEAD 9b0b23d6bfd859a75390b94668104bd1bc562059, which passed CI #1144 and CodeQL #1096. CI #1145 validates the same executable code plus the preceding documentation update.
+- Current combined Vercel status on documentation HEAD 3e8f946 is FAILURE with the provider quota target (api-deployments-free-per-day / build-rate-limit). The code HEAD 9b0b23d had a SUCCESS Preview status. GitHub Actions Next.js builds passed; the quota status is not evidence of a compilation failure. No Production deployment was initiated.
+- PR #26 remains OPEN, DRAFT, and mergeable; it is 1,284 commits ahead of main, zero behind, with 77 changed files. No review submissions or inline review threads were present at the latest check.
+- Supabase project metadata reports ACTIVE_HEALTHY and PostgreSQL 17.6.1.166. Read-only execute_sql still fails before executing SQL with 28P01; Security Advisors reports a contradictory hibernated-project error. Live Production function owners, ACLs, schema grants, and role memberships remain unverified.
+- All migration edits remain branch-only. No Supabase Production data, schema, migration, RLS policy, grant, secret, or configuration was changed. No Production deployment, PR merge, force-push, or branch-protection change occurred.
