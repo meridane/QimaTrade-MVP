@@ -219,6 +219,9 @@ jobs:
           BASELINE_MAX_PREPARED_TRANSACTIONS: ${{ steps.enable_prepared.outputs.baseline }}
         run: bash tests/sql/restore-prepared-transactions-config.sh
 
+      - name: Verify participant self-enrollment runner rejects unsafe database URLs
+        run: bash tests/sql/test-participant-self-enrollment-runner-guard.sh
+
       - name: Run isolated participant self-enrollment RLS regression tests
         run: bash tests/sql/run-participant-self-enrollment-regression.sh
 
