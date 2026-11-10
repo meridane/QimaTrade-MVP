@@ -1,7 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-version_num="${1-}"
+if (($# != 1)); then
+  echo "::error::Expected exactly one PostgreSQL server_version_num argument; received $# arguments."
+  exit 1
+fi
+
+version_num="$1"
 if [[ ! "$version_num" =~ ^[0-9]+$ ]]; then
   echo "::error::Expected numeric PostgreSQL server_version_num=170006; received '${version_num}'."
   exit 1
