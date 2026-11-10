@@ -202,6 +202,7 @@ run_absence_assertion_case() {
   local database_count="$2"
   local psql_status="$3"
   local expected_status="$4"
+  local database_url="${5:-postgresql://postgres:postgres@localhost:5432/qima_test}"
   : > "$ASSERTION_CALLS"
 
   set +e
@@ -209,7 +210,7 @@ run_absence_assertion_case() {
     MOCK_ASSERT_PSQL_CALLS="$ASSERTION_CALLS" \
     MOCK_DATABASE_COUNT="$database_count" \
     MOCK_PSQL_STATUS="$psql_status" \
-    DATABASE_URL="postgresql://postgres:postgres@localhost:5432/qima_test" \
+    DATABASE_URL="$database_url" \
     bash "$ASSERTION_SCRIPT" > "$OUTPUT" 2>&1
   local assertion_status=$?
   set -e
@@ -251,19 +252,54 @@ fi
 # A PostgreSQL inspection error must propagate instead of being treated as absence.
 run_absence_assertion_case postgres-query-fails 0 91 91
 
-# Unsafe destinations must be rejected before the psql stub is invoked.
+# All supported loopback spellings must reach only the inert psql stub.
+run_absence_assertion_case database-absent-ipv4 0 0 0 "postgresql://postgres:postgres@127.0.0.1:5432/qima_test"
+run_absence_assertion_case database-absent-ipv6 0 0 0 "postgresql://postgres:postgres@[::1]:5432/qima_test"
+
+# Every non-allowlisted destination must be rejected before the psql stub.
+unsafe_assertion_urls=(
+  "postgresql://postgres:postgres@db.example:5432/qima_test"
+  "postgresql://postgres:postgres@localhost:5432/production"
+  "postgresql://postgres:postgres@localhost:5432/qima_test?sslmode=require"
+  "postgresql://postgres:postgres@localhost:5433/qima_test"
+  "https://postgres:postgres@localhost:5432/qima_test"
+  "postgresql://postgres:postgres@localhost.evil:5432/qima_test"
+  "postgresql://postgres:postgres@127.0.0.2:5432/qima_test"
+)
+
+for unsafe_url in "${unsafe_assertion_urls[@]}"; do
+  : > "$ASSERTION_CALLS"
+  set +e
+  PATH="$ASSERTION_MOCK_BIN:$PATH" \
+    MOCK_ASSERT_PSQL_CALLS="$ASSERTION_CALLS" \
+    DATABASE_URL="$unsafe_url" \
+    bash "$ASSERTION_SCRIPT" > "$OUTPUT" 2>&1
+  unsafe_status=$?
+  set -e
+
+  if [[ "$unsafe_status" -ne 2 || -s "$ASSERTION_CALLS" ]] ||
+    ! grep -Fq "Refusing to inspect migration cleanup" "$OUTPUT" ||
+    grep -Fq "postgres:postgres" "$OUTPUT"; then
+    echo "ERROR: post-run assertion did not safely reject an unsafe URL before psql." >&2
+    cat "$OUTPUT" >&2
+    exit 1
+  fi
+done
+
+# An unset destination must fail closed before psql as well.
 : > "$ASSERTION_CALLS"
 set +e
-PATH="$ASSERTION_MOCK_BIN:$PATH" \
+env -u DATABASE_URL PATH="$ASSERTION_MOCK_BIN:$PATH" \
   MOCK_ASSERT_PSQL_CALLS="$ASSERTION_CALLS" \
-  DATABASE_URL="postgresql://postgres:postgres@db.example:5432/qima_test" \
   bash "$ASSERTION_SCRIPT" > "$OUTPUT" 2>&1
-unsafe_status=$?
+missing_url_status=$?
 set -e
-if [[ "$unsafe_status" -ne 2 || -s "$ASSERTION_CALLS" ]]; then
-  echo "ERROR: post-run assertion did not reject a remote URL before psql (exit $unsafe_status)" >&2
+if [[ "$missing_url_status" -ne 1 || -s "$ASSERTION_CALLS" ]] ||
+  ! grep -Fq "DATABASE_URL must point to the disposable PostgreSQL test database" "$OUTPUT" ||
+  grep -Fq "postgres:postgres" "$OUTPUT"; then
+  echo "ERROR: post-run assertion did not safely reject an unset DATABASE_URL before psql." >&2
   cat "$OUTPUT" >&2
   exit 1
 fi
 
-echo "QA262 assertion regression passed: absent/present database, psql failure propagation, and remote URL rejection."
+echo "QA262 assertion regression PASS: absent/present database, psql error propagation, 3 supported loopback URLs, 7 unsafe URLs and missing DATABASE_URL rejected before psql."
