@@ -168,6 +168,9 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y postgresql-client
+      - name: Verify CREATE_OFFER integration runner rejects unsafe database URLs
+        run: bash tests/sql/test-create-offer-integration-runner-guard.sh
+
       - name: Run isolated CREATE_OFFER integration and concurrency tests
         run: bash tests/sql/run-create-offer-integration.sh
 
