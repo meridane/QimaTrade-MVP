@@ -79,11 +79,18 @@ DECLARE
   v_wrapper_owner_oid oid;
   v_wrapper_owner name;
   v_is_security_definer boolean;
+  v_owner_can_login boolean;
+  v_owner_is_superuser boolean;
 BEGIN
   SELECT oid INTO v_anon_oid FROM pg_roles WHERE rolname = 'anon';
   SELECT oid INTO v_authenticated_oid FROM pg_roles WHERE rolname = 'authenticated';
-  SELECT oid, rolname INTO v_wrapper_owner_oid, v_wrapper_owner
+  SELECT oid, rolname, rolcanlogin, rolsuper
+  INTO v_wrapper_owner_oid, v_wrapper_owner, v_owner_can_login, v_owner_is_superuser
   FROM pg_roles WHERE rolname = 'qima_wrapper_owner_test';
+
+  IF v_owner_can_login OR v_owner_is_superuser THEN
+    RAISE EXCEPTION 'Wrapper-owner fixture role must be NOLOGIN and NOSUPERUSER';
+  END IF;
 
   SELECT r.rolname, p.prosecdef
   INTO v_wrapper_owner, v_is_security_definer
