@@ -64,6 +64,7 @@ GRANT EXECUTE ON FUNCTION public.is_message_participant(uuid, uuid, uuid) TO ano
 DO $acl$
 DECLARE
   v_function_oid oid;
+  v_anon_oid oid;
   v_function_oids oid[] := ARRAY[
     'public.current_profile_actor_id()'::regprocedure::oid,
     'public.dt_select_product_master(uuid,uuid,uuid)'::regprocedure::oid,
@@ -74,6 +75,11 @@ DECLARE
     'public.is_message_participant(uuid,uuid,uuid)'::regprocedure::oid
   ];
 BEGIN
+  SELECT oid INTO v_anon_oid FROM pg_roles WHERE rolname = 'anon';
+  IF v_anon_oid IS NULL THEN
+    RAISE EXCEPTION 'ACL regression fixture requires the anon role';
+  END IF;
+
   FOREACH v_function_oid IN ARRAY v_function_oids LOOP
     IF NOT has_function_privilege('anon', v_function_oid, 'EXECUTE') THEN
       RAISE EXCEPTION 'ACL regression fixture did not establish anon EXECUTE before migration on %', v_function_oid::regprocedure;
@@ -88,6 +94,17 @@ BEGIN
         AND a.privilege_type = 'EXECUTE'
     ) THEN
       RAISE EXCEPTION 'Expected PostgreSQL default PUBLIC EXECUTE before migration on %', v_function_oid::regprocedure;
+    END IF;
+
+    IF NOT EXISTS (
+      SELECT 1
+      FROM pg_proc p
+      CROSS JOIN LATERAL aclexplode(COALESCE(p.proacl, acldefault('f', p.proowner))) a
+      WHERE p.oid = v_function_oid
+        AND a.grantee = v_anon_oid
+        AND a.privilege_type = 'EXECUTE'
+    ) THEN
+      RAISE EXCEPTION 'Expected a direct anon EXECUTE ACL before migration on %', v_function_oid::regprocedure;
     END IF;
   END LOOP;
 END
