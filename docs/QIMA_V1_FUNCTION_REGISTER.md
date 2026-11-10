@@ -7049,3 +7049,13 @@ Validation on the new code commit: pending GitHub Actions. No Supabase Productio
 - At the time of this register update, the separate PostgreSQL 16 integration job in CI #1140 was still running the legacy migration real-failure/cleanup test after its earlier CREATE_OFFER, wrapper-owner, seven-function ACL, unsafe-URL, and legacy RLS steps had succeeded. The overall CI run must remain IN PROGRESS until that job completes; do not label the full workflow successful yet.
 - The combined Vercel status on HEAD af1d9c8 remains a provider quota failure (`api-deployments-free-per-day` / `build-rate-limit`). The GitHub Actions Next.js production build passed; no Vercel Production deployment was performed.
 - This is an isolated compatibility result only. It does not establish Production role membership, ACL state, or a vulnerability. Supabase catalog inspection remains blocked by PostgreSQL 28P01 before SQL execution. No Production data/schema/migration/RLS/grant/secret/configuration was changed; no merge, force-push, branch-protection change, or Production deployment occurred.
+
+
+#### Full QIMA CI #1140 completion — 10 November 2026
+
+- QIMA CI #1140 (https://github.com/meridane/QimaTrade-MVP/actions/runs/42790757836) subsequently completed SUCCESS on code HEAD af1d9c8fe1af951542f10c1e6749d225b189d7bd. All three jobs succeeded: the full PostgreSQL 16 integration suite, the TypeScript/dependency-audit/Next.js-build/Playwright job, and the dedicated PostgreSQL 17 CREATE_OFFER compatibility job.
+- The PostgreSQL 16 job completed the legacy migration failure/cleanup, active-session cleanup, prepared-transaction setup/restoration, and participant self-enrollment RLS steps after the CREATE_OFFER and ACL regressions had already passed.
+- PostgreSQL 17 compatibility completed on server_version_num 170011. CREATE_OFFER integration/concurrency, the wrapper-owner positive path and eight expected-failure/rollback scenarios, and the seven-function EXECUTE ACL regression all passed.
+- CodeQL #1092 (https://github.com/meridane/QimaTrade-MVP/actions/runs/42790757827) completed SUCCESS on HEAD af1d9c8.
+- A documentation-only follow-up commit recorded this final CI result. The new PR HEAD is bf0e122ab37f1b86b38c841202b03ae860f9ce70; QIMA CI #1141 (https://github.com/meridane/QimaTrade-MVP/actions/runs/42791028327) and CodeQL #1093 (https://github.com/meridane/QimaTrade-MVP/actions/runs/42791028292) were IN PROGRESS at the time of this update. Refresh these before claiming final validation of the documentation HEAD.
+- The combined Vercel status on the PR HEAD remains a deployment quota failure (api-deployments-free-per-day / build-rate-limit). The GitHub Actions production build succeeded; no Vercel Production deployment was made.
