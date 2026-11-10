@@ -319,3 +319,12 @@ The wrapper-owner PostgreSQL fixture now defines a second, unrelated overload `p
 Validation on code HEAD `8005801a43152f126fe6fa233c80fecad54c0dd3`: QIMA CI #1126 **SUCCESS** (PostgreSQL integration, wrapper-owner regression, seven-function ACL regression, RLS and cleanup; browser/build and **336/336 Playwright**), CodeQL #1078 **SUCCESS**, combined Vercel status **SUCCESS**. Exact run URLs are recorded in the canonical function register.
 
 The result is limited to the disposable PostgreSQL 16 fixture. Live Production function definitions, owners and effective ACLs remain subject to authorized catalog verification; no Production vulnerability is confirmed by this test.
+
+
+## Documentation correction and latest-HEAD status — 10 November 2026
+
+The initial test commit `e64965ac0be4f0c6b1114346d87e875ec8e10a86` had an invalid single-dollar SQL delimiter in the decoy overload fixture. Follow-up commit `8005801a43152f126fe6fa233c80fecad54c0dd3` corrected it to `$decoy$...$decoy$`. Both commits remain in PR history; no force-push or history rewrite was used. CI #1126 validated only the corrected final tree.
+
+On documentation HEAD `b81324c28cdf8f8b0d3a4a55731c75228de60e5d`, QIMA CI #1127's PostgreSQL job completed successfully, including the wrapper-owner/exact-overload regression and seven-function ACL regression. Its browser/build job had passed dependency audit, TypeScript and Next.js build, but Chromium installation was still in progress when recorded; do not treat #1127 as a complete CI success yet. CodeQL #1079 completed successfully. The combined Vercel status reported the account build-rate-limit failure; Vercel Preview Comments succeeded.
+
+The complete code HEAD `8005801` had separately passed QIMA CI #1126, CodeQL #1078 and combined Vercel status. No Production vulnerability is confirmed; live catalog/ACL verification remains blocked.
