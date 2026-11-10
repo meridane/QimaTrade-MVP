@@ -18,7 +18,7 @@ BEGIN
 END
 $roles$;
 
-GRANT USAGE ON SCHEMA public TO anon, authenticated, qima_wrapper_owner_test;
+GRANT USAGE ON SCHEMA public TO anon, authenticated;
 GRANT CREATE ON SCHEMA public TO qima_wrapper_owner_test;
 
 CREATE FUNCTION public.create_offer_v1(
@@ -76,6 +76,9 @@ ALTER FUNCTION public.execute_create_offer_v1(
   text, text, text, jsonb, text, text, text, text
 ) OWNER TO qima_wrapper_owner_test;
 REVOKE CREATE ON SCHEMA public FROM qima_wrapper_owner_test;
+-- Remove inherited/default schema lookup access so the migration must grant
+-- the exact USAGE privilege required by the SECURITY DEFINER wrapper.
+REVOKE USAGE ON SCHEMA public FROM PUBLIC, qima_wrapper_owner_test;
 
 \ir ../../supabase/migrations/20261027100000_restrict_direct_create_offer_rpc.sql
 -- Reapplying the additive REVOKE/GRANT migration must remain safe.
@@ -113,6 +116,30 @@ BEGIN
   IF v_wrapper_owner IS DISTINCT FROM 'qima_wrapper_owner_test'
      OR NOT COALESCE(v_is_security_definer, false) THEN
     RAISE EXCEPTION 'Wrapper owner/security mode changed unexpectedly';
+  END IF;
+
+  IF NOT has_schema_privilege('qima_wrapper_owner_test', 'public', 'USAGE') THEN
+    RAISE EXCEPTION 'SECURITY DEFINER wrapper owner lacks required public schema USAGE';
+  END IF;
+
+  IF has_schema_privilege('qima_wrapper_owner_test', 'public', 'CREATE') THEN
+    RAISE EXCEPTION 'Wrapper owner unexpectedly has CREATE on public';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_namespace n
+    CROSS JOIN LATERAL aclexplode(COALESCE(n.nspacl, acldefault('n', n.nspowner))) a
+    WHERE n.nspname = 'public'
+      AND a.grantee = v_wrapper_owner_oid
+      AND a.privilege_type = 'USAGE'
+  ) THEN
+    RAISE EXCEPTION 'Wrapper owner USAGE is not an explicit schema ACL grant';
+  END IF;
+
+  IF NOT has_schema_privilege('anon', 'public', 'USAGE')
+     OR NOT has_schema_privilege('authenticated', 'public', 'USAGE') THEN
+    RAISE EXCEPTION 'Client schema USAGE fixture was not preserved';
   END IF;
 
   IF has_function_privilege('anon', v_low_level_oid, 'EXECUTE')

@@ -50,6 +50,14 @@ BEGIN
     RAISE EXCEPTION 'CREATE_OFFER wrapper owner must not be a member of a client-facing role';
   END IF;
 
+  -- The SECURITY DEFINER wrapper resolves public.create_offer_v1 as its owner.
+  -- EXECUTE on the function is insufficient without USAGE on the containing schema.
+  -- Grant USAGE only; the wrapper owner does not need CREATE on public.
+  EXECUTE format(
+    'GRANT USAGE ON SCHEMA public TO %I',
+    v_wrapper_owner
+  );
+
   EXECUTE format(
     'GRANT EXECUTE ON FUNCTION public.create_offer_v1(text,uuid,uuid,uuid,numeric,numeric,text,text,text,text,jsonb,text,text,text,text) TO %I',
     v_wrapper_owner

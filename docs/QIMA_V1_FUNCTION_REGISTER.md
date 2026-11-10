@@ -7068,3 +7068,12 @@ Validation on the new code commit: pending GitHub Actions. No Supabase Productio
 - On the next documentation HEAD 3029a8fa45121e90960ebd25923a51d1a327a158, QIMA CI #1142 (https://github.com/meridane/QimaTrade-MVP/actions/runs/42791113852) is IN PROGRESS and CodeQL #1094 (https://github.com/meridane/QimaTrade-MVP/actions/runs/42791113878) completed SUCCESS. At the latest check, the three CI jobs were starting; do not claim CI #1142 complete until all jobs finish.
 - The PR remains open, draft, mergeable, 1,280 commits ahead of main and zero behind. The combined Vercel status continues to report the deployment quota limit; GitHub Actions builds are independent and passed on the preceding validated HEAD.
 - Supabase project metadata confirms PostgreSQL 17.6.1.166, but read-only catalog SQL still fails before execution with 28P01. PostgreSQL 17.11 CI compatibility is a major-version test only, not proof of Production catalog state.
+
+
+#### CREATE_OFFER wrapper schema USAGE prerequisite — 10 November 2026
+
+- Source-review finding: the positive wrapper-owner fixture previously granted USAGE on schema public before the migration. That setup could mask a missing schema privilege: a SECURITY DEFINER function executes with its owner's privileges, and a qualified call to public.create_offer_v1(...) requires schema USAGE in addition to function EXECUTE.
+- Migration change: after validating the wrapper's SECURITY DEFINER mode, trusted owner, and absence of direct/transitive membership by anon or authenticated, the migration now grants USAGE on schema public to that owner before granting EXECUTE on the exact 15-argument low-level function. It does not grant schema CREATE.
+- Regression fixture: tests/sql/create-offer-wrapper-owner-regression.sql now gives schema USAGE explicitly to the client roles, removes PUBLIC and wrapper-owner USAGE before applying the migration, and keeps CREATE revoked from the wrapper owner. Post-migration assertions require an explicit owner USAGE ACL, reject owner CREATE, preserve client schema lookup, and invoke the wrapper successfully while direct low-level calls remain denied.
+- Validation status at commit preparation: PostgreSQL 16 and 17 GitHub Actions checks must be refreshed on the new code commit before this change is considered validated. No Supabase Production migration or catalog write is permitted.
+- Scope: one narrowly scoped schema privilege for the already-validated trusted wrapper owner; no table grants, data changes, RLS changes, or business authorization decisions.
