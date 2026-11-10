@@ -328,3 +328,12 @@ The initial test commit `e64965ac0be4f0c6b1114346d87e875ec8e10a86` had an invali
 On documentation HEAD `b81324c28cdf8f8b0d3a4a55731c75228de60e5d`, QIMA CI #1127's PostgreSQL job completed successfully, including the wrapper-owner/exact-overload regression and seven-function ACL regression. Its browser/build job had passed dependency audit, TypeScript and Next.js build, but Chromium installation was still in progress when recorded; do not treat #1127 as a complete CI success yet. CodeQL #1079 completed successfully. The combined Vercel status reported the account build-rate-limit failure; Vercel Preview Comments succeeded.
 
 The complete code HEAD `8005801` had separately passed QIMA CI #1126, CodeQL #1078 and combined Vercel status. No Production vulnerability is confirmed; live catalog/ACL verification remains blocked.
+
+
+## Final validation reconciliation — 10 November 2026
+
+QIMA CI #1127 ([run 42767788817](https://github.com/meridane/QimaTrade-MVP/actions/runs/42767788817)) subsequently completed **SUCCESS** on documentation HEAD `b81324c`: PostgreSQL passed the exact-overload/wrapper-owner regression, seven-function ACL regression, CREATE_OFFER integration/concurrency, RLS and cleanup; browser/build passed dependency audit, TypeScript, Next.js build, Chromium and **336/336 Playwright tests**. CodeQL #1079 also completed successfully.
+
+Current documentation HEAD `fc11df9` has CI #1128 ([run 42768078090](https://github.com/meridane/QimaTrade-MVP/actions/runs/42768078090)) **IN PROGRESS** at the latest read, with no failed steps; CodeQL #1080 ([run 42768077829](https://github.com/meridane/QimaTrade-MVP/actions/runs/42768077829)) is **SUCCESS**. Vercel's combined status is a provider `build-rate-limit` failure, not a demonstrated GitHub build failure.
+
+A fresh read-only Supabase catalog attempt failed before query execution with PostgreSQL `28P01` (password authentication failed for `postgres`). Production owners and effective ACLs remain unknown. No Production vulnerability is confirmed and no Production resource was modified.
