@@ -7027,3 +7027,13 @@ Validation on the new code commit: pending GitHub Actions. No Supabase Productio
 - Combined Vercel status on HEAD 2641a7 was a provider build-rate-limit failure (upgradeToPro=build-rate-limit); GitHub Actions build results remain the authoritative completed code checks. No Vercel Production deployment was made.
 - The latest read-only Supabase catalog query failed before execution with PostgreSQL 28P01 (password authentication failed for postgres). No Production catalog data was returned.
 - The transitive-membership regression is a disposable PostgreSQL test of the migration guard. It does not establish that such membership or a vulnerability exists in Production. No Production data/schema/RLS/grants/secrets, Production migration, persistent PostgreSQL configuration, Production deployment, PR merge, force-push, or branch-protection setting was changed.
+
+
+### PostgreSQL 17 CREATE_OFFER compatibility coverage — 10 November 2026
+
+- Initial repository state was read from PR #26 at HEAD 0397b882f5570556b50a8ec0340a9b84f7e3781f; the PR remains open, draft, and mergeable.
+- The latest pre-change QIMA CI #1139 (https://github.com/meridane/QimaTrade-MVP/actions/runs/42786769108) completed SUCCESS with both the browser/build and PostgreSQL 16 integration jobs successful. CodeQL #1091 (https://github.com/meridane/QimaTrade-MVP/actions/runs/42786769138) completed SUCCESS. The combined Vercel status on that HEAD is a provider deployment quota failure (api-deployments-free-per-day / build-rate-limit), not a GitHub Actions build failure.
+- Existing CREATE_OFFER PostgreSQL integration ran on postgres:16. A separate PostgreSQL 17 compatibility job is added so the CREATE_OFFER schema/migrations/runtime, wrapper-owner and membership rollback cases, and seven-function EXECUTE ACL regression are exercised on the PostgreSQL 17 major version.
+- The new job asserts server_version_num is in the PostgreSQL 17 range before running tests. It uses only the disposable GitHub Actions postgres service and the loopback qima_test database; it does not use Supabase credentials or Production.
+- Validation of the new PostgreSQL 17 job and the full PR workflow is pending on the resulting code commit. Do not report compatibility as passed until the PostgreSQL 17 job itself completes successfully.
+- This is a compatibility test addition only. No Supabase Production data, schema, migration, RLS policy, grant, secret, or persistent configuration was changed; no Production deployment or PR merge was performed.
