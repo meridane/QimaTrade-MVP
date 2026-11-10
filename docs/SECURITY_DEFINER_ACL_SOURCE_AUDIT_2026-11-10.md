@@ -301,3 +301,12 @@ Validation history:
 - CodeQL #1075 passed. Vercel remains rate-limited (`build-rate-limit`); the GitHub production build passed. No Production deployment was made.
 
 The live Supabase catalog remains unavailable due PostgreSQL authentication error `28P01`. Therefore the actual Production owners, role memberships, and ACLs remain unverified. This regression proves the migration's behavior in the disposable fixture only; it does not establish a Production vulnerability or the Production owner relationship.
+
+### Final documentation-head validation — 10 November 2026
+
+- The final documentation HEAD `d0d4779199d02587d6332291165e5b53c975b095` completed QIMA CI #1124 (https://github.com/meridane/QimaTrade-MVP/actions/runs/42764400892) with **SUCCESS** and CodeQL #1076 (https://github.com/meridane/QimaTrade-MVP/actions/runs/42764400921) with **SUCCESS**.
+- PostgreSQL passed the new distinct-owner SECURITY DEFINER wrapper regression: the wrapper owner differed from the low-level function owner, received an explicit EXECUTE ACL, and successfully invoked the low-level function while anon/authenticated direct calls were denied. Existing CREATE_OFFER, seven-function ACL, RLS, cleanup, and prepared-transaction checks also passed. Browser/build passed dependency audit, TypeScript, Next.js build, Chromium, and **336/336 Playwright tests**.
+- Clarification to the earlier event-isolation observation: a docs-only commit on this PR did trigger #1124/#1076 because the PR's aggregate diff still contains code paths; the earlier statement that `docs/**` suppressed a replacement run was incomplete.
+- Vercel still reports the account `build-rate-limit` failure. This is a provider quota status; GitHub's production build passed. No Production deployment was made.
+- Live Supabase catalog access remains blocked by PostgreSQL `28P01`; actual Production function owners and ACLs remain unknown. Disposable PostgreSQL evidence does not establish a Production vulnerability.
+- No Supabase Production data/schema/RLS/grants/secrets, Production migration, persistent PostgreSQL configuration, Production deployment, PR merge, force-push, or branch-protection setting was changed.
