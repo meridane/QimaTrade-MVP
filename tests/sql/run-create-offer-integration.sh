@@ -5,7 +5,7 @@ set -euo pipefail
 
 # This runner applies fixture DDL and branch migrations directly to DATABASE_URL.
 # Fail closed before psql unless it is the dedicated loopback qima_test service.
-if [[ ! "$DATABASE_URL" =~ ^postgres(ql)?://[^@]+@(localhost|127\\.0\\.1|\\[::1\\]):5432/qima_test$ ]]; then
+if [[ ! "$DATABASE_URL" =~ ^postgres(ql)?://[^@]+@(localhost|127\.0\.0\.1|\[::1\]):5432/qima_test$ ]]; then
   echo "::error::Refusing CREATE_OFFER integration setup: DATABASE_URL must target qima_test on a loopback host at port 5432; no database connection was attempted." >&2
   exit 2
 fi
