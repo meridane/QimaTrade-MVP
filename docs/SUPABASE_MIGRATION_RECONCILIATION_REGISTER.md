@@ -1112,3 +1112,16 @@ No `search_path` migration is proposed. Effective `CREATE`/ `USAGE` grants on sc
 The disposable ACL regression fixture now mirrors the source-audited execution modes (six SECURITY DEFINER, one SECURITY INVOKER) and `search_path=public` for all seven signatures. It asserts those `pg_proc.prosecdef` and `proconfig` attributes both before and after applying the two ACL-only migrations twice. This protects the fixture contract and confirms those ACL migrations do not alter function security metadata; it remains a synthetic PostgreSQL test, not a live catalog inspection.
 
 Validation on the new code commit: pending GitHub Actions. No Supabase Production data/schema/RLS/grants/secrets, migration application, persistent PostgreSQL configuration, Production deployment, PR merge, force-push, or branch-protection change.
+
+
+### SECURITY DEFINER function-owner invariant guard — 10 November 2026
+
+A focused review of PostgreSQL privilege semantics found one remaining fixture assumption worth making explicit: revoking EXECUTE from PUBLIC and anon does not remove a function owner's implicit privileges. The seven-function disposable ACL regression now snapshots each target function's `pg_proc.proowner` before applying the two ACL migrations. It fails up front if a fixture function is owned by `anon` or `authenticated`, then compares every owner OID with its snapshot after both migrations have been applied twice. The snapshot lives in a session-local temporary table with `ON COMMIT PRESERVE ROWS`; the runner's dedicated psql session ends with the disposable database cleanup.
+
+The change is test-only. It does not assert or infer the owner of any live Supabase function. It protects the migration regression's model by proving that the ACL-only migrations preserve ownership and that the fixture does not accidentally test a client role as function owner.
+
+- Code commit: `abdc7772267f3f0814d97272dbd3415db8fac3f3` (`test(security): preserve RPC function ownership in ACL regression`).
+- QIMA CI #1114: PostgreSQL CREATE_OFFER integration passed; the explicit seven-function ACL regression step passed; legacy-message RLS, unsafe-URL guard, database cleanup, prepared-transaction cleanup/restore, and participant self-enrollment RLS steps also passed. At the time of this note, the browser job had passed dependency audit, TypeScript, and Next.js build, while Chromium installation was still running; Playwright had not yet been confirmed.
+- CodeQL #1066: SUCCESS. Combined Vercel status for the code HEAD: SUCCESS.
+- A fresh read-only Supabase catalog query still failed before execution with PostgreSQL `28P01` (password authentication failed for `postgres`). Effective live owners, ACLs, role memberships, and `public` schema CREATE/USAGE grants therefore remain unverified. This synthetic regression does not establish a Production vulnerability.
+- No Supabase Production data/schema/RLS/grants/secrets, migration application, persistent PostgreSQL configuration, Production deployment, PR merge, force-push, or branch-protection setting was changed.
