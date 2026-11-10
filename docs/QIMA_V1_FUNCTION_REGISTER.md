@@ -6925,3 +6925,15 @@ Validation on the new code commit: pending GitHub Actions. No Supabase Productio
 - CodeQL #1076 (https://github.com/meridane/QimaTrade-MVP/actions/runs/42764400921): **SUCCESS** on the same HEAD. This confirms the final documentation HEAD also completed the workflow checks; it does not change the code-level evidence already recorded for CI #1123 / CodeQL #1075.
 - Vercel remains **FAILURE** solely with the account `build-rate-limit` link; the GitHub build passed. No Production deployment was made.
 - PR #26 remains OPEN/DRAFT/unmerged and mergeable at `d0d4779199d02587d6332291165e5b53c975b095`. No Supabase Production data/schema/RLS/grants/secrets, Production migration, persistent PostgreSQL configuration, Production deployment, merge, force-push, or branch-protection setting was changed.
+
+
+### CREATE_OFFER exact-overload isolation regression — 10 November 2026
+
+- **Test commit:** `8005801a43152f126fe6fa233c80fecad54c0dd3` (the preceding fixture commit `e64965ac0be4f0c6b1114346d87e875ec8e10a86` was corrected to use a valid tagged dollar-quote delimiter before publication to the PR).
+- Extended `tests/sql/create-offer-wrapper-owner-regression.sql` with a separate `public.create_offer_v1(text, uuid)` overload. It starts with the default PUBLIC EXECUTE ACL plus explicit direct grants to `anon` and `authenticated`.
+- After applying `20261027100000_restrict_direct_create_offer_rpc.sql` twice, the test verifies the exact 15-argument low-level function is restricted while the unrelated two-argument overload retains its PUBLIC, anon, and authenticated ACL entries. It also calls the decoy overload under both client roles. This protects the migration's exact-signature scope; it does not imply the decoy exists in Production.
+- **QIMA CI #1126:** [run 42767506355](https://github.com/meridane/QimaTrade-MVP/actions/runs/42767506355) — **SUCCESS** on code HEAD `8005801a43152f126fe6fa233c80fecad54c0dd3`. The wrapper-owner regression and seven-function EXECUTE ACL regression both printed their PASS markers. CREATE_OFFER integration/concurrency, RLS, cleanup, active-session and prepared-transaction checks also passed.
+- Browser/build job: dependency audit gate, TypeScript, Next.js production build, Chromium and **336/336 Playwright tests** passed. **CodeQL #1078:** [run 42767506344](https://github.com/meridane/QimaTrade-MVP/actions/runs/42767506344) — **SUCCESS**. Combined Vercel status on the code HEAD: **SUCCESS**; Vercel Preview Comments also succeeded.
+- The code HEAD validation is complete. A subsequent documentation-only register commit will create a new PR HEAD; its own checks must be read separately and are not pre-claimed by this entry.
+- **Interpretation:** this is an isolated PostgreSQL 16 regression proving exact-overload behavior for the migration fixture. It does not establish live Supabase function inventory, effective Production ACLs, or a confirmed Production vulnerability.
+- **Safety:** no Supabase Production data/schema/RLS/grants/secrets, Production migration, persistent PostgreSQL configuration, Production deployment, PR merge, force-push, or branch-protection setting was changed.

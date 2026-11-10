@@ -310,3 +310,12 @@ The live Supabase catalog remains unavailable due PostgreSQL authentication erro
 - Vercel still reports the account `build-rate-limit` failure. This is a provider quota status; GitHub's production build passed. No Production deployment was made.
 - Live Supabase catalog access remains blocked by PostgreSQL `28P01`; actual Production function owners and ACLs remain unknown. Disposable PostgreSQL evidence does not establish a Production vulnerability.
 - No Supabase Production data/schema/RLS/grants/secrets, Production migration, persistent PostgreSQL configuration, Production deployment, PR merge, force-push, or branch-protection setting was changed.
+
+
+## Follow-up — exact CREATE_OFFER overload isolation
+
+The wrapper-owner PostgreSQL fixture now defines a second, unrelated overload `public.create_offer_v1(text, uuid)` with PUBLIC EXECUTE and direct anon/authenticated grants. After the exact 15-argument revocation migration is applied twice, the test asserts that the unrelated overload's PUBLIC and direct client ACL entries remain present and that anon/authenticated can call that overload. This guards against broad or name-only revocation; it is not evidence that the overload exists in Supabase Production.
+
+Validation on code HEAD `8005801a43152f126fe6fa233c80fecad54c0dd3`: QIMA CI #1126 **SUCCESS** (PostgreSQL integration, wrapper-owner regression, seven-function ACL regression, RLS and cleanup; browser/build and **336/336 Playwright**), CodeQL #1078 **SUCCESS**, combined Vercel status **SUCCESS**. Exact run URLs are recorded in the canonical function register.
+
+The result is limited to the disposable PostgreSQL 16 fixture. Live Production function definitions, owners and effective ACLs remain subject to authorized catalog verification; no Production vulnerability is confirmed by this test.
