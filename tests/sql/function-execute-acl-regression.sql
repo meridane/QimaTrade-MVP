@@ -156,13 +156,43 @@ BEGIN
 END
 $acl$;
 
+-- Synthetic CI invariant only: client-facing roles must not be able to create
+-- objects in public. This is not a statement about the live Supabase ACL.
+DO $schema_create_before$
+BEGIN
+  IF has_schema_privilege('anon', 'public', 'CREATE') THEN
+    RAISE EXCEPTION 'anon unexpectedly has CREATE on public before ACL migrations';
+  END IF;
+  IF has_schema_privilege('authenticated', 'public', 'CREATE') THEN
+    RAISE EXCEPTION 'authenticated unexpectedly has CREATE on public before ACL migrations';
+  END IF;
+END
+$schema_create_before$;
+
+\ir ../../supabase/migrations/20261110070000_harden_public_rpc_execute_acl.sql
+\ir ../../supabase/migrations/20261110080000_harden_authenticated_helper_anon_acl.sql
+-- Reapplying both migrations must remain safe and produce the same ACL.
 \ir ../../supabase/migrations/20261110070000_harden_public_rpc_execute_acl.sql
 \ir ../../supabase/migrations/20261110080000_harden_authenticated_helper_anon_acl.sql
 -- Reapplying both migrations must remain safe and produce the same ACL.
 \ir ../../supabase/migrations/20261110070000_harden_public_rpc_execute_acl.sql
 \ir ../../supabase/migrations/20261110080000_harden_authenticated_helper_anon_acl.sql
 
-DO $$
+-- The RPC ACL migrations must not broaden client CREATE on the public schema.
+-- This assertion covers the disposable fixture only; production privileges are
+-- still an independent read-only verification gate.
+DO $schema_create_after$
+BEGIN
+  IF has_schema_privilege('anon', 'public', 'CREATE') THEN
+    RAISE EXCEPTION 'anon gained CREATE on public during ACL migrations';
+  END IF;
+  IF has_schema_privilege('authenticated', 'public', 'CREATE') THEN
+    RAISE EXCEPTION 'authenticated gained CREATE on public during ACL migrations';
+  END IF;
+END
+$schema_create_after$;
+
+DO $
 DECLARE
   v_function_oid oid;
   v_anon_oid oid;
