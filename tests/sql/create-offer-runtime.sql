@@ -47,6 +47,14 @@ DO $qa191_shadow_preflight$
 DECLARE
   v_table text;
 BEGIN
+  IF current_user <> 'authenticated' THEN
+    RAISE EXCEPTION 'QA191 shadow preflight must execute as authenticated; current_user=%', current_user;
+  END IF;
+
+  IF pg_my_temp_schema() = 0 THEN
+    RAISE EXCEPTION 'QA191 shadow preflight requires a session temporary schema';
+  END IF;
+
   FOREACH v_table IN ARRAY ARRAY[
     'dt_memberships', 'profiles', 'product_masters', 'demands',
     'action_definitions', 'idempotency_keys', 'action_executions',
@@ -1348,6 +1356,10 @@ DECLARE
   v_table text;
   v_count bigint;
 BEGIN
+  IF current_user <> 'authenticated' THEN
+    RAISE EXCEPTION 'QA191 shadow assertion must execute as authenticated; current_user=%', current_user;
+  END IF;
+
   FOREACH v_table IN ARRAY ARRAY[
     'dt_memberships', 'profiles', 'product_masters', 'demands',
     'action_definitions', 'idempotency_keys', 'action_executions',
