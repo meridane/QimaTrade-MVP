@@ -99,6 +99,7 @@ run_negative_case() {
   local database_url="${DATABASE_URL%/qima_test}/${database}"
   local security_clause="SECURITY DEFINER"
   local log_file
+  local membership_state
 
   create_database "$database"
 
