@@ -3307,3 +3307,12 @@ The change is test-only. It does not assert or infer the owner of any live Supab
 - **PR branch:** after the code and documentation fast-forwards, `fix/create-offer-status-contract` compares as 1,338 commits ahead of `main`, 0 behind, with 82 changed files. PR #26 remains open, draft, and unmerged. No reviews or inline review threads were returned.
 - **Interpretation:** QA329 is a mocked-client regression for the independent legacy draft route. It confirms that the route derives the provider actor from the authenticated profile and does not forward client-supplied tenant fields into its insert payload. It does not prove production tenant/demand eligibility or resolve the MKT-1.1 business decision.
 - **Safety:** no production Supabase data, migration, RLS policy, grant, secret, persistent configuration, Production deployment, merge, force update, or branch-protection setting was changed.
+
+
+
+## QA329 — pull-request path-filter correction (11 November 2026)
+
+- **Correction to the preceding QA329 note:** the statement that a documentation-only commit on the PR head is ignored by the CI/CodeQL `paths-ignore: docs/**` filters was inaccurate for this open pull request. GitHub evaluates the aggregate pull-request diff; because PR #26 still contains non-documentation code and test paths, a subsequent PR synchronize event can run CI and CodeQL even when the newest commit changes only documentation.
+- **Observed consequence:** documentation HEAD `d6dbc520f199329151635cfeb6ffb0d934f7b3b1` has QIMA CI #1187 (run `42923434198`) **PENDING** and CodeQL #1138 (run `42923434189`) **IN PROGRESS** at this correction. No QIMA CI jobs had been assigned yet; CodeQL checkout and initialization had succeeded and analysis was running.
+- **Code validation remains distinct:** code commit `9973ef7937ec55cd9e83a808a8d09512d7d06ddd` already passed QIMA CI #1184 (3/3 jobs, 336/336 Playwright) and CodeQL #1135. Its Vercel Preview status was SUCCESS. The documentation HEAD's combined Vercel status returned the free-quota `build-rate-limit` failure; this does not invalidate the successful Preview on the code SHA.
+- **No application/test change:** this entry corrects workflow interpretation and records observed statuses only. It does not change the QA329 test conclusion or establish production authorization behavior.
