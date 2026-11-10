@@ -37,7 +37,7 @@ RETURNS uuid
 LANGUAGE sql
 SECURITY INVOKER
 SET search_path = public
-AS $ SELECT '70000000-0000-4000-8000-000000000002'::uuid $;
+AS $decoy$ SELECT '70000000-0000-4000-8000-000000000002'::uuid $decoy$;
 
 GRANT EXECUTE ON FUNCTION public.create_offer_v1(text, uuid)
 TO anon, authenticated;
