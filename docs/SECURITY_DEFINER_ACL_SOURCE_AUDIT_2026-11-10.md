@@ -211,3 +211,28 @@ A follow-up review found that the fixture's `has_function_privilege('anon', ...)
 - Both ACL migrations are still PR-only and have not been applied to Supabase Production. The CI regression proves behavior on disposable PostgreSQL 16 only. No Production data/schema/RLS/grants/secrets, persistent database configuration, Production deployment, PR merge, force-push, or branch protection was changed.
 
 **Next gate:** obtain authorized read-only catalog output for function owners/effective ACLs and `public` schema CREATE privileges. Keep `create_offer_v1(...)` unchanged until its effective owner and SECURITY DEFINER caller relationship are verified.
+
+
+### SECURITY DEFINER search_path metadata guard — 10 November 2026
+
+A focused re-read of the defining migrations confirmed the execution metadata for the seven functions covered by the ACL hardening regression:
+
+| Function | Source execution mode | Source search_path |
+|---|---|---|
+| `current_profile_actor_id()` | SECURITY DEFINER | `public` |
+| `dt_select_product_master(uuid, uuid, uuid)` | SECURITY INVOKER | `public` |
+| `execute_create_offer_v1(...)` | SECURITY DEFINER | `public` |
+| `dt_has_tenant_access(uuid)` | SECURITY DEFINER | `public` |
+| `dt_submit_answer(uuid, uuid, integer, uuid, text, text, uuid)` | SECURITY DEFINER | `public` |
+| `dt_publish_product_request(uuid, uuid)` | SECURITY DEFINER | `public` |
+| `is_message_participant(uuid, uuid, uuid)` | SECURITY DEFINER | `public` |
+
+The separate `get_action_definition_v1(text, integer)` function is also SECURITY DEFINER with `search_path = public`; its defining migration already explicitly revokes PUBLIC and anon and grants authenticated.
+
+The reviewed bodies schema-qualify application relations (for example `public.dt_memberships`, `public.profiles`, and `public.offers`) and the Auth identity function (`auth.uid()`). The unqualified calls observed in these bodies are PostgreSQL/PLpgSQL built-ins such as `coalesce`, `nullif`, `trim`, `now`, `jsonb_build_object`, `md5`, `hashtextextended`, `gen_random_uuid`, `to_jsonb`, and `btrim`. PostgreSQL implicitly searches `pg_catalog` before user schemas when it is not explicitly listed in `search_path`; this source review did not find an unqualified application relation/function dependency in the reviewed bodies.
+
+No `search_path` migration is proposed. Effective `CREATE`/ `USAGE` grants on schema `public`, owners, and live function ACLs remain unverified because the read-only Supabase catalog connection is blocked by PostgreSQL `28P01`. This review therefore does not establish a Production vulnerability or prove that the live schema is safe.
+
+The disposable ACL regression fixture now mirrors the source-audited execution modes (six SECURITY DEFINER, one SECURITY INVOKER) and `search_path=public` for all seven signatures. It asserts those `pg_proc.prosecdef` and `proconfig` attributes both before and after applying the two ACL-only migrations twice. This protects the fixture contract and confirms those ACL migrations do not alter function security metadata; it remains a synthetic PostgreSQL test, not a live catalog inspection.
+
+Validation on the new code commit: pending GitHub Actions. No Supabase Production data/schema/RLS/grants/secrets, migration application, persistent PostgreSQL configuration, Production deployment, PR merge, force-push, or branch-protection change.

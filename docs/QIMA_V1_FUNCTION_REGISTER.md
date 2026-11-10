@@ -6838,3 +6838,28 @@ Aucune donnée, migration, policy ou configuration Supabase production n'a été
 - Live Supabase catalog verification remains blocked. Project metadata lists QIMA (`yyulzlnrfcbaxovzjbnh`) as ACTIVE_HEALTHY on PostgreSQL 17.6.1.166, but the read-only `execute_sql` call still failed before query execution with PostgreSQL `28P01` for user `postgres`. The security-advisor endpoint separately returned a hibernation message inconsistent with the project metadata. No catalog rows were returned; this provider/connection inconsistency is not a database finding. Effective Production ACLs, owners, and `public` schema CREATE privileges remain unverified.
 - Both ACL migrations remain PR-only and have not been applied to Supabase Production. The disposable regression proves the tested migration semantics on PostgreSQL 16 CI only; it does not establish a Production vulnerability. No Production data/schema/RLS/grants/secrets, persistent database configuration, deployment, PR merge, force-push, or branch-protection setting was changed.
 - Next gate: restore an authorized read-only catalog query path or have a project maintainer run the SELECT-only owner/ACL/schema-privilege checks in the audit report. Keep the low-level `create_offer_v1(...)` ACL unchanged until its effective owner and SECURITY DEFINER caller relationship are verified.
+
+
+### SECURITY DEFINER search_path metadata guard — 10 November 2026
+
+A focused re-read of the defining migrations confirmed the execution metadata for the seven functions covered by the ACL hardening regression:
+
+| Function | Source execution mode | Source search_path |
+|---|---|---|
+| `current_profile_actor_id()` | SECURITY DEFINER | `public` |
+| `dt_select_product_master(uuid, uuid, uuid)` | SECURITY INVOKER | `public` |
+| `execute_create_offer_v1(...)` | SECURITY DEFINER | `public` |
+| `dt_has_tenant_access(uuid)` | SECURITY DEFINER | `public` |
+| `dt_submit_answer(uuid, uuid, integer, uuid, text, text, uuid)` | SECURITY DEFINER | `public` |
+| `dt_publish_product_request(uuid, uuid)` | SECURITY DEFINER | `public` |
+| `is_message_participant(uuid, uuid, uuid)` | SECURITY DEFINER | `public` |
+
+The separate `get_action_definition_v1(text, integer)` function is also SECURITY DEFINER with `search_path = public`; its defining migration already explicitly revokes PUBLIC and anon and grants authenticated.
+
+The reviewed bodies schema-qualify application relations (for example `public.dt_memberships`, `public.profiles`, and `public.offers`) and the Auth identity function (`auth.uid()`). The unqualified calls observed in these bodies are PostgreSQL/PLpgSQL built-ins such as `coalesce`, `nullif`, `trim`, `now`, `jsonb_build_object`, `md5`, `hashtextextended`, `gen_random_uuid`, `to_jsonb`, and `btrim`. PostgreSQL implicitly searches `pg_catalog` before user schemas when it is not explicitly listed in `search_path`; this source review did not find an unqualified application relation/function dependency in the reviewed bodies.
+
+No `search_path` migration is proposed. Effective `CREATE`/ `USAGE` grants on schema `public`, owners, and live function ACLs remain unverified because the read-only Supabase catalog connection is blocked by PostgreSQL `28P01`. This review therefore does not establish a Production vulnerability or prove that the live schema is safe.
+
+The disposable ACL regression fixture now mirrors the source-audited execution modes (six SECURITY DEFINER, one SECURITY INVOKER) and `search_path=public` for all seven signatures. It asserts those `pg_proc.prosecdef` and `proconfig` attributes both before and after applying the two ACL-only migrations twice. This protects the fixture contract and confirms those ACL migrations do not alter function security metadata; it remains a synthetic PostgreSQL test, not a live catalog inspection.
+
+Validation on the new code commit: pending GitHub Actions. No Supabase Production data/schema/RLS/grants/secrets, migration application, persistent PostgreSQL configuration, Production deployment, PR merge, force-push, or branch-protection change.

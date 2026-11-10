@@ -5,11 +5,16 @@
 CREATE OR REPLACE FUNCTION public.current_profile_actor_id()
 RETURNS uuid
 LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
 AS 'SELECT NULL::uuid';
 
 CREATE OR REPLACE FUNCTION public.dt_select_product_master(uuid, uuid, uuid)
 RETURNS jsonb
 LANGUAGE sql
+SECURITY INVOKER
+SET search_path = public
 AS 'SELECT ''{}''::jsonb';
 
 CREATE OR REPLACE FUNCTION public.execute_create_offer_v1(
@@ -18,6 +23,8 @@ CREATE OR REPLACE FUNCTION public.execute_create_offer_v1(
 )
 RETURNS jsonb
 LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
 AS 'SELECT ''{}''::jsonb';
 
 CREATE OR REPLACE FUNCTION public.dt_has_tenant_access(uuid)
@@ -65,6 +72,10 @@ DO $acl$
 DECLARE
   v_function_oid oid;
   v_anon_oid oid;
+  v_expected_security_definer boolean[] := ARRAY[true, false, true, true, true, true, true];
+  v_is_security_definer boolean;
+  v_has_pinned_search_path boolean;
+  v_index integer := 0;
   v_function_oids oid[] := ARRAY[
     'public.current_profile_actor_id()'::regprocedure::oid,
     'public.dt_select_product_master(uuid,uuid,uuid)'::regprocedure::oid,
@@ -81,6 +92,8 @@ BEGIN
   END IF;
 
   FOREACH v_function_oid IN ARRAY v_function_oids LOOP
+    v_index := v_index + 1;
+
     IF NOT has_function_privilege('anon', v_function_oid, 'EXECUTE') THEN
       RAISE EXCEPTION 'ACL regression fixture did not establish anon EXECUTE before migration on %', v_function_oid::regprocedure;
     END IF;
@@ -106,6 +119,22 @@ BEGIN
     ) THEN
       RAISE EXCEPTION 'Expected a direct anon EXECUTE ACL before migration on %', v_function_oid::regprocedure;
     END IF;
+
+    SELECT p.prosecdef,
+           COALESCE(p.proconfig, ARRAY[]::text[]) @> ARRAY['search_path=public']
+      INTO v_is_security_definer, v_has_pinned_search_path
+      FROM pg_proc p
+     WHERE p.oid = v_function_oid;
+
+    IF v_is_security_definer IS DISTINCT FROM v_expected_security_definer[v_index] THEN
+      RAISE EXCEPTION 'Fixture security mode mismatch on %; expected SECURITY %',
+        v_function_oid::regprocedure,
+        CASE WHEN v_expected_security_definer[v_index] THEN 'DEFINER' ELSE 'INVOKER' END;
+    END IF;
+
+    IF NOT v_has_pinned_search_path THEN
+      RAISE EXCEPTION 'Fixture does not pin search_path=public on %', v_function_oid::regprocedure;
+    END IF;
   END LOOP;
 END
 $acl$;
@@ -122,6 +151,10 @@ DECLARE
   v_anon_oid oid;
   v_authenticated_oid oid;
   v_public_or_anon_execute boolean;
+  v_expected_security_definer boolean[] := ARRAY[true, false, true, true, true, true, true];
+  v_is_security_definer boolean;
+  v_has_pinned_search_path boolean;
+  v_index integer := 0;
   v_function_oids oid[] := ARRAY[
     'public.current_profile_actor_id()'::regprocedure::oid,
     'public.dt_select_product_master(uuid,uuid,uuid)'::regprocedure::oid,
@@ -136,6 +169,8 @@ BEGIN
   SELECT oid INTO v_authenticated_oid FROM pg_roles WHERE rolname = 'authenticated';
 
   FOREACH v_function_oid IN ARRAY v_function_oids LOOP
+    v_index := v_index + 1;
+
     IF has_function_privilege('anon', v_function_oid, 'EXECUTE') THEN
       RAISE EXCEPTION 'anon still has effective EXECUTE on %', v_function_oid::regprocedure;
     END IF;
@@ -166,6 +201,22 @@ BEGIN
         AND a.privilege_type = 'EXECUTE'
     ) THEN
       RAISE EXCEPTION 'authenticated EXECUTE grant is not explicit on %', v_function_oid::regprocedure;
+    END IF;
+
+    SELECT p.prosecdef,
+           COALESCE(p.proconfig, ARRAY[]::text[]) @> ARRAY['search_path=public']
+      INTO v_is_security_definer, v_has_pinned_search_path
+      FROM pg_proc p
+     WHERE p.oid = v_function_oid;
+
+    IF v_is_security_definer IS DISTINCT FROM v_expected_security_definer[v_index] THEN
+      RAISE EXCEPTION 'Function security mode changed on %; expected SECURITY %',
+        v_function_oid::regprocedure,
+        CASE WHEN v_expected_security_definer[v_index] THEN 'DEFINER' ELSE 'INVOKER' END;
+    END IF;
+
+    IF NOT v_has_pinned_search_path THEN
+      RAISE EXCEPTION 'Function search_path changed or is not pinned to public on %', v_function_oid::regprocedure;
     END IF;
   END LOOP;
 END
