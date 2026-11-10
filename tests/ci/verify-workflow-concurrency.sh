@@ -14,7 +14,7 @@ concurrency_block="$(awk '
 ' "$workflow_path")"
 
 expected_group='  group: qima-ci-${{ github.event_name }}-${{ github.ref }}'
-expected_cancel="  cancel-in-progress: ${{ github.event_name != 'pull_request' }}"
+expected_cancel="  cancel-in-progress: \${{ github.event_name != 'pull_request' }}"
 
 if [[ "$(grep -Fxc -- "$expected_group" <<< "$concurrency_block" || true)" -ne 1 ]]; then
   echo "ERROR: concurrency group must isolate each event name and ref." >&2
