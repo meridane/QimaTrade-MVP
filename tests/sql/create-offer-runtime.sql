@@ -29,7 +29,37 @@ VALUES
 
 SET ROLE authenticated;
 
-DO $$
+-- QA191: SECURITY DEFINER functions must schema-qualify relation references.
+-- PostgreSQL implicitly searches the session temp schema before search_path schemas
+-- for relations, even when a function pins search_path=public. Empty temp shadows
+-- make any accidental unqualified table lookup or write fail in this disposable fixture.
+CREATE TEMP TABLE dt_memberships (LIKE public.dt_memberships INCLUDING ALL);
+CREATE TEMP TABLE profiles (LIKE public.profiles INCLUDING ALL);
+CREATE TEMP TABLE product_masters (LIKE public.product_masters INCLUDING ALL);
+CREATE TEMP TABLE demands (LIKE public.demands INCLUDING ALL);
+CREATE TEMP TABLE action_definitions (LIKE public.action_definitions INCLUDING ALL);
+CREATE TEMP TABLE idempotency_keys (LIKE public.idempotency_keys INCLUDING ALL);
+CREATE TEMP TABLE action_executions (LIKE public.action_executions INCLUDING ALL);
+CREATE TEMP TABLE offers (LIKE public.offers INCLUDING ALL);
+CREATE TEMP TABLE action_events (LIKE public.action_events INCLUDING ALL);
+
+DO $qa191_shadow_preflight$
+DECLARE
+  v_table text;
+BEGIN
+  FOREACH v_table IN ARRAY ARRAY[
+    'dt_memberships', 'profiles', 'product_masters', 'demands',
+    'action_definitions', 'idempotency_keys', 'action_executions',
+    'offers', 'action_events'
+  ] LOOP
+    IF to_regclass(v_table) IS DISTINCT FROM to_regclass(format('pg_temp.%I', v_table)) THEN
+      RAISE EXCEPTION 'QA191 temp relation % is not first in relation lookup', v_table;
+    END IF;
+  END LOOP;
+END
+$qa191_shadow_preflight$;
+
+DO $
 DECLARE
   first_result jsonb;
   retry_result jsonb;
@@ -1270,7 +1300,34 @@ BEGIN
     NULL;
   END;
 
-  SELECT count(*) INTO v_count
+  SELECT count(*) IN
+
+-- The successful RPC above must have used public-qualified relations, not any
+-- of the empty temporary shadows created for this regression.
+DO $qa191_shadow_assert$
+DECLARE
+  v_table text;
+  v_count bigint;
+BEGIN
+  FOREACH v_table IN ARRAY ARRAY[
+    'dt_memberships', 'profiles', 'product_masters', 'demands',
+    'action_definitions', 'idempotency_keys', 'action_executions',
+    'offers', 'action_events'
+  ] LOOP
+    EXECUTE format('SELECT count(*) FROM pg_temp.%I', v_table) INTO v_count;
+    IF v_count <> 0 THEN
+      RAISE EXCEPTION 'QA191 unexpected rows written to temp shadow relation %: %', v_table, v_count;
+    END IF;
+  END LOOP;
+END
+$qa191_shadow_assert$;
+
+DROP TABLE pg_temp.action_events, pg_temp.offers, pg_temp.action_executions,
+  pg_temp.idempotency_keys, pg_temp.action_definitions, pg_temp.demands,
+  pg_temp.product_masters, pg_temp.profiles, pg_temp.dt_memberships;
+
+SELECT 'QA191 SECURITY DEFINER relation lookups and writes bypassed all temporary shadows and used schema-qualified public objects' AS result;
+TO v_count
   FROM public.action_executions
   WHERE idempotency_key = 'fixture-rollback';
   IF v_count <> 0 THEN RAISE EXCEPTION 'Rollback left an orphan action execution'; END IF;
