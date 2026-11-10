@@ -7037,3 +7037,15 @@ Validation on the new code commit: pending GitHub Actions. No Supabase Productio
 - The new job asserts server_version_num is in the PostgreSQL 17 range before running tests. It uses only the disposable GitHub Actions postgres service and the loopback qima_test database; it does not use Supabase credentials or Production.
 - Validation of the new PostgreSQL 17 job and the full PR workflow is pending on the resulting code commit. Do not report compatibility as passed until the PostgreSQL 17 job itself completes successfully.
 - This is a compatibility test addition only. No Supabase Production data, schema, migration, RLS policy, grant, secret, or persistent configuration was changed; no Production deployment or PR merge was performed.
+
+
+#### PostgreSQL 17 compatibility result — QIMA CI #1140
+
+- QIMA CI #1140 (https://github.com/meridane/QimaTrade-MVP/actions/runs/42790757836) ran on code/documentation HEAD af1d9c8fe1af951542f10c1e6749d225b189d7bd. The dedicated `CREATE_OFFER PostgreSQL 17 compatibility` job completed SUCCESS.
+- The job's explicit server-version assertion reported `server_version_num=170011` (PostgreSQL 17.11). This verifies PostgreSQL 17 major-version compatibility; it is not an exact patch/build match for the Supabase project, whose project metadata reports PostgreSQL 17.6.1.166.
+- On PostgreSQL 17.11, the isolated CREATE_OFFER schema/migration/runtime and same-tenant concurrency tests passed; the wrapper-owner positive path and all eight negative/rollback scenarios passed; the seven-function EXECUTE ACL regression passed with `covered functions: 7`.
+- The QIMA CI #1140 browser/build job completed SUCCESS: workflow concurrency guard, npm ci, dependency audit, TypeScript, Next.js production build, Chromium installation, browser smoke tests, and artifact/report steps all succeeded.
+- CodeQL #1092 (https://github.com/meridane/QimaTrade-MVP/actions/runs/42790757827) completed SUCCESS on the same HEAD.
+- At the time of this register update, the separate PostgreSQL 16 integration job in CI #1140 was still running the legacy migration real-failure/cleanup test after its earlier CREATE_OFFER, wrapper-owner, seven-function ACL, unsafe-URL, and legacy RLS steps had succeeded. The overall CI run must remain IN PROGRESS until that job completes; do not label the full workflow successful yet.
+- The combined Vercel status on HEAD af1d9c8 remains a provider quota failure (`api-deployments-free-per-day` / `build-rate-limit`). The GitHub Actions Next.js production build passed; no Vercel Production deployment was performed.
+- This is an isolated compatibility result only. It does not establish Production role membership, ACL state, or a vulnerability. Supabase catalog inspection remains blocked by PostgreSQL 28P01 before SQL execution. No Production data/schema/migration/RLS/grant/secret/configuration was changed; no merge, force-push, branch-protection change, or Production deployment occurred.
