@@ -31,6 +31,17 @@ SECURITY DEFINER
 SET search_path = public
 AS $$ SELECT '70000000-0000-4000-8000-000000000001'::uuid $$;
 
+-- Same function name, different identity signature: the migration must not revoke this overload.
+CREATE FUNCTION public.create_offer_v1(text, uuid)
+RETURNS uuid
+LANGUAGE sql
+SECURITY INVOKER
+SET search_path = public
+AS $ SELECT '70000000-0000-4000-8000-000000000002'::uuid $;
+
+GRANT EXECUTE ON FUNCTION public.create_offer_v1(text, uuid)
+TO anon, authenticated;
+
 -- Simulate historical direct grants in addition to PostgreSQL's default PUBLIC EXECUTE.
 GRANT EXECUTE ON FUNCTION public.create_offer_v1(
   text, uuid, uuid, uuid, numeric, numeric, text, text, text, text,
@@ -73,6 +84,7 @@ REVOKE CREATE ON SCHEMA public FROM qima_wrapper_owner_test;
 DO $assertions$
 DECLARE
   v_low_level_oid oid := 'public.create_offer_v1(text,uuid,uuid,uuid,numeric,numeric,text,text,text,text,jsonb,text,text,text,text)'::regprocedure;
+  v_decoy_oid oid := 'public.create_offer_v1(text,uuid)'::regprocedure;
   v_wrapper_oid oid := 'public.execute_create_offer_v1(uuid,text,jsonb,text,uuid,uuid,uuid,numeric,numeric,text,text,text,text,jsonb,text,text,text,text)'::regprocedure;
   v_anon_oid oid;
   v_authenticated_oid oid;
@@ -141,6 +153,44 @@ BEGIN
   ) THEN
     RAISE EXCEPTION 'Wrapper owner EXECUTE grant is not explicit in the low-level function ACL';
   END IF;
+
+  -- The migration targets the exact 15-argument identity signature only.
+  -- PUBLIC and the two explicit client grants on this separate overload must remain.
+  IF NOT has_function_privilege('anon', v_decoy_oid, 'EXECUTE')
+     OR NOT has_function_privilege('authenticated', v_decoy_oid, 'EXECUTE') THEN
+    RAISE EXCEPTION 'The unrelated create_offer_v1(text, uuid) overload lost client EXECUTE';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_proc p
+    CROSS JOIN LATERAL aclexplode(
+      COALESCE(p.proacl, acldefault('f', p.proowner))
+    ) a
+    WHERE p.oid = v_decoy_oid
+      AND a.grantee = 0
+      AND a.privilege_type = 'EXECUTE'
+  ) OR NOT EXISTS (
+    SELECT 1
+    FROM pg_proc p
+    CROSS JOIN LATERAL aclexplode(
+      COALESCE(p.proacl, acldefault('f', p.proowner))
+    ) a
+    WHERE p.oid = v_decoy_oid
+      AND a.grantee = v_anon_oid
+      AND a.privilege_type = 'EXECUTE'
+  ) OR NOT EXISTS (
+    SELECT 1
+    FROM pg_proc p
+    CROSS JOIN LATERAL aclexplode(
+      COALESCE(p.proacl, acldefault('f', p.proowner))
+    ) a
+    WHERE p.oid = v_decoy_oid
+      AND a.grantee = v_authenticated_oid
+      AND a.privilege_type = 'EXECUTE'
+  ) THEN
+    RAISE EXCEPTION 'The unrelated overload ACL was unexpectedly changed';
+  END IF;
 END
 $assertions$;
 
@@ -161,6 +211,13 @@ BEGIN
   EXCEPTION WHEN insufficient_privilege THEN
     NULL;
   END;
+
+  IF public.create_offer_v1(
+       'unrelated-overload',
+       '40000000-0000-4000-8000-000000000001'
+     ) IS DISTINCT FROM '70000000-0000-4000-8000-000000000002'::uuid THEN
+    RAISE EXCEPTION 'authenticated could not execute the unrelated overload';
+  END IF;
 
   v_result := public.execute_create_offer_v1(
     '10000000-0000-4000-8000-000000000001',
@@ -185,6 +242,13 @@ RESET ROLE;
 SET ROLE anon;
 DO $anon_call$
 BEGIN
+  IF public.create_offer_v1(
+       'unrelated-overload',
+       '40000000-0000-4000-8000-000000000001'
+     ) IS DISTINCT FROM '70000000-0000-4000-8000-000000000002'::uuid THEN
+    RAISE EXCEPTION 'anon could not execute the unrelated overload';
+  END IF;
+
   BEGIN
     PERFORM public.create_offer_v1(
       'anon-direct-call-must-fail',
