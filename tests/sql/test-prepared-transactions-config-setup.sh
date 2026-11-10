@@ -145,7 +145,7 @@ allowed_setup_urls=(
 for allowed_url in "${allowed_setup_urls[@]}"; do
   run_setup 0 env DATABASE_URL="$allowed_url"
   assert_restore_intent
-  expected="$(printf '%s\\n' docker-ps psql-show-1 docker-exec-set docker-restart pg-isready psql-show-2)"
+  expected="$(printf '%s\n' docker-ps psql-show-1 docker-exec-set docker-restart pg-isready psql-show-2)"
   if [[ "$(cat "$EVENTS")" != "$expected" ]] ||
     ! grep -Fq "restarted with max_prepared_transactions=10" "$OUTPUT"; then
     echo "ERROR: an explicitly supported loopback DATABASE_URL did not complete the setup sequence." >&2
