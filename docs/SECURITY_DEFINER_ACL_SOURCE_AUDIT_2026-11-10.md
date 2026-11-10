@@ -192,3 +192,8 @@ Validation at documentation time: QIMA CI #1106 (https://github.com/meridane/Qim
 - Vercel Preview Comments completed **SUCCESS** and the combined Vercel status for HEAD `3c7a2e2` was **SUCCESS**. No Production deployment was made.
 - Live Supabase catalog access remains blocked by PostgreSQL `28P01`; effective Production ACLs and owners remain unverified. These tests establish migration semantics on disposable PostgreSQL only, not a Production vulnerability. Neither ACL migration has been applied to Supabase Production.
 - Next gate: obtain authorized read-only catalog output for function owners/effective ACLs and `public` schema CREATE privileges. Keep the low-level `create_offer_v1(...)` ACL unchanged until its effective owner and SECURITY DEFINER caller relationship are verified.
+
+
+### Seven-function regression postcondition coverage correction — 10 November 2026
+
+A review of the test source found that the fixture/precondition list contained seven signatures, but the post-migration assertion loop contained only three. The final ACL state of the four helpers in `20261110080000_harden_authenticated_helper_anon_acl.sql` was therefore not actually asserted by that loop. Commit `614c07a11cfc42ddc41e9d9ac40e0d28b6dc7da1` adds all four signatures to the postcondition array, so the existing PUBLIC/direct-anon denial and explicit-authenticated-grant assertions now run for all seven. This is a test coverage correction, not a confirmed Production vulnerability. QIMA CI #1109 and CodeQL #1061 were in progress when recorded; final results must be appended after completion. Live catalog verification remains blocked by PostgreSQL `28P01`.
