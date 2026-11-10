@@ -3279,3 +3279,15 @@ The change is test-only. It does not assert or infer the owner of any live Supab
 - **Validation at documentation time:** QIMA CI #1184 (run 42923166660) and CodeQL #1135 (run 42923166454) were in progress on the exact code commit `9973ef7937ec55cd9e83a808a8d09512d7d06ddd`. The npm installation, dependency audit, TypeScript, and initial PostgreSQL version guard steps had passed; build, browser, and PostgreSQL integration jobs were still running. Vercel Preview status was pending. Final outcomes must be appended after the workflows complete.
 - **PR update:** the code commit was fast-forwarded to `fix/create-offer-status-contract` with expected-head verification from `117b94eb1dffd21fe93e4a33ad9b5f7073eb98da`; no force update was used.
 - **Safety:** no application runtime code, SQL, migration, Supabase Production data, policy, grant, secret, persistent configuration, Production deployment, PR merge, or branch-protection setting was changed.
+
+
+
+## QA329 — validation status reconciliation (11 November 2026)
+
+- **Validated code SHA:** `9973ef7937ec55cd9e83a808a8d09512d7d06ddd`.
+- **QIMA CI #1184:** run `42923166660` was still **IN PROGRESS** at the latest check. Confirmed successful steps: workflow-concurrency regression, PostgreSQL 17.6 version guard, dependency installation, npm audit, TypeScript, Next.js production build, and Chromium installation. The Playwright browser suite and PostgreSQL 16/17.6 integration jobs were still running; no failure had been reported. Do not treat this as a completed CI pass.
+- **QIMA CodeQL #1135:** run `42923166454` was still **IN PROGRESS** at the latest check. Checkout, initialization, and autobuild had succeeded; the analysis step was running. No final CodeQL conclusion was available.
+- **Vercel Preview:** combined commit status for the code SHA returned **SUCCESS**, targeting https://vercel.com/bmk1/qimatrade-mvp/9ZuHsb7EsX3KLipW8rKbZ8fbKYhy. This is a Preview status only.
+- **Current PR branch comparison:** `fix/create-offer-status-contract` compared as 1,337 commits ahead of `main`, 0 behind. The PR remains open and its description still marks it as a draft; no review submissions or inline review threads were returned.
+- **Documentation:** this reconciliation is append-only. The documentation-only commit is ignored by the current CI/CodeQL path filters; the in-progress workflows validate code SHA `9973ef7`, not the later documentation HEAD.
+- **Next step:** inspect the final CI #1184 and CodeQL #1135 conclusions and append their exact outcomes. If either fails, investigate the failing step before describing QA329 as validated.
