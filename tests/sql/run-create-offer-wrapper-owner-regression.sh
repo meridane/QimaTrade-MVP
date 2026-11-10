@@ -13,13 +13,16 @@ fi
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 TEST_DATABASE="qima_wrapper_owner_test_db"
 TEST_ROLE="qima_wrapper_owner_test"
+TEST_DELEGATE_ROLE="qima_wrapper_delegate_test"
 TEST_DATABASE_URL="${DATABASE_URL%/qima_test}/${TEST_DATABASE}"
 created_databases=()
 created_role=0
+created_delegate_role=0
 created_anon=0
 created_authenticated=0
 temporary_files=()
 membership_grants=()
+delegate_memberships=()
 
 cleanup() {
   local status=$?
@@ -37,6 +40,13 @@ cleanup() {
   for member in "${membership_grants[@]}"; do
     psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -c "REVOKE ${TEST_ROLE} FROM ${member}" >/dev/null || status=1
   done
+  for member in "${delegate_memberships[@]}"; do
+    psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -c "REVOKE ${TEST_DELEGATE_ROLE} FROM ${member}" >/dev/null || status=1
+  done
+  if [[ "$created_delegate_role" == "1" ]]; then
+    psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -c "REVOKE ${TEST_ROLE} FROM ${TEST_DELEGATE_ROLE}" >/dev/null || status=1
+    psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -c "DROP ROLE ${TEST_DELEGATE_ROLE}" >/dev/null || status=1
+  fi
   if [[ "$created_role" == "1" ]]; then
     psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -c "DROP ROLE ${TEST_ROLE}" >/dev/null || status=1
   fi
@@ -83,6 +93,8 @@ if [[ "$(psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t -c "SELECT 1 FROM p
 fi
 psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -c "CREATE ROLE ${TEST_ROLE} NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT"
 created_role=1
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -c "CREATE ROLE ${TEST_DELEGATE_ROLE} NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT"
+created_delegate_role=1
 
 # Positive path: distinct trusted wrapper owner, exact-overload isolation,
 # client direct-call denial, and successful SECURITY DEFINER invocation.
@@ -95,6 +107,7 @@ run_negative_case() {
   local wrapper_owner="$3"
   local expected_error="$4"
   local client_member="${5:-}"
+  local membership_kind="${6:-direct}"
   local database="qima_wrapper_negative_${scenario}"
   local database_url="${DATABASE_URL%/qima_test}/${database}"
   local security_clause="SECURITY DEFINER"
@@ -157,11 +170,20 @@ SQL
   fi
 
   if [[ -n "$client_member" ]]; then
-    psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -c "GRANT ${TEST_ROLE} TO ${client_member}"
-    membership_grants+=("$client_member")
+    if [[ "$membership_kind" == "indirect" ]]; then
+      # Build a transitive membership path with inheritance and SET ROLE disabled.
+      # pg_has_role(..., 'MEMBER') must still detect the client-facing role's
+      # indirect membership in the trusted wrapper owner.
+      psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -c "GRANT ${TEST_ROLE} TO ${TEST_DELEGATE_ROLE} WITH INHERIT FALSE, SET FALSE"
+      psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -c "GRANT ${TEST_DELEGATE_ROLE} TO ${client_member} WITH INHERIT FALSE, SET FALSE"
+      delegate_memberships+=("$client_member")
+    else
+      psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -c "GRANT ${TEST_ROLE} TO ${client_member}"
+      membership_grants+=("$client_member")
+    fi
     membership_state="$(psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t -c "SELECT pg_has_role('${client_member}', '${TEST_ROLE}', 'MEMBER')")"
     if [[ "$membership_state" != "t" ]]; then
-      echo "::error::Expected ${client_member} to be a member of ${TEST_ROLE} for scenario ${scenario}." >&2
+      echo "::error::Expected ${client_member} to be a member of ${TEST_ROLE} for scenario ${scenario} (${membership_kind})." >&2
       return 1
     fi
   fi
@@ -216,14 +238,25 @@ SQL
   fi
 
   if [[ -n "$client_member" ]]; then
-    psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -c "REVOKE ${TEST_ROLE} FROM ${client_member}"
-    local -a remaining_members=()
-    for member in "${membership_grants[@]}"; do
-      if [[ "$member" != "$client_member" ]]; then
-        remaining_members+=("$member")
-      fi
-    done
-    membership_grants=("${remaining_members[@]}")
+    if [[ "$membership_kind" == "indirect" ]]; then
+      psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -c "REVOKE ${TEST_DELEGATE_ROLE} FROM ${client_member}"
+      local -a remaining_delegate_members=()
+      for member in "${delegate_memberships[@]}"; do
+        if [[ "$member" != "$client_member" ]]; then
+          remaining_delegate_members+=("$member")
+        fi
+      done
+      delegate_memberships=("${remaining_delegate_members[@]}")
+    else
+      psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -c "REVOKE ${TEST_ROLE} FROM ${client_member}"
+      local -a remaining_members=()
+      for member in "${membership_grants[@]}"; do
+        if [[ "$member" != "$client_member" ]]; then
+          remaining_members+=("$member")
+        fi
+      done
+      membership_grants=("${remaining_members[@]}")
+    fi
   fi
 
   echo "CREATE_OFFER negative migration scenario PASS: ${scenario} (expected failure; ACL transaction rolled back)"
@@ -241,5 +274,9 @@ run_negative_case "anon_member_of_wrapper_owner" "definer" "qima_wrapper_owner_t
   "CREATE_OFFER wrapper owner must not be a member of a client-facing role" "anon"
 run_negative_case "authenticated_member_of_wrapper_owner" "definer" "qima_wrapper_owner_test" \
   "CREATE_OFFER wrapper owner must not be a member of a client-facing role" "authenticated"
+run_negative_case "anon_indirect_member_of_wrapper_owner" "definer" "qima_wrapper_owner_test" \
+  "CREATE_OFFER wrapper owner must not be a member of a client-facing role" "anon" "indirect"
+run_negative_case "authenticated_indirect_member_of_wrapper_owner" "definer" "qima_wrapper_owner_test" \
+  "CREATE_OFFER wrapper owner must not be a member of a client-facing role" "authenticated" "indirect"
 
 echo "CREATE_OFFER wrapper-owner positive and negative rollback regressions PASS"
