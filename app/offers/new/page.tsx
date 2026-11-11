@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Check, ChevronDown, Search } from "lucide-react";
 import Link from "next/link";
+import { getCreatedOfferId } from "@/lib/offers/created-offer-reference";
 
 const countries = [
   "Afghanistan", "Albania", "Algeria", "Andorra", "Angola", "Antigua and Barbuda", "Argentina", "Armenia", "Australia", "Austria", "Azerbaijan",
@@ -125,8 +126,12 @@ export default function NewOfferPage() {
   const [documentationOther, setDocumentationOther] = useState("");
   const [market, setMarket] = useState("");
   const [geography, setGeography] = useState("");
+  const [createdOfferId, setCreatedOfferId] = useState<string | null>(null);
 
   useEffect(() => {
+    const createdId = getCreatedOfferId(window.location.search);
+    if (createdId) setCreatedOfferId(createdId);
+
     const region = new Intl.Locale(navigator.language).region;
     setGeography(regionToCountry[region || ""] || "South Korea");
   }, []);
@@ -158,6 +163,21 @@ export default function NewOfferPage() {
           <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-950">Create a new offer</h1>
           <p className="mt-3 text-sm leading-6 text-slate-500">Start a supplier offer independently. Product classification and buyer matching come later.</p>
 
+          {createdOfferId ? (
+            <div role="status" aria-live="polite" className="mt-8 rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-emerald-800">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-600 text-white"><Check size={18} /></div>
+                <div>
+                  <h2 className="font-bold">Draft submission received</h2>
+                  <p className="mt-1 text-sm text-emerald-700">Keep this reference ID for your records.</p>
+                  <p className="mt-2 break-all text-xs font-medium">Offer reference: {createdOfferId}</p>
+                </div>
+              </div>
+              <Link href="/offers/new" className="mt-5 inline-flex rounded-xl border border-emerald-200 bg-white px-4 py-2.5 text-sm font-bold text-emerald-800">
+                Create another offer
+              </Link>
+            </div>
+          ) : (
           <form action="/api/offers" method="post" onSubmit={submitForm} className="mt-8 space-y-5">
             <div>
               <label className="text-sm font-bold text-slate-800" htmlFor="name">Offer name</label>
@@ -202,6 +222,7 @@ export default function NewOfferPage() {
 
             <button type="submit" disabled={!market || !geography} className="rounded-xl bg-orange-500 px-6 py-3 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50">Create offer</button>
           </form>
+          )}
         </section>
       </div>
     </main>
