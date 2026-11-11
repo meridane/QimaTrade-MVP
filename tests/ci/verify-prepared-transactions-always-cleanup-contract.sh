@@ -59,6 +59,12 @@ HARNESS_JOB="$TEMP_DIR/harness-job.yml"
 HARNESS_SETUP_STEP="$TEMP_DIR/harness-setup-step.yml"
 HARNESS_CLEANUP_STEP="$TEMP_DIR/harness-cleanup-step.yml"
 ASSERT_JOB="$TEMP_DIR/assert-job.yml"
+VERIFY_JOB="$TEMP_DIR/verify-job.yml"
+VERIFY_STEP="$TEMP_DIR/verify-step.yml"
+
+extract_job "verify" "$VERIFY_JOB"
+extract_step "$VERIFY_JOB" "Verify prepared-transaction always-cleanup workflow wiring" "$VERIFY_STEP"
+require_line "$VERIFY_STEP" "        run: bash tests/ci/verify-prepared-transactions-always-cleanup-contract.sh"
 
 extract_job "postgres-integration" "$POSTGRES_JOB"
 extract_step "$POSTGRES_JOB" "Enable prepared transactions for the disposable PostgreSQL regression" "$SETUP_STEP"
@@ -108,8 +114,12 @@ require_line "$HARNESS_CLEANUP_STEP" "        run: bash tests/ci/test-prepared-t
 forbid_line "$HARNESS_CLEANUP_STEP" "        continue-on-error: true"
 
 extract_job "prepared_transactions_always_cleanup_assert" "$ASSERT_JOB"
+forbid_line "$ASSERT_JOB" "    continue-on-error: true"
 require_line "$ASSERT_JOB" "    if: always()"
 require_line "$ASSERT_JOB" "    needs: prepared_transactions_always_cleanup_contract"
+require_line "$ASSERT_JOB" '          SETUP_OUTCOME: ${{ needs.prepared_transactions_always_cleanup_contract.outputs.setup_outcome }}'
+require_line "$ASSERT_JOB" '          CLEANUP_OUTCOME: ${{ needs.prepared_transactions_always_cleanup_contract.outputs.cleanup_outcome }}'
+require_line "$ASSERT_JOB" '          CLEANUP_RAN: ${{ needs.prepared_transactions_always_cleanup_contract.outputs.cleanup_ran }}'
 require_line "$ASSERT_JOB" "        run: |"
 require_line "$ASSERT_JOB" '          [[ "$SETUP_OUTCOME" == "failure" ]]'
 require_line "$ASSERT_JOB" '          [[ "$CLEANUP_OUTCOME" == "success" ]]'
