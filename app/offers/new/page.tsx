@@ -173,7 +173,7 @@ export default function NewOfferPage() {
                   <p className="mt-2 break-all text-xs font-medium">Offer reference: {createdOfferId}</p>
                 </div>
               </div>
-              <Link href="/offers/new" className="mt-5 inline-flex rounded-xl border border-emerald-200 bg-white px-4 py-2.5 text-sm font-bold text-emerald-800">
+              <Link href="/offers/new" onClick={() => setCreatedOfferId(null)} className="mt-5 inline-flex rounded-xl border border-emerald-200 bg-white px-4 py-2.5 text-sm font-bold text-emerald-800">
                 Create another offer
               </Link>
             </div>
