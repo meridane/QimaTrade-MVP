@@ -76,3 +76,12 @@ This is a deterministic characterization of the current legacy route using a syn
 The test intentionally records the present behavior rather than claiming duplicate prevention. A future idempotency change needs an explicit contract for key scope, payload equivalence/hash, replay response, concurrent requests, retention, and how independent drafts without demand/Product Master/price fit the data model. Until that decision exists, the safe next step is contract design and review, not an unapproved migration or RPC change.
 
 No Supabase Production data, schema, migration, RLS policy, grant, secret, or persistent configuration was changed. No Production deployment, PR merge, force update, or branch-protection change was performed.
+
+## QA340 — documentation-head validation closure
+
+- Append commit before this closure: `48646f70c848474be6dd5a95145a1ec251743397`.
+- **QIMA CI #1232** ([run 43002046866](https://github.com/meridane/QimaTrade-MVP/actions/runs/43002046866)) — **SUCCESS, 3/3 jobs** on the preceding documentation HEAD. Browser/build job: **347/347 Playwright tests passed**, including QA340; npm ci, npm audit enforcement, TypeScript, Next.js production build, Chromium installation, and artifact uploads succeeded. PostgreSQL 16 integration and PostgreSQL 17.6 compatibility jobs both succeeded.
+- **CodeQL #1183** ([run 43002046764](https://github.com/meridane/QimaTrade-MVP/actions/runs/43002046764)) — **SUCCESS**.
+- Vercel combined status on that documentation HEAD: **SUCCESS**, Preview [Eqm26fmxAWUkw2F22DGtJsUbF2i9](https://vercel.com/bmk1/qimatrade-mvp/Eqm26fmxAWUkw2F22DGtJsUbF2i9). Preview only; no Production deployment.
+- The CI logs include expected SQL errors from deliberate negative wrapper-owner, missing-relation, and prepared-transaction cleanup assertions; all corresponding regression steps and jobs completed successfully. They are not QA340 failures.
+- This closure records the preceding append validation. It does not change application code, test behavior, database objects, or deployment configuration.
