@@ -53,6 +53,57 @@ BEGIN
 END
 $qa330_policy_preflight$;
 
+-- QA331 protects the disposable fixture's privilege assumptions. It does not
+-- assert or reproduce the live Supabase ACL/policy state.
+DO $qa331_offers_fixture_acl_boundary$
+DECLARE
+  v_privilege text;
+BEGIN
+  IF NOT has_table_privilege('authenticated', 'public.offers', 'SELECT') THEN
+    RAISE EXCEPTION 'QA331 fixture must preserve authenticated SELECT for the reviewed read/return call sites';
+  END IF;
+
+  IF NOT has_table_privilege('authenticated', 'public.offers', 'INSERT') THEN
+    RAISE EXCEPTION 'QA331 fixture must grant authenticated INSERT for the QA330 policy test';
+  END IF;
+
+  FOREACH v_privilege IN ARRAY ARRAY['UPDATE', 'DELETE', 'TRUNCATE', 'REFERENCES', 'TRIGGER'] LOOP
+    IF has_table_privilege('authenticated', 'public.offers', v_privilege) THEN
+      RAISE EXCEPTION 'QA331 fixture unexpectedly grants authenticated % on public.offers', v_privilege;
+    END IF;
+  END LOOP;
+
+  IF has_any_column_privilege('authenticated', 'public.offers', 'UPDATE') THEN
+    RAISE EXCEPTION 'QA331 fixture unexpectedly grants authenticated column-level UPDATE on public.offers';
+  END IF;
+
+  FOREACH v_privilege IN ARRAY ARRAY['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'TRUNCATE', 'REFERENCES', 'TRIGGER'] LOOP
+    IF has_table_privilege('anon', 'public.offers', v_privilege) THEN
+      RAISE EXCEPTION 'QA331 fixture unexpectedly grants anon % on public.offers', v_privilege;
+    END IF;
+  END LOOP;
+
+  IF has_any_column_privilege('anon', 'public.offers', 'UPDATE') THEN
+    RAISE EXCEPTION 'QA331 fixture unexpectedly grants anon column-level UPDATE on public.offers';
+  END IF;
+
+  IF (SELECT count(*) FROM pg_policies
+      WHERE schemaname = 'public' AND tablename = 'offers') <> 1 THEN
+    RAISE EXCEPTION 'QA331 fixture must contain only the single QA330 INSERT policy on public.offers';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'offers'
+      AND cmd IN ('SELECT', 'UPDATE', 'DELETE', 'ALL')
+  ) THEN
+    RAISE EXCEPTION 'QA331 fixture unexpectedly contains SELECT/UPDATE/DELETE/ALL policies on public.offers';
+  END IF;
+END
+$qa331_offers_fixture_acl_boundary$;
+
 SET LOCAL request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
 SET LOCAL ROLE authenticated;
 
