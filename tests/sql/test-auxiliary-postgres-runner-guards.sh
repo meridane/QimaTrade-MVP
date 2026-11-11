@@ -27,6 +27,10 @@ unsafe_urls=(
   "https://postgres:postgres@localhost:5432/qima_test"
   "postgresql://postgres:postgres@localhost.evil:5432/qima_test"
   "postgresql://postgres:postgres@127.0.0.2:5432/qima_test"
+  $'postgresql://postgres:postgres@localhost:5432/qima_test\nqa349-injected'
+  $'postgresql://postgres:postgres@localhost:5432/qima_test\r'
+  $'postgresql://postgres:postgres@localhost:5432/qima_test\t'
+  $'postgresql://postgres:postgres@localhost:5432/qima_test\r\nqa349-injected'
 )
 
 safe_urls=(
@@ -68,6 +72,16 @@ check_runner() {
     fi
     if grep -Fq "postgres:postgres" "$OUTPUT"; then
       echo "ERROR: $runner_name exposed DATABASE_URL credentials in its refusal output." >&2
+      cat "$OUTPUT" >&2
+      exit 1
+    fi
+    if LC_ALL=C grep -q $'\r' "$OUTPUT" || LC_ALL=C grep -q $'\t' "$OUTPUT" || [[ "$(wc -l < "$OUTPUT")" -ne 1 ]]; then
+      echo "ERROR: auxiliary runner refusal output was not a single control-character-free diagnostic line." >&2
+      cat "$OUTPUT" >&2
+      exit 1
+    fi
+    if grep -Fq "qa349-injected" "$OUTPUT"; then
+      echo "ERROR: auxiliary runner refusal output reflected control-character payload content." >&2
       cat "$OUTPUT" >&2
       exit 1
     fi
