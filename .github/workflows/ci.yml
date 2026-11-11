@@ -385,8 +385,8 @@ jobs:
         id: simulated_setup
         shell: bash
         run: |
-          printf 'baseline=0\\nrestore_required=true\\n' >> "$GITHUB_OUTPUT"
-          printf '10\\n' > "$RUNNER_TEMP/qima-prepared-cleanup-contract-state"
+          printf 'baseline=0\nrestore_required=true\n' >> "$GITHUB_OUTPUT"
+          printf '10\n' > "$RUNNER_TEMP/qima-prepared-cleanup-contract-state"
           exit 47
       - name: Execute actual restore script and expect a cleanup failure
         id: always_cleanup
