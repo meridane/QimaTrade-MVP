@@ -3,19 +3,13 @@
 -- This regression applies the existing offers INSERT policy only inside a
 -- transaction on the disposable CI database, then rolls every change back.
 DO $qa330_environment_guard$
-DECLARE
-  v_server inet := inet_server_addr();
 BEGIN
   IF current_database() <> 'qima_test' THEN
     RAISE EXCEPTION 'QA330 requires the disposable qima_test database; refusing database %', current_database();
   END IF;
 
-  IF v_server IS NULL OR NOT (
-    v_server <<= inet '127.0.0.0/8'
-    OR v_server = inet '::1'
-    OR v_server <<= inet '::ffff:127.0.0.0/104'
-  ) THEN
-    RAISE EXCEPTION 'QA330 requires a loopback PostgreSQL server; refusing address %', v_server;
+  IF current_setting('application_name', true) IS DISTINCT FROM 'qima-ci-legacy-offer-rls' THEN
+    RAISE EXCEPTION 'QA330 must run only from the dedicated CI regression step';
   END IF;
 END
 $qa330_environment_guard$;

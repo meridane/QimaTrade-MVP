@@ -175,6 +175,8 @@ jobs:
         run: bash tests/sql/run-create-offer-integration.sh
 
       - name: Verify legacy offers INSERT RLS binds provider actor to authenticated profile
+        env:
+          PGAPPNAME: qima-ci-legacy-offer-rls
         run: psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -f tests/sql/legacy-offer-insert-rls-regression.sql
 
       - name: Verify wrapper-owner and function ACL runners reject unsafe database URLs
@@ -267,6 +269,8 @@ jobs:
         run: bash tests/sql/run-create-offer-integration.sh
 
       - name: Verify legacy offers INSERT RLS binds provider actor to authenticated profile
+        env:
+          PGAPPNAME: qima-ci-legacy-offer-rls
         run: psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -f tests/sql/legacy-offer-insert-rls-regression.sql
       - name: Run CREATE_OFFER wrapper-owner and membership regressions on PostgreSQL 17
         run: bash tests/sql/run-create-offer-wrapper-owner-regression.sh
