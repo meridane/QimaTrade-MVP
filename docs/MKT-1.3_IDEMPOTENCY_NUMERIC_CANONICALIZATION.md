@@ -100,3 +100,14 @@ Until then, retain the current characterization tests and do not silently normal
 - No application code, SQL function, migration, schema, RLS policy, grant, secret, or Production configuration was changed.
 - No Supabase Production data was read or modified in this task.
 - No Production deployment, PR merge, force update, or branch-protection change was performed.
+
+
+## 8. QA315 — broader lexical-form characterization (disposable CI only)
+
+A separate read-only SQL script, `tests/sql/idempotency-numeric-lexical-characterization.sql`, extends the characterization matrix beyond the original `1` versus `1.0` examples. It compares six lexical forms: `1`, `1.0`, `1.00`, `1e0`, `10e-1`, and `100e-2`.
+
+The script checks typed PostgreSQL `numeric`, JSONB scalar values, nested JSONB objects, and objects inside JSONB arrays. It asserts that the values compare equal while at least two textual serializations and corresponding MD5 values remain distinct. It intentionally does not assert a particular exponent rendering, select a normalization policy, or modify database rows.
+
+The integration runner executes this read-only script immediately after the main CREATE_OFFER runtime suite against the disposable `qima_test` service. PostgreSQL 16 and 17.6 CI results must be recorded in the QA343 register appendix before treating this characterization as validated.
+
+This test expands evidence about the existing serialization behavior; it does not establish which lexical forms should be equivalent under the future business contract.
