@@ -345,6 +345,7 @@ if [[ "$actual" != "$expected" ]] ||
   [[ ! -f "$RESTART_APPLIED_FILE" ]] ||
   [[ "$(cat "$RESTART_APPLIED_FILE")" != "applied" ]] ||
   ! grep -Fq "PostgreSQL service restart failed (docker restart exit 43)" "$OUTPUT" ||
+  grep -Fq "postgres:postgres" "$OUTPUT" ||
   grep -Fq "QA267 passed" "$OUTPUT" ||
   grep -Fq "returned to baseline" "$OUTPUT" ||
   grep -Fq "psql-show" "$EVENTS" ||
