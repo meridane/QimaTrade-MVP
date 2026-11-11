@@ -106,6 +106,10 @@ test("an authenticated supplier with an invalid confirmation reference is still 
 
 test("an authenticated supplier can submit the independent draft form through POST and reach its persisted confirmation", async ({ page, request }, testInfo) => {
   const offerName = `QA336 browser end-to-end independent draft retry-${testInfo.retry}`;
+  const reset = await request.delete(
+    `http://127.0.0.1:54321/__test/offers?name=${encodeURIComponent(offerName)}`,
+  );
+  expect(reset.ok()).toBe(true);
 
   await authenticatePage(
     page,
