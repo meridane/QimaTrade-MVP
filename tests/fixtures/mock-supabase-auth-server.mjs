@@ -36,6 +36,19 @@ const server = createServer(async (request, response) => {
     return;
   }
 
+  if (request.method === "GET" && url.pathname === "/auth/v1/user") {
+    if (request.headers.authorization !== `Bearer ${session.access_token}`) {
+      sendJson(response, 401, {
+        code: "invalid_token",
+        message: "Invalid synthetic access token",
+      });
+      return;
+    }
+
+    sendJson(response, 200, session.user);
+    return;
+  }
+
   if (request.method === "GET" && url.pathname === "/__test/requests") {
     sendJson(response, 200, authRequests);
     return;
