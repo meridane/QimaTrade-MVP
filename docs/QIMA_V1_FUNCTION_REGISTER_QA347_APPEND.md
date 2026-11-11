@@ -57,3 +57,12 @@ This is a bounded retry policy for transient package-mirror connection and DNS f
 - No package repository, signing key, TLS verification, application dependency, SQL runner allowlist, or runtime behavior was changed.
 - No Supabase Production URL, credential, data, migration, function, schema, RLS policy, grant, secret, or persistent Production configuration was accessed or changed.
 - No Production deployment, PR merge, force update, or branch-protection change was performed.
+
+## Post-publication verification
+
+- Corrected workflow commit `63cc1af0aa797d3ccfbc2dce831f14aa75cb494f` and the QA347 appendix were fast-forwarded to `fix/create-offer-status-contract`; the PR branch advanced from expected HEAD `8e540737f22e1a0058a92ddc4ab63da279bb52f1` to `a64dfbc259eb8c2da2e1d33847ac5f48e8f5ba18`.
+- PR #26 was re-read after publication: **OPEN**, **DRAFT**, unmerged, and GitHub reported **mergeable**; 1,441 commits and 103 changed files.
+- QIMA CI **#1250** ([run 43057146217](https://github.com/meridane/QimaTrade-MVP/actions/runs/43057146217)) was created for code HEAD `a64dfbc`. At the latest job inspection it remained **IN_PROGRESS**: the browser job was installing npm dependencies, the PostgreSQL 16 job was at checkout after service initialization, and the PostgreSQL 17.6 job was initializing its service container. No conclusion is claimed.
+- CodeQL **#1201** ([run 43057146125](https://github.com/meridane/QimaTrade-MVP/actions/runs/43057146125)) was **IN_PROGRESS** at the latest inspection during CodeQL initialization. No success is claimed.
+- The combined status on `a64dfbc` reported Vercel **FAILURE** with `build-rate-limit`. This is a deployment-quota status and does not determine GitHub Actions results.
+- The final documentation-only commit containing this status update is excluded from CI triggering by the workflow's existing `paths-ignore: docs/**`. CI #1250 therefore validates the workflow code at `a64dfbc`; the later commit changes documentation only.
