@@ -112,9 +112,13 @@ export function createLegacyOfferHandler(
         }
       }
 
-      const { data: offer, error: insertError } = await supabase
+      // Generate the UUID before INSERT so the draft redirect does not depend
+      // on SELECT privileges or a SELECT RLS policy for INSERT ... RETURNING.
+      const offerId = randomUUID();
+      const { error: insertError } = await supabase
         .from("offers")
         .insert({
+          id: offerId,
           name,
           demand_id: resolvedDemandId,
           product_master_id: productMasterId,
@@ -130,15 +134,13 @@ export function createLegacyOfferHandler(
           lifecycle: "draft",
           offer_type: "supplier_offer",
           pricing_model: price === null ? null : "fixed",
-        })
-        .select("id")
-        .single();
+        });
 
-      if (insertError || !offer) {
+      if (insertError) {
         return NextResponse.json({ error: genericCreateOfferError }, { status: 500 });
       }
 
-      return NextResponse.redirect(new URL(`/offers?created=${offer.id}`, request.url), 303);
+      return NextResponse.redirect(new URL(`/offers?created=${offerId}`, request.url), 303);
     } catch {
       return NextResponse.json({ error: genericCreateOfferError }, { status: 500 });
     }
