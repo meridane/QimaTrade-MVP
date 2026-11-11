@@ -7246,3 +7246,13 @@ Validation on the new code commit: pending GitHub Actions. No Supabase Productio
 - **Périmètre :** aucun code applicatif SQL, aucune migration, donnée, fonction, schéma, politique RLS, grant, secret ou configuration Supabase Production modifié ; aucun déploiement Production, aucune fusion, aucun force-push et aucune modification des protections de branche.
 - **Appendice :** `docs/QIMA_V1_FUNCTION_REGISTER_QA354_APPEND.md`.
 - **Prochaine étape :** QA355 peut vérifier l'exécution simultanée des deux assertions après échec des deux harnesses et l'absence de contamination entre leurs sorties, sans toucher au job PostgreSQL réel.
+
+
+### QA354 — statut du HEAD documentaire final — 12 novembre 2026
+
+- Après le commit de code QA354 `e3ff981ce9c8a7c15d6420b1317fc6d7d73e4179`, deux commits documentaires ont ajouté l'appendice QA354 et son statut final.
+- HEAD documentaire final : `79036936e83cd5cfed242794842a536f178984fe`.
+- PR #26 : OPEN, DRAFT, non fusionnée, mergeable ; 1 480 commits, 113 fichiers modifiés, zéro commit en retard sur `main`, aucune review humaine ni thread.
+- Comparaison `main...79036936` : 1 480 commits en avance, zéro en retard.
+- Aucun nouveau run QIMA CI/CodeQL n'est associé au HEAD documentaire, car les changements postérieurs au HEAD de code QA354 sont uniquement sous `docs/**`, ignorés par le workflow. La validation du code reste QIMA CI #1275 SUCCESS et CodeQL #1225 SUCCESS sur `e3ff981`.
+- Vercel : statut combiné FAILURE avec `build-rate-limit` / `api-deployments-free-per-day`. Aucun Preview QA354 revendiqué ; aucun déploiement Production.
