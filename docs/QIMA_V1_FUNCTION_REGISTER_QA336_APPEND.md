@@ -52,7 +52,7 @@ Complete the browser path left open by QA335: authenticate a synthetic supplier,
 - **Final code HEAD:** `d684524e2809f18a5eb8ac72703a35e09a718548`.
 - **QIMA CI #1212** [run 42975747813](https://github.com/meridane/QimaTrade-MVP/actions/runs/42975747813): **SUCCESS, 3/3 jobs**. The browser job passed **342/342 Playwright tests**, including the full authenticated draft submission. npm audit reported zero advisories at the configured threshold, TypeScript passed, Next.js production build passed, and Chromium installation passed. PostgreSQL 16 integration/cleanup and PostgreSQL 17.6 compatibility jobs both passed; the PostgreSQL 17.6 version assertion succeeded.
 - **CodeQL #1163** [run 42975747819](https://github.com/meridane/QimaTrade-MVP/actions/runs/42975747819): **SUCCESS**.
-- The final CI and CodeQL checks are tied to code HEAD `d684524e2809f18a5eb8ac72703a35e09a718548`. Documentation-only commits below are excluded by the workflow's existing `paths-ignore: docs/**` filter.
+- QIMA CI #1212 and CodeQL #1163 validate code HEAD `d684524e2809f18a5eb8ac72703a35e09a718548`. After the QA336 documentation commits, GitHub also ran QIMA CI #1213 [run 42976124101](https://github.com/meridane/QimaTrade-MVP/actions/runs/42976124101) and CodeQL #1164 [run 42976124087](https://github.com/meridane/QimaTrade-MVP/actions/runs/42976124087) on final documentation HEAD `3ec44c0b554b97b12dae2348e653491e5780fb59`: **CI SUCCESS, 3/3 jobs, 342/342 Playwright; CodeQL SUCCESS**. The PR-level workflows evaluated the full PR diff, which still includes source files; do not assume `paths-ignore: docs/**` suppresses validation when the pull request as a whole also contains non-documentation changes.
 
 ### Final PR snapshot before documentation-only commits
 
