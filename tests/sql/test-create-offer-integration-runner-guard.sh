@@ -15,7 +15,7 @@ mkdir -p "$MOCK_BIN"
 cat > "$MOCK_BIN/psql" <<'PSQL'
 #!/usr/bin/env bash
 set -euo pipefail
-printf '%s\\n' "$*" >> "$MOCK_PSQL_CALLS"
+printf '%s\n' "$*" >> "$MOCK_PSQL_CALLS"
 echo "mock psql reached after URL validation" >&2
 exit 99
 PSQL
