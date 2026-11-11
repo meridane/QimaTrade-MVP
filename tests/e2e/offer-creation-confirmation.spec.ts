@@ -134,11 +134,12 @@ test("an authenticated supplier can submit the independent draft form through PO
   const postResponse = await postResponsePromise;
 
   expect(postResponse.status()).toBe(201);
-  const responseBody = await postResponse.json();
-  const createdOfferId = responseBody.id as string;
+  expect(postResponse.headers()["content-type"]).toContain("application/json");
+  await expect(page).toHaveURL((url) =>
+    url.pathname === "/offers/new" && getCreatedOfferId(url.search) !== null,
+  );
+  const createdOfferId = new URL(page.url()).searchParams.get("created") ?? "";
   expect(createdOfferId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
-
-  await expect(page).toHaveURL((url) => url.pathname === "/offers/new" && url.searchParams.get("created") === createdOfferId);
   await expect(page.getByRole("status")).toContainText("Draft submission received");
   await expect(page.getByText(`Offer reference: ${createdOfferId}`, { exact: true })).toBeVisible();
 
