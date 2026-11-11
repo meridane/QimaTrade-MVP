@@ -39,6 +39,8 @@ jobs:
             | sudo tee /etc/apt/apt.conf.d/80-qima-network-retries >/dev/null
       - name: Verify workflow concurrency isolation
         run: bash tests/ci/verify-workflow-concurrency.sh
+      - name: Verify prepared-transaction always-cleanup workflow wiring
+        run: bash tests/ci/verify-prepared-transactions-always-cleanup-contract.sh
       - name: Verify PostgreSQL 17.6 version guard boundary cases
         run: bash tests/sql/test-postgres-17-6-version-guard.sh
       - name: Set up Node.js
@@ -311,3 +313,54 @@ jobs:
         run: bash tests/sql/run-create-offer-wrapper-owner-regression.sh
       - name: Run seven-function EXECUTE ACL regression on PostgreSQL 17
         run: bash tests/sql/run-function-execute-acl-regression.sh
+
+
+  prepared_transactions_always_cleanup_contract:
+    name: Prepared-transaction always-cleanup runtime contract (expected setup failure)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # This job deliberately fails its setup step; a blocking dependent job checks the cleanup outcome.
+    continue-on-error: true
+    outputs:
+      setup_outcome: ${{ steps.simulated_setup.outcome }}
+      cleanup_outcome: ${{ steps.always_cleanup.outcome }}
+      cleanup_ran: ${{ steps.always_cleanup.outputs.cleanup_ran }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Simulate a partial setup failure after publishing cleanup outputs
+        id: simulated_setup
+        shell: bash
+        run: |
+          printf 'baseline=0\nrestore_required=true\n' >> "$GITHUB_OUTPUT"
+          printf '10\n' > "$RUNNER_TEMP/qima-prepared-cleanup-contract-state"
+          exit 47
+      - name: Execute actual restore script after the simulated setup failure
+        id: always_cleanup
+        if: always()
+        env:
+          SETUP_OUTCOME: ${{ steps.simulated_setup.outcome }}
+          RESTORE_REQUIRED: ${{ steps.simulated_setup.outputs.restore_required }}
+          BASELINE_MAX_PREPARED_TRANSACTIONS: ${{ steps.simulated_setup.outputs.baseline }}
+        shell: bash
+        run: bash tests/ci/test-prepared-transactions-always-cleanup-runtime.sh
+
+  prepared_transactions_always_cleanup_assert:
+    name: Assert prepared-transaction always-cleanup runtime contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: always()
+    needs: prepared_transactions_always_cleanup_contract
+    steps:
+      - name: Assert cleanup ran after failed setup and reported success
+        shell: bash
+        env:
+          SETUP_OUTCOME: ${{ needs.prepared_transactions_always_cleanup_contract.outputs.setup_outcome }}
+          CLEANUP_OUTCOME: ${{ needs.prepared_transactions_always_cleanup_contract.outputs.cleanup_outcome }}
+          CLEANUP_RAN: ${{ needs.prepared_transactions_always_cleanup_contract.outputs.cleanup_ran }}
+        run: |
+          set -euo pipefail
+          [[ "$SETUP_OUTCOME" == "failure" ]]
+          [[ "$CLEANUP_OUTCOME" == "success" ]]
+          [[ "$CLEANUP_RAN" == "true" ]]
+          echo "QA353 passed: the failed setup outcome and both outputs reached the always() cleanup step, which completed the real restoration script."
