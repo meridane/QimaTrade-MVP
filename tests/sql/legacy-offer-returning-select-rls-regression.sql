@@ -103,7 +103,7 @@ BEGIN
   END IF;
 
   INSERT INTO public.offers (name, demand_id, provider_actor_id)
-  VALUES ('QA332 plain INSERT without SELECT policy', '50000000-0000-4000-8000-000000000001', public.current_profile_actor_id());
+  VALUES ('legacy plain INSERT without SELECT policy', '50000000-0000-4000-8000-000000000001', public.current_profile_actor_id());
 
   GET DIAGNOSTICS v_inserted_rows = ROW_COUNT;
   IF v_inserted_rows <> 1 THEN
@@ -120,7 +120,7 @@ DECLARE
 BEGIN
   SELECT count(*) INTO v_rows
   FROM public.offers
-  WHERE name = 'QA332 plain INSERT without SELECT policy';
+  WHERE name = 'legacy plain INSERT without SELECT policy';
 
   IF v_rows <> 1 THEN
     RAISE EXCEPTION 'QA332 expected the plain INSERT row to exist before the outer rollback; got %', v_rows;
