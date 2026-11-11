@@ -64,3 +64,20 @@ No canonicalization policy is selected. No digest algorithm change is proposed a
 - Numeric-scale behavior is reported only as characterized by disposable tests.
 - No Supabase Production data, schema, migration, RLS policy, grant, secret, or persistent configuration was read or modified.
 - No Production deployment, PR merge, force update, or branch-protection change was performed.
+
+
+## QA342 — final PR synchronization validation
+
+After the two QA342 documentation files were fast-forwarded to PR #26, GitHub ran the full PR workflows on HEAD `5744caff77cbade6702d463d21e699829777b746`.
+
+- **QIMA CI #1236** ([run 43010248900](https://github.com/meridane/QimaTrade-MVP/actions/runs/43010248900)) — **SUCCESS, 3/3 jobs**.
+  - Browser/build job: **347/347 Playwright tests passed, 0 failed**. npm ci, npm audit enforcement, TypeScript, Next.js build, Chromium installation, and browser tests all completed successfully.
+  - PostgreSQL 16 integration job: **SUCCESS**.
+  - PostgreSQL 17.6 compatibility job: **SUCCESS**; version guard reported `server_version_num=170006`.
+  - The PostgreSQL 17.6 logs explicitly report the OFFER-QA-73, OFFER-QA-74, and OFFER-QA-75 numeric-scale characterization assertions passed. Existing request-hash, replay, concurrency, RLS, wrapper-owner, and ACL regression steps also passed.
+- **CodeQL #1187** ([run 43010249018](https://github.com/meridane/QimaTrade-MVP/actions/runs/43010249018)) — **SUCCESS**.
+- The PostgreSQL logs contain expected error output from negative assertions and rollback/cleanup scenarios. All corresponding jobs concluded successfully; these lines are not reported as test failures.
+- Vercel on the final PR HEAD returned **FAILURE** with `build-rate-limit` / `api-deployments-free-per-day`. No retry or quota bypass was attempted.
+- QA342 changed documentation only. CI #1236 and CodeQL #1187 validate the unchanged application/test code together with the PR synchronization event; no new QA342 application or database test is claimed.
+- PR #26 remained **OPEN**, **DRAFT**, unmerged, and mergeable after GitHub recalculated the branch metadata. No reviews or inline review threads were returned.
+
