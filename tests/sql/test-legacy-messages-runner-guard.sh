@@ -23,6 +23,10 @@ unsafe_urls=(
   "https://postgres:postgres@localhost:5432/qima_test"
   "postgresql://postgres:postgres@localhost.evil:5432/qima_test"
   "postgresql://postgres:postgres@127.0.0.2:5432/qima_test"
+  $'postgresql://postgres:postgres@localhost:5432/qima_test\nqa349-injected'
+  $'postgresql://postgres:postgres@localhost:5432/qima_test\r'
+  $'postgresql://postgres:postgres@localhost:5432/qima_test\t'
+  $'postgresql://postgres:postgres@localhost:5432/qima_test\r\nqa349-injected'
 )
 
 for unsafe_url in "${unsafe_urls[@]}"; do
@@ -54,6 +58,16 @@ for unsafe_url in "${unsafe_urls[@]}"; do
     cat "$OUTPUT" >&2
     exit 1
   fi
+    if LC_ALL=C grep -q $'\r' "$OUTPUT" || LC_ALL=C grep -q $'\t' "$OUTPUT" || [[ "$(wc -l < "$OUTPUT")" -ne 1 ]]; then
+      echo "ERROR: legacy migration runner refusal output was not a single control-character-free diagnostic line." >&2
+      cat "$OUTPUT" >&2
+      exit 1
+    fi
+    if grep -Fq "qa349-injected" "$OUTPUT"; then
+      echo "ERROR: legacy migration runner refusal output reflected control-character payload content." >&2
+      cat "$OUTPUT" >&2
+      exit 1
+    fi
 done
 
 # An unset destination must fail closed before psql, just like a malformed URL.
@@ -265,6 +279,10 @@ unsafe_assertion_urls=(
   "https://postgres:postgres@localhost:5432/qima_test"
   "postgresql://postgres:postgres@localhost.evil:5432/qima_test"
   "postgresql://postgres:postgres@127.0.0.2:5432/qima_test"
+  $'postgresql://postgres:postgres@localhost:5432/qima_test\nqa349-injected'
+  $'postgresql://postgres:postgres@localhost:5432/qima_test\r'
+  $'postgresql://postgres:postgres@localhost:5432/qima_test\t'
+  $'postgresql://postgres:postgres@localhost:5432/qima_test\r\nqa349-injected'
 )
 
 for unsafe_url in "${unsafe_assertion_urls[@]}"; do
@@ -281,6 +299,11 @@ for unsafe_url in "${unsafe_assertion_urls[@]}"; do
     ! grep -Fq "Refusing to inspect migration cleanup" "$OUTPUT" ||
     grep -Fq "postgres:postgres" "$OUTPUT"; then
     echo "ERROR: post-run assertion did not safely reject an unsafe URL before psql." >&2
+    cat "$OUTPUT" >&2
+    exit 1
+  fi
+  if LC_ALL=C grep -q $'\r' "$OUTPUT" || LC_ALL=C grep -q $'\t' "$OUTPUT" || [[ "$(wc -l < "$OUTPUT")" -ne 1 ]] || grep -Fq "qa349-injected" "$OUTPUT"; then
+    echo "ERROR: post-run assertion refusal output leaked control characters or payload content." >&2
     cat "$OUTPUT" >&2
     exit 1
   fi
