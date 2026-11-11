@@ -18,7 +18,6 @@ type MockConfig = {
   demandError?: { message: string } | null;
   productMaster?: { id: string } | null;
   productMasterError?: { message: string } | null;
-  offer?: { id: string } | null;
   offerError?: { message: string } | null;
 };
 
@@ -37,11 +36,6 @@ function createSupabaseMock(config: MockConfig = {}) {
   const demand = config.demand === undefined ? null : config.demand;
   const productMaster =
     config.productMaster === undefined ? { id: PRODUCT_MASTER_ID } : config.productMaster;
-  const offer =
-    config.offer === undefined
-      ? { id: "70000000-0000-4000-8000-000000000101" }
-      : config.offer;
-
   const client = {
     auth: {
       getUser: async () => {
@@ -117,16 +111,8 @@ function createSupabaseMock(config: MockConfig = {}) {
           insert(payload: Record<string, unknown>) {
             calls.offerInsertCalls += 1;
             calls.insertPayload = payload;
-            return {
-              select() {
-                return {
-                  single: async () => ({
-                    data: offer,
-                    error: config.offerError ?? null,
-                  }),
-                };
-              },
-            };
+            // Supabase INSERT without .select() resolves without a returned row.
+            return Promise.resolve({ data: null, error: config.offerError ?? null });
           },
         };
       }
@@ -488,32 +474,8 @@ test("legacy offers route returns a generic error when Supabase insert fails wit
   });
 });
 
-test("legacy offers route returns a stable error when insert returns no offer row", async () => {
-  const { client, calls } = createSupabaseMock({ offer: null });
-  const handler = createHandler(client);
-
-  const response = await handler(createFormRequest());
-
-  expect(response.status).toBe(500);
-  await expect(response.json()).resolves.toEqual({
-    error: "Unable to create the offer.",
-  });
-  expect(response.headers.get("location")).toBeNull();
-  expect(calls.offerInsertCalls).toBe(1);
-  expect(calls.insertPayload).toMatchObject({
-    lifecycle: "draft",
-    offer_type: "supplier_offer",
-    price: null,
-    currency: null,
-    pricing_model: null,
-  });
-});
-
-test("legacy offers route redirects to the ID returned by insert and preserves draft fields", async () => {
-  const createdOfferId = "70000000-0000-4000-8000-000000000202";
-  const { client, calls } = createSupabaseMock({
-    offer: { id: createdOfferId },
-  });
+test("legacy offers route redirects to its preassigned UUID without INSERT RETURNING and preserves draft fields", async () => {
+  const { client, calls } = createSupabaseMock();
   const handler = createHandler(client);
 
   const response = await handler(
@@ -525,6 +487,9 @@ test("legacy offers route redirects to the ID returned by insert and preserves d
     }),
   );
 
+  const createdOfferId = calls.insertPayload?.id;
+  expect(typeof createdOfferId).toBe("string");
+  expect(createdOfferId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
   expect(response.status).toBe(303);
   expect(response.headers.get("location")).toBe(
     `https://qima.test/offers?created=${createdOfferId}`,
