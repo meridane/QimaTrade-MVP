@@ -100,3 +100,20 @@ After the first CI cycle, QA315 was strengthened so the nested-object and nested
 - **CodeQL #1192** ([run 43019811821](https://github.com/meridane/QimaTrade-MVP/actions/runs/43019811821)) completed **SUCCESS**.
 - The final PR code/test HEAD at this point is `94b05aa01c7665de28ac822317fd6b186ecbdfba`; PR #26 remains open, draft, unmerged, and mergeable.
 - The latest Vercel status for this HEAD is **FAILURE** with `build-rate-limit` / `api-deployments-free-per-day`. The earlier code/test HEAD `d1aabc9` had a successful Preview; no Preview success is claimed for `94b05aa`.
+
+
+## QA343 — final validation of the recursive hash refinement
+
+The corrected final QA315 script on code/test HEAD `94b05aa01c7665de28ac822317fd6b186ecbdfba` completed its full CI validation.
+
+- **QIMA CI #1241** ([run 43019812058](https://github.com/meridane/QimaTrade-MVP/actions/runs/43019812058)) — **SUCCESS, 3/3 jobs**.
+  - PostgreSQL 16 CREATE_OFFER integration job — **SUCCESS**; the runner completed, including the read-only QA315 lexical-form script.
+  - PostgreSQL 17.6 compatibility job — **SUCCESS**; the 17.6 version guard and CREATE_OFFER integration runner, including QA315, completed.
+  - Typecheck/audit/build/browser job — **SUCCESS**; dependency installation, npm audit, TypeScript, Next.js build, Chromium installation, and Playwright browser tests all completed.
+  - All three jobs completed with success and no failed steps.
+- **CodeQL #1192** ([run 43019811821](https://github.com/meridane/QimaTrade-MVP/actions/runs/43019811821)) — **SUCCESS**.
+- This is the validation for the final QA315 code/test refinement, including the added MD5 assertions for nested JSONB objects and arrays. No production-normalization policy is inferred.
+- The final documentation-only PR HEAD is `7734d6a1558428854beab840752513cb544d86fc`. It does not change the validated SQL or runner; documentation paths are excluded from workflow triggers.
+- Vercel on final PR HEAD `7734d6a` is **FAILURE** with `build-rate-limit` / `api-deployments-free-per-day`. The CI and CodeQL checks above are successful; no Preview success is claimed for the final documentation-only HEAD.
+- PR #26 remains **OPEN**, **DRAFT**, unmerged, and mergeable. Final metadata: 1,428 commits, 99 changed files; no submitted reviews or inline review threads were returned.
+
