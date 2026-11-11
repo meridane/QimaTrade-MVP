@@ -32,10 +32,10 @@ jobs:
       - name: Configure apt retries for transient mirror failures
         shell: bash
         run: |
-          printf '%s\\n' \\
-            'Acquire::Retries "3";' \\
-            'Acquire::http::Timeout "30";' \\
-            'Acquire::https::Timeout "30";' \\
+          printf '%s\n' \
+            'Acquire::Retries "3";' \
+            'Acquire::http::Timeout "30";' \
+            'Acquire::https::Timeout "30";' \
             | sudo tee /etc/apt/apt.conf.d/80-qima-network-retries >/dev/null
       - name: Verify workflow concurrency isolation
         run: bash tests/ci/verify-workflow-concurrency.sh
@@ -175,10 +175,10 @@ jobs:
       - name: Configure apt retries for transient mirror failures
         shell: bash
         run: |
-          printf '%s\\n' \\
-            'Acquire::Retries "3";' \\
-            'Acquire::http::Timeout "30";' \\
-            'Acquire::https::Timeout "30";' \\
+          printf '%s\n' \
+            'Acquire::Retries "3";' \
+            'Acquire::http::Timeout "30";' \
+            'Acquire::https::Timeout "30";' \
             | sudo tee /etc/apt/apt.conf.d/80-qima-network-retries >/dev/null
       - name: Install PostgreSQL client
         run: |
@@ -279,10 +279,10 @@ jobs:
       - name: Configure apt retries for transient mirror failures
         shell: bash
         run: |
-          printf '%s\\n' \\
-            'Acquire::Retries "3";' \\
-            'Acquire::http::Timeout "30";' \\
-            'Acquire::https::Timeout "30";' \\
+          printf '%s\n' \
+            'Acquire::Retries "3";' \
+            'Acquire::http::Timeout "30";' \
+            'Acquire::https::Timeout "30";' \
             | sudo tee /etc/apt/apt.conf.d/80-qima-network-retries >/dev/null
       - name: Install PostgreSQL client
         run: |
