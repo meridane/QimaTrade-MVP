@@ -104,8 +104,8 @@ test("an authenticated supplier with an invalid confirmation reference is still 
   await expect(page).toHaveURL((url) => url.pathname === "/decision-tree" && url.searchParams.get("flow") === "supplier");
 });
 
-test("an authenticated supplier can submit the independent draft form through POST and reach its persisted confirmation", async ({ page, request }) => {
-  const offerName = "QA336 browser end-to-end independent draft";
+test("an authenticated supplier can submit the independent draft form through POST and reach its persisted confirmation", async ({ page, request }, testInfo) => {
+  const offerName = `QA336 browser end-to-end independent draft retry-${testInfo.retry}`;
 
   await authenticatePage(
     page,
