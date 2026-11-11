@@ -337,3 +337,116 @@ test("an authenticated supplier can retry a draft after one transient PostgREST 
   expect(visibleText).not.toContain("SYNTHETIC_DATABASE_INTERNAL_DETAIL");
   expect(visibleText).not.toContain("PGRST_QA338");
 });
+
+test("an authenticated supplier can retry a draft after a browser network interruption without losing form data", async ({ page, request }, testInfo) => {
+  const offerName = `QA339 network interruption retry-${testInfo.retry}`;
+  const reset = await request.delete(
+    `http://127.0.0.1:54321/__test/offers?name=${encodeURIComponent(offerName)}`,
+  );
+  expect(reset.ok()).toBe(true);
+
+  await authenticatePage(
+    page,
+    request,
+    `/offers/new?productMasterId=${PRODUCT_MASTER_GATE_ID}`,
+  );
+  await page.goto(`/offers/new?productMasterId=${PRODUCT_MASTER_GATE_ID}`);
+
+  await page.getByLabel("Offer name").fill(offerName);
+  await page.getByLabel("Quantity").fill("2");
+
+  const countrySelectors = page.locator('button[aria-haspopup="listbox"]');
+  await countrySelectors.nth(0).click();
+  await page.getByRole("listbox").getByRole("button", { name: "South Korea", exact: true }).click();
+  await countrySelectors.nth(1).click();
+  await page.getByRole("listbox").getByRole("button", { name: "South Korea", exact: true }).click();
+
+  let connectionWasInterrupted = false;
+  await page.route("**/api/offers", async (route) => {
+    if (!connectionWasInterrupted) {
+      connectionWasInterrupted = true;
+      await route.abort("connectionreset");
+      return;
+    }
+    await route.continue();
+  });
+
+  const failedRequestPromise = page.waitForEvent(
+    "requestfailed",
+    (failedRequest) => failedRequest.url().endsWith("/api/offers"),
+  );
+  await page.getByRole("button", { name: "Create offer", exact: true }).click();
+  const failedRequest = await failedRequestPromise;
+
+  expect(connectionWasInterrupted).toBe(true);
+  expect(failedRequest.url()).toContain("/api/offers");
+  await expect(page.locator('p[role="alert"]')).toHaveText(
+    "We couldn't submit your offer. Please try again.",
+  );
+  await expect(page.getByLabel("Offer name")).toHaveValue(offerName);
+  await expect(page.getByLabel("Quantity")).toHaveValue("2");
+  await expect(countrySelectors.nth(0)).toContainText("South Korea");
+  await expect(countrySelectors.nth(1)).toContainText("South Korea");
+  await expect(page.getByRole("button", { name: "Create offer", exact: true })).toBeEnabled();
+  await expect(page.getByRole("status")).toHaveCount(0);
+  await expect(page).toHaveURL((url) =>
+    url.pathname === "/offers/new" &&
+    url.searchParams.get("productMasterId") === PRODUCT_MASTER_GATE_ID &&
+    !url.searchParams.has("created"),
+  );
+
+  const beforeRetry = await request.get(
+    `http://127.0.0.1:54321/__test/offers?name=${encodeURIComponent(offerName)}`,
+  );
+  expect(beforeRetry.ok()).toBe(true);
+  expect(await beforeRetry.json()).toHaveLength(0);
+
+  const failureRecords = await request.get(
+    `http://127.0.0.1:54321/__test/offer-failures?name=${encodeURIComponent(offerName)}`,
+  );
+  expect(failureRecords.ok()).toBe(true);
+  expect(await failureRecords.json()).toHaveLength(0);
+
+  // Remove the one-shot network fault so the retry reaches the synthetic PostgREST service.
+  await page.unroute("**/api/offers");
+
+  const retryResponsePromise = page.waitForResponse((response) =>
+    response.url().endsWith("/api/offers") && response.request().method() === "POST",
+  );
+  await page.getByRole("button", { name: "Create offer", exact: true }).click();
+  const retryResponse = await retryResponsePromise;
+
+  expect(retryResponse.status()).toBe(201);
+  await expect(page).toHaveURL((url) =>
+    url.pathname === "/offers/new" && getCreatedOfferId(url.search) !== null,
+  );
+  const createdOfferId = new URL(page.url()).searchParams.get("created") ?? "";
+  expect(createdOfferId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
+  await expect(page.getByRole("status")).toContainText("Draft submission received");
+  await expect(page.getByText(`Offer reference: ${createdOfferId}`, { exact: true })).toBeVisible();
+  await expect(page.locator('p[role="alert"]')).toHaveCount(0);
+
+  const afterRetry = await request.get(
+    `http://127.0.0.1:54321/__test/offers?name=${encodeURIComponent(offerName)}`,
+  );
+  expect(afterRetry.ok()).toBe(true);
+  const inserts = await afterRetry.json();
+  expect(inserts).toHaveLength(1);
+  expect(inserts[0].payload).toMatchObject({
+    id: createdOfferId,
+    name: offerName,
+    provider_actor_id: SYNTHETIC_PROVIDER_ACTOR_ID,
+    quantity: 2,
+    lifecycle: "draft",
+    offer_type: "supplier_offer",
+  });
+
+  const visibleText = await page.locator("body").innerText();
+  expect(visibleText).not.toContain("SYNTHETIC_DATABASE_INTERNAL_DETAIL");
+  expect(visibleText).not.toContain("PGRST_QA338");
+
+  const cleanup = await request.delete(
+    `http://127.0.0.1:54321/__test/offers?name=${encodeURIComponent(offerName)}`,
+  );
+  expect(cleanup.ok()).toBe(true);
+});
