@@ -154,6 +154,7 @@ forbid_line "$FAILURE_ASSERT_JOB" "    continue-on-error: true"
 require_line "$FAILURE_ASSERT_JOB" "    if: always()"
 require_line "$FAILURE_ASSERT_JOB" "    needs: prepared_transactions_always_cleanup_failure_contract"
 require_line "$FAILURE_ASSERT_JOB" '          CLEANUP_OUTCOME: ${{ needs.prepared_transactions_always_cleanup_failure_contract.outputs.cleanup_outcome }}'
+require_line "$FAILURE_ASSERT_JOB" '          CLEANUP_RAN: ${{ needs.prepared_transactions_always_cleanup_failure_contract.outputs.cleanup_ran }}'
 require_line "$FAILURE_ASSERT_JOB" '          CLEANUP_EXIT_CODE: ${{ needs.prepared_transactions_always_cleanup_failure_contract.outputs.cleanup_exit_code }}'
 require_line "$FAILURE_ASSERT_JOB" '          CLEANUP_FAILURE_OBSERVED: ${{ needs.prepared_transactions_always_cleanup_failure_contract.outputs.cleanup_failure_observed }}'
 require_line "$FAILURE_ASSERT_JOB" '          [[ "$CLEANUP_OUTCOME" == "failure" ]]'
