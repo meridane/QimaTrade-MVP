@@ -20,6 +20,7 @@ PSQL_TUPLE=(psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t)
 "${PSQL[@]}" -f "$ROOT/supabase/migrations/20261027090000_fix_create_offer_action_status_contract.sql"
 "${PSQL[@]}" -f "$ROOT/supabase/migrations/20261027100000_restrict_direct_create_offer_rpc.sql"
 "${PSQL[@]}" -f "$ROOT/tests/sql/create-offer-runtime.sql"
+"${PSQL[@]}" -f "$ROOT/tests/sql/idempotency-numeric-lexical-characterization.sql"
 
 # Race two first-time requests with the same tenant/key. Distinct application names
 # let the observer prove that one session owns the advisory lock while the other
