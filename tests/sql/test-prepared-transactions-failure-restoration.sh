@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "\${BASH_SOURCE[0]}")/../.." && pwd)"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 SETUP_SCRIPT="$ROOT/tests/sql/enable-prepared-transactions-config.sh"
 RESTORE_SCRIPT="$ROOT/tests/sql/restore-prepared-transactions-config.sh"
 TEMP_DIR="$(mktemp -d)"
@@ -12,7 +12,7 @@ mkdir -p "$MOCK_BIN"
 cat > "$MOCK_BIN/docker" <<'DOCKER'
 #!/usr/bin/env bash
 set -euo pipefail
-case "\${1-}" in
+case "${1-}" in
   ps)
     printf '%s\n' postgres-container
     printf '%s\n' docker-ps >> "$MOCK_EVENTS"
@@ -26,17 +26,17 @@ case "\${1-}" in
       fi
       printf '10\n' > "$MOCK_STATE_FILE"
       printf '%s\n' docker-exec-set >> "$MOCK_EVENTS"
-      exit "\${MOCK_SET_STATUS:-0}"
+      exit "${MOCK_SET_STATUS:-0}"
     fi
     if [[ "$*" == *"ALTER SYSTEM RESET max_prepared_transactions"* ]]; then
-      if [[ "\${RESTORE_REQUIRED-}" != "true" ||
-            "\${BASELINE_MAX_PREPARED_TRANSACTIONS-}" != "0" ]]; then
+      if [[ "${RESTORE_REQUIRED-}" != "true" ||
+            "${BASELINE_MAX_PREPARED_TRANSACTIONS-}" != "0" ]]; then
         echo "RESET was invoked without the exact restoration marker and baseline." >&2
         exit 92
       fi
       printf '0\n' > "$MOCK_STATE_FILE"
       printf '%s\n' docker-exec-reset >> "$MOCK_EVENTS"
-      exit "\${MOCK_RESET_STATUS:-0}"
+      exit "${MOCK_RESET_STATUS:-0}"
     fi
     echo "Unexpected docker exec command." >&2
     exit 90
@@ -45,9 +45,9 @@ case "\${1-}" in
     state="$(cat "$MOCK_STATE_FILE")"
     printf '%s\n' docker-restart >> "$MOCK_EVENTS"
     if [[ "$state" == "10" ]]; then
-      exit "\${MOCK_SETUP_RESTART_STATUS:-0}"
+      exit "${MOCK_SETUP_RESTART_STATUS:-0}"
     fi
-    exit "\${MOCK_RESTORE_RESTART_STATUS:-0}"
+    exit "${MOCK_RESTORE_RESTART_STATUS:-0}"
     ;;
   *)
     echo "Unexpected docker invocation." >&2
@@ -62,7 +62,7 @@ cat > "$MOCK_BIN/psql" <<'PSQL'
 set -euo pipefail
 case "$*" in
   *"SHOW max_prepared_transactions"*)
-    count_file="\${MOCK_EVENTS}.show-count"
+    count_file="${MOCK_EVENTS}.show-count"
     show_count=0
     if [[ -f "$count_file" ]]; then
       read -r show_count < "$count_file"
@@ -70,7 +70,7 @@ case "$*" in
     show_count=$((show_count + 1))
     printf '%s\n' "$show_count" > "$count_file"
     printf 'psql-show-%s\n' "$show_count" >> "$MOCK_EVENTS"
-    if (( show_count == 2 )) && [[ "\${MOCK_SETUP_VERIFY_STATUS:-0}" != "0" ]]; then
+    if (( show_count == 2 )) && [[ "${MOCK_SETUP_VERIFY_STATUS:-0}" != "0" ]]; then
       exit "$MOCK_SETUP_VERIFY_STATUS"
     fi
     if [[ -f "$MOCK_STATE_FILE" ]]; then
@@ -99,7 +99,7 @@ cat > "$MOCK_BIN/pg_isready" <<'READY'
 #!/usr/bin/env bash
 set -euo pipefail
 printf '%s\n' pg-isready >> "$MOCK_EVENTS"
-exit "\${MOCK_READY_STATUS:-0}"
+exit "${MOCK_READY_STATUS:-0}"
 READY
 chmod +x "$MOCK_BIN/pg_isready"
 
