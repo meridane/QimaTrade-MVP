@@ -174,3 +174,65 @@ test("an authenticated supplier can submit the independent draft form through PO
     pricing_model: null,
   });
 });
+
+test("an authenticated supplier sees a generic retry message and no confirmation when PostgREST rejects a draft insert", async ({ page, request }, testInfo) => {
+  await authenticatePage(
+    page,
+    request,
+    `/offers/new?productMasterId=${PRODUCT_MASTER_GATE_ID}`,
+  );
+  await page.goto(`/offers/new?productMasterId=${PRODUCT_MASTER_GATE_ID}`);
+
+  const countrySelectors = page.locator('button[aria-haspopup="listbox"]');
+  await countrySelectors.nth(0).click();
+  await page.getByRole("listbox").getByRole("button", { name: "South Korea", exact: true }).click();
+  await countrySelectors.nth(1).click();
+  await page.getByRole("listbox").getByRole("button", { name: "South Korea", exact: true }).click();
+
+  for (const upstreamStatus of [400, 403, 500]) {
+    const offerName = `QA337 PostgREST failure ${upstreamStatus} retry-${testInfo.retry}`;
+    const reset = await request.delete(
+      `http://127.0.0.1:54321/__test/offers?name=${encodeURIComponent(offerName)}`,
+    );
+    expect(reset.ok()).toBe(true);
+
+    await page.getByLabel("Offer name").fill(offerName);
+    await page.getByLabel("Quantity").fill("2");
+
+    const postResponsePromise = page.waitForResponse((response) =>
+      response.url().endsWith("/api/offers") && response.request().method() === "POST",
+    );
+    await page.getByRole("button", { name: "Create offer", exact: true }).click();
+    const postResponse = await postResponsePromise;
+
+    // The handler intentionally maps all upstream insert failures to one generic response.
+    expect(postResponse.status()).toBe(500);
+    await expect(page.getByRole("alert")).toHaveText("We couldn't submit your offer. Please try again.");
+    await expect(page.getByRole("heading", { name: "Create a new offer" })).toBeVisible();
+    await expect(page.getByRole("status")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Create offer", exact: true })).toBeEnabled();
+    await expect(page).toHaveURL((url) =>
+      url.pathname === "/offers/new" &&
+      url.searchParams.get("productMasterId") === PRODUCT_MASTER_GATE_ID &&
+      !url.searchParams.has("created"),
+    );
+
+    const failuresResponse = await request.get(
+      `http://127.0.0.1:54321/__test/offer-failures?name=${encodeURIComponent(offerName)}`,
+    );
+    expect(failuresResponse.ok()).toBe(true);
+    expect(await failuresResponse.json()).toEqual([
+      { name: offerName, status: upstreamStatus, code: "PGRST_QA337" },
+    ]);
+
+    const inspection = await request.get(
+      `http://127.0.0.1:54321/__test/offers?name=${encodeURIComponent(offerName)}`,
+    );
+    expect(inspection.ok()).toBe(true);
+    expect(await inspection.json()).toHaveLength(0);
+
+    const visibleText = await page.locator("body").innerText();
+    expect(visibleText).not.toContain("SYNTHETIC_DATABASE_INTERNAL_DETAIL");
+    expect(visibleText).not.toContain("PGRST_QA337");
+  }
+});

@@ -2,6 +2,7 @@ import { createServer } from "node:http";
 
 const authRequests = [];
 const offerInserts = [];
+const offerFailures = [];
 
 const session = {
   access_token: "qa251-access-token",
@@ -88,6 +89,16 @@ const server = createServer(async (request, response) => {
     return;
   }
 
+  if (request.method === "GET" && url.pathname === "/__test/offer-failures") {
+    const name = url.searchParams.get("name");
+    if (!name) {
+      sendJson(response, 400, { error: "OFFER_NAME_REQUIRED" });
+      return;
+    }
+    sendJson(response, 200, offerFailures.filter((entry) => entry.name === name));
+    return;
+  }
+
   if (request.method === "DELETE" && url.pathname === "/__test/offers") {
     const name = url.searchParams.get("name");
     let deleted = 0;
@@ -97,7 +108,14 @@ const server = createServer(async (request, response) => {
         deleted += 1;
       }
     }
-    sendJson(response, 200, { deleted });
+    let failuresDeleted = 0;
+    for (let index = offerFailures.length - 1; index >= 0; index -= 1) {
+      if (!name || offerFailures[index].name === name) {
+        offerFailures.splice(index, 1);
+        failuresDeleted += 1;
+      }
+    }
+    sendJson(response, 200, { deleted, failuresDeleted });
     return;
   }
 
@@ -129,6 +147,17 @@ const server = createServer(async (request, response) => {
       const payload = await readJsonBody(request);
       if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
         sendJson(response, 400, { code: "PGRST102", message: "Expected one offer object" });
+        return;
+      }
+
+      const failureMatch = /^QA337 PostgREST failure (400|403|500) retry-\\d+$/.exec(payload.name);
+      if (failureMatch) {
+        const status = Number(failureMatch[1]);
+        offerFailures.push({ name: payload.name, status, code: "PGRST_QA337" });
+        sendJson(response, status, {
+          code: "PGRST_QA337",
+          message: "SYNTHETIC_DATABASE_INTERNAL_DETAIL",
+        });
         return;
       }
 

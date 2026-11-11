@@ -127,6 +127,8 @@ export default function NewOfferPage() {
   const [market, setMarket] = useState("");
   const [geography, setGeography] = useState("");
   const [createdOfferId, setCreatedOfferId] = useState<string | null>(null);
+  const [submissionError, setSubmissionError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     const createdId = getCreatedOfferId(window.location.search);
@@ -144,10 +146,43 @@ export default function NewOfferPage() {
     setSelectedDocs((current) => current.includes(doc) ? current.filter((item) => item !== doc) : [...current, doc]);
   }
 
-  function submitForm(event: FormEvent<HTMLFormElement>) {
-    if (!market || !geography) {
-      event.preventDefault();
-      return;
+  async function submitForm(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!market || !geography || isSubmitting) return;
+
+    setSubmissionError(null);
+    setIsSubmitting(true);
+
+    try {
+      const form = event.currentTarget;
+      const response = await fetch(form.action, {
+        method: form.method.toUpperCase(),
+        body: new FormData(form),
+        credentials: "same-origin",
+        redirect: "follow",
+      });
+
+      if (!response.ok || !response.redirected) {
+        setSubmissionError("We couldn't submit your offer. Please try again.");
+        return;
+      }
+
+      const destination = new URL(response.url, window.location.origin);
+      const createdId =
+        destination.origin === window.location.origin && destination.pathname === "/offers/new"
+          ? getCreatedOfferId(destination.search)
+          : null;
+
+      if (!createdId) {
+        setSubmissionError("We couldn't submit your offer. Please try again.");
+        return;
+      }
+
+      window.location.assign(destination.toString());
+    } catch {
+      setSubmissionError("We couldn't submit your offer. Please try again.");
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
@@ -179,6 +214,11 @@ export default function NewOfferPage() {
             </div>
           ) : (
           <form action="/api/offers" method="post" onSubmit={submitForm} className="mt-8 space-y-5">
+            {submissionError && (
+              <p role="alert" aria-live="assertive" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+                {submissionError}
+              </p>
+            )}
             <div>
               <label className="text-sm font-bold text-slate-800" htmlFor="name">Offer name</label>
               <input id="name" name="name" required placeholder="e.g. Used CNC Vertical Machining Center" className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm" />
@@ -220,7 +260,7 @@ export default function NewOfferPage() {
               {selectedDocs.includes("Other") && <input value={documentationOther} onChange={(event) => setDocumentationOther(event.target.value)} placeholder="Other documentation..." className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm" />}
             </div>
 
-            <button type="submit" disabled={!market || !geography} className="rounded-xl bg-orange-500 px-6 py-3 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50">Create offer</button>
+            <button type="submit" disabled={!market || !geography || isSubmitting} className="rounded-xl bg-orange-500 px-6 py-3 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50">{isSubmitting ? "Creating..." : "Create offer"}</button>
           </form>
           )}
         </section>
