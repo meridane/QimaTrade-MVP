@@ -3419,3 +3419,19 @@ The change is test-only. It does not assert or infer the owner of any live Supab
 - **PR update:** the corrected code was fast-forwarded to `fix/create-offer-status-contract` using expected prior head `b8d27db4c5777a8c2c51720025e679264356aca0`; no force update. The PR remains open, draft, and unmerged.
 - **Evidence boundary:** QA332 creates `qa332_offers_select_own_provider` only inside a transaction on disposable `qima_test`. The synthetic policy validates PostgreSQL INSERT-returning and actor-scoped SELECT mechanics; it is not a proposed or live production policy and does not decide buyer/supplier conversation visibility. No current live Supabase SELECT policy/grant was inspected.
 - **Safety:** no Supabase Production data, schema, migration, RLS policy, grant, secret, persistent configuration, Production deployment, PR merge, force update, or branch-protection setting was changed.
+
+
+## QA333 — Legacy offer plain INSERT no longer depends on SELECT RETURNING
+
+- **Scope:** PR #26, branch `fix/create-offer-status-contract`; work branch `work/qa333-legacy-offer-insert-no-returning-20261111-1252`.
+- **Code:** `lib/offers/create-legacy-offer.ts` pre-generates an offer UUID, includes it in the INSERT, removes `.select("id").single()`, and uses the local UUID in the redirect. This avoids requiring SELECT visibility merely to obtain the inserted identifier; later read authorization remains separate and unverified.
+- **E2E:** `tests/e2e/legacy-offers-route-contract.spec.ts` models a successful INSERT returning `data: null` and intentionally provides no `.select()` method. It verifies the generated UUID is stored and used in the redirect while draft fields remain unchanged.
+- **SQL:** `tests/sql/legacy-offer-returning-select-rls-regression.sql` retains the INSERT RETURNING/SELECT-policy characterization and adds a plain INSERT assertion under `authenticated` without a SELECT policy. The fixture row is excluded from QA332 actor-visibility counts by using the distinct name `legacy plain INSERT without SELECT policy`. The outer transaction rolls back.
+- **Correction history:** first **CI #1198** run `42955879121` failed both PostgreSQL jobs because the new row name matched the QA332 `QA332 %` count filter (own rows 3; cross-provider rows 0). The row label was corrected; no production issue was inferred from this synthetic assertion failure.
+- **Final CI #1199:** run `42956060853` — **SUCCESS, 3/3 jobs**. PostgreSQL 16 QA332 step **PASS**; PostgreSQL 17.6 QA332 step **PASS**, pinned server `server_version_num=170006`; build/browser **PASS**; Playwright **335 passed, 0 failed**; npm audit, TypeScript, Next.js build and Chromium installation **PASS**.
+- **CodeQL #1150:** run `42956060821` — **SUCCESS**.
+- **Vercel:** latest combined status on code HEAD is **FAILURE** with the free-plan `build-rate-limit` URL. This is a Preview quota limitation, not a GitHub Actions/CodeQL failure.
+- **PR #26:** remains open, draft, unmerged, and mergeable at the last check; latest code HEAD before documentation is `f2c2581cd43035136db6ecef89ad001c84c8b9a4`.
+- **Cross-PR contract note:** PR #24 is also open and unmerged. Its proposed multipart route rejects a form Product Master that differs from the demand's canonical Product Master; PR #26's current legacy route/test explicitly prefers the form-supplied Product Master. This discrepancy is recorded for maintainer review and was not silently resolved in QA333.
+- **Evidence boundary:** the PostgreSQL fixture and E2E Supabase mock validate code paths and mechanics only. They do not prove the live Supabase SELECT policy, grant state, or buyer/supplier visibility contract.
+- **Safety:** no Supabase Production data, schema, migration, RLS policy, grant, secret, persistent configuration, Production deployment, PR merge, force update, or branch-protection setting was changed.
