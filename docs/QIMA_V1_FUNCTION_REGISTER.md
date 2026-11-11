@@ -7182,3 +7182,35 @@ Validation on the new code commit: pending GitHub Actions. No Supabase Productio
 - **Vercel :** le statut combiné du commit QA351 a ensuite atteint **SUCCESS** et pointe vers le Preview https://vercel.com/bmk1/qimatrade-mvp/36vJJHnowj8qrqdhf7CvdUtsoV9U. Ce Preview n'est pas un déploiement Production.
 - **Fichiers :** seul `tests/sql/test-prepared-transactions-config-restore.sh` est modifié dans le commit de code QA351. Aucun changement du workflow CI, du SQL applicatif, ni des scripts de configuration/restauration.
 - **Sécurité :** aucun accès en écriture à Supabase Production, aucune donnée, migration, fonction, schéma, politique RLS, grant, secret ou configuration persistante modifié. Aucun déploiement Production, aucune fusion, aucun force-push et aucune modification des protections de branche.
+
+
+### QA352 — redémarrage appliqué mais résultat Docker ambigu — 12 novembre 2026
+
+- **État initial :** PR #26 OPEN/DRAFT/non fusionnée ; HEAD initial QA352 `1f37ee1f5fcf3f467accfcacbcccd0b3c418f927`. Le détail complet est conservé dans `docs/QIMA_V1_FUNCTION_REGISTER_QA352_APPEND.md`.
+- **Ajout :** `tests/sql/test-prepared-transactions-config-restore.sh` simule un `docker restart` qui applique son effet (marqueur `restart-applied`) puis retourne le code 43.
+- **Assertions :** code 43 conservé ; marqueur d'effet présent ; diagnostic d'échec attendu ; aucune attente de disponibilité, requête SHOW, postcondition ni annonce de restauration réussie après la réponse ambiguë ; absence de fuite des identifiants.
+- **Validation :** QIMA CI #1267 et #1268 SUCCESS, 3/3 jobs ; PostgreSQL 16 et PostgreSQL 17.6 réussis ; Verify réussi avec npm audit, TypeScript, build Next.js, Chromium et 347 tests Playwright ; CodeQL #1218 SUCCESS.
+- **Vercel :** quota `api-deployments-free-per-day` sur le HEAD QA352 ; aucun Preview réussi revendiqué pour ce cycle, aucun déploiement Production.
+- **Interprétation :** le cas « effet appliqué mais résultat de commande ambigu » est synthétique et mocké. Il ne prouve aucun incident ni vulnérabilité en Production. Aucun script de restauration applicatif, SQL, donnée, migration ou configuration Supabase Production n'a été modifié.
+
+### QA353 — contrat runtime du nettoyage always() après échec du setup — 12 novembre 2026
+
+- **État initial :** PR #26 OPEN/DRAFT/non fusionnée ; HEAD `78aeb1c84916be123221920ba2fa634fb4acb6e9`, 1 465 commits en avance sur `main`, zéro en retard, 109 fichiers modifiés, aucune review ni thread. QIMA CI #1271 et CodeQL #1221 SUCCESS.
+- **Priorité :** vérifier au niveau du runner GitHub qu'un step de setup en échec après publication de `restore_required` et `baseline` déclenche bien le nettoyage `if: always()`, transmet les sorties, et que le contrôle final reste bloquant si le nettoyage n'est pas confirmé.
+- **Modifications :**
+  - `.github/workflows/ci.yml` ajoute une vérification statique dans le job Verify et deux jobs de contrat runtime. Le job de simulation échoue volontairement au setup (exit 47) et utilise un job-level `continue-on-error: true` pour isoler cet échec attendu ; le step de nettoyage conserve `if: always()` et exécute le véritable script de restauration avec des mocks inertes. Un job dépendant, sans `continue-on-error`, vérifie les trois sorties.
+  - `tests/ci/verify-prepared-transactions-always-cleanup-contract.sh` vérifie le câblage du job PostgreSQL 16 réel, l'ordre des étapes, `if: always()`, le transfert des sorties et l'absence de `continue-on-error` sur le job principal et son step de restauration.
+  - `tests/ci/test-prepared-transactions-always-cleanup-runtime.sh` vérifie l'issue en échec du setup, exécute `restore-prepared-transactions-config.sh` avec mocks Docker/psql/pg_isready, et exige le retour à la baseline 0, zéro transaction préparée et zéro base résiduelle avant d'émettre `cleanup_ran=true`.
+- **Validation :** QIMA CI #1272 SUCCESS (run `43118123723`), 5 jobs :
+  - PostgreSQL 16 : SUCCESS ; suite complète réussie ; restauration réelle du service jetable confirmant `max_prepared_transactions=0`, zéro transaction préparée résiduelle et zéro base de migration résiduelle ; conteneur et réseau supprimés au post-cleanup.
+  - Job runtime QA353 : le step de setup a échoué volontairement (code 47) ; le step `if: always()` a réussi et le journal contient `QA353 runtime contract passed`. Le job de simulation a une conclusion `failure` attendue, tolérée uniquement par son job-level `continue-on-error: true`.
+  - Job d'assertion QA353 : SUCCESS ; valeurs observées `SETUP_OUTCOME=failure`, `CLEANUP_OUTCOME=success`, `CLEANUP_RAN=true`. Ce job reste bloquant.
+  - PostgreSQL 17.6 : SUCCESS ; tests terminés et conteneur/réseau supprimés.
+  - Verify : SUCCESS ; npm ci, npm audit au seuil high, TypeScript, build Next.js, Chromium et 347 tests Playwright réussis (8,2 s).
+  - CodeQL #1222 : SUCCESS (run `43118123729`).
+  - Vercel : SUCCESS ; Preview `https://vercel.com/bmk1/qimatrade-mvp/HJ39qJRx6biKb71RTPhxBQ2xxe6r`, sans déploiement Production.
+- **État PR final :** OPEN, DRAFT, non fusionnée, mergeable ; HEAD `d28a9097d1f0d7f6c08fbdd8bdb570b3e209eb87`, 1 470 commits en avance sur `main`, zéro en retard, 111 fichiers modifiés, aucune review ni thread.
+- **Commits QA353 :** `18233ae0c40e1f9b701c3a4e0992113ed5c458a9`, `ea04a7e1776564d34b97f2f7043766413034c67f`, `5bbe246dd2daeed6361cb4b8beac7e8ccb1ec5ea` (sans changement de blob), `4519e07f645aad130f314993176c874941ba3d0e`, `d28a9097d1f0d7f6c08fbdd8bdb570b3e209eb87`. Trois fichiers uniques de code/workflow ont été modifiés ; l'appendice QA353 est distinct.
+- **Interprétation :** le runtime démontre l'exécution du step `always()` après le step de setup en échec, le transfert des sorties et le succès du véritable script de restauration contre des mocks inertes. Le parcours nominal a aussi réussi sur le PostgreSQL 16 jetable. La vérification statique confirme que l'étape de restauration du job PostgreSQL principal reste bloquante. Ces scénarios synthétiques ne démontrent aucun incident ou vulnérabilité en Production.
+- **Périmètre :** aucune donnée, migration, fonction, schéma, politique RLS, grant, secret ou configuration Supabase Production modifié ; aucun déploiement Production, aucune fusion, aucun force-push et aucune modification des protections de branche.
+- **Appendice :** `docs/QIMA_V1_FUNCTION_REGISTER_QA353_APPEND.md`.
