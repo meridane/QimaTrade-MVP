@@ -92,7 +92,41 @@ BEGIN
 END
 $qa332_returning_requires_select_policy$;
 
+-- A plain INSERT must still succeed without a SELECT policy. The legacy route
+-- now supplies its UUID and does not request a returned row from PostgREST.
+DO $qa332_plain_insert_without_select_policy$
+DECLARE
+  v_inserted_rows integer;
+BEGIN
+  IF current_user <> 'authenticated' THEN
+    RAISE EXCEPTION 'QA332 plain INSERT probe must execute as authenticated';
+  END IF;
+
+  INSERT INTO public.offers (name, demand_id, provider_actor_id)
+  VALUES ('QA332 plain INSERT without SELECT policy', '50000000-0000-4000-8000-000000000001', public.current_profile_actor_id());
+
+  GET DIAGNOSTICS v_inserted_rows = ROW_COUNT;
+  IF v_inserted_rows <> 1 THEN
+    RAISE EXCEPTION 'QA332 expected plain INSERT to create one row without a SELECT policy; got %', v_inserted_rows;
+  END IF;
+END
+$qa332_plain_insert_without_select_policy$;
+
 RESET ROLE;
+
+DO $qa332_plain_insert_survives_returning_probe$
+DECLARE
+  v_rows integer;
+BEGIN
+  SELECT count(*) INTO v_rows
+  FROM public.offers
+  WHERE name = 'QA332 plain INSERT without SELECT policy';
+
+  IF v_rows <> 1 THEN
+    RAISE EXCEPTION 'QA332 expected the plain INSERT row to exist before the outer rollback; got %', v_rows;
+  END IF;
+END
+$qa332_plain_insert_survives_returning_probe$;
 
 -- This policy is synthetic and transaction-scoped. It tests mechanics only;
 -- it does not define the real supplier/buyer conversation visibility contract.
