@@ -88,3 +88,15 @@ The corrected QA315 script was present on code/test HEAD `d1aabc9ede2ddccc7fe219
 ## Final safety boundary
 
 QA315 is a disposable, read-only characterization of PostgreSQL serialization. It does not choose the future numeric normalization policy and does not establish a Production defect, vulnerability, or incident. No Supabase Production data, migration, function, schema, RLS policy, grant, secret, or persistent configuration was read or modified. No Production deployment, PR merge, force update, or branch-protection change was performed.
+
+
+## QA343 follow-up refinement — recursive JSONB hash assertions
+
+After the first CI cycle, QA315 was strengthened so the nested-object and nested-array cases also calculate MD5 over their serialized JSONB text and assert at least two distinct hashes. This aligns the test assertions with the MKT-1.3 description; it still makes no claim about the desired normalization policy.
+
+- Follow-up code/test commit: `94b05aa01c7665de28ac822317fd6b186ecbdfba`.
+- The final SQL script remains read-only and has no DML or DDL statements.
+- **QIMA CI #1241** ([run 43019812058](https://github.com/meridane/QimaTrade-MVP/actions/runs/43019812058)) was **IN PROGRESS** at the last check. Its three jobs had started; the PostgreSQL 16 and 17.6 CREATE_OFFER integration steps were still running. No final QA315 result is claimed for this refinement until that run completes.
+- **CodeQL #1192** ([run 43019811821](https://github.com/meridane/QimaTrade-MVP/actions/runs/43019811821)) completed **SUCCESS**.
+- The final PR code/test HEAD at this point is `94b05aa01c7665de28ac822317fd6b186ecbdfba`; PR #26 remains open, draft, unmerged, and mergeable.
+- The latest Vercel status for this HEAD is **FAILURE** with `build-rate-limit` / `api-deployments-free-per-day`. The earlier code/test HEAD `d1aabc9` had a successful Preview; no Preview success is claimed for `94b05aa`.
