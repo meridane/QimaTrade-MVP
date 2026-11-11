@@ -47,3 +47,16 @@ Le script de restauration de production/CI n'a pas été modifié. Toutes les co
 Ce test synthétique caractérise le comportement du script quand un redémarrage semble avoir été appliqué mais que le client reçoit un code d'erreur. Il ne prouve pas qu'un redémarrage ambigu s'est produit en Production ni qu'une vulnérabilité a été exploitée.
 
 Aucune donnée Supabase Production, migration, fonction SQL, schéma, politique RLS, grant, secret ou configuration persistante n'a été modifié. Aucun déploiement Production, aucune fusion, aucun force-push et aucune modification des protections de branche.
+
+## Complément de validation après intégration
+
+- **Deuxième commit de test :** `cfef93695d517de18d5e9d599b3c3579d188a438`. Il ajoute une assertion QA352 qui refuse toute sortie contenant les identifiants synthétiques `postgres:postgres` dans le diagnostic du redémarrage ambigu.
+- **Commit du scénario initial :** `b22e48f509d1c89949762f918072f3e4a833267c`. Il simule un redémarrage appliqué puis un retour Docker 43, conserve un marqueur temporaire et interdit toute vérification post-redémarrage ou tout message de succès.
+- **Intégration :** les deux commits ont été intégrés à `fix/create-offer-status-contract` par fast-forward, sans force-push. HEAD code : `cfef93695d517de18d5e9d599b3c3579d188a438`.
+- **CI #1267** (HEAD documentaire `4f8d09ed2f8f953aad8637700d6f0a0c5d5aa576`) : `IN_PROGRESS` à la dernière lecture. PostgreSQL 16 et 17.6 étaient dans leurs suites d'intégration ; le job navigateur avait terminé npm audit et TypeScript et exécutait le build/Chromium.
+- **CI #1268** (HEAD code `cfef93695d517de18d5e9d599b3c3579d188a438`) : `PENDING` à la dernière lecture, en attente du groupe de concurrence CI. Aucun résultat PASS/FAIL n'est revendiqué pour QA352.
+- **CodeQL #1217** (HEAD `4f8d09e`) et **#1218** (HEAD `cfef936`) : respectivement `IN_PROGRESS` au dernier contrôle ; aucune conclusion finale revendiquée.
+- **Vercel :** le statut du HEAD code `cfef936` est `FAILURE` avec le message `Deployment rate limited — retry in 24 hours`. Il s'agit d'une limitation de quota Preview, pas d'un échec de compilation GitHub Actions. Aucun déploiement Production n'a été lancé.
+- **PR après intégration :** OPEN, DRAFT, non fusionnée ; comparaison avec `main` : 1 462 commits en avance, zéro en retard. L'API PR retournait `mergeable=false` au moment de la lecture ; ce statut n'a pas été interprété comme une preuve de conflit, et aucun changement de base/merge n'a été tenté.
+
+La validation complète reste suspendue aux résultats de CI #1267/#1268 et CodeQL #1217/#1218. Le test reste une simulation locale par mocks et ne démontre aucun événement Production.
