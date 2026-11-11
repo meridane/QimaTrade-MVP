@@ -75,3 +75,20 @@ Les statuts ont évolué après le premier complément ci-dessus ; cette section
 - **PR #26** : toujours OPEN, DRAFT, non fusionnée ; comparaison `main...fix/create-offer-status-contract` : 1 463 commits en avance, zéro en retard. Le payload REST de la PR indique `mergeable=true`, `mergeable_state=unstable` pendant que les checks restent en attente. Aucun merge n'a été tenté.
 
 Le code QA352 est donc effectivement passé dans CI #1267 pour le scénario principal ; l'assertion finale de redaction attend encore la validation CI #1268/#1269. Aucun échec QA352 n'est observé à ce stade, mais la validation complète du HEAD final n'est pas déclarée.
+
+## Résultats finaux des checks sur le code QA352 — 12 novembre 2026
+
+- **QIMA CI #1267** (`4f8d09e`) : **SUCCESS, 3/3 jobs**. Le scénario QA352 de redémarrage appliqué mais ambigu est visible dans le journal PostgreSQL 16 et le script de restauration se termine avec son message de réussite global.
+- **QIMA CI #1268** (`cfef936`, incluant l'assertion supplémentaire de redaction des identifiants) : **SUCCESS, 3/3 jobs**.
+  - PostgreSQL 16 : **SUCCESS** ; le journal contient explicitement `Prepared-transaction configuration restoration regression passed` avec le cas « applied-but-ambiguous restart ».
+  - PostgreSQL 17.6 : **SUCCESS** ; version serveur `170006`, suite d'intégration terminée.
+  - Verify / navigateur : **SUCCESS** ; npm audit, TypeScript, build Next.js et installation Chromium réussis ; Playwright **347 passed** en 12,7 s.
+- **CodeQL #1218** sur `cfef936` : **SUCCESS**.
+- **QIMA CI #1269** sur `154612d` : **CANCELLED** lorsque le nouveau run #1270 a pris le relais ; ce statut n'est pas un échec de test.
+- **CodeQL #1219** sur `154612d` : **SUCCESS**.
+- **QIMA CI #1270** sur le HEAD documentaire `bc53fa91d08aeeb1c9d3df18b95ea049fddbbc19` : **IN_PROGRESS** au dernier contrôle. Il revalide le même arbre de code que `cfef936`, avec les compléments documentaires.
+- **CodeQL #1220** sur `bc53fa` : **IN_PROGRESS** au dernier contrôle.
+- **Vercel** : statut combiné du HEAD de code précédent `cfef936` : **FAILURE** pour le quota `api-deployments-free-per-day`. Pas de nouveau Preview validé pour QA352 ; aucun déploiement Production.
+- **PR #26** avant ce complément documentaire : OPEN, DRAFT, non fusionnée ; 1 463 commits en avance sur `main`, zéro en retard. Le payload GitHub indiquait `mergeable=true`, `mergeable_state=unstable` pendant les checks.
+
+La validation du code QA352 est acquise par CI #1268 (3/3) et CodeQL #1218 (SUCCESS). Le run #1270/#1220 porte sur le HEAD documentaire plus récent et reste en cours ; aucun résultat final n'est anticipé.
