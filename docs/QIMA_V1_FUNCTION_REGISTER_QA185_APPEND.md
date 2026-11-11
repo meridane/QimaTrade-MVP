@@ -3400,3 +3400,22 @@ The change is test-only. It does not assert or infer the owner of any live Supab
 - **CI integration:** the new SQL test is inserted after QA330 in both PostgreSQL 16 and PostgreSQL 17.6 integration jobs. Results are pending at this implementation commit and will be recorded in a separate reconciliation entry.
 - **Evidence boundary:** `qa332_offers_select_own_provider` is a synthetic policy to test PostgreSQL mechanics, not a proposed/live authorization rule. It does not establish the actual Supabase SELECT grants/policies or the intended buyer/supplier conversation visibility contract.
 - **Safety:** no production migration, live data, grant, RLS policy, secret, persistent configuration, deployment, merge, force update, or branch-protection change.
+
+
+## QA332 — CI validation, assertion correction, and final evidence (11 November 2026)
+
+- **Implementation branch:** `work/qa332-legacy-offer-returning-select-rls-20261111-1200`, created from exact PR baseline `4662570b7471e1f6cc19b27535372e79bf6d35eb`.
+- **Files changed:** added `tests/sql/legacy-offer-returning-select-rls-regression.sql`; added the QA332 step to both PostgreSQL 16 and PostgreSQL 17.6 jobs in `.github/workflows/ci.yml`; updated `docs/MKT-0.5_OFFER_ACL_AND_ROUTE_AUDIT.md`; updated this append-only register.
+- **Implementation commits:** `9d3cac2322e07dcfb1ba3ab818d90f7bf9c8e8ab` (SQL regression), `0d7f9e1714fe51aaae364e5213332e832927e5b9` (CI wiring), `d9e6eb3cbb7a28c185647695aceeff3ba0b33238` (MKT-0.5 mechanics note), `b8d27db4c5777a8c2c51720025e679264356aca0` (initial QA332 entry), and `a113547f7a3b0a938f484b4e74ea83d3e9cbbb4f` (test count isolation fix).
+- **Initial QIMA CI #1195:** run `42950206259` — **FAILURE** in both PostgreSQL jobs at QA332. The first probe without a SELECT policy completed as expected; the failure was the actor-A visibility assertion counting all pre-existing fixture offers (`own rows 63`) rather than only QA332 rows. The build/browser job completed successfully. [CI #1195](https://github.com/meridane/QimaTrade-MVP/actions/runs/42950206259).
+- **Initial CodeQL #1146:** run `42950206287` — **SUCCESS**. [CodeQL #1146](https://github.com/meridane/QimaTrade-MVP/actions/runs/42950206287).
+- **Correction:** both actor-owned and cross-provider count queries in the QA332 SQL test now scope the row set with `name LIKE 'QA332 %'`. This isolates the test's two seed rows and two successful returned rows from the many offers created earlier by the CREATE_OFFER integration fixture. The failed assertion was a test-scope defect; it is not evidence of a production RLS vulnerability.
+- **QIMA CI #1196:** run `42950425894` on corrected code commit `a113547f7a3b0a938f484b4e74ea83d3e9cbbb4f` — **SUCCESS**, all three jobs completed successfully. [CI #1196](https://github.com/meridane/QimaTrade-MVP/actions/runs/42950425894).
+  - PostgreSQL 16 integration job: QA332 step **SUCCESS**; the job log contains `QA332 legacy offers INSERT RETURNING and synthetic actor-scoped SELECT regression PASS; transaction rolled back`.
+  - PostgreSQL 17.6 compatibility job: QA332 step **SUCCESS** with the same marker; pinned server check passed with `server_version_num=170006`.
+  - Build/browser job: dependency installation, npm audit, TypeScript, Next.js production build, Chromium installation, and Playwright **SUCCESS**; log confirms **336 passed, 0 failed**.
+- **CodeQL #1147:** run `42950425880` — **SUCCESS**. [CodeQL #1147](https://github.com/meridane/QimaTrade-MVP/actions/runs/42950425880).
+- **Vercel:** combined status on corrected code HEAD returned **FAILURE** with the free-plan `build-rate-limit` URL. This is a Preview quota limitation and not a GitHub Actions/CodeQL failure. No Production deployment was attempted.
+- **PR update:** the corrected code was fast-forwarded to `fix/create-offer-status-contract` using expected prior head `b8d27db4c5777a8c2c51720025e679264356aca0`; no force update. The PR remains open, draft, and unmerged.
+- **Evidence boundary:** QA332 creates `qa332_offers_select_own_provider` only inside a transaction on disposable `qima_test`. The synthetic policy validates PostgreSQL INSERT-returning and actor-scoped SELECT mechanics; it is not a proposed or live production policy and does not decide buyer/supplier conversation visibility. No current live Supabase SELECT policy/grant was inspected.
+- **Safety:** no Supabase Production data, schema, migration, RLS policy, grant, secret, persistent configuration, Production deployment, PR merge, force update, or branch-protection setting was changed.
