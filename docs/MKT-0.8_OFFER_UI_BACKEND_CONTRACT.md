@@ -98,3 +98,17 @@ This document records source findings, not confirmed exploitability. No producti
 - **Vercel:** combined status on the code HEAD remains **FAILURE** with target `build-rate-limit` (Preview quota). This is separate from successful GitHub Actions and CodeQL validation; no quota bypass or Production deployment was attempted.
 - **Interpretation:** this is an end-to-end test against a synthetic local Auth/PostgREST service. It verifies the application's request, redirect, and rendering contract; it does not establish live Supabase RLS behavior, real row persistence, offer ownership, or provider-to-demand eligibility.
 - **Safety:** no Supabase Production data, schema, migration, RLS policy, grant, secret, persistent configuration, Production deployment, merge, force update, or branch-protection setting was changed.
+
+## QA337 — safe failure handling for independent draft submission
+
+- The independent draft form now submits asynchronously with `Accept: application/json` and same-origin credentials. While the request is pending, the submit button is disabled and displays a progress label.
+- On successful INSERT, the legacy handler returns HTTP 201 with the preassigned offer UUID when JSON is requested. The browser validates the UUID with the existing canonical UUID-v4 helper and navigates to `/offers/new?created=<uuid>`.
+- Requests that do not ask for JSON retain the existing HTTP 303 redirect contract. This preserves the non-AJAX route behavior covered by the legacy route tests.
+- On any non-success response, malformed success body, or network exception, the form stays on screen and shows one generic retry message. The client does not render PostgREST/SQL details and does not display a created reference.
+- The form sets `data-no-loading="true"` because the global submit loader is designed for native navigations and otherwise blocks retries after an asynchronous request fails. The form owns its pending state and keeps the submit control disabled only while its own request is active.
+- The isolated PostgREST fixture simulates upstream HTTP 400, 403, and 500 responses with a synthetic internal-detail marker. The browser regression verifies that the route returns the generic HTTP 500 contract, no row is recorded, no confirmation is shown, and neither the synthetic database detail nor PostgREST code reaches visible text.
+- The unit/route contract test verifies both response modes: JSON callers receive HTTP 201 and the preassigned UUID; callers without the JSON Accept header retain HTTP 303.
+- **Final code validation:** QIMA CI #1220 ([run 42982719211](https://github.com/meridane/QimaTrade-MVP/actions/runs/42982719211)) — **SUCCESS, 3/3 jobs**; Playwright **344/344**, TypeScript, npm audit, Next.js production build, Chromium installation, PostgreSQL 16 integration, and PostgreSQL 17.6 compatibility all passed. **CodeQL #1171** ([run 42982718901](https://github.com/meridane/QimaTrade-MVP/actions/runs/42982718901)) — **SUCCESS**.
+- Vercel Preview status remains a free-plan quota failure (`build-rate-limit`), separate from GitHub Actions and CodeQL. No quota bypass or Production deployment was attempted.
+- This test uses the synthetic Auth/PostgREST fixture. It verifies application error handling and response contracts; it does not prove live Supabase RLS behavior or a Production database failure mode.
+- No Supabase Production data, schema, migration, RLS policy, grant, secret, or persistent configuration was changed.
