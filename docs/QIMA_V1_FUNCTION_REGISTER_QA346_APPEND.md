@@ -36,7 +36,7 @@ The new assertion requires:
 
 The existing seven unsafe URL cases, two unset/empty cases, and three supported loopback cases remain unchanged. The test's final summary now explicitly reports the whitespace-only case.
 
-A follow-up edit preserves the mock client's line-delimited call log format (`printf '%s\\n'`); this avoids changing the test fixture's output format while adding the new assertion.
+A follow-up edit preserves the mock client's line-delimited call log format (`printf '%s\n'`); this avoids changing the test fixture's output format while adding the new assertion.
 
 ### Code commits
 
