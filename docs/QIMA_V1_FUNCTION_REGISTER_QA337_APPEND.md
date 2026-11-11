@@ -84,3 +84,11 @@ A second integration issue came from the existing `GlobalActionLoader`: its capt
 The 400/403/500 responses are deliberately synthetic PostgREST fixtures. The regression proves that the application handles those simulated upstream failures without displaying a false success or leaking the fixture's internal marker. It does not prove a live Supabase failure, RLS weakness, exploitability, or Production database behavior.
 
 No Supabase Production data, schema, migration, RLS policy, grant, secret, or persistent configuration was changed. No Production deployment, PR merge, force update, or branch-protection change was performed.
+
+## QA337 — documentation-head validation closure
+
+- Documentation commit before this closure: `0afe251519d741f013bd3b4baad9d6faa84fd99e`.
+- **QIMA CI #1221** ([run 42983250409](https://github.com/meridane/QimaTrade-MVP/actions/runs/42983250409)) — **SUCCESS, 3/3 jobs** on documentation HEAD `0afe251519d741f013bd3b4baad9d6faa84fd99e`. The browser job passed **344/344 Playwright tests**; npm install, npm audit, TypeScript, Next.js production build, Chromium installation, PostgreSQL 16 integration, and PostgreSQL 17.6 compatibility all succeeded.
+- **CodeQL #1172** ([run 42983250426](https://github.com/meridane/QimaTrade-MVP/actions/runs/42983250426)) — **SUCCESS** on the same documentation HEAD.
+- Vercel combined status on `0afe251519d741f013bd3b4baad9d6faa84fd99e` remains **FAILURE**, target `build-rate-limit` (Preview quota). No Production deployment or quota bypass was attempted.
+- The documentation-only closure below does not change application code or the validated QA337 behavior. The PR-level workflows are still checked after publication because the PR diff contains application and test files as well as documentation.
