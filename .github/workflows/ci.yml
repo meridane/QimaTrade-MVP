@@ -232,6 +232,9 @@ jobs:
       - name: Verify prepared-transaction setup records restoration intent before mutation
         run: bash tests/sql/test-prepared-transactions-config-setup.sh
 
+      - name: Verify prepared-transaction setup failures are restored by always cleanup
+        run: bash tests/sql/test-prepared-transactions-failure-restoration.sh
+
       - name: Enable prepared transactions for the disposable PostgreSQL regression
         id: enable_prepared
         shell: bash
