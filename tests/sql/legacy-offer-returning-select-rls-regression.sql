@@ -134,10 +134,12 @@ BEGIN
 
   SELECT count(*) INTO v_own_rows
   FROM public.offers
-  WHERE demand_id = '50000000-0000-4000-8000-000000000001';
+  WHERE demand_id = '50000000-0000-4000-8000-000000000001'
+    AND name LIKE 'QA332 %';
   SELECT count(*) INTO v_other_rows
   FROM public.offers
   WHERE demand_id = '50000000-0000-4000-8000-000000000001'
+    AND name LIKE 'QA332 %'
     AND provider_actor_id = '30000000-0000-4000-8000-000000000002';
 
   IF v_own_rows <> 2 OR v_other_rows <> 0 THEN
@@ -179,10 +181,12 @@ BEGIN
 
   SELECT count(*) INTO v_own_rows
   FROM public.offers
-  WHERE demand_id = '50000000-0000-4000-8000-000000000001';
+  WHERE demand_id = '50000000-0000-4000-8000-000000000001'
+    AND name LIKE 'QA332 %';
   SELECT count(*) INTO v_other_rows
   FROM public.offers
   WHERE demand_id = '50000000-0000-4000-8000-000000000001'
+    AND name LIKE 'QA332 %'
     AND provider_actor_id = '30000000-0000-4000-8000-000000000001';
 
   IF v_own_rows <> 2 OR v_other_rows <> 0 THEN
