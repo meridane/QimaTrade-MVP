@@ -3,7 +3,7 @@ import { getCreatedOfferId } from "../../lib/offers/created-offer-reference";
 
 const OFFER_ID = "7d2d1f7e-7d4e-4f3e-9d8b-3f8d0e6f2c11";
 const VERIFIER_COOKIE = "sb-127-auth-token-code-verifier";
-const SESSION_COOKIE_PATTERN = /^sb-127-auth-token(?:\\.\\d+)?=/i;
+const SESSION_COOKIE_PATTERN = /^sb-127-auth-token(?:[.][0-9]+)?=/i;
 const APP_COOKIE_DOMAINS = ["127.0.0.1", "localhost"];
 const PRODUCT_MASTER_GATE_ID = "60000000-0000-4000-8000-00000000336";
 const SYNTHETIC_PROVIDER_ACTOR_ID = "30000000-0000-4000-8000-00000000336";
@@ -76,7 +76,7 @@ test("offer confirmation uses the first created query value and does not fall th
 test("a valid draft confirmation URL remains protected for unauthenticated visitors", async ({ page }) => {
   await page.goto(`/offers/new?created=${OFFER_ID}`);
 
-  await expect(page).toHaveURL(/\\/login\\?/);
+  await expect(page).toHaveURL((url) => url.pathname === "/login");
   const loginUrl = new URL(page.url());
   expect(loginUrl.searchParams.get("next")).toBe(`/offers/new?created=${OFFER_ID}`);
 });
@@ -86,14 +86,14 @@ test("an authenticated supplier can view draft confirmation without Product Mast
 
   await page.goto(`/offers/new?created=${OFFER_ID}`);
 
-  await expect(page).toHaveURL(new RegExp(`/offers/new\\\\?created=${OFFER_ID}$`));
+  await expect(page).toHaveURL((url) => url.pathname === "/offers/new" && url.searchParams.get("created") === OFFER_ID);
   await expect(page.getByRole("heading", { name: "Create a new offer" })).toBeVisible();
   await expect(page.getByRole("status")).toContainText("Draft submission received");
   await expect(page.getByText(`Offer reference: ${OFFER_ID}`, { exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "Create another offer" })).toBeVisible();
 
   await page.getByRole("link", { name: "Create another offer" }).click();
-  await expect(page).toHaveURL(/\\/decision-tree\\?flow=supplier$/);
+  await expect(page).toHaveURL((url) => url.pathname === "/decision-tree" && url.searchParams.get("flow") === "supplier");
 });
 
 test("an authenticated supplier with an invalid confirmation reference is still sent through classification", async ({ page, request }) => {
@@ -101,7 +101,7 @@ test("an authenticated supplier with an invalid confirmation reference is still 
 
   await page.goto("/offers/new?created=not-a-uuid");
 
-  await expect(page).toHaveURL(/\\/decision-tree\\?.*flow=supplier/);
+  await expect(page).toHaveURL((url) => url.pathname === "/decision-tree" && url.searchParams.get("flow") === "supplier");
 });
 
 test("an authenticated supplier can submit the independent draft form through POST and reach its persisted confirmation", async ({ page, request }) => {
@@ -135,7 +135,7 @@ test("an authenticated supplier can submit the independent draft form through PO
   const createdOfferId = redirectLocation.searchParams.get("created");
   expect(createdOfferId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
 
-  await expect(page).toHaveURL(new RegExp(`/offers/new\\\\?created=${createdOfferId}$`));
+  await expect(page).toHaveURL((url) => url.pathname === "/offers/new" && url.searchParams.get("created") === createdOfferId);
   await expect(page.getByRole("status")).toContainText("Draft submission received");
   await expect(page.getByText(`Offer reference: ${createdOfferId}`, { exact: true })).toBeVisible();
 
