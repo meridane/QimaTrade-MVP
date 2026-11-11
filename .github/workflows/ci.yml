@@ -29,6 +29,14 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Configure apt retries for transient mirror failures
+        shell: bash
+        run: |
+          printf '%s\\n' \\
+            'Acquire::Retries "3";' \\
+            'Acquire::http::Timeout "30";' \\
+            'Acquire::https::Timeout "30";' \\
+            | sudo tee /etc/apt/apt.conf.d/80-qima-network-retries >/dev/null
       - name: Verify workflow concurrency isolation
         run: bash tests/ci/verify-workflow-concurrency.sh
       - name: Verify PostgreSQL 17.6 version guard boundary cases
@@ -164,6 +172,14 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Configure apt retries for transient mirror failures
+        shell: bash
+        run: |
+          printf '%s\\n' \\
+            'Acquire::Retries "3";' \\
+            'Acquire::http::Timeout "30";' \\
+            'Acquire::https::Timeout "30";' \\
+            | sudo tee /etc/apt/apt.conf.d/80-qima-network-retries >/dev/null
       - name: Install PostgreSQL client
         run: |
           sudo apt-get update
@@ -260,6 +276,14 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Configure apt retries for transient mirror failures
+        shell: bash
+        run: |
+          printf '%s\\n' \\
+            'Acquire::Retries "3";' \\
+            'Acquire::http::Timeout "30";' \\
+            'Acquire::https::Timeout "30";' \\
+            | sudo tee /etc/apt/apt.conf.d/80-qima-network-retries >/dev/null
       - name: Install PostgreSQL client
         run: |
           sudo apt-get update
