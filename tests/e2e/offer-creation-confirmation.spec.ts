@@ -4,7 +4,7 @@ import { getCreatedOfferId } from "../../lib/offers/created-offer-reference";
 const OFFER_ID = "7d2d1f7e-7d4e-4f3e-9d8b-3f8d0e6f2c11";
 const VERIFIER_COOKIE = "sb-127-auth-token-code-verifier";
 const SESSION_COOKIE_PATTERN = /^sb-127-auth-token(?:\.\d+)?=/i;
-const APP_COOKIE_DOMAIN = "127.0.0.1";
+const APP_COOKIE_DOMAINS = ["127.0.0.1", "localhost"];
 
 function encodeVerifierCookie(value: string) {
   return `base64-${Buffer.from(JSON.stringify(value), "utf8").toString("base64url")}`;
@@ -42,15 +42,17 @@ async function authenticatePage(
     const separator = pair.indexOf("=");
     expect(separator).toBeGreaterThan(0);
 
-    await page.context().addCookies([{
-      name: pair.slice(0, separator),
-      value: pair.slice(separator + 1),
-      domain: APP_COOKIE_DOMAIN,
-      path: "/",
-      httpOnly: true,
-      secure: false,
-      sameSite: "Lax",
-    }]);
+    for (const domain of APP_COOKIE_DOMAINS) {
+      await page.context().addCookies([{
+        name: pair.slice(0, separator),
+        value: pair.slice(separator + 1),
+        domain,
+        path: "/",
+        httpOnly: true,
+        secure: false,
+        sameSite: "Lax",
+      }]);
+    }
   }
 }
 
