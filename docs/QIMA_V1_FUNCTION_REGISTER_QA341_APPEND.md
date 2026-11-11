@@ -73,3 +73,19 @@ Created `docs/MKT-1.2_LEGACY_DRAFT_IDEMPOTENCY_CONTRACT.md` as a proposal-only d
 - Vercel on the register append commit returned **FAILURE** with target `build-rate-limit` / `api-deployments-free-per-day`. This is a Preview quota limitation, not a GitHub Actions failure. No retry or quota bypass was attempted.
 - No test is reported as newly passing in QA341; QA341 is a documentation-only contract-design task. No CI failure occurred.
 
+
+
+## QA341 — PR synchronization validation closure
+
+After the two documentation commits were fast-forwarded to PR #26, GitHub evaluated the full pull request and triggered the PR synchronization workflows on HEAD `0aec9e6a8d2840b761389abdd08ee93d1ac7ed71`.
+
+- **QIMA CI #1234** ([run 43006397844](https://github.com/meridane/QimaTrade-MVP/actions/runs/43006397844)) — **SUCCESS, 3/3 jobs**.
+  - Browser/build job: **347/347 Playwright tests passed, 0 failed**; npm ci, npm audit enforcement, TypeScript, Next.js build, Chromium, and artifact/report steps completed successfully.
+  - PostgreSQL 16 integration/cleanup job: **SUCCESS**.
+  - PostgreSQL 17.6 compatibility job: **SUCCESS**; the existing 17.6 version guard and CREATE_OFFER/RLS/ACL regression steps completed.
+- **CodeQL #1185** ([run 43006397956](https://github.com/meridane/QimaTrade-MVP/actions/runs/43006397956)) — **SUCCESS**.
+- The CI logs include intentional negative SQL assertions such as `IDEMPOTENCY_KEY_REUSE`, wrapper-owner rejection, and prepared-transaction cleanup guards. Their test steps and jobs succeeded; these log entries are not CI failures.
+- Vercel on PR HEAD `0aec9e6` returned **FAILURE** with `build-rate-limit` / `api-deployments-free-per-day`. No retry or quota bypass was attempted.
+- These workflows ran on the unchanged application/test code from QA340; QA341 adds documentation only. No new QA341 application or database test is claimed.
+- The earlier lookup immediately after the first docs commit occurred before the work branch was fast-forwarded to the PR. The PR synchronization event then triggered CI #1234 and CodeQL #1185 despite `paths-ignore: docs/**`, because the pull request as a whole contains non-documentation changes.
+
