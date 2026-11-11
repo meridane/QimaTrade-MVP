@@ -86,6 +86,19 @@ const server = createServer(async (request, response) => {
     return;
   }
 
+  if (request.method === "DELETE" && url.pathname === "/__test/offers") {
+    const name = url.searchParams.get("name");
+    let deleted = 0;
+    for (let index = offerInserts.length - 1; index >= 0; index -= 1) {
+      if (!name || offerInserts[index].payload.name === name) {
+        offerInserts.splice(index, 1);
+        deleted += 1;
+      }
+    }
+    sendJson(response, 200, { deleted });
+    return;
+  }
+
   if (request.method === "GET" && url.pathname === "/rest/v1/profiles") {
     if (!hasSyntheticAuthorization(request)) {
       sendJson(response, 401, { code: "PGRST301", message: "Unauthorized synthetic request" });
