@@ -364,3 +364,61 @@ jobs:
           [[ "$CLEANUP_OUTCOME" == "success" ]]
           [[ "$CLEANUP_RAN" == "true" ]]
           echo "QA353 passed: the failed setup outcome and both outputs reached the always() cleanup step, which completed the real restoration script."
+
+
+  prepared_transactions_always_cleanup_failure_contract:
+    name: Prepared-transaction always-cleanup failure propagation contract (expected cleanup failure)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # The cleanup failure is deliberate; a separate blocking job verifies its exact outcome.
+    continue-on-error: true
+    outputs:
+      setup_outcome: ${{ steps.simulated_setup.outcome }}
+      cleanup_outcome: ${{ steps.always_cleanup.outcome }}
+      cleanup_ran: ${{ steps.always_cleanup.outputs.cleanup_ran }}
+      cleanup_exit_code: ${{ steps.always_cleanup.outputs.cleanup_exit_code }}
+      cleanup_failure_observed: ${{ steps.always_cleanup.outputs.cleanup_failure_observed }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Simulate a partial setup failure before cleanup
+        id: simulated_setup
+        shell: bash
+        run: |
+          printf 'baseline=0\\nrestore_required=true\\n' >> "$GITHUB_OUTPUT"
+          printf '10\\n' > "$RUNNER_TEMP/qima-prepared-cleanup-contract-state"
+          exit 47
+      - name: Execute actual restore script and expect a cleanup failure
+        id: always_cleanup
+        if: always()
+        env:
+          SETUP_OUTCOME: ${{ steps.simulated_setup.outcome }}
+          RESTORE_REQUIRED: ${{ steps.simulated_setup.outputs.restore_required }}
+          BASELINE_MAX_PREPARED_TRANSACTIONS: ${{ steps.simulated_setup.outputs.baseline }}
+          SIMULATE_RESTORE_FAILURE: "true"
+        shell: bash
+        run: bash tests/ci/test-prepared-transactions-always-cleanup-runtime.sh
+
+  prepared_transactions_always_cleanup_failure_assert:
+    name: Assert prepared-transaction cleanup failures remain blocking
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: always()
+    needs: prepared_transactions_always_cleanup_failure_contract
+    steps:
+      - name: Assert cleanup failure was preserved and not reported as success
+        shell: bash
+        env:
+          SETUP_OUTCOME: ${{ needs.prepared_transactions_always_cleanup_failure_contract.outputs.setup_outcome }}
+          CLEANUP_OUTCOME: ${{ needs.prepared_transactions_always_cleanup_failure_contract.outputs.cleanup_outcome }}
+          CLEANUP_RAN: ${{ needs.prepared_transactions_always_cleanup_failure_contract.outputs.cleanup_ran }}
+          CLEANUP_EXIT_CODE: ${{ needs.prepared_transactions_always_cleanup_failure_contract.outputs.cleanup_exit_code }}
+          CLEANUP_FAILURE_OBSERVED: ${{ needs.prepared_transactions_always_cleanup_failure_contract.outputs.cleanup_failure_observed }}
+        run: |
+          set -euo pipefail
+          [[ "$SETUP_OUTCOME" == "failure" ]]
+          [[ "$CLEANUP_OUTCOME" == "failure" ]]
+          [[ "$CLEANUP_EXIT_CODE" == "52" ]]
+          [[ "$CLEANUP_FAILURE_OBSERVED" == "true" ]]
+          [[ -z "$CLEANUP_RAN" ]]
+          echo "QA354 passed: the cleanup failure and exit 52 reached the blocking assertion; no cleanup success output was published."
