@@ -30,13 +30,17 @@ DECLARE
   v_json_texts text[] := ARRAY[]::text[];
   v_json_hashes text[] := ARRAY[]::text[];
   v_object_texts text[] := ARRAY[]::text[];
+  v_object_hashes text[] := ARRAY[]::text[];
   v_array_texts text[] := ARRAY[]::text[];
+  v_array_hashes text[] := ARRAY[]::text[];
   v_numeric_text_variants integer;
   v_numeric_hash_variants integer;
   v_json_text_variants integer;
   v_json_hash_variants integer;
   v_object_text_variants integer;
+  v_object_hash_variants integer;
   v_array_text_variants integer;
+  v_array_hash_variants integer;
   v_index integer;
 BEGIN
   IF cardinality(v_numeric_values) <> 6 OR cardinality(v_json_values) <> 6 THEN
@@ -63,12 +67,14 @@ BEGIN
       RAISE EXCEPTION 'QA315 nested object lexical form % is not equal to the canonical numeric object', v_object::text;
     END IF;
     v_object_texts := array_append(v_object_texts, v_object::text);
+    v_object_hashes := array_append(v_object_hashes, md5(v_object::text));
 
     v_array := jsonb_build_array(v_object);
     IF v_array IS DISTINCT FROM '[{"amount":1}]'::jsonb THEN
       RAISE EXCEPTION 'QA315 nested array lexical form % is not equal to the canonical numeric array', v_array::text;
     END IF;
     v_array_texts := array_append(v_array_texts, v_array::text);
+    v_array_hashes := array_append(v_array_hashes, md5(v_array::text));
   END LOOP;
 
   SELECT count(DISTINCT item) INTO v_numeric_text_variants
@@ -81,8 +87,12 @@ BEGIN
   FROM unnest(v_json_hashes) AS valueset(item);
   SELECT count(DISTINCT item) INTO v_object_text_variants
   FROM unnest(v_object_texts) AS valueset(item);
+  SELECT count(DISTINCT item) INTO v_object_hash_variants
+  FROM unnest(v_object_hashes) AS valueset(item);
   SELECT count(DISTINCT item) INTO v_array_text_variants
   FROM unnest(v_array_texts) AS valueset(item);
+  SELECT count(DISTINCT item) INTO v_array_hash_variants
+  FROM unnest(v_array_hashes) AS valueset(item);
 
   -- Do not assert exact rendering for exponent notation across server versions.
   -- Require only the already-characterized property: equality can coexist
@@ -93,8 +103,9 @@ BEGIN
   IF v_json_text_variants < 2 OR v_json_hash_variants < 2 THEN
     RAISE EXCEPTION 'QA315 JSONB numeric forms did not expose scale-sensitive text/hash variants';
   END IF;
-  IF v_object_text_variants < 2 OR v_array_text_variants < 2 THEN
-    RAISE EXCEPTION 'QA315 recursive JSONB numeric forms did not preserve lexical text variants';
+  IF v_object_text_variants < 2 OR v_object_hash_variants < 2
+     OR v_array_text_variants < 2 OR v_array_hash_variants < 2 THEN
+    RAISE EXCEPTION 'QA315 recursive JSONB numeric forms did not preserve lexical text/hash variants';
   END IF;
 END
 $qa315$;
