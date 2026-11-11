@@ -15,7 +15,7 @@ mkdir -p "$MOCK_BIN"
 cat > "$MOCK_BIN/psql" <<'PSQL'
 #!/usr/bin/env bash
 set -euo pipefail
-printf '%s\n' "$*" >> "$MOCK_PSQL_CALLS"
+printf '%s\\n' "$*" >> "$MOCK_PSQL_CALLS"
 echo "mock psql reached after URL validation" >&2
 exit 99
 PSQL
@@ -97,6 +97,25 @@ if ! grep -Fq "DATABASE_URL must point to a disposable PostgreSQL database" "$OU
   exit 1
 fi
 
+# Whitespace is non-empty, so the required-variable check passes; the strict
+# loopback allowlist must still reject it before invoking the database client.
+: > "$CALLS"
+set +e
+PATH="$MOCK_BIN:$PATH" MOCK_PSQL_CALLS="$CALLS" DATABASE_URL="   " \
+  bash "$RUNNER" >"$OUTPUT" 2>&1
+whitespace_status=$?
+set -e
+if [[ "$whitespace_status" -ne 2 || -s "$CALLS" ]]; then
+  echo "ERROR: whitespace-only DATABASE_URL was not rejected with exit 2 before psql (received $whitespace_status)." >&2
+  cat "$OUTPUT" >&2
+  exit 1
+fi
+if ! grep -Fq "Refusing CREATE_OFFER integration setup: DATABASE_URL must target qima_test on a loopback host at port 5432; no database connection was attempted." "$OUTPUT"; then
+  echo "ERROR: whitespace-only DATABASE_URL failed without the exact loopback safety diagnostic." >&2
+  cat "$OUTPUT" >&2
+  exit 1
+fi
+
 # The three explicitly supported loopback forms must pass the guard. The stub
 # then stops execution at the first psql call without opening a database socket.
 safe_urls=(
@@ -125,4 +144,4 @@ for safe_url in "${safe_urls[@]}"; do
   fi
 done
 
-echo "CREATE_OFFER integration runner URL guard regression PASS: 7 unsafe URLs and 2 missing/empty configurations rejected before psql; 3 supported loopback URLs accepted."
+echo "CREATE_OFFER integration runner URL guard regression PASS: 7 unsafe URLs, whitespace-only, and 2 missing/empty configurations rejected before psql; 3 supported loopback URLs accepted."
