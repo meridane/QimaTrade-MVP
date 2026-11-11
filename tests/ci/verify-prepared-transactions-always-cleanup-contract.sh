@@ -126,3 +126,39 @@ require_line "$ASSERT_JOB" '          [[ "$CLEANUP_OUTCOME" == "success" ]]'
 require_line "$ASSERT_JOB" '          [[ "$CLEANUP_RAN" == "true" ]]'
 
 echo "Prepared-transaction workflow contract passed: the real PostgreSQL job has a blocking always() restoration step with both setup outputs forwarded; the isolated GitHub-runner harness intentionally fails setup, executes the real restore script under inert mocks, and a separate blocking job asserts the failed setup and successful cleanup outcomes."
+
+
+FAILURE_HARNESS_JOB="$TEMP_DIR/failure-harness-job.yml"
+FAILURE_HARNESS_SETUP_STEP="$TEMP_DIR/failure-harness-setup-step.yml"
+FAILURE_HARNESS_CLEANUP_STEP="$TEMP_DIR/failure-harness-cleanup-step.yml"
+FAILURE_ASSERT_JOB="$TEMP_DIR/failure-assert-job.yml"
+
+extract_job "prepared_transactions_always_cleanup_failure_contract" "$FAILURE_HARNESS_JOB"
+extract_step "$FAILURE_HARNESS_JOB" "Simulate a partial setup failure before cleanup" "$FAILURE_HARNESS_SETUP_STEP"
+extract_step "$FAILURE_HARNESS_JOB" "Execute actual restore script and expect a cleanup failure" "$FAILURE_HARNESS_CLEANUP_STEP"
+
+require_line "$FAILURE_HARNESS_JOB" "    continue-on-error: true"
+require_line "$FAILURE_HARNESS_JOB" "    timeout-minutes: 5"
+require_line "$FAILURE_HARNESS_JOB" '      cleanup_exit_code: ${{ steps.always_cleanup.outputs.cleanup_exit_code }}'
+require_line "$FAILURE_HARNESS_JOB" '      cleanup_failure_observed: ${{ steps.always_cleanup.outputs.cleanup_failure_observed }}'
+require_line "$FAILURE_HARNESS_SETUP_STEP" "        id: simulated_setup"
+require_line "$FAILURE_HARNESS_SETUP_STEP" "          exit 47"
+require_line "$FAILURE_HARNESS_CLEANUP_STEP" "        id: always_cleanup"
+require_line "$FAILURE_HARNESS_CLEANUP_STEP" "        if: always()"
+require_line "$FAILURE_HARNESS_CLEANUP_STEP" '          SIMULATE_RESTORE_FAILURE: "true"'
+require_line "$FAILURE_HARNESS_CLEANUP_STEP" "        run: bash tests/ci/test-prepared-transactions-always-cleanup-runtime.sh"
+forbid_line "$FAILURE_HARNESS_CLEANUP_STEP" "        continue-on-error: true"
+
+extract_job "prepared_transactions_always_cleanup_failure_assert" "$FAILURE_ASSERT_JOB"
+forbid_line "$FAILURE_ASSERT_JOB" "    continue-on-error: true"
+require_line "$FAILURE_ASSERT_JOB" "    if: always()"
+require_line "$FAILURE_ASSERT_JOB" "    needs: prepared_transactions_always_cleanup_failure_contract"
+require_line "$FAILURE_ASSERT_JOB" '          CLEANUP_OUTCOME: ${{ needs.prepared_transactions_always_cleanup_failure_contract.outputs.cleanup_outcome }}'
+require_line "$FAILURE_ASSERT_JOB" '          CLEANUP_EXIT_CODE: ${{ needs.prepared_transactions_always_cleanup_failure_contract.outputs.cleanup_exit_code }}'
+require_line "$FAILURE_ASSERT_JOB" '          CLEANUP_FAILURE_OBSERVED: ${{ needs.prepared_transactions_always_cleanup_failure_contract.outputs.cleanup_failure_observed }}'
+require_line "$FAILURE_ASSERT_JOB" '          [[ "$CLEANUP_OUTCOME" == "failure" ]]'
+require_line "$FAILURE_ASSERT_JOB" '          [[ "$CLEANUP_EXIT_CODE" == "52" ]]'
+require_line "$FAILURE_ASSERT_JOB" '          [[ "$CLEANUP_FAILURE_OBSERVED" == "true" ]]'
+require_line "$FAILURE_ASSERT_JOB" '          [[ -z "$CLEANUP_RAN" ]]'
+
+echo "Prepared-transaction workflow contract passed: both success and failure cleanup paths are exercised; the expected failure is isolated and a separate blocking job verifies its exact exit code and absence of a success marker."
