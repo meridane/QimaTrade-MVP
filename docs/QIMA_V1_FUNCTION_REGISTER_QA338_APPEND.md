@@ -54,3 +54,11 @@ Scope: independent supplier draft retry behavior after one transient PostgREST I
 The upstream 503 and the later success are deliberately synthetic responses from the local Auth/PostgREST test fixture. This verifies client retry UX, form-state retention, response handling, and fixture-level insertion count. It does not establish live Supabase availability, transaction semantics, RLS behavior, Production persistence, or offer idempotency under concurrent/replayed requests. A separate server-side idempotency contract would require a product/technical decision and is not inferred here.
 
 No Supabase Production data, schema, migration, RLS policy, grant, secret, or persistent configuration was changed. No Production deployment, PR merge, force update, or branch-protection change was performed.
+
+## QA338 — register-head validation closure
+
+- Register commit before this closure: `ace9d0274afd224809d438447b611677ed40822a`.
+- **QIMA CI #1227** ([run 42985849314](https://github.com/meridane/QimaTrade-MVP/actions/runs/42985849314)) — **SUCCESS, 3/3 jobs** on documentation HEAD `ace9d0274afd224809d438447b611677ed40822a`. Browser tests: **345/345 passed**, including the one-time synthetic 503 followed by a successful retry. npm ci, npm audit enforcement, TypeScript, Next.js production build, Chromium installation, PostgreSQL 16 integration, and PostgreSQL 17.6 compatibility all succeeded.
+- **CodeQL #1178** ([run 42985849434](https://github.com/meridane/QimaTrade-MVP/actions/runs/42985849434)) — **SUCCESS** on the same HEAD.
+- Vercel Preview combined status on `ace9d0274afd224809d438447b611677ed40822a`: **SUCCESS**. This is a Preview only, not a Production deployment.
+- This closure records validation of the previous append-only QA338 register commit. It does not change application code, test behavior, database objects, or deployment configuration.
