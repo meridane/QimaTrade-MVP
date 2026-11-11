@@ -69,7 +69,7 @@ The work branch was fast-forwarded to the PR branch after verifying that the PR 
   - The new participant self-enrollment runner guard step passed.
 - CodeQL **#1207** ([run 43082440987](https://github.com/meridane/QimaTrade-MVP/actions/runs/43082440987)) — **SUCCESS**.
 - No test failures were reported in the final CI run.
-- Final PR compare: **1,450 commits ahead, 0 behind, 104 changed files**.
+- Final PR compare after the code commits: **1,450 commits ahead, 0 behind, 104 changed files**.
 - Final Vercel commit status remained **FAILURE** with `Deployment rate limited — retry in 24 hours` / `api-deployments-free-per-day`. No Preview success is claimed for QA349.
 
 ### Interpretation boundary
@@ -82,3 +82,12 @@ These are synthetic negative tests using inert client stubs. They establish the 
 - Existing allowlisted loopback behavior and actual PostgreSQL integration suites were not changed.
 - No Supabase Production data, migrations, functions, schema, RLS policies, grants, secrets, or persistent configuration were modified.
 - No Production deployment, PR merge, force update, or branch-protection change was performed.
+
+
+## Final-head validation after QA349 append publication
+
+- The code-change commit `61d0a42483b89c89c6b290af7021191cb5b6bb67` was validated by QIMA CI **#1257** and CodeQL **#1207**, both **SUCCESS**.
+- The first QA349 append commit `ff4303111aa0098265a5ec669481dd50ca5f158d` was then validated again by QIMA CI **#1258** ([run 43082789314](https://github.com/meridane/QimaTrade-MVP/actions/runs/43082789314)) — **SUCCESS, 3/3 jobs** — and CodeQL **#1208** ([run 43082789339](https://github.com/meridane/QimaTrade-MVP/actions/runs/43082789339)) — **SUCCESS**.
+- CI #1258 job results: PostgreSQL 16 **28/28 steps**, browser/typecheck/audit/build **19/19 steps**, and PostgreSQL 17.6 **14/14 steps**. No failed or skipped steps were reported.
+- The auxiliary, legacy migration/post-run assertion, and participant self-enrollment guard steps all passed in CI #1258.
+- Vercel remained **FAILURE** on the rate limit status; no Preview success is claimed.
