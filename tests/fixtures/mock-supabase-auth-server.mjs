@@ -150,6 +150,16 @@ const server = createServer(async (request, response) => {
         return;
       }
 
+      const transientRetryMatch = /^QA338 transient retry retry-\d+$/.exec(payload.name);
+      if (transientRetryMatch && !offerFailures.some((entry) => entry.name === payload.name)) {
+        offerFailures.push({ name: payload.name, status: 503, code: "PGRST_QA338" });
+        sendJson(response, 503, {
+          code: "PGRST_QA338",
+          message: "SYNTHETIC_DATABASE_INTERNAL_DETAIL",
+        });
+        return;
+      }
+
       const failureMatch = /^QA337 PostgREST failure (400|403|500) retry-\d+$/.exec(payload.name);
       if (failureMatch) {
         const status = Number(failureMatch[1]);
