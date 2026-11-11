@@ -61,3 +61,30 @@ The final work branch was compared with the starting PR HEAD and was **ahead by 
 - QA315 characterizes serialization behavior only; it does not prove a Production defect, vulnerability, or incident.
 - No application runtime code, migration, SQL function, schema, RLS policy, grant, secret, or Supabase Production data/configuration was modified or accessed.
 - No Production deployment, PR merge, force update, or branch-protection change was performed.
+
+
+## QA343 — final validation on the code/test commit
+
+The corrected QA315 script was present on code/test HEAD `d1aabc9ede2ddccc7fe219ad3d7c77a43ba1b13f`. The psql meta-command was verified to contain exactly one leading backslash. A static review confirmed the script contains no INSERT, UPDATE, DELETE, DDL, GRANT, REVOKE, or TRUNCATE statements, and the runner's fail-closed loopback `qima_test` guard precedes every database command. The new script is invoked after the main runtime suite.
+
+- **QIMA CI #1238** ([run 43019421837](https://github.com/meridane/QimaTrade-MVP/actions/runs/43019421837)) — **SUCCESS, 3/3 jobs**.
+  - PostgreSQL 16 integration job — **SUCCESS**; the CREATE_OFFER integration runner, including the QA315 script, completed successfully.
+  - PostgreSQL 17.6 compatibility job — **SUCCESS**; the version assertion and CREATE_OFFER integration runner, including QA315, completed successfully.
+  - Typecheck/audit/build/browser job — **SUCCESS**; npm installation, dependency audit, TypeScript, Next.js build, Chromium installation, and Playwright browser tests completed successfully.
+- **CodeQL #1189** ([run 43019421839](https://github.com/meridane/QimaTrade-MVP/actions/runs/43019421839)) — **SUCCESS**.
+- No test failure was reported in the completed CI jobs. The PostgreSQL 16 and PostgreSQL 17.6 runner steps both completed with success, which is the direct CI evidence for QA315.
+- The code/test commit `d1aabc9` had a **successful Vercel Preview** status at the time of its status check.
+- The final PR HEAD after documentation-only commits is `085dacd84fe82e9d75421b3dbe624c988a54a817`. Its Vercel combined status is **FAILURE** with `build-rate-limit` / `api-deployments-free-per-day`. This is a Preview quota status, not a GitHub CI or CodeQL failure; no retry or quota bypass was attempted.
+- The two documentation commits after `d1aabc9` do not change the validated SQL or runner. The canonical register remains unmodified.
+
+## Final PR synchronization
+
+- Work branch `work/qa343-jsonb-numeric-lexical-characterization-20261111-2117` was fast-forwarded to `fix/create-offer-status-contract` only after comparing it with the expected prior PR HEAD and confirming it was ahead with zero commits behind.
+- Final PR HEAD at the time of this note: `085dacd84fe82e9d75421b3dbe624c988a54a817`.
+- PR #26 remains **OPEN**, **DRAFT**, unmerged, and GitHub reports it **mergeable**.
+- Final PR metadata: 1,425 commits, 99 changed files; base `main`.
+- No submitted reviews or inline review threads were returned.
+
+## Final safety boundary
+
+QA315 is a disposable, read-only characterization of PostgreSQL serialization. It does not choose the future numeric normalization policy and does not establish a Production defect, vulnerability, or incident. No Supabase Production data, migration, function, schema, RLS policy, grant, secret, or persistent configuration was read or modified. No Production deployment, PR merge, force update, or branch-protection change was performed.
