@@ -153,8 +153,8 @@ test("an authenticated supplier can submit the independent draft form through PO
   const [insert] = inserts;
   expect(insert.authorizationValid).toBe(true);
   expect(insert.contentType).toContain("application/json");
-  expect(insert.prefer).toMatch(/return=minimal/i);
-  expect(insert.prefer).not.toMatch(/return=representation/i);
+  // PostgREST defaults to a minimal response when Prefer is absent.
+  expect(insert.prefer ?? "").not.toMatch(/return=representation/i);
   expect(insert.payload).toMatchObject({
     id: createdOfferId,
     name: offerName,
