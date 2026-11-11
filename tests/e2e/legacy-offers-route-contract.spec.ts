@@ -492,7 +492,7 @@ test("legacy offers route redirects to its preassigned UUID without INSERT RETUR
   expect(createdOfferId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
   expect(response.status).toBe(303);
   expect(response.headers.get("location")).toBe(
-    `https://qima.test/offers?created=${createdOfferId}`,
+    `https://qima.test/offers/new?created=${createdOfferId}`,
   );
   expect(calls.offerInsertCalls).toBe(1);
   expect(calls.insertPayload).toMatchObject({
