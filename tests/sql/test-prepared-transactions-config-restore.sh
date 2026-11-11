@@ -8,6 +8,7 @@ trap 'rm -rf "$TEMP_DIR"' EXIT
 MOCK_BIN="$TEMP_DIR/mock-bin"
 EVENTS="$TEMP_DIR/events.log"
 OUTPUT="$TEMP_DIR/output.log"
+RESET_APPLIED_FILE="$TEMP_DIR/reset-applied"
 mkdir -p "$MOCK_BIN"
 
 cat > "$MOCK_BIN/docker" <<'DOCKER'
@@ -28,6 +29,11 @@ case "${1-}" in
       exit 90
     fi
     printf '%s\n' docker-exec-reset >> "$MOCK_EVENTS"
+    if [[ "${MOCK_DOCKER_EXEC_APPLY_THEN_FAIL:-false}" == "true" ]]; then
+      : "${MOCK_RESET_APPLIED_FILE:?MOCK_RESET_APPLIED_FILE is required for ambiguous RESET simulation}"
+      printf '%s\n' applied > "$MOCK_RESET_APPLIED_FILE"
+      exit "${MOCK_DOCKER_EXEC_STATUS:-42}"
+    fi
     exit "${MOCK_DOCKER_EXEC_STATUS:-0}"
     ;;
   restart)
@@ -124,10 +130,11 @@ run_restore() {
   local expected_status="$1"
   shift
   : > "$EVENTS"
-  rm -f "$EVENTS.ready-count" "$EVENTS.show-count"
+  rm -f "$EVENTS.ready-count" "$EVENTS.show-count" "$RESET_APPLIED_FILE"
   set +e
   PATH="$MOCK_BIN:$PATH" \
     MOCK_EVENTS="$EVENTS" \
+    MOCK_RESET_APPLIED_FILE="$RESET_APPLIED_FILE" \
     DATABASE_URL="postgresql://postgres:postgres@localhost:5432/qima_test" \
     RESTORE_REQUIRED=true \
     BASELINE_MAX_PREPARED_TRANSACTIONS=0 \
@@ -284,6 +291,28 @@ actual="$(cat "$EVENTS")"
 if [[ "$actual" != "$expected" ]] || ! grep -Fq "ALTER SYSTEM RESET max_prepared_transactions failed (docker exec exit 42)" "$OUTPUT"; then
   echo "ERROR: RESET failure was not reported precisely or the workflow continued." >&2
   printf 'Expected events:\n%s\nActual events:\n%s\n' "$expected" "$actual" >&2
+  cat "$OUTPUT" >&2
+  exit 1
+fi
+
+# QA351: ALTER SYSTEM RESET takes effect, but docker exec reports a lost/ambiguous result.
+# The cleanup must preserve the nonzero exit, avoid restart/postcondition checks, and never claim success.
+run_restore 42 env MOCK_DOCKER_EXEC_APPLY_THEN_FAIL=true MOCK_DOCKER_EXEC_STATUS=42
+expected="$(printf '%s\n' docker-ps pg-isready docker-exec-reset)"
+actual="$(cat "$EVENTS")"
+if [[ "$actual" != "$expected" ]] ||
+  [[ ! -f "$RESET_APPLIED_FILE" ]] ||
+  [[ "$(cat "$RESET_APPLIED_FILE")" != "applied" ]] ||
+  ! grep -Fq "ALTER SYSTEM RESET max_prepared_transactions failed (docker exec exit 42)" "$OUTPUT" ||
+  grep -Fq "QA267 passed" "$OUTPUT" ||
+  grep -Fq "returned to baseline" "$OUTPUT" ||
+  grep -Fq "docker-restart" "$EVENTS" ||
+  grep -Fq "psql-show" "$EVENTS" ||
+  grep -Fq "psql-prepared" "$EVENTS" ||
+  grep -Fq "psql-database" "$EVENTS"; then
+  echo "ERROR: an applied-but-ambiguous RESET result was treated as confirmed or followed by restart/postcondition checks." >&2
+  printf 'Expected events:\n%s\nActual events:\n%s\n' "$expected" "$actual" >&2
+  if [[ -f "$RESET_APPLIED_FILE" ]]; then cat "$RESET_APPLIED_FILE" >&2; fi
   cat "$OUTPUT" >&2
   exit 1
 fi
