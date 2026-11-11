@@ -150,7 +150,7 @@ const server = createServer(async (request, response) => {
         return;
       }
 
-      const failureMatch = /^QA337 PostgREST failure (400|403|500) retry-\\d+$/.exec(payload.name);
+      const failureMatch = /^QA337 PostgREST failure (400|403|500) retry-\d+$/.exec(payload.name);
       if (failureMatch) {
         const status = Number(failureMatch[1]);
         offerFailures.push({ name: payload.name, status, code: "PGRST_QA337" });
