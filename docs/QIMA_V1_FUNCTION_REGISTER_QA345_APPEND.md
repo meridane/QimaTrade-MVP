@@ -55,3 +55,12 @@ A local shell reproduction using a temporary Bash script with the same `: "${DAT
 - Missing/empty cases use the inert local `psql` stub and assert it is never invoked.
 - No Supabase Production URL, credential, data, migration, function, schema, RLS policy, grant, secret, or persistent configuration was accessed or changed.
 - No Production deployment, PR merge, force update, or branch-protection change was performed.
+
+
+## Publication and latest PR snapshot
+
+- The QA345 append was committed as `f353d590f7dd12857953b4517adc4fcc2e8db478` — `docs(qima): record QA345 exact runner guard assertions`.
+- The target PR branch was advanced by a non-forced fast-forward from code commit `b12370c06a65b3a8136906a50ca717d42e479deb` to documentation HEAD `f353d590f7dd12857953b4517adc4fcc2e8db478`.
+- Final metadata read: PR #26 **OPEN**, **DRAFT**, unmerged, and **mergeable**; 1,433 commits and 101 changed files.
+- Combined status on documentation HEAD `f353d590`: Vercel **SUCCESS** ([Preview](https://vercel.com/bmk1/qimatrade-mvp/4w4DNL28UWK2oDv35iNiQV8eTUm9)).
+- At the final check, the failed-jobs-only retry of CI #1245 remained **IN PROGRESS** in the PostgreSQL client installation and Playwright setup steps, with no new failure reported in the retry attempt. The separate pull-request run for the new QA345 code commit had not yet appeared in the workflow-runs response. No final CI or CodeQL success is claimed for QA345.
