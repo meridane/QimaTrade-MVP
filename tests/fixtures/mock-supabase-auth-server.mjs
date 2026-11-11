@@ -1,6 +1,7 @@
 import { createServer } from "node:http";
 
 const authRequests = [];
+const offerInserts = [];
 
 const session = {
   access_token: "qa251-access-token",
@@ -19,12 +20,34 @@ const session = {
   },
 };
 
+const profile = {
+  actor_id: "30000000-0000-4000-8000-00000000336",
+};
+
 function sendJson(response, status, body) {
   response.writeHead(status, {
     "content-type": "application/json",
     "cache-control": "no-store",
   });
   response.end(JSON.stringify(body));
+}
+
+function sendEmpty(response, status, headers = {}) {
+  response.writeHead(status, {
+    "cache-control": "no-store",
+    ...headers,
+  });
+  response.end();
+}
+
+async function readJsonBody(request) {
+  let rawBody = "";
+  for await (const chunk of request) rawBody += chunk;
+  return JSON.parse(rawBody);
+}
+
+function hasSyntheticAuthorization(request) {
+  return request.headers.authorization === `Bearer ${session.access_token}`;
 }
 
 const server = createServer(async (request, response) => {
@@ -37,7 +60,7 @@ const server = createServer(async (request, response) => {
   }
 
   if (request.method === "GET" && url.pathname === "/auth/v1/user") {
-    if (request.headers.authorization !== `Bearer ${session.access_token}`) {
+    if (!hasSyntheticAuthorization(request)) {
       sendJson(response, 401, {
         code: "invalid_token",
         message: "Invalid synthetic access token",
@@ -51,6 +74,59 @@ const server = createServer(async (request, response) => {
 
   if (request.method === "GET" && url.pathname === "/__test/requests") {
     sendJson(response, 200, authRequests);
+    return;
+  }
+
+  if (request.method === "GET" && url.pathname === "/__test/offers") {
+    const name = url.searchParams.get("name");
+    const matchingInserts = name
+      ? offerInserts.filter((entry) => entry.payload.name === name)
+      : offerInserts;
+    sendJson(response, 200, matchingInserts);
+    return;
+  }
+
+  if (request.method === "GET" && url.pathname === "/rest/v1/profiles") {
+    if (!hasSyntheticAuthorization(request)) {
+      sendJson(response, 401, { code: "PGRST301", message: "Unauthorized synthetic request" });
+      return;
+    }
+
+    if (
+      url.searchParams.get("select") !== "actor_id" ||
+      url.searchParams.get("auth_user_id") !== `eq.${session.user.id}`
+    ) {
+      sendJson(response, 400, { code: "PGRST100", message: "Unexpected synthetic profile query" });
+      return;
+    }
+
+    sendJson(response, 200, profile);
+    return;
+  }
+
+  if (request.method === "POST" && url.pathname === "/rest/v1/offers") {
+    if (!hasSyntheticAuthorization(request)) {
+      sendJson(response, 401, { code: "PGRST301", message: "Unauthorized synthetic request" });
+      return;
+    }
+
+    try {
+      const payload = await readJsonBody(request);
+      if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+        sendJson(response, 400, { code: "PGRST102", message: "Expected one offer object" });
+        return;
+      }
+
+      offerInserts.push({
+        payload,
+        contentType: request.headers["content-type"] ?? null,
+        prefer: request.headers.prefer ?? null,
+        authorizationValid: true,
+      });
+      sendEmpty(response, 201, { "content-range": "*/0" });
+    } catch {
+      sendJson(response, 400, { code: "PGRST102", message: "Invalid synthetic offer JSON" });
+    }
     return;
   }
 
@@ -97,5 +173,5 @@ const server = createServer(async (request, response) => {
 });
 
 server.listen(54321, "127.0.0.1", () => {
-  process.stdout.write("Mock Supabase Auth server listening on 127.0.0.1:54321\\n");
+  process.stdout.write("Mock Supabase Auth/PostgREST server listening on 127.0.0.1:54321\\n");
 });
