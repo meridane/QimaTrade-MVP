@@ -61,6 +61,42 @@ for unsafe_url in "${unsafe_urls[@]}"; do
   fi
 done
 
+# Missing and explicitly empty configuration must fail before the database
+# client is invoked. Use an inert psql stub so this test never opens a socket.
+: > "$CALLS"
+set +e
+PATH="$MOCK_BIN:$PATH" MOCK_PSQL_CALLS="$CALLS" env -u DATABASE_URL \
+  bash "$RUNNER" >"$OUTPUT" 2>&1
+unset_status=$?
+set -e
+if [[ "$unset_status" -eq 0 || -s "$CALLS" ]]; then
+  echo "ERROR: an unset DATABASE_URL did not fail closed before psql." >&2
+  cat "$OUTPUT" >&2
+  exit 1
+fi
+if ! grep -Fq "DATABASE_URL" "$OUTPUT"; then
+  echo "ERROR: unset DATABASE_URL failed without the required configuration diagnostic." >&2
+  cat "$OUTPUT" >&2
+  exit 1
+fi
+
+: > "$CALLS"
+set +e
+PATH="$MOCK_BIN:$PATH" MOCK_PSQL_CALLS="$CALLS" DATABASE_URL="" \
+  bash "$RUNNER" >"$OUTPUT" 2>&1
+empty_status=$?
+set -e
+if [[ "$empty_status" -eq 0 || -s "$CALLS" ]]; then
+  echo "ERROR: an empty DATABASE_URL did not fail closed before psql." >&2
+  cat "$OUTPUT" >&2
+  exit 1
+fi
+if ! grep -Fq "DATABASE_URL" "$OUTPUT"; then
+  echo "ERROR: empty DATABASE_URL failed without the required configuration diagnostic." >&2
+  cat "$OUTPUT" >&2
+  exit 1
+fi
+
 # The three explicitly supported loopback forms must pass the guard. The stub
 # then stops execution at the first psql call without opening a database socket.
 safe_urls=(
@@ -89,4 +125,4 @@ for safe_url in "${safe_urls[@]}"; do
   fi
 done
 
-echo "CREATE_OFFER integration runner URL guard regression PASS: 7 unsafe URLs rejected before psql; 3 supported loopback URLs accepted."
+echo "CREATE_OFFER integration runner URL guard regression PASS: 7 unsafe URLs and 2 missing/empty configurations rejected before psql; 3 supported loopback URLs accepted."
