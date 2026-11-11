@@ -1,3 +1,4 @@
+import { getCreatedOfferId } from "@/lib/offers/created-offer-reference";
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
@@ -41,7 +42,15 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  if (path === "/offers/new" && !request.nextUrl.searchParams.get("productMasterId")) {
+  const isValidDraftConfirmation =
+    path === "/offers/new" &&
+    getCreatedOfferId(request.nextUrl.search) !== null;
+
+  if (
+    path === "/offers/new" &&
+    !request.nextUrl.searchParams.get("productMasterId") &&
+    !isValidDraftConfirmation
+  ) {
     const treeUrl = request.nextUrl.clone();
     treeUrl.pathname = "/decision-tree";
     treeUrl.searchParams.set("flow", "supplier");
