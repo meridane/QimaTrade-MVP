@@ -61,3 +61,15 @@ Created `docs/MKT-1.2_LEGACY_DRAFT_IDEMPOTENCY_CONTRACT.md` as a proposal-only d
 - This is contract design, not implementation or approval.
 - No Supabase Production data, schema, migration, RLS policy, grant, secret, or persistent configuration was changed.
 - No Production deployment, PR merge, force update, or branch-protection change was performed.
+
+
+## QA341 — final documentation-head verification
+
+- Contract document commit: `d01eb8277017e207e095913844a2dfc4055518ec`.
+- Register append commit: `053904420f3f73ea33c03fa4071b57971cacd0d7`.
+- The register append was fetched back from the work branch and its contents verified (5,787 characters); the contract note was also fetched back and verified (11,448 characters).
+- GitHub Actions workflow-run lookup for the register append commit returned no PR-triggered runs. This is expected because both CI and CodeQL workflows declare `paths-ignore: docs/**` for push and pull-request events. No code or test files changed in QA341.
+- The last applicable code validation therefore remains **QIMA CI #1233** (run `43002336880`, **SUCCESS, 3/3 jobs**, 347/347 Playwright) and **CodeQL #1184** (run `43002336655`, **SUCCESS**) on unchanged code HEAD `2f8aa843e7e54b5e837e1d2049bb9b4a17e2b1da`.
+- Vercel on the register append commit returned **FAILURE** with target `build-rate-limit` / `api-deployments-free-per-day`. This is a Preview quota limitation, not a GitHub Actions failure. No retry or quota bypass was attempted.
+- No test is reported as newly passing in QA341; QA341 is a documentation-only contract-design task. No CI failure occurred.
+
