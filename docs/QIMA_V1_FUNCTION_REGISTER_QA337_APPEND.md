@@ -108,3 +108,11 @@ No Supabase Production data, schema, migration, RLS policy, grant, secret, or pe
 - **CodeQL #1174** ([run 42983784713](https://github.com/meridane/QimaTrade-MVP/actions/runs/42983784713)) — **SUCCESS** on the same documentation HEAD.
 - Vercel combined status remains **FAILURE**, target `build-rate-limit` (Preview quota). It is a separate provider quota status; no quota bypass or Production deployment was attempted.
 - This closure changes only the append-only QA337 register record. The code and test implementation is unchanged from the version validated by CI #1220 and revalidated by #1223.
+
+## QA337 — register-closure HEAD validation
+
+- Register commit before this closure: `43bb1a37264aae462bde200eec746e07d01732ef`.
+- **QIMA CI #1224** ([run 42984056409](https://github.com/meridane/QimaTrade-MVP/actions/runs/42984056409)) — **SUCCESS, 3/3 jobs** on HEAD `43bb1a37264aae462bde200eec746e07d01732ef`. Browser tests: **344/344 passed**. PostgreSQL 16 integration and PostgreSQL 17.6 compatibility both succeeded; npm install/audit, TypeScript, Next.js production build, and Chromium installation succeeded.
+- **CodeQL #1175** ([run 42984056483](https://github.com/meridane/QimaTrade-MVP/actions/runs/42984056483)) — **SUCCESS** on the same HEAD.
+- Vercel remains **FAILURE** with the documented Preview quota target `build-rate-limit`; this does not alter the GitHub Actions/CodeQL outcomes.
+- This append-only closure records the completed checks for the previous register update. No application, test, database, or deployment change is included.
