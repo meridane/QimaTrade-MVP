@@ -450,3 +450,143 @@ test("an authenticated supplier can retry a draft after a browser network interr
   );
   expect(cleanup.ok()).toBe(true);
 });
+
+test("characterizes an ambiguous response after the legacy draft INSERT commits before the browser connection is lost", async ({ page, request }, testInfo) => {
+  const offerName = `QA340 ambiguous response after commit retry-${testInfo.retry}`;
+  const reset = await request.delete(
+    `http://127.0.0.1:54321/__test/offers?name=${encodeURIComponent(offerName)}`,
+  );
+  expect(reset.ok()).toBe(true);
+
+  await authenticatePage(
+    page,
+    request,
+    `/offers/new?productMasterId=${PRODUCT_MASTER_GATE_ID}`,
+  );
+  await page.goto(`/offers/new?productMasterId=${PRODUCT_MASTER_GATE_ID}`);
+
+  await page.getByLabel("Offer name").fill(offerName);
+  await page.getByLabel("Quantity").fill("2");
+
+  const countrySelectors = page.locator('button[aria-haspopup="listbox"]');
+  await countrySelectors.nth(0).click();
+  await page.getByRole("listbox").getByRole("button", { name: "South Korea", exact: true }).click();
+  await countrySelectors.nth(1).click();
+  await page.getByRole("listbox").getByRole("button", { name: "South Korea", exact: true }).click();
+
+  let firstRequestForwarded = false;
+  let firstUpstreamStatus: number | null = null;
+  await page.route("**/api/offers", async (route) => {
+    if (!firstRequestForwarded) {
+      firstRequestForwarded = true;
+      // Let the real route and synthetic PostgREST fixture finish the INSERT,
+      // then drop only the browser-facing response to create an ambiguous outcome.
+      const upstreamResponse = await route.fetch();
+      firstUpstreamStatus = upstreamResponse.status();
+      await route.abort("connectionreset");
+      return;
+    }
+
+    await route.continue();
+  });
+
+  const failedRequestPromise = page.waitForEvent(
+    "requestfailed",
+    (failedRequest) => failedRequest.url().endsWith("/api/offers"),
+  );
+  await page.getByRole("button", { name: "Create offer", exact: true }).click();
+  const failedRequest = await failedRequestPromise;
+
+  expect(firstRequestForwarded).toBe(true);
+  expect(firstUpstreamStatus).toBe(201);
+  expect(failedRequest.url()).toContain("/api/offers");
+  await expect(page.locator('p[role="alert"]')).toHaveText(
+    "We couldn't submit your offer. Please try again.",
+  );
+  await expect(page.getByLabel("Offer name")).toHaveValue(offerName);
+  await expect(page.getByLabel("Quantity")).toHaveValue("2");
+  await expect(countrySelectors.nth(0)).toContainText("South Korea");
+  await expect(countrySelectors.nth(1)).toContainText("South Korea");
+  await expect(page.getByRole("button", { name: "Create offer", exact: true })).toBeEnabled();
+  await expect(page.getByRole("status")).toHaveCount(0);
+  await expect(page).toHaveURL((url) =>
+    url.pathname === "/offers/new" &&
+    url.searchParams.get("productMasterId") === PRODUCT_MASTER_GATE_ID &&
+    !url.searchParams.has("created"),
+  );
+
+  const afterLostResponse = await request.get(
+    `http://127.0.0.1:54321/__test/offers?name=${encodeURIComponent(offerName)}`,
+  );
+  expect(afterLostResponse.ok()).toBe(true);
+  const firstInserts = await afterLostResponse.json();
+  expect(firstInserts).toHaveLength(1);
+
+  const firstOfferId = firstInserts[0].payload.id as string;
+  expect(firstOfferId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
+  expect(firstInserts[0]).toMatchObject({
+    authorizationValid: true,
+    payload: {
+      id: firstOfferId,
+      name: offerName,
+      provider_actor_id: SYNTHETIC_PROVIDER_ACTOR_ID,
+      quantity: 2,
+      lifecycle: "draft",
+      offer_type: "supplier_offer",
+    },
+  });
+
+  // Retry the unchanged form. The current legacy handler generates a fresh UUID
+  // for every POST, so this characterization records whether it creates a second row.
+  await page.unroute("**/api/offers");
+
+  const retryResponsePromise = page.waitForResponse((response) =>
+    response.url().endsWith("/api/offers") && response.request().method() === "POST",
+  );
+  await page.getByRole("button", { name: "Create offer", exact: true }).click();
+  const retryResponse = await retryResponsePromise;
+
+  expect(retryResponse.status()).toBe(201);
+  await expect(page).toHaveURL((url) =>
+    url.pathname === "/offers/new" && getCreatedOfferId(url.search) !== null,
+  );
+  const retryOfferId = new URL(page.url()).searchParams.get("created") ?? "";
+  expect(retryOfferId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
+  expect(retryOfferId).not.toBe(firstOfferId);
+  await expect(page.getByRole("status")).toContainText("Draft submission received");
+  await expect(page.getByText(`Offer reference: ${retryOfferId}`, { exact: true })).toBeVisible();
+  await expect(page.locator('p[role="alert"]')).toHaveCount(0);
+
+  const afterRetry = await request.get(
+    `http://127.0.0.1:54321/__test/offers?name=${encodeURIComponent(offerName)}`,
+  );
+  expect(afterRetry.ok()).toBe(true);
+  const allInserts = await afterRetry.json();
+  expect(allInserts).toHaveLength(2);
+  const offerIds = allInserts.map((entry: { payload: { id: string } }) => entry.payload.id);
+  expect(new Set(offerIds).size).toBe(2);
+  expect(offerIds).toContain(firstOfferId);
+  expect(offerIds).toContain(retryOfferId);
+
+  for (const entry of allInserts) {
+    expect(entry).toMatchObject({
+      authorizationValid: true,
+      payload: {
+        name: offerName,
+        provider_actor_id: SYNTHETIC_PROVIDER_ACTOR_ID,
+        quantity: 2,
+        lifecycle: "draft",
+        offer_type: "supplier_offer",
+      },
+    });
+  }
+
+  const visibleText = await page.locator("body").innerText();
+  expect(visibleText).not.toContain("SYNTHETIC_DATABASE_INTERNAL_DETAIL");
+  expect(visibleText).not.toContain("PGRST_QA338");
+
+  const cleanup = await request.delete(
+    `http://127.0.0.1:54321/__test/offers?name=${encodeURIComponent(offerName)}`,
+  );
+  expect(cleanup.ok()).toBe(true);
+});
