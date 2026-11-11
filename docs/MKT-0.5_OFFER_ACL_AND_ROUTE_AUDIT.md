@@ -129,3 +129,37 @@ No production data, policy, grant, schema, migration, or credential was changed.
 - **Vercel:** the latest combined status returned `build-rate-limit`; this is a Preview quota limitation, not a CI or CodeQL failure. No Production deployment was attempted.
 
 QA332 remains a synthetic PostgreSQL mechanics test. Its actor-scoped SELECT policy is rolled back and is not asserted to be the current or intended live Supabase policy.
+
+
+## QA333 — Legacy draft INSERT without SELECT-dependent RETURNING (2026-11-11)
+
+### Observation
+
+The legacy draft handler previously used `.insert(payload).select("id").single()`. QA332's disposable PostgreSQL fixture demonstrates that an authenticated role can satisfy the existing INSERT policy while `INSERT ... RETURNING` does not expose a row when no SELECT policy is present. This is a PostgreSQL/RLS mechanics result from a synthetic fixture, not evidence about the live Supabase policy.
+
+### Change
+
+`lib/offers/create-legacy-offer.ts` now generates a UUID with the already imported Node `randomUUID()` before insertion, includes it as `offers.id`, awaits plain `.insert(payload)` without `.select()`, and redirects using the generated UUID. The INSERT error path remains generic. No grant, RLS policy, or migration was changed.
+
+### Regression coverage
+
+- `tests/e2e/legacy-offers-route-contract.spec.ts` now models a successful plain INSERT as `{ data: null, error: null }`; the mock intentionally exposes no `.select()` chain, so the test fails if the handler reintroduces INSERT RETURNING.
+- `tests/sql/legacy-offer-returning-select-rls-regression.sql` retains the no-SELECT RETURNING probe and now additionally verifies that a plain INSERT succeeds under `authenticated` with the actor-bound INSERT policy and no SELECT policy. The outer transaction rolls back all fixture rows and the synthetic policy.
+- This change removes the SELECT-policy dependency from the *creation response only*. It does not establish who may subsequently read an offer, and it does not resolve buyer/supplier conversation visibility.
+
+### Validation and correction history
+
+- Initial code run **CI #1198** (run `42955879121`) failed both PostgreSQL jobs because the new plain-insert fixture name matched the QA332 `name LIKE 'QA332 %'` visibility-count filter, producing `own rows 3`. The cross-provider count remained zero. This was test-fixture isolation, not evidence of an RLS bypass.
+- The fixture row was renamed to `legacy plain INSERT without SELECT policy`, outside the QA332 visibility-count namespace.
+- Final **CI #1199** (run `42956060853`) — **SUCCESS, 3/3 jobs**. PostgreSQL 16 and PostgreSQL 17.6 both completed the QA332 SQL step; PostgreSQL 17.6 reported `server_version_num=170006`.
+- Build/browser job — dependency audit, TypeScript, Next.js production build and Chromium succeeded; Playwright reported **335 passed, 0 failed** (one obsolete “no returned row” test was replaced by the no-RETURNING regression).
+- **CodeQL #1150** (run `42956060821`) — **SUCCESS**.
+- **Vercel:** current code HEAD reports the free-plan `build-rate-limit` Preview status. This does not alter the GitHub Actions or CodeQL results. No Production deployment was attempted.
+
+### Separate open contract discrepancy — Product Master versus demand scope
+
+PR #24 (`security: add demand, offer and conversation guards`) remains **open and unmerged** at its inspected head `d47505758afb49dce25eecf9604efafa02f2f6c1`; the review and review-thread lists were empty at inspection time. Its proposed multipart endpoint change rejects a form-supplied Product Master that differs from `demand.scope.product_master_id` and then uses the demand's canonical Product Master. In contrast, PR #26's current legacy helper and its E2E test explicitly allow a form-supplied Product Master to override the demand-scope fallback. This is a cross-PR contract divergence, not a confirmed production vulnerability. It was not changed in QA333 because PR #24 is unmerged and the intended shared contract still needs maintainer confirmation. PR #24's own CI/CodeQL results do not validate PR #26.
+
+### Safety boundary
+
+No Supabase Production data, schema, migration, RLS policy, grant, secret, or persistent configuration was touched. No Production deployment, PR merge, force update, or branch-protection change was made.
