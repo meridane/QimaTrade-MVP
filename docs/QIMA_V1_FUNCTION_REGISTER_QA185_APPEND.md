@@ -3376,3 +3376,16 @@ The change is test-only. It does not assert or infer the owner of any live Supab
 - **Next gate:** obtain authorized read-only catalog output for the current effective grants, column grants, owner, RLS flags, and all offers policies. Then validate the legacy draft `INSERT ... RETURNING` and conversation SELECT flows against the actual SELECT policy. Search the full repository and operational integrations for UPDATE/DELETE/TRUNCATE/trigger dependencies before proposing any least-privilege REVOKE. Keep the MKT-1.1 demand/tenant/provider eligibility rule separate pending an explicit business decision.
 - **Safety:** QA331 runs only against the disposable GitHub Actions `qima_test` fixture and does not apply a production policy or grant. No Supabase Production data, schema, migration, RLS policy, grant, secret, persistent configuration, Production deployment, PR merge, force update, or branch-protection setting was changed.
 
+
+
+## QA331 — final documentation-head validation reconciliation (11 November 2026)
+
+- **Documentation HEAD:** `2d38971f6812bfdf5a6147e2d5ea77a82b6d90a7` contains the QA331 append-only register entry and is the PR head before this reconciliation.
+- **QIMA CI #1193:** run `42940610898` on documentation HEAD `2d38971f6812bfdf5a6147e2d5ea77a82b6d90a7` — **SUCCESS**, all three jobs completed successfully. [Workflow run](https://github.com/meridane/QimaTrade-MVP/actions/runs/42940610898).
+  - PostgreSQL 16 integration job completed the legacy offers INSERT RLS step (which executes the QA331 fixture ACL preflight before the QA330 actor-binding assertions), CREATE_OFFER integration/concurrency, wrapper-owner and seven-function ACL tests, legacy-message RLS/cleanup, prepared-transaction setup/restoration, and participant self-enrollment.
+  - PostgreSQL 17.6 compatibility job passed the pinned `server_version_num=170006` assertion and completed the legacy offers INSERT RLS step and wrapper-owner/ACL checks.
+  - Build/browser job passed dependency installation, npm audit, TypeScript, Next.js production build, Chromium installation, and Playwright; the log confirms **336 passed, 0 failed**.
+- **QIMA CodeQL #1144:** run `42940610921` on the same documentation HEAD — **SUCCESS**. [CodeQL run](https://github.com/meridane/QimaTrade-MVP/actions/runs/42940610921).
+- **Vercel:** combined status for this documentation HEAD returned **FAILURE** with the free-plan deployment quota URL `build-rate-limit`. The preceding code/source-audit HEAD `68b71b434bf6d044674add3d6fd6e3db810a4bbe` had a successful Preview. This quota status is not a GitHub Actions or CodeQL failure; no Production deployment was attempted.
+- **Interpretation:** QA331's fixture assertions are validated by the successful PostgreSQL job steps on CI #1192 (code/source-audit HEAD) and #1193 (documentation HEAD). The explicit QA330 marker appears after the transaction rollback; the new QA331 preflight runs before the actor-binding assertions in the same SQL file. These are disposable-fixture invariants only, not evidence of current live Supabase grants or policies.
+- **Safety:** no application code, SQL test, migration, Supabase Production data/schema/policy/grant, secret, persistent configuration, Production deployment, PR merge, force update, or branch-protection setting was changed by this reconciliation.
