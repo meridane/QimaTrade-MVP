@@ -7214,3 +7214,11 @@ Validation on the new code commit: pending GitHub Actions. No Supabase Productio
 - **Interprétation :** le runtime démontre l'exécution du step `always()` après le step de setup en échec, le transfert des sorties et le succès du véritable script de restauration contre des mocks inertes. Le parcours nominal a aussi réussi sur le PostgreSQL 16 jetable. La vérification statique confirme que l'étape de restauration du job PostgreSQL principal reste bloquante. Ces scénarios synthétiques ne démontrent aucun incident ou vulnérabilité en Production.
 - **Périmètre :** aucune donnée, migration, fonction, schéma, politique RLS, grant, secret ou configuration Supabase Production modifié ; aucun déploiement Production, aucune fusion, aucun force-push et aucune modification des protections de branche.
 - **Appendice :** `docs/QIMA_V1_FUNCTION_REGISTER_QA353_APPEND.md`.
+
+
+### QA353 — statut du HEAD documentaire après publication — 12 novembre 2026
+
+- Le fast-forward documentaire a placé la PR sur le HEAD `160039c1cafd668970733da5cf3d45b33ab0cf77` (registre canonique + appendice QA353 ; aucune modification du code QA353).
+- Le statut Vercel de ce HEAD documentaire est **FAILURE** avec `build-rate-limit` / `api-deployments-free-per-day`. Le Preview du HEAD de code QA353 `d28a9097d1f0d7f6c08fbdd8bdb570b3e209eb87` était **SUCCESS** ; aucun déploiement Production.
+- Aucun nouveau run QIMA CI/CodeQL n'est associé au HEAD documentaire : les fichiers modifiés dans ce dernier fast-forward sont uniquement sous `docs/**`, chemin ignoré par le workflow QIMA CI. La validation du code reste celle de QIMA CI #1272 et CodeQL #1222, tous deux SUCCESS sur le HEAD de code `d28a909`.
+- Ce statut Vercel rate-limited ne remet pas en cause les tests GitHub Actions réussis du code QA353 ; il signifie qu'aucun Preview nouveau n'a été construit pour le HEAD documentaire final.
