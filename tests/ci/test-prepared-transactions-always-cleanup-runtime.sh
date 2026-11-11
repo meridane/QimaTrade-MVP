@@ -10,6 +10,16 @@ RESTORE_SCRIPT="$ROOT/tests/sql/restore-prepared-transactions-config.sh"
 : "${RESTORE_REQUIRED:?RESTORE_REQUIRED is required}"
 : "${BASELINE_MAX_PREPARED_TRANSACTIONS:?BASELINE_MAX_PREPARED_TRANSACTIONS is required}"
 
+SIMULATE_RESTORE_FAILURE="${SIMULATE_RESTORE_FAILURE:-false}"
+case "$SIMULATE_RESTORE_FAILURE" in
+  true|false) ;;
+  *) echo "ERROR: SIMULATE_RESTORE_FAILURE must be true or false." >&2; exit 1 ;;
+esac
+MOCK_RESTORE_EXIT=0
+if [[ "$SIMULATE_RESTORE_FAILURE" == "true" ]]; then
+  MOCK_RESTORE_EXIT=52
+fi
+
 if [[ "$SETUP_OUTCOME" != "failure" ]]; then
   echo "ERROR: the simulated setup step did not report outcome=failure." >&2
   exit 1
@@ -48,6 +58,9 @@ case "${1-}" in
     fi
     printf '%s\n' 0 > "$MOCK_STATE_FILE"
     printf '%s\n' docker-exec-reset >> "$MOCK_EVENTS"
+    if [[ "${MOCK_RESTORE_EXIT:-0}" != "0" ]]; then
+      exit "$MOCK_RESTORE_EXIT"
+    fi
     ;;
   restart)
     printf '%s\n' docker-restart >> "$MOCK_EVENTS"
@@ -99,7 +112,7 @@ SLEEP
 chmod +x "$MOCK_BIN/sleep"
 
 if PATH="$MOCK_BIN:$PATH" \
-  MOCK_EVENTS="$EVENTS" MOCK_STATE_FILE="$STATE_FILE" \
+  MOCK_EVENTS="$EVENTS" MOCK_STATE_FILE="$STATE_FILE" MOCK_RESTORE_EXIT="$MOCK_RESTORE_EXIT" \
   DATABASE_URL="postgresql://postgres:postgres@localhost:5432/qima_test" \
   RESTORE_REQUIRED="$RESTORE_REQUIRED" \
   BASELINE_MAX_PREPARED_TRANSACTIONS="$BASELINE_MAX_PREPARED_TRANSACTIONS" \
@@ -107,6 +120,23 @@ if PATH="$MOCK_BIN:$PATH" \
   :
 else
   restore_status=$?
+  if [[ "$SIMULATE_RESTORE_FAILURE" == "true" ]]; then
+    expected_failure_events="$(printf '%s\n' docker-ps pg-isready docker-exec-reset)"
+    if [[ "$restore_status" -ne 52 ]] ||
+      [[ "$(cat "$EVENTS")" != "$expected_failure_events" ]] ||
+      [[ "$(cat "$STATE_FILE")" != "0" ]] ||
+      ! grep -Fq "ALTER SYSTEM RESET max_prepared_transactions failed (docker exec exit 52); configuration restoration is not confirmed." "$RESTORE_LOG" ||
+      grep -Fq "QA267 passed" "$RESTORE_LOG" ||
+      grep -Fq "postgres:postgres" "$RESTORE_LOG"; then
+      echo "ERROR: the simulated cleanup failure was not preserved or was incorrectly reported as success." >&2
+      cat "$EVENTS" >&2
+      cat "$RESTORE_LOG" >&2
+      exit 1
+    fi
+    printf 'cleanup_exit_code=%s\ncleanup_failure_observed=true\n' "$restore_status" >> "$GITHUB_OUTPUT"
+    echo "QA354 runtime contract passed: the actual restore script returned the expected ambiguous RESET failure (52), did not restart or verify after failure, and did not publish cleanup_ran=true."
+    exit "$restore_status"
+  fi
   echo "ERROR: the actual restoration script failed in the always-cleanup harness (exit $restore_status)." >&2
   cat "$EVENTS" >&2
   cat "$RESTORE_LOG" >&2
@@ -128,5 +158,5 @@ if [[ "$(cat "$STATE_FILE")" != "0" ]] ||
   exit 1
 fi
 
-printf 'cleanup_ran=true\n' >> "$GITHUB_OUTPUT"
+printf 'cleanup_ran=true\ncleanup_exit_code=0\ncleanup_failure_observed=false\n' >> "$GITHUB_OUTPUT"
 echo "QA353 runtime contract passed: GitHub reported the setup step as failure, forwarded its restoration outputs, and the always() step executed the real restoration script with inert Docker/PostgreSQL mocks; baseline 0 and zero residual resources were verified."
