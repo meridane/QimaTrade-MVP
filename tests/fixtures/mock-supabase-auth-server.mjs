@@ -79,9 +79,11 @@ const server = createServer(async (request, response) => {
 
   if (request.method === "GET" && url.pathname === "/__test/offers") {
     const name = url.searchParams.get("name");
-    const matchingInserts = name
-      ? offerInserts.filter((entry) => entry.payload.name === name)
-      : offerInserts;
+    if (!name) {
+      sendJson(response, 400, { error: "OFFER_NAME_REQUIRED" });
+      return;
+    }
+    const matchingInserts = offerInserts.filter((entry) => entry.payload.name === name);
     sendJson(response, 200, matchingInserts);
     return;
   }
