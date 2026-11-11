@@ -69,13 +69,13 @@ PATH="$MOCK_BIN:$PATH" MOCK_PSQL_CALLS="$CALLS" env -u DATABASE_URL \
   bash "$RUNNER" >"$OUTPUT" 2>&1
 unset_status=$?
 set -e
-if [[ "$unset_status" -eq 0 || -s "$CALLS" ]]; then
-  echo "ERROR: an unset DATABASE_URL did not fail closed before psql." >&2
+if [[ "$unset_status" -ne 1 || -s "$CALLS" ]]; then
+  echo "ERROR: an unset DATABASE_URL did not exit 1 at the required-variable check before psql (received $unset_status)." >&2
   cat "$OUTPUT" >&2
   exit 1
 fi
-if ! grep -Fq "DATABASE_URL" "$OUTPUT"; then
-  echo "ERROR: unset DATABASE_URL failed without the required configuration diagnostic." >&2
+if ! grep -Fq "DATABASE_URL must point to a disposable PostgreSQL database" "$OUTPUT"; then
+  echo "ERROR: unset DATABASE_URL failed without the exact required-variable diagnostic." >&2
   cat "$OUTPUT" >&2
   exit 1
 fi
@@ -86,13 +86,13 @@ PATH="$MOCK_BIN:$PATH" MOCK_PSQL_CALLS="$CALLS" DATABASE_URL="" \
   bash "$RUNNER" >"$OUTPUT" 2>&1
 empty_status=$?
 set -e
-if [[ "$empty_status" -eq 0 || -s "$CALLS" ]]; then
-  echo "ERROR: an empty DATABASE_URL did not fail closed before psql." >&2
+if [[ "$empty_status" -ne 1 || -s "$CALLS" ]]; then
+  echo "ERROR: an empty DATABASE_URL did not exit 1 at the required-variable check before psql (received $empty_status)." >&2
   cat "$OUTPUT" >&2
   exit 1
 fi
-if ! grep -Fq "DATABASE_URL" "$OUTPUT"; then
-  echo "ERROR: empty DATABASE_URL failed without the required configuration diagnostic." >&2
+if ! grep -Fq "DATABASE_URL must point to a disposable PostgreSQL database" "$OUTPUT"; then
+  echo "ERROR: empty DATABASE_URL failed without the exact required-variable diagnostic." >&2
   cat "$OUTPUT" >&2
   exit 1
 fi
