@@ -9,6 +9,7 @@ MOCK_BIN="$TEMP_DIR/mock-bin"
 EVENTS="$TEMP_DIR/events.log"
 OUTPUT="$TEMP_DIR/output.log"
 RESET_APPLIED_FILE="$TEMP_DIR/reset-applied"
+RESTART_APPLIED_FILE="$TEMP_DIR/restart-applied"
 mkdir -p "$MOCK_BIN"
 
 cat > "$MOCK_BIN/docker" <<'DOCKER'
@@ -38,6 +39,11 @@ case "${1-}" in
     ;;
   restart)
     printf '%s\n' docker-restart >> "$MOCK_EVENTS"
+    if [[ "${MOCK_DOCKER_RESTART_APPLY_THEN_FAIL:-false}" == "true" ]]; then
+      : "${MOCK_RESTART_APPLIED_FILE:?MOCK_RESTART_APPLIED_FILE is required for ambiguous restart simulation}"
+      printf '%s\n' applied > "$MOCK_RESTART_APPLIED_FILE"
+      exit "${MOCK_DOCKER_RESTART_STATUS:-43}"
+    fi
     exit "${MOCK_DOCKER_RESTART_STATUS:-0}"
     ;;
   *)
@@ -130,11 +136,12 @@ run_restore() {
   local expected_status="$1"
   shift
   : > "$EVENTS"
-  rm -f "$EVENTS.ready-count" "$EVENTS.show-count" "$RESET_APPLIED_FILE"
+  rm -f "$EVENTS.ready-count" "$EVENTS.show-count" "$RESET_APPLIED_FILE" "$RESTART_APPLIED_FILE"
   set +e
   PATH="$MOCK_BIN:$PATH" \
     MOCK_EVENTS="$EVENTS" \
     MOCK_RESET_APPLIED_FILE="$RESET_APPLIED_FILE" \
+    MOCK_RESTART_APPLIED_FILE="$RESTART_APPLIED_FILE" \
     DATABASE_URL="postgresql://postgres:postgres@localhost:5432/qima_test" \
     RESTORE_REQUIRED=true \
     BASELINE_MAX_PREPARED_TRANSACTIONS=0 \
@@ -329,6 +336,28 @@ if [[ "$actual" != "$expected" ]] || ! grep -Fq "PostgreSQL service restart fail
   exit 1
 fi
 
+# QA352: docker restart applies the restart but returns an ambiguous nonzero result.
+# Preserve the exit status and refuse to claim restoration or run post-restart checks.
+run_restore 43 env MOCK_DOCKER_RESTART_APPLY_THEN_FAIL=true MOCK_DOCKER_RESTART_STATUS=43
+expected="$(printf '%s\n' docker-ps pg-isready docker-exec-reset docker-restart)"
+actual="$(cat "$EVENTS")"
+if [[ "$actual" != "$expected" ]] ||
+  [[ ! -f "$RESTART_APPLIED_FILE" ]] ||
+  [[ "$(cat "$RESTART_APPLIED_FILE")" != "applied" ]] ||
+  ! grep -Fq "PostgreSQL service restart failed (docker restart exit 43)" "$OUTPUT" ||
+  grep -Fq "QA267 passed" "$OUTPUT" ||
+  grep -Fq "returned to baseline" "$OUTPUT" ||
+  grep -Fq "psql-show" "$EVENTS" ||
+  grep -Fq "psql-prepared" "$EVENTS" ||
+  grep -Fq "psql-database" "$EVENTS" ||
+  [[ "$(grep -Fxc "pg-isready" "$EVENTS" || true)" -ne 1 ]]; then
+  echo "ERROR: an applied-but-ambiguous restart result was treated as confirmed or followed by post-restart checks." >&2
+  printf 'Expected events:\n%s\nActual events:\n%s\n' "$expected" "$actual" >&2
+  if [[ -f "$RESTART_APPLIED_FILE" ]]; then cat "$RESTART_APPLIED_FILE" >&2; fi
+  cat "$OUTPUT" >&2
+  exit 1
+fi
+
 # QA269-A: PostgreSQL remains unavailable after the successful restart command.
 # The first readiness probe is the pre-reset check; every probe after restart fails.
 # The sleep stub makes all 60 retry attempts deterministic and fast.
@@ -510,4 +539,4 @@ if grep -Fq "postgres:postgres" "$OUTPUT"; then
   exit 1
 fi
 
-echo "Prepared-transaction configuration restoration regression passed: docker ps partial-output failures preserve the exit code; zero/multiple container discovery fails before readiness or RESET; reset/restart order, explicit RESET and restart failure handling with original exit codes, post-restart SHOW and residual-resource query failure propagation, bounded transient recovery and configuration convergence, permanent unavailability and wrong-value rejection, no-op behavior, exact RESTORE_REQUIRED marker matrix (QA282), whitespace/case/newline marker matrix (QA283), loopback URL guard, single-container guard, missing-baseline, QA281 noncanonical-baseline matrix, unapproved-baseline guards, and residual-resource detection."
+echo "Prepared-transaction configuration restoration regression passed: docker ps partial-output failures preserve the exit code; zero/multiple container discovery fails before readiness or RESET; reset/restart order, explicit RESET and restart failure handling (including applied-but-ambiguous restart) with original exit codes, post-restart SHOW and residual-resource query failure propagation, bounded transient recovery and configuration convergence, permanent unavailability and wrong-value rejection, no-op behavior, exact RESTORE_REQUIRED marker matrix (QA282), whitespace/case/newline marker matrix (QA283), loopback URL guard, single-container guard, missing-baseline, QA281 noncanonical-baseline matrix, unapproved-baseline guards, and residual-resource detection."
