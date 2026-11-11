@@ -38,7 +38,7 @@ This is a bounded retry policy for transient package-mirror connection and DNS f
 ### Implementation and correction
 
 - `44b8c3ca9017028e0b835372c411de919b324095` — initial CI retry step in all three jobs.
-- Inspection of that commit's diff found over-escaped shell backslashes in the generated YAML block. This intermediate version was not promoted to the PR branch.
+- Inspection of that commit's diff found over-escaped shell backslashes in the generated YAML block. The intermediate commit remains in the work-branch / PR ancestry, but it was superseded by the corrective commit before the final PR tree was validated.
 - `63cc1af0aa797d3ccfbc2dce831f14aa75cb494f` — corrected the shell block to use one newline escape and valid line continuations. The corrected diff was re-read.
 - A local shell execution reproduced the exact `printf` block. It emitted the three expected APT directives, and `apt-config -c /tmp/80-qima-network-retries dump` parsed and reported all three values. This is a local syntax/configuration check, not a GitHub-hosted runner result.
 
