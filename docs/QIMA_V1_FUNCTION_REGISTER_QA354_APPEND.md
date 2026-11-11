@@ -88,3 +88,13 @@ Fichiers de code/workflow uniques :
 ## Prochaine étape
 
 QA355 peut vérifier que les deux jobs d'assertion restent toujours exécutés même si les deux harnesses échouent simultanément, et que les sorties ne se contaminent pas entre jobs. Cette vérification doit rester isolée et ne pas modifier le parcours PostgreSQL réel.
+
+
+## Statut final après publication documentaire
+
+- Les deux commits documentaires QA354 ont été intégrés par fast-forward à la PR après le HEAD de code `e3ff981ce9c8a7c15d6420b1317fc6d7d73e4179`.
+- HEAD documentaire final : `79036936e83cd5cfed242794842a536f178984fe`.
+- PR #26 : OPEN, DRAFT, non fusionnée, mergeable ; 1 480 commits, 113 fichiers modifiés, zéro commit en retard sur `main`, aucune review humaine ni thread.
+- Comparaison `main...79036936` : 1 480 commits en avance, zéro en retard.
+- Le HEAD documentaire ne déclenche pas de nouvelle QIMA CI/CodeQL car les seuls changements après le HEAD de code QA354 sont sous `docs/**`, ignorés par le workflow. La validation du code reste QIMA CI #1275 SUCCESS et CodeQL #1225 SUCCESS sur le HEAD de code `e3ff981`.
+- Le statut combiné Vercel du HEAD documentaire reste FAILURE avec `build-rate-limit` / `api-deployments-free-per-day`. Aucun Preview QA354 revendiqué et aucun déploiement Production.
