@@ -1,4 +1,4 @@
-\\set ON_ERROR_STOP on
+\set ON_ERROR_STOP on
 
 -- QA315: characterize additional numeric lexical forms without selecting a
 -- business normalization policy. All checks are read-only expressions against
