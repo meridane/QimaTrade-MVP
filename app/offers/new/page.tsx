@@ -218,7 +218,7 @@ export default function NewOfferPage() {
               </Link>
             </div>
           ) : (
-          <form action="/api/offers" method="post" onSubmit={submitForm} className="mt-8 space-y-5">
+          <form action="/api/offers" method="post" onSubmit={submitForm} data-no-loading="true" className="mt-8 space-y-5">
             {submissionError && (
               <p role="alert" aria-live="assertive" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
                 {submissionError}
