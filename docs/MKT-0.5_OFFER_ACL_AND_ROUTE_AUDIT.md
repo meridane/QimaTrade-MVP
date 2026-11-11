@@ -95,3 +95,25 @@ No production migration, data write, grant change, RLS change, merge, or deploym
 4. Do not implement a fix until the demand/tenant/provider business ownership model is confirmed.
 
 No Supabase production writes, schema changes, migration, merge or deployment.
+
+## QA332 — legacy draft INSERT RETURNING and SELECT-policy mechanics (11 November 2026)
+
+The legacy handler in `lib/offers/create-legacy-offer.ts` performs `insert(...).select("id").single()`. The conversation actions also issue SELECT queries against `public.offers`. The existing QA330/QA331 fixture deliberately contains only the INSERT policy, so it does not cover the return/read path.
+
+A new disposable regression, `tests/sql/legacy-offer-returning-select-rls-regression.sql`, checks the PostgreSQL mechanics separately:
+
+- With the existing actor-bound INSERT policy but no SELECT policy, the test requires that the inserted row is not successfully returned. The probe runs in a PL/pgSQL subtransaction so any attempted insert is rolled back.
+- The test then creates a **synthetic, actor-scoped SELECT policy** named `qa332_offers_select_own_provider` inside the same transaction.
+- Under each of the two authenticated fixture users, `INSERT ... RETURNING id` must return the new own-actor row, a demand-scoped SELECT must see the two own-actor rows, and the other provider's rows must remain invisible under this synthetic policy.
+- The test rolls back the temporary policy, grants, helper function, seed rows, and inserted rows.
+
+**Evidence boundary:** the synthetic SELECT policy is used only to exercise PostgreSQL RLS and the application's INSERT-returning/SELECT query shapes. It is not a proposed production policy and does not decide whether buyers, suppliers, or conversation participants should see one another's offers. QA332 does not establish the current live Supabase SELECT policy or prove a production vulnerability.
+
+### Safe next gate
+
+1. Obtain authorized read-only catalog output for the live `public.offers` SELECT grants and policies.
+2. Confirm the intended visibility contract for supplier drafts and buyer/supplier conversations.
+3. Exercise the actual policy and `.insert(...).select("id").single()` behavior against an approved disposable schema copy before proposing any migration.
+4. Keep demand/tenant/provider eligibility separate until the product owner confirms the rule.
+
+No production data, policy, grant, schema, migration, or credential was changed.
