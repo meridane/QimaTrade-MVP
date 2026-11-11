@@ -157,20 +157,23 @@ export default function NewOfferPage() {
       const form = event.currentTarget;
       const response = await fetch(form.action, {
         method: form.method.toUpperCase(),
+        headers: { Accept: "application/json" },
         body: new FormData(form),
         credentials: "same-origin",
-        redirect: "follow",
       });
 
-      if (!response.ok || !response.redirected) {
+      if (!response.ok) {
         setSubmissionError("We couldn't submit your offer. Please try again.");
         return;
       }
 
-      const destination = new URL(response.url, window.location.origin);
+      const responseBody: unknown = await response.json().catch(() => null);
       const createdId =
-        destination.origin === window.location.origin && destination.pathname === "/offers/new"
-          ? getCreatedOfferId(destination.search)
+        responseBody !== null &&
+        typeof responseBody === "object" &&
+        "id" in responseBody &&
+        typeof responseBody.id === "string"
+          ? getCreatedOfferId(`?created=${encodeURIComponent(responseBody.id)}`)
           : null;
 
       if (!createdId) {
@@ -178,7 +181,9 @@ export default function NewOfferPage() {
         return;
       }
 
-      window.location.assign(destination.toString());
+      window.location.assign(
+        new URL(`/offers/new?created=${createdId}`, window.location.origin).toString(),
+      );
     } catch {
       setSubmissionError("We couldn't submit your offer. Please try again.");
     } finally {

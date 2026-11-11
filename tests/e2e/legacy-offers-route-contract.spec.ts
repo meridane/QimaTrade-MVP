@@ -124,7 +124,10 @@ function createSupabaseMock(config: MockConfig = {}) {
   return { client, calls };
 }
 
-function createFormRequest(fields: Record<string, string | File> = {}) {
+function createFormRequest(
+  fields: Record<string, string | File> = {},
+  headers: HeadersInit = {},
+) {
   const form = new FormData();
   form.set("name", "Legacy draft offer");
   form.set("quantity", "2");
@@ -133,6 +136,7 @@ function createFormRequest(fields: Record<string, string | File> = {}) {
   return new Request("https://qima.test/api/offers", {
     method: "POST",
     body: form,
+    headers,
   });
 }
 
@@ -469,6 +473,25 @@ test("legacy offers route returns a generic error when Supabase insert fails wit
     price: null,
     currency: null,
     pricing_model: null,
+    lifecycle: "draft",
+    offer_type: "supplier_offer",
+  });
+});
+
+test("legacy offers route returns the preassigned UUID as JSON when the caller requests it", async () => {
+  const { client, calls } = createSupabaseMock();
+  const handler = createHandler(client);
+
+  const response = await handler(createFormRequest({}, { accept: "application/json" }));
+
+  expect(response.status).toBe(201);
+  expect(response.headers.get("location")).toBeNull();
+  const body = await response.json();
+  expect(body).toEqual({ id: calls.insertPayload?.id });
+  expect(body.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
+  expect(calls.offerInsertCalls).toBe(1);
+  expect(calls.insertPayload).toMatchObject({
+    provider_actor_id: PROFILE_ACTOR_ID,
     lifecycle: "draft",
     offer_type: "supplier_offer",
   });

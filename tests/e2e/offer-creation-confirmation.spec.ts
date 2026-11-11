@@ -133,10 +133,9 @@ test("an authenticated supplier can submit the independent draft form through PO
   await page.getByRole("button", { name: "Create offer", exact: true }).click();
   const postResponse = await postResponsePromise;
 
-  expect(postResponse.status()).toBe(303);
-  const redirectLocation = new URL(postResponse.headers().location!, "http://127.0.0.1:3000");
-  expect(redirectLocation.pathname).toBe("/offers/new");
-  const createdOfferId = redirectLocation.searchParams.get("created");
+  expect(postResponse.status()).toBe(201);
+  const responseBody = await postResponse.json();
+  const createdOfferId = responseBody.id as string;
   expect(createdOfferId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
 
   await expect(page).toHaveURL((url) => url.pathname === "/offers/new" && url.searchParams.get("created") === createdOfferId);

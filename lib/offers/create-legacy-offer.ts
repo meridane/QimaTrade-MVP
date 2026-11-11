@@ -140,6 +140,10 @@ export function createLegacyOfferHandler(
         return NextResponse.json({ error: genericCreateOfferError }, { status: 500 });
       }
 
+      if (request.headers.get("accept")?.includes("application/json")) {
+        return NextResponse.json({ id: offerId }, { status: 201 });
+      }
+
       return NextResponse.redirect(new URL(`/offers/new?created=${offerId}`, request.url), 303);
     } catch {
       return NextResponse.json({ error: genericCreateOfferError }, { status: 500 });
