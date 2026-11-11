@@ -180,12 +180,12 @@ jobs:
             'Acquire::http::Timeout "30";' \
             'Acquire::https::Timeout "30";' \
             | sudo tee /etc/apt/apt.conf.d/80-qima-network-retries >/dev/null
+      - name: Verify CREATE_OFFER integration runner rejects unsafe database URLs
+        run: bash tests/sql/test-create-offer-integration-runner-guard.sh
       - name: Install PostgreSQL client
         run: |
           sudo apt-get update
           sudo apt-get install -y postgresql-client
-      - name: Verify CREATE_OFFER integration runner rejects unsafe database URLs
-        run: bash tests/sql/test-create-offer-integration-runner-guard.sh
 
       - name: Run isolated CREATE_OFFER integration and concurrency tests
         run: bash tests/sql/run-create-offer-integration.sh
