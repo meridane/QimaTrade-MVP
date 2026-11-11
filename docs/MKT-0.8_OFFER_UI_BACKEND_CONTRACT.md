@@ -10,7 +10,7 @@ Scope: source review only; no database or production changes.
 - UI: `app/offers/new/page.tsx`
 - Form action: `POST /api/offers`
 - Backend: `app/api/offers/route.ts`
-- Behavior visible in source: no demand ID is required; price is optional; created row is assigned `lifecycle: "draft"`; success redirects to `/offers?created=<id>`.
+- Behavior visible in source: no demand ID is required; price is optional; created row is assigned `lifecycle: "draft"`; success redirects to `/offers/new?created=<id>`; the authenticated confirmation route accepts only a valid UUID v4 reference.
 - This is a draft-first supplier flow and is not equivalent to a demand response.
 
 ### B. Offer against a buyer demand
@@ -68,7 +68,7 @@ This document records source findings, not confirmed exploitability. No producti
 - **Test fixture:** the isolated Supabase Auth server now implements `GET /auth/v1/user` for the single synthetic access token returned by its existing PKCE callback fixture; all other tokens receive 401. This allows middleware authentication to be exercised in a real Playwright browser context without a live Supabase project.
 - **Browser regressions:** (1) a valid confirmation URL remains protected when unauthenticated; (2) an authenticated synthetic supplier sees the confirmation panel and reference without a Product Master query, then the “Create another offer” link re-enters `/decision-tree?flow=supplier`; (3) an authenticated supplier with a malformed reference is still sent to classification. The auth session is installed for both local host aliases used by the test server.
 - **First validation:** QIMA CI #1205 (run `42965548409`) completed with the PostgreSQL 16 and 17.6 jobs successful, but the browser job failed in two new navigation assertions. The first confirmed the confirmation page rendered; the failure occurred after the “Create another offer” navigation switched from `127.0.0.1` to `localhost`, where the synthetic cookie had not been installed. The malformed-reference case hit the same host-alias mismatch. Playwright reported 339 passed and 2 failed; this was a test-fixture cookie-domain issue, not a production authorization finding. CodeQL #1156 (run `42965548366`) succeeded.
-- **Correction:** the browser fixture now installs the same synthetic session cookie for both `127.0.0.1` and `localhost`. Final CI and CodeQL validation are pending at this documentation revision.
+- **Correction:** the browser fixture now installs the same synthetic session cookie for both `127.0.0.1` and `localhost`. Final CI and CodeQL validation are recorded in the QA335 validation closure below.
 - **Safety:** no Supabase Production data, schema, migration, RLS policy, grant, secret, persistent configuration, Production deployment, merge, force update, or branch-protection setting was changed.
 
 
