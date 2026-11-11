@@ -29,6 +29,10 @@ unsafe_urls=(
   "https://postgres:postgres@localhost:5432/qima_test"
   "postgresql://postgres:postgres@localhost.evil:5432/qima_test"
   "postgresql://postgres:postgres@127.0.0.2:5432/qima_test"
+  $'postgresql://postgres:postgres@localhost:5432/qima_test\nqa348-injected'
+  $'postgresql://postgres:postgres@localhost:5432/qima_test\r'
+  $'postgresql://postgres:postgres@localhost:5432/qima_test\t'
+  $'postgresql://postgres:postgres@localhost:5432/qima_test\r\nqa348-injected'
 )
 
 for unsafe_url in "${unsafe_urls[@]}"; do
@@ -56,6 +60,16 @@ for unsafe_url in "${unsafe_urls[@]}"; do
   fi
   if grep -Fq "postgres:postgres" "$OUTPUT"; then
     echo "ERROR: refusal output exposed DATABASE_URL credentials." >&2
+    cat "$OUTPUT" >&2
+    exit 1
+  fi
+  if LC_ALL=C grep -q $'\r' "$OUTPUT" || LC_ALL=C grep -q $'\t' "$OUTPUT" || [[ "$(wc -l < "$OUTPUT")" -ne 1 ]]; then
+    echo "ERROR: refusal output was not a single control-character-free diagnostic line." >&2
+    cat "$OUTPUT" >&2
+    exit 1
+  fi
+  if grep -Fq "qa348-injected" "$OUTPUT"; then
+    echo "ERROR: refusal output reflected control-character payload content." >&2
     cat "$OUTPUT" >&2
     exit 1
   fi
@@ -144,4 +158,4 @@ for safe_url in "${safe_urls[@]}"; do
   fi
 done
 
-echo "CREATE_OFFER integration runner URL guard regression PASS: 7 unsafe URLs, whitespace-only, and 2 missing/empty configurations rejected before psql; 3 supported loopback URLs accepted."
+echo "CREATE_OFFER integration runner URL guard regression PASS: ${#unsafe_urls[@]} unsafe URL cases (including control characters), whitespace-only, and 2 missing/empty configurations rejected before psql; 3 supported loopback URLs accepted."
