@@ -7146,3 +7146,26 @@ Validation on the new code commit: pending GitHub Actions. No Supabase Productio
 - The combined Vercel status on code HEAD `06d3d92` completed SUCCESS and points to Preview deployment https://vercel.com/bmk1/qimatrade-mvp/61Nh33zYxtyMjfqRM4XnsGrQTMxT. This is not a Production deployment.
 - Supabase get_project metadata returned project `yyulzlnrfcbaxovzjbnh` as ACTIVE_HEALTHY in `ap-southeast-1`, with database version `17.6.1.166`. A read-only SELECT-only catalog request for CREATE_OFFER function owners/ACLs and public-schema USAGE/CREATE failed before SQL execution with PostgreSQL `28P01` (password authentication failed for user `postgres`). No catalog rows were returned; Production function owners, ACLs, and schema privileges remain unverified.
 - Scope/safety: only `.github/workflows/ci.yml` changed in the code commit. No Supabase Production data, schema, migration, RLS policy, grant, secret, or persistent configuration was changed. No Production deployment, PR merge, force-push, or branch-protection change occurred.
+
+
+### QA350 — restauration après échec partiel de configuration des transactions préparées — 12 novembre 2026
+
+- **État initial vérifié :** PR #26 OPEN, DRAFT, MERGEABLE, non fusionnée ; HEAD initial `e66b6fdb6352a833669f05b8d1af0a4ec3e9024d`, 1 452 commits en avance sur main et aucun en retard. QIMA CI #1259 et CodeQL #1209 étaient SUCCESS.
+- **Constat :** les tests précédents prouvaient que le marqueur `restore_required=true` était conservé après un échec de SET, de redémarrage, de SHOW ou de readiness, et que le script de restauration fonctionnait séparément. Il manquait un test combiné qui exécute réellement le script de restauration après ces échecs.
+- **Ajout :** `tests/sql/test-prepared-transactions-failure-restoration.sh`, exécuté par une nouvelle étape PostgreSQL 16 dans `.github/workflows/ci.yml`, entre le test de persistance du marqueur et la modification réelle du service PostgreSQL jetable.
+- **Cas couverts avec des mocks locaux inertes :**
+  1. SET simule une modification partielle à 10 puis retourne le code 47 ; le marqueur doit être conservé et la restauration doit revenir à la baseline 0.
+  2. SET réussit, puis le redémarrage retourne 48 ; la restauration doit encore revenir à 0.
+  3. Le SHOW après redémarrage retourne 49 ; la restauration doit encore revenir à 0.
+- **Assertions :** ordre exact des commandes, marqueur et baseline exacts, état final 0, vérification de zéro transaction préparée résiduelle, zéro base de migration résiduelle et absence de fuite des identifiants. Les mocks n'ouvrent aucun socket et n'appellent aucun vrai Docker/psql.
+- **Échec intermédiaire :** QIMA CI #1260 a échoué uniquement sur le nouveau harnais : 11 expansions shell étaient précédées d'un antislash littéral à cause de la génération de la chaîne brute ; BASH_SOURCE n'était donc pas développé et le chemin du script de setup était résolu sous `/home/runner/work/tests/sql`. Le test s'arrêtait avec le code 127 avant ses assertions. Le job navigateur et PostgreSQL 17.6 ont réussi ; CodeQL #1210 a réussi. Ce défaut concernait le harnais de test, pas l'application ni Production.
+- **Correction :** commit `c6c1f86d062fef906a2ad4bf8a7e0cf5b15a81d6`, qui retire les 11 antislashs et rétablit les expansions shell.
+- **Validation finale :** QIMA CI #1261 SUCCESS, 3/3 jobs :
+  - PostgreSQL 16 : 29/29 étapes réussies, aucune étape échouée ou ignorée ; les trois cas QA350 SET/47, restart/48 et SHOW/49 sont explicitement PASS.
+  - PostgreSQL 17.6 : 14/14 étapes réussies.
+  - TypeScript/audit/build/navigateur : 19/19 étapes réussies ; npm audit, TypeScript, build Next.js et installation Chromium PASS ; Playwright 347 tests réussis en 12,4 s.
+  - CodeQL #1211 SUCCESS.
+- **Vercel :** statut combiné FAILURE avec `build-rate-limit` / `api-deployments-free-per-day`. Aucun Preview réussi n'est revendiqué pour QA350 ; les builds GitHub Actions ont réussi.
+- **Commits :** `e9ba5a7c7147600df4fe6e9c7b571827b268dd6f` (test et étape CI), `c6c1f86d062fef906a2ad4bf8a7e0cf5b15a81d6` (correction du harnais), `d2b73a88c6fada941ec6563c4bdfe557d90fe246` (appendice QA350 séparé).
+- **Interprétation :** les trois échecs sont synthétiques et exécutés avec des mocks locaux ; ils caractérisent le contrat des scripts et l'ordre de restauration. Ils ne prouvent pas qu'un incident ou une vulnérabilité s'est produit en Production. Le parcours nominal réel de setup/restauration a aussi réussi sur le PostgreSQL 16 jetable de la CI.
+- **Périmètre :** aucun code applicatif, aucune migration SQL, donnée, fonction, schéma, politique RLS, grant, secret ou configuration Supabase Production modifié. Aucun déploiement Production, aucune fusion, aucun force-push et aucune modification des protections de branche. La CI #1261 valide le HEAD de code `c6c1f86` ; les commits documentaires suivants sont ignorés par le filtre CI `paths-ignore: docs/**`.
