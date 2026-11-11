@@ -117,3 +117,15 @@ A new disposable regression, `tests/sql/legacy-offer-returning-select-rls-regres
 4. Keep demand/tenant/provider eligibility separate until the product owner confirms the rule.
 
 No production data, policy, grant, schema, migration, or credential was changed.
+
+
+### QA332 validation and correction (11 November 2026)
+
+- **Initial CI #1195:** the new SQL test correctly reached the synthetic SELECT-policy scenario, but both PostgreSQL jobs failed because the actor-visible row count included pre-existing offers created by the broader CREATE_OFFER fixture (`own rows 63`) instead of only QA332's own rows. The cross-provider count remained zero. This was an over-broad test assertion, not evidence of a cross-provider visibility failure.
+- **Correction:** both actor-owned and cross-provider count queries now constrain the row set with `name LIKE 'QA332 %'`, so unrelated fixture offers cannot affect the expected count.
+- **CI #1196:** **SUCCESS**, all three jobs completed successfully. The QA332 marker was confirmed in both PostgreSQL 16 and PostgreSQL 17.6 job logs. The pinned PostgreSQL 17.6 check reported `server_version_num=170006`.
+- **Build/browser:** dependency audit, TypeScript, Next.js production build, Chromium installation, and Playwright succeeded; Playwright reported **336 passed, 0 failed**.
+- **CodeQL #1147:** **SUCCESS**.
+- **Vercel:** the latest combined status returned `build-rate-limit`; this is a Preview quota limitation, not a CI or CodeQL failure. No Production deployment was attempted.
+
+QA332 remains a synthetic PostgreSQL mechanics test. Its actor-scoped SELECT policy is rolled back and is not asserted to be the current or intended live Supabase policy.
