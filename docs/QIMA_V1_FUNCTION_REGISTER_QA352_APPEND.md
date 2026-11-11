@@ -60,3 +60,18 @@ Aucune donnée Supabase Production, migration, fonction SQL, schéma, politique 
 - **PR après intégration :** OPEN, DRAFT, non fusionnée ; comparaison avec `main` : 1 462 commits en avance, zéro en retard. L'API PR retournait `mergeable=false` au moment de la lecture ; ce statut n'a pas été interprété comme une preuve de conflit, et aucun changement de base/merge n'a été tenté.
 
 La validation complète reste suspendue aux résultats de CI #1267/#1268 et CodeQL #1217/#1218. Le test reste une simulation locale par mocks et ne démontre aucun événement Production.
+
+## Correction de statut après progression des workflows — 12 novembre 2026
+
+Les statuts ont évolué après le premier complément ci-dessus ; cette section fait foi pour la dernière inspection de cette exécution :
+
+- **CI #1267** sur `4f8d09ed2f8f953aad8637700d6f0a0c5d5aa576` : **SUCCESS, 3/3 jobs**. Le journal du job PostgreSQL 16 contient explicitement le message de réussite de `test-prepared-transactions-config-restore.sh`, y compris le scénario QA352 « applied-but-ambiguous restart ». Ce run couvre le scénario et les assertions de séquence/état ajoutées par le commit `b22e48f`, mais pas l'assertion additionnelle de redaction ajoutée ensuite.
+- **CodeQL #1217** sur `4f8d09e` : **SUCCESS**.
+- **CodeQL #1218** sur le HEAD code `cfef93695d517de18d5e9d599b3c3579d188a438` : **SUCCESS**. L'analyse couvre donc aussi l'assertion de non-divulgation ajoutée par `cfef936`.
+- **CI #1268** sur le HEAD code `cfef936` : **IN_PROGRESS** à la dernière lecture. Les étapes npm ci, npm audit et TypeScript étaient réussies ; le build Next.js avait terminé avec succès ; Chromium et les suites PostgreSQL 16/17.6 étaient encore en cours. Le scénario QA352 de cette version finale reste à confirmer dans ce run.
+- **CI #1269** sur le HEAD documentaire `154612d8f5452f52da62da77ad83e7f90bfca6bb` : **PENDING**. Il porte le même arbre de code que `cfef936`, plus les documents QA352.
+- **CodeQL #1219** sur `154612d` : **IN_PROGRESS**.
+- **Vercel** sur `cfef936` : **FAILURE** pour quota `api-deployments-free-per-day`; aucun déploiement Production.
+- **PR #26** : toujours OPEN, DRAFT, non fusionnée ; comparaison `main...fix/create-offer-status-contract` : 1 463 commits en avance, zéro en retard. Le payload REST de la PR indique `mergeable=true`, `mergeable_state=unstable` pendant que les checks restent en attente. Aucun merge n'a été tenté.
+
+Le code QA352 est donc effectivement passé dans CI #1267 pour le scénario principal ; l'assertion finale de redaction attend encore la validation CI #1268/#1269. Aucun échec QA352 n'est observé à ce stade, mais la validation complète du HEAD final n'est pas déclarée.
