@@ -52,5 +52,9 @@ This document records source findings, not confirmed exploitability. No producti
 - The confirmation page offers a clean `/offers/new` link to start another draft; its click handler clears the current confirmation state before navigation so the form is available again.
 - The query value is presentation-only. It is not an ownership check, database read, or proof that a caller visiting a manually constructed URL owns an offer. The POST handler's successful INSERT is the source of the redirect in the normal flow.
 - Regression coverage updates the route's exact Location assertion and tests valid, missing, malformed, and duplicated `created` query values. The duplicate test preserves URLSearchParams first-value semantics.
-- Final CI/CodeQL run IDs, Playwright count, and the evidence boundary are recorded in the QA334 function-register addendum.
+- **QIMA CI #1201** ([run 42961382981](https://github.com/meridane/QimaTrade-MVP/actions/runs/42961382981)) — **SUCCESS, 3/3 jobs** on code commit `f1acd444f5c43b87fe7ee6656b905eff9c9ca313`; Playwright **338/338**, TypeScript, npm audit, Next.js build, PostgreSQL 16 and PostgreSQL 17.6 checks passed.
+- **CodeQL #1152** ([run 42961382979](https://github.com/meridane/QimaTrade-MVP/actions/runs/42961382979)) — **SUCCESS**.
+- Final code HEAD `e7b5dda97606bfd33517b6999e62de4dd1ac5d55`: **QIMA CI #1202** ([run 42961575562](https://github.com/meridane/QimaTrade-MVP/actions/runs/42961575562)) — **SUCCESS, 3/3 jobs**; Playwright **338/338**, PostgreSQL 16 and 17.6 checks, TypeScript, npm audit, and Next.js build passed. **CodeQL #1153** ([run 42961575549](https://github.com/meridane/QimaTrade-MVP/actions/runs/42961575549)) — **SUCCESS**.
+- Vercel combined status remains a Preview quota failure (`build-rate-limit`); it is separate from successful GitHub Actions/CodeQL validation. No Production deployment was attempted.
+- The same final evidence and safety boundary are recorded in the QA334 function-register addendum.
 - No production database, migration, RLS policy, grant, or deployment was changed.
