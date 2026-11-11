@@ -237,3 +237,103 @@ test("an authenticated supplier sees a generic retry message and no confirmation
     expect(visibleText).not.toContain("PGRST_QA337");
   }
 });
+
+test("an authenticated supplier can retry a draft after one transient PostgREST failure without losing form data", async ({ page, request }, testInfo) => {
+  const offerName = `QA338 transient retry retry-${testInfo.retry}`;
+  const reset = await request.delete(
+    `http://127.0.0.1:54321/__test/offers?name=${encodeURIComponent(offerName)}`,
+  );
+  expect(reset.ok()).toBe(true);
+
+  await authenticatePage(
+    page,
+    request,
+    `/offers/new?productMasterId=${PRODUCT_MASTER_GATE_ID}`,
+  );
+  await page.goto(`/offers/new?productMasterId=${PRODUCT_MASTER_GATE_ID}`);
+
+  await page.getByLabel("Offer name").fill(offerName);
+  await page.getByLabel("Quantity").fill("2");
+
+  const countrySelectors = page.locator('button[aria-haspopup="listbox"]');
+  await countrySelectors.nth(0).click();
+  await page.getByRole("listbox").getByRole("button", { name: "South Korea", exact: true }).click();
+  await countrySelectors.nth(1).click();
+  await page.getByRole("listbox").getByRole("button", { name: "South Korea", exact: true }).click();
+
+  const firstPostPromise = page.waitForResponse((response) =>
+    response.url().endsWith("/api/offers") && response.request().method() === "POST",
+  );
+  await page.getByRole("button", { name: "Create offer", exact: true }).click();
+  const firstPost = await firstPostPromise;
+
+  // The mock returns one transient upstream 503; the route keeps its public generic 500 contract.
+  expect(firstPost.status()).toBe(500);
+  await expect(page.locator('p[role="alert"]')).toHaveText("We couldn't submit your offer. Please try again.");
+  await expect(page.getByLabel("Offer name")).toHaveValue(offerName);
+  await expect(page.getByLabel("Quantity")).toHaveValue("2");
+  await expect(page.getByRole("button", { name: "Create offer", exact: true })).toBeEnabled();
+  await expect(page.getByRole("status")).toHaveCount(0);
+  await expect(page).toHaveURL((url) =>
+    url.pathname === "/offers/new" &&
+    url.searchParams.get("productMasterId") === PRODUCT_MASTER_GATE_ID &&
+    !url.searchParams.has("created"),
+  );
+
+  const firstFailureResponse = await request.get(
+    `http://127.0.0.1:54321/__test/offer-failures?name=${encodeURIComponent(offerName)}`,
+  );
+  expect(firstFailureResponse.ok()).toBe(true);
+  expect(await firstFailureResponse.json()).toEqual([
+    { name: offerName, status: 503, code: "PGRST_QA338" },
+  ]);
+
+  const beforeRetry = await request.get(
+    `http://127.0.0.1:54321/__test/offers?name=${encodeURIComponent(offerName)}`,
+  );
+  expect(beforeRetry.ok()).toBe(true);
+  expect(await beforeRetry.json()).toHaveLength(0);
+
+  const retryPostPromise = page.waitForResponse((response) =>
+    response.url().endsWith("/api/offers") && response.request().method() === "POST",
+  );
+  await page.getByRole("button", { name: "Create offer", exact: true }).click();
+  const retryPost = await retryPostPromise;
+
+  expect(retryPost.status()).toBe(201);
+  await expect(page).toHaveURL((url) =>
+    url.pathname === "/offers/new" && getCreatedOfferId(url.search) !== null,
+  );
+  const createdOfferId = new URL(page.url()).searchParams.get("created") ?? "";
+  expect(createdOfferId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
+  await expect(page.getByRole("status")).toContainText("Draft submission received");
+  await expect(page.getByText(`Offer reference: ${createdOfferId}`, { exact: true })).toBeVisible();
+  await expect(page.locator('p[role="alert"]')).toHaveCount(0);
+
+  const finalFailures = await request.get(
+    `http://127.0.0.1:54321/__test/offer-failures?name=${encodeURIComponent(offerName)}`,
+  );
+  expect(finalFailures.ok()).toBe(true);
+  expect(await finalFailures.json()).toEqual([
+    { name: offerName, status: 503, code: "PGRST_QA338" },
+  ]);
+
+  const afterRetry = await request.get(
+    `http://127.0.0.1:54321/__test/offers?name=${encodeURIComponent(offerName)}`,
+  );
+  expect(afterRetry.ok()).toBe(true);
+  const inserts = await afterRetry.json();
+  expect(inserts).toHaveLength(1);
+  expect(inserts[0].payload).toMatchObject({
+    id: createdOfferId,
+    name: offerName,
+    provider_actor_id: SYNTHETIC_PROVIDER_ACTOR_ID,
+    quantity: 2,
+    lifecycle: "draft",
+    offer_type: "supplier_offer",
+  });
+
+  const visibleText = await page.locator("body").innerText();
+  expect(visibleText).not.toContain("SYNTHETIC_DATABASE_INTERNAL_DETAIL");
+  expect(visibleText).not.toContain("PGRST_QA338");
+});
