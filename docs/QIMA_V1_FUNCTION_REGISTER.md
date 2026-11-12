@@ -8500,3 +8500,22 @@ QA373 should characterize the minimum write privileges required by the full inte
 ### QA372 PostgreSQL 17.6 host-port failure triage — 13 November 2026
 
 CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) failed only in the PostgreSQL 17.6 QA372 runtime at the first host-side psql connection: `server closed the connection unexpectedly` on the disposable container's published port. PostgreSQL 16 QA372, both main integration jobs' other steps, and the Verify job succeeded. CodeQL #1298 succeeded. The QA372 runtime previously waited only for internal `docker exec pg_isready`; it now also waits for a real host-side `SELECT 1`, checks whether the container remains running, and emits container state plus the last 80 log lines on failure. The exact cause of the observed server closure is not established; validation of this hardening is pending.
+
+
+### QA372 final host-port readiness validation — 13 November 2026
+
+- The latest QA372 code HEAD 0dce09fda2dd65d15bf30e97dbd3ca0282b00105 was validated by QIMA CI run #43283708687, run number #1350: SUCCESS.
+- PostgreSQL 16 and PostgreSQL 17.6 integration jobs both passed. The QA372 non-superuser visibility runtime, including the host-side SELECT 1 readiness probe, passed on both versions.
+- The Verify job passed QA369/QA372 static contracts, npm audit at the high threshold, TypeScript, Next.js production build, Chromium, and 347 Playwright tests.
+- CodeQL #43283708686, run number #1299: SUCCESS.
+- The earlier PostgreSQL 17.6 host-port closure in CI #1349 remains an unconfirmed transient symptom. The bounded readiness retry/diagnostic hardening passed; no root cause is asserted.
+- Combined GitHub status continues to report Vercel build-rate-limit; no Preview success is claimed for this HEAD.
+
+### QA373 — full CREATE_OFFER runner write-privilege contract
+
+- QA373 characterizes the complete fixture/migration/concurrency runner, not only the read-only preflight. The supported non-superuser candidate is a database owner with CREATEROLE, able to SET ROLE into or administer existing anon/authenticated roles.
+- The runner performs a read-only privilege preflight before the catalog preflight and before any fixture DDL/DML. Unsupported roles are rejected with exit 4.
+- The disposable fixture grants the runner role membership in authenticated and anon only for non-superuser runs, enabling the runtime's explicit SET ROLE tests. The wrapper-owner migration continues to reject the reverse membership direction.
+- QA373 runtime and CI evidence: pending the first CI run for this code HEAD.
+- No production data, migration, secret, or persistent PostgreSQL configuration is accessed or changed.
+
