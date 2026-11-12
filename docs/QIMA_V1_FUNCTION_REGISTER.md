@@ -7814,3 +7814,14 @@ MKT-1.2 remains unapproved and MKT-1.3 remains decision-required; no idempotency
 ### Next step
 
 QA364: extend the bootstrap preflight characterization to standalone user-defined functions/types in public while allowing extension-owned objects such as pgcrypto members. Keep the check read-only and validate only on disposable PostgreSQL services.
+
+
+### QA363 post-publication validation of the canonical register
+
+The canonical QA363 entry and its append were published at documentation HEAD ba30fde7efa8f7f0ef8d0450cee8301db292df83. The resulting full validation cycle completed:
+
+- QIMA CI #1306: SUCCESS — https://github.com/meridane/QimaTrade-MVP/actions/runs/43190695780. Verify QA363 passed; PostgreSQL 16 and PostgreSQL 17.6 normal integration and second-invocation checks succeeded; both repeat-run checks confirmed one read-only preflight query, no fixture/migration file call, unchanged public relation inventory, and unchanged data digests for all ten fixture tables. npm audit at the high threshold, TypeScript, Next.js build, Chromium, and Playwright succeeded; 347 Playwright tests passed in 9.0 seconds.
+- CodeQL #1256: SUCCESS — https://github.com/meridane/QimaTrade-MVP/actions/runs/43190695817.
+- Vercel combined status for documentation HEAD ba30fde7efa8f7f0ef8d0450cee8301db292df83: FAILURE due to api-deployments-free-per-day. The validated code HEAD 700bf4a3f09272bf91627bfe5623d9676f6ce23a had a successful Preview status. No Production deployment occurred.
+
+The QA353/QA354 harnesses retain their deliberate individual failure conclusions; their independent blocking assertions passed. The skipped harness remains skipped and its assertion passed. Overall QIMA CI #1306 is SUCCESS.
