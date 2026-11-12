@@ -89,7 +89,7 @@ grep -Fq "QIMA CI #1334 on code HEAD" "$APPENDIX" ||
   fail "QA371 appendix must record the successful code-validation CI run"
 grep -Fq "CodeQL #1284: **SUCCESS**" "$APPENDIX" ||
   fail "QA371 appendix must record CodeQL evidence"
-grep -Fq "Vercel: **RATE LIMITED**" "$APPENDIX" ||
+grep -Fq "Vercel status on this code HEAD: **RATE LIMITED**" "$APPENDIX" ||
   fail "QA371 appendix must preserve the Vercel limitation"
 
 echo "QA371 static contract PASS: shared parameter ACLs are characterized without database-local rejection; extension config metadata is verified while the existing relation/schema guards remain responsible for rejecting configuration relations."
