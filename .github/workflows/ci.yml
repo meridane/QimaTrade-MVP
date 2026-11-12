@@ -41,6 +41,8 @@ jobs:
         run: bash tests/ci/verify-workflow-concurrency.sh
       - name: Verify prepared-transaction always-cleanup workflow wiring
         run: bash tests/ci/verify-prepared-transactions-always-cleanup-contract.sh
+      - name: Verify prepared-transaction cleanup assertions reject malformed outputs
+        run: bash tests/ci/test-prepared-transactions-cleanup-assertions.sh
       - name: Verify parallel prepared-transaction cleanup harness isolation
         run: bash tests/ci/test-prepared-transactions-harness-isolation.sh
       - name: Verify PostgreSQL 17.6 version guard boundary cases
@@ -327,6 +329,8 @@ jobs:
       setup_outcome: ${{ steps.simulated_setup.outcome }}
       cleanup_outcome: ${{ steps.always_cleanup.outcome }}
       cleanup_ran: ${{ steps.always_cleanup.outputs.cleanup_ran }}
+      cleanup_exit_code: ${{ steps.always_cleanup.outputs.cleanup_exit_code }}
+      cleanup_failure_observed: ${{ steps.always_cleanup.outputs.cleanup_failure_observed }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -360,12 +364,9 @@ jobs:
           SETUP_OUTCOME: ${{ needs.prepared_transactions_always_cleanup_contract.outputs.setup_outcome }}
           CLEANUP_OUTCOME: ${{ needs.prepared_transactions_always_cleanup_contract.outputs.cleanup_outcome }}
           CLEANUP_RAN: ${{ needs.prepared_transactions_always_cleanup_contract.outputs.cleanup_ran }}
-        run: |
-          set -euo pipefail
-          [[ "$SETUP_OUTCOME" == "failure" ]]
-          [[ "$CLEANUP_OUTCOME" == "success" ]]
-          [[ "$CLEANUP_RAN" == "true" ]]
-          echo "QA353 passed: the failed setup outcome and both outputs reached the always() cleanup step, which completed the real restoration script."
+          CLEANUP_EXIT_CODE: ${{ needs.prepared_transactions_always_cleanup_contract.outputs.cleanup_exit_code }}
+          CLEANUP_FAILURE_OBSERVED: ${{ needs.prepared_transactions_always_cleanup_contract.outputs.cleanup_failure_observed }}
+        run: bash tests/ci/assert-prepared-transactions-cleanup-contract.sh success
 
 
   prepared_transactions_always_cleanup_failure_contract:
@@ -416,11 +417,4 @@ jobs:
           CLEANUP_RAN: ${{ needs.prepared_transactions_always_cleanup_failure_contract.outputs.cleanup_ran }}
           CLEANUP_EXIT_CODE: ${{ needs.prepared_transactions_always_cleanup_failure_contract.outputs.cleanup_exit_code }}
           CLEANUP_FAILURE_OBSERVED: ${{ needs.prepared_transactions_always_cleanup_failure_contract.outputs.cleanup_failure_observed }}
-        run: |
-          set -euo pipefail
-          [[ "$SETUP_OUTCOME" == "failure" ]]
-          [[ "$CLEANUP_OUTCOME" == "failure" ]]
-          [[ "$CLEANUP_EXIT_CODE" == "52" ]]
-          [[ "$CLEANUP_FAILURE_OBSERVED" == "true" ]]
-          [[ -z "$CLEANUP_RAN" ]]
-          echo "QA354 passed: the cleanup failure and exit 52 reached the blocking assertion; no cleanup success output was published."
+        run: bash tests/ci/assert-prepared-transactions-cleanup-contract.sh failure
