@@ -158,8 +158,8 @@ catalog_snapshot() {
     (SELECT count(*) FROM public.offers)::text || '|' ||
     (SELECT count(*) FROM public.action_executions)::text || '|' ||
     (SELECT pg_get_userbyid(datdba) FROM pg_database WHERE datname = 'qima_test')::text || '|' ||
-    (SELECT count(*) FROM pg_roles WHERE rolname LIKE 'qa373_%' OR rolname LIKE 'qa374_%')::text || '|' ||
-    (SELECT count(*) FROM pg_auth_members WHERE member IN (SELECT oid FROM pg_roles WHERE rolname LIKE 'qa373_%' OR rolname LIKE 'qa374_%'))::text;"
+    (SELECT count(*) FROM pg_roles WHERE rolname LIKE 'qa373_%' OR rolname LIKE 'qa374_%' OR rolname LIKE 'qa376_%')::text || '|' ||
+    (SELECT count(*) FROM pg_auth_members WHERE member IN (SELECT oid FROM pg_roles WHERE rolname LIKE 'qa373_%' OR rolname LIKE 'qa374_%' OR rolname LIKE 'qa376_%'))::text;"
 }
 
 run_expected_rejection() {
@@ -351,5 +351,52 @@ if [[ "$after_non_owner_snapshot" != "$before_non_owner_snapshot" ]]; then
 fi
 
 echo "QA375 passed: a non-owner with CREATEROLE and ADMIN OPTION but no SET ROLE was rejected before fixture changes; catalog and data snapshots remained unchanged."
+
+# QA376: ADMIN OPTION must cover every existing client role. Owning the
+# database and having CREATEROLE plus ADMIN OPTION for only anon is not enough
+# when authenticated also exists and the runner cannot SET ROLE into it.
+admin_psql <<'SQL'
+CREATE ROLE qa376_partial_admin_runner LOGIN PASSWORD 'qa376-partial-admin-only'
+  CREATEROLE NOSUPERUSER NOCREATEDB NOREPLICATION NOBYPASSRLS;
+ALTER DATABASE qima_test OWNER TO qa376_partial_admin_runner;
+GRANT CONNECT ON DATABASE qima_test TO qa376_partial_admin_runner;
+GRANT anon TO qa376_partial_admin_runner
+  WITH ADMIN TRUE, INHERIT FALSE, SET FALSE;
+SQL
+
+partial_admin_state="$(db_psql -c "
+  SELECT
+    (db.datdba = runner.oid)::text || '|' ||
+    runner.rolcreaterole::text || '|' ||
+    runner.rolsuper::text || '|' ||
+    pg_has_role(runner.oid, 'anon'::regrole, 'SET')::text || '|' ||
+    COALESCE(anon_members.admin_option, false)::text || '|' ||
+    pg_has_role(runner.oid, 'authenticated'::regrole, 'SET')::text || '|' ||
+    COALESCE(authenticated_members.admin_option, false)::text || '|' ||
+    (authenticated_members.member IS NULL)::text
+  FROM pg_database db
+  JOIN pg_roles runner ON runner.rolname = 'qa376_partial_admin_runner'
+  LEFT JOIN pg_auth_members anon_members
+    ON anon_members.roleid = 'anon'::regrole
+   AND anon_members.member = runner.oid
+  LEFT JOIN pg_auth_members authenticated_members
+    ON authenticated_members.roleid = 'authenticated'::regrole
+   AND authenticated_members.member = runner.oid
+  WHERE db.datname = 'qima_test';
+")"
+if [[ "$partial_admin_state" != "true|true|false|false|true|false|false|true" ]]; then
+  echo "ERROR: QA376 did not establish a database owner with ADMIN OPTION for anon only: '$partial_admin_state'." >&2
+  exit 1
+fi
+
+before_partial_admin_snapshot="$(catalog_snapshot)"
+run_expected_rejection "qa376_partial_admin_runner" "qa376-partial-admin-only"
+after_partial_admin_snapshot="$(catalog_snapshot)"
+if [[ "$after_partial_admin_snapshot" != "$before_partial_admin_snapshot" ]]; then
+  echo "ERROR: QA376 partial ADMIN OPTION rejection changed the initialized fixture catalog or data." >&2
+  exit 1
+fi
+
+echo "QA376 passed: a database owner with CREATEROLE and ADMIN OPTION for anon only, but no SET/ADMIN OPTION for authenticated, was rejected before fixture changes; catalog and data snapshots remained unchanged."
 
 echo "QA373 passed: a non-superuser database owner with CREATEROLE completed the full fixture, pgcrypto installation, migration, SECURITY DEFINER, SET ROLE, and concurrency runner without CREATEDB or pg_monitor; non-owner and no-CREATEROLE roles were rejected before any fixture change."
