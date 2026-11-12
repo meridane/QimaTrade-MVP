@@ -8600,3 +8600,14 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 - CodeQL [#1314](https://github.com/meridane/QimaTrade-MVP/actions/runs/43320304348): **SUCCESS**.
 - Vercel status on this final code HEAD: build-rate-limit; no Preview is claimed. GitHub Actions build success is not a Vercel deployment.
 - QA376 is closed as a synthetic runtime characterization only; it does not establish that any Production runner has this role configuration.
+
+
+### QA377 — mixed SET and ADMIN OPTION membership path
+
+- Scope: characterize a positive mixed membership configuration for the non-superuser CREATE_OFFER runner.
+- Initial state: the disposable database owner has CREATEROLE; anon is SET-capable without ADMIN OPTION, while authenticated has ADMIN OPTION but SET is false.
+- Expected behavior: the read-only runner guard accepts the combination independently for each target role. The fixture skips a redundant anon grant and establishes SET access for authenticated using its existing ADMIN OPTION.
+- Runtime assertions: exact initial capability state, complete runner and concurrency success, final one-way SET access, and aggregate grantor state anon:true:1|authenticated:true:2.
+- Safety: all objects remain in the disposable PostgreSQL 16/17.6 test container; no Production database, secret, persistent setting, or remote publisher is used.
+- Validation status at code publication: pending; no runtime success is claimed until both PostgreSQL jobs emit QA377 passed.
+- CodeQL and final CI evidence: pending.

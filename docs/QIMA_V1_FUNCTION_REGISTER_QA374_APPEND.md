@@ -130,3 +130,40 @@ The scenario uses only roles and an initialized database inside the disposable P
 - QA376 is closed as a synthetic runtime characterization only; it does not establish that any Production runner has this role configuration.
 
 
+
+
+## QA377 — mixed SET and ADMIN OPTION membership path
+
+### Scope
+
+Exercise the positive mixed-capability branch of the full CREATE_OFFER runner privilege contract. The runner must evaluate SET and ADMIN OPTION independently for each existing client role rather than requiring both roles to use the same membership mechanism.
+
+### Runtime setup
+
+- Use a disposable PostgreSQL 16 or 17.6 container and recreate only its temporary qima_test database.
+- Create qa377_mixed_membership_runner as LOGIN, CREATEROLE, NOSUPERUSER, NOCREATEDB, NOREPLICATION, NOBYPASSRLS and make it the qima_test owner.
+- Keep anon and authenticated as existing NOLOGIN roles.
+- Grant anon with ADMIN FALSE, INHERIT FALSE, SET TRUE.
+- Grant authenticated with ADMIN TRUE, INHERIT FALSE, SET FALSE.
+- Assert the exact initial state true|false|true|true|false|true|false|true|false: database owner, non-superuser, CREATEROLE, anon SET-only, authenticated ADMIN-only.
+- Invoke the real run-create-offer-integration.sh using the loopback-only qima_test URL.
+
+### Expected result
+
+The read-only runner guard accepts the mixed capability set. The fixture does not need to grant anon again because SET is already available; it uses ADMIN OPTION to establish the missing SET access for authenticated. The complete fixture, migrations, SECURITY DEFINER checks, and same-tenant advisory-lock concurrency observation must succeed.
+
+The final state must show SET access to both client roles, no reverse membership from either client role to the runner, and distinct grantors for the original and fixture-created authenticated memberships. The expected aggregate is anon:true:1|authenticated:true:2.
+
+### Safety and interpretation
+
+All roles, the database, fixtures, extensions, and migrations are confined to the disposable Docker PostgreSQL container. The existing EXIT trap removes the container and temporary files. No Production database, credentials, migration, persistent PostgreSQL setting, or remote connection is used.
+
+This is a synthetic runtime characterization of a mixed membership configuration. It does not establish that any Production runner currently uses this configuration.
+
+### QA377 code-validation evidence
+
+Pending CI validation on PostgreSQL 16 and 17.6. No runtime pass is claimed until both jobs emit the explicit QA377 passed marker.
+
+### QA377 CodeQL evidence
+
+Pending.

@@ -400,3 +400,101 @@ fi
 echo "QA376 passed: a database owner with CREATEROLE and ADMIN OPTION for anon only, but no SET/ADMIN OPTION for authenticated, was rejected before fixture changes; catalog and data snapshots remained unchanged."
 
 echo "QA373 passed: a non-superuser database owner with CREATEROLE completed the full fixture, pgcrypto installation, migration, SECURITY DEFINER, SET ROLE, and concurrency runner without CREATEDB or pg_monitor; non-owner and no-CREATEROLE roles were rejected before any fixture change."
+
+
+# QA377: mixed membership capabilities must satisfy the runner independently.
+# anon starts SET-capable without ADMIN OPTION; authenticated starts with
+# ADMIN OPTION but without SET. The full runner must accept the combination,
+# grant only the missing SET path, and complete the same concurrency checks.
+admin_psql <<'SQL'
+DROP DATABASE qima_test WITH (FORCE);
+CREATE ROLE qa377_mixed_membership_runner LOGIN PASSWORD 'qa377-mixed-only'
+  CREATEROLE NOSUPERUSER NOCREATEDB NOREPLICATION NOBYPASSRLS;
+CREATE DATABASE qima_test OWNER qa377_mixed_membership_runner;
+GRANT anon TO qa377_mixed_membership_runner
+  WITH ADMIN FALSE, INHERIT FALSE, SET TRUE;
+GRANT authenticated TO qa377_mixed_membership_runner
+  WITH ADMIN TRUE, INHERIT FALSE, SET FALSE;
+SQL
+
+mixed_initial_state="$(db_psql -c "
+  SELECT
+    (db.datdba = runner.oid)::text || '|' ||
+    runner.rolsuper::text || '|' ||
+    runner.rolcreaterole::text || '|' ||
+    pg_has_role(runner.oid, 'anon'::regrole, 'SET')::text || '|' ||
+    COALESCE(anon_members.admin_option, false)::text || '|' ||
+    COALESCE(anon_members.set_option, false)::text || '|' ||
+    pg_has_role(runner.oid, 'authenticated'::regrole, 'SET')::text || '|' ||
+    COALESCE(authenticated_members.admin_option, false)::text || '|' ||
+    COALESCE(authenticated_members.set_option, false)::text
+  FROM pg_database db
+  JOIN pg_roles runner ON runner.rolname = 'qa377_mixed_membership_runner'
+  LEFT JOIN pg_auth_members anon_members
+    ON anon_members.roleid = 'anon'::regrole
+   AND anon_members.member = runner.oid
+  LEFT JOIN pg_auth_members authenticated_members
+    ON authenticated_members.roleid = 'authenticated'::regrole
+   AND authenticated_members.member = runner.oid
+  WHERE db.datname = 'qima_test';
+")"
+if [[ "$mixed_initial_state" != "true|false|true|true|false|true|false|true|false" ]]; then
+  echo "ERROR: QA377 did not establish the mixed SET/ADMIN OPTION starting state: '$mixed_initial_state'." >&2
+  exit 1
+fi
+
+MIXED_RUNNER_URL="postgresql://qa377_mixed_membership_runner:qa377-mixed-only@localhost:5432/qima_test"
+set +e
+docker exec --env "DATABASE_URL=$MIXED_RUNNER_URL" --workdir /workspace "$CONTAINER_NAME" \
+  bash /workspace/tests/sql/run-create-offer-integration.sh \
+  >"$TEMP_DIR/mixed-membership-runner.log" 2>&1
+mixed_runner_status=$?
+set -e
+if [[ "$mixed_runner_status" -ne 0 ]]; then
+  echo "ERROR: QA377 mixed SET/ADMIN OPTION runner failed with exit $mixed_runner_status." >&2
+  tail -n 120 "$TEMP_DIR/mixed-membership-runner.log" >&2
+  exit 1
+fi
+if ! grep -Fq "Observed one granted and one waiting same-tenant advisory lock" "$TEMP_DIR/mixed-membership-runner.log"; then
+  echo "ERROR: QA377 mixed-membership runner did not complete the concurrency observation." >&2
+  tail -n 120 "$TEMP_DIR/mixed-membership-runner.log" >&2
+  exit 1
+fi
+
+mixed_after_state="$(db_psql -c "
+  SELECT
+    pg_has_role('qa377_mixed_membership_runner', 'anon', 'SET')::text || '|' ||
+    pg_has_role('qa377_mixed_membership_runner', 'authenticated', 'SET')::text || '|' ||
+    pg_has_role('anon', 'qa377_mixed_membership_runner', 'MEMBER')::text || '|' ||
+    pg_has_role('authenticated', 'qa377_mixed_membership_runner', 'MEMBER')::text;
+")"
+if [[ "$mixed_after_state" != "true|true|false|false" ]]; then
+  echo "ERROR: QA377 fixture did not preserve one-way SET ROLE access for both client roles: '$mixed_after_state'." >&2
+  exit 1
+fi
+
+mixed_grantor_state="$(db_psql -c "
+  SELECT string_agg(
+    membership_state.role_name || ':' ||
+    membership_state.has_set::text || ':' ||
+    membership_state.grantor_count::text,
+    '|' ORDER BY membership_state.role_name
+  )
+  FROM (
+    SELECT
+      target.rolname AS role_name,
+      bool_or(membership.set_option) AS has_set,
+      count(DISTINCT membership.grantor) AS grantor_count
+    FROM pg_roles target
+    JOIN pg_auth_members membership ON membership.roleid = target.oid
+    WHERE target.rolname IN ('anon', 'authenticated')
+      AND membership.member = 'qa377_mixed_membership_runner'::regrole
+    GROUP BY target.oid, target.rolname
+  ) AS membership_state;
+")"
+if [[ "$mixed_grantor_state" != "anon:true:1|authenticated:true:2" ]]; then
+  echo "ERROR: QA377 expected the pre-existing anon SET grant and the authenticated ADMIN-to-SET grant to remain distinguishable, got '$mixed_grantor_state'." >&2
+  exit 1
+fi
+
+echo "QA377 passed: a database owner with SET-only membership for anon and ADMIN OPTION-only membership for authenticated was accepted; the fixture established the missing SET path, preserved one-way memberships, and completed the full runner/concurrency checks."

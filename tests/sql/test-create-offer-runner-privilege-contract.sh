@@ -84,6 +84,27 @@ for required in \
   "before_partial_admin_snapshot" \
   "after_partial_admin_snapshot" \
   "QA376 passed" \
+  "qa377_mixed_membership_runner" \
+
+  "CREATE DATABASE qima_test OWNER qa377_mixed_membership_runner" \
+
+  "WITH ADMIN FALSE, INHERIT FALSE, SET TRUE" \
+
+  "WITH ADMIN TRUE, INHERIT FALSE, SET FALSE" \
+
+  "true|false|true|true|false|true|false|true|false" \
+
+  "anon:true:1|authenticated:true:2" \
+
+  "QA377 passed" \
+
+  "mixed_initial_state" \
+
+  "mixed_after_state" \
+
+  "mixed_grantor_state" \
+
+  "Observed one granted and one waiting same-tenant advisory lock" \
   "before_non_owner_snapshot" \
   "after_non_owner_snapshot" \
   "pg_get_userbyid(datdba)" \
@@ -136,10 +157,14 @@ grep -Fq "### QA375 — ADMIN OPTION does not bypass database ownership" "$REGIS
   fail "canonical register is missing QA375 ownership-boundary coverage"
 grep -Fq "## QA376 — ADMIN OPTION must cover every existing client role" "$APPENDIX_QA374" ||
   fail "QA374 appendix is missing QA376 partial-membership coverage"
+grep -Fq "## QA377 — mixed SET and ADMIN OPTION membership path" "$APPENDIX_QA374" ||
+  fail "QA374 appendix is missing QA377 mixed-membership coverage"
 grep -Fq "### QA376 — ADMIN OPTION must cover every existing client role" "$REGISTER" ||
   fail "canonical register is missing QA376 partial-membership coverage"
+grep -Fq "### QA377 — mixed SET and ADMIN OPTION membership path" "$REGISTER" ||
+  fail "canonical register is missing QA377 mixed-membership coverage"
 if grep -Fq "GRANT authenticated TO qa376_partial_admin_runner" "$RUNTIME"; then
   fail "QA376 must not grant the missing authenticated ADMIN OPTION membership"
 fi
 
-echo "QA373/QA374/QA375/QA376 static contract PASS: the runner fails closed on unsupported roles, covers ADMIN OPTION-only membership, rejects non-owners, and rejects partial client-role administration without fixture changes."
+echo "QA373/QA374/QA375/QA376/QA377 static contract PASS: the runner fails closed on unsupported roles, covers ADMIN OPTION-only membership, rejects non-owners and partial administration, and accepts the mixed SET/ADMIN OPTION path."
