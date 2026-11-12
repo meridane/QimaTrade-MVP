@@ -7979,3 +7979,14 @@ MKT-1.2 remains unapproved and MKT-1.3 remains decision-required. No idempotency
 ## Next step
 
 QA366: review whether additional database-global or schema-scoped catalog families (for example text-search configurations/dictionaries, conversions, extended statistics, policies, or event triggers) are relevant to the fresh-bootstrap invariant. Define a finite scope before adding checks, preserve extension ownership exclusions, and validate only on disposable PostgreSQL 16 and 17.6.
+
+## Post-publication validation of the canonical register
+
+- QIMA CI #1313: **SUCCESS** on documentation HEAD `66e0917b9eee3d08b7b76bc1e62c4b36a1e22985` — https://github.com/meridane/QimaTrade-MVP/actions/runs/43206019436.
+  - The QA365 static catalog contract passed.
+  - PostgreSQL 16 and PostgreSQL 17.6 jobs completed successfully, including the QA365 runtime marker.
+  - Existing CREATE_OFFER, repeat-run, concurrency, RLS, ACL, and prepared-transaction cleanup checks passed.
+  - npm audit at the high threshold, TypeScript, Next.js build, Chromium, and **347 Playwright tests** passed (13.7 seconds).
+  - The two deliberate QA353/QA354 harness failures and the skipped harness retained their expected conclusions; their independent assertions passed.
+- CodeQL #1263: **SUCCESS** on the same documentation HEAD — https://github.com/meridane/QimaTrade-MVP/actions/runs/43206019499.
+- Vercel combined status on documentation HEAD `66e0917b9eee3d08b7b76bc1e62c4b36a1e22985`: **FAILURE** due to `build-rate-limit`. The corrected code HEAD `3f5cd5a9d61de2379ea1e7e8c54da98da7f1ac5e` had a successful Preview status. No Production deployment occurred.
