@@ -63,3 +63,31 @@ CodeQL [#1310](https://github.com/meridane/QimaTrade-MVP/actions/runs/4330177928
 - CodeQL [#1310](https://github.com/meridane/QimaTrade-MVP/actions/runs/43301779284): **SUCCESS**.
 - Vercel Preview commit status: **SUCCESS** for this HEAD. No Production deployment was requested or performed.
 - The earlier CI #1360 failure remains documented as a test assertion defect caused by multiple grantors; the corrected aggregate assertion is now validated by CI #1361.
+
+
+## QA375 — ADMIN OPTION does not bypass database ownership
+
+### Scope
+
+Characterize the negative boundary of the alternate QA374 ADMIN OPTION path. A role that can administer the existing `authenticated` and `anon` memberships must still be rejected when it does not own the disposable `qima_test` database, even when it has CREATEROLE.
+
+### Runtime setup
+
+- Keep `qa374_admin_option_runner` as the owner of the already initialized `qima_test` database.
+- Create `qa374_admin_option_non_owner` as LOGIN, CREATEROLE, NOSUPERUSER, NOCREATEDB, NOREPLICATION, NOBYPASSRLS.
+- Grant CONNECT and ADMIN OPTION on both existing client-role memberships while explicitly keeping SET FALSE.
+- Assert the database owner differs from the non-owner role and the membership state is exactly `anon:false:true:false|authenticated:false:true:false`.
+- Invoke the real integration runner with the non-owner URL. It must exit 4 with the existing fail-closed owner/privilege diagnostic.
+- Compare the read-only catalog/data snapshot before and after rejection, including database owner, qa373/qa374 role counts, membership rows, public relation/routine counts, extension count, offers, and action-execution rows.
+
+### Expected result
+
+ADMIN OPTION is not a substitute for owning `qima_test`. The role is rejected before fixture DDL/DML, and the initialized database snapshot remains byte-for-byte identical.
+
+### Safety
+
+All objects remain inside the disposable PostgreSQL 16/17.6 container. No production database, migration, secret, persistent setting, or branch-protection configuration is accessed or modified.
+
+### Initial validation evidence
+
+Pending the first QA375 CI run.

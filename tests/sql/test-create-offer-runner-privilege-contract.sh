@@ -73,6 +73,9 @@ for required in \
   "bool_or(membership.set_option)" \
   "count(DISTINCT membership.grantor)" \
   "anon:true:2|authenticated:true:2" \
+  "qa374_admin_option_non_owner" \
+  "anon:false:true:false|authenticated:false:true:false" \
+  "QA375 passed" \
   "QA374 passed" \
   "catalog_snapshot" \
   "docker exec -i" \

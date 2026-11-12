@@ -8578,3 +8578,11 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 - CodeQL [#1310](https://github.com/meridane/QimaTrade-MVP/actions/runs/43301779284): **SUCCESS**.
 - The Vercel commit status was **SUCCESS** and linked to the Preview deployment for this HEAD. This is a Preview result only, not a Production deployment.
 - QA374 is closed as a test-characterization task. It does not prove that any Production runner currently uses ADMIN OPTION-only memberships.
+
+
+### QA375 — ADMIN OPTION does not bypass database ownership
+
+- Added a negative runtime case with a non-owner CREATEROLE role that has ADMIN OPTION on both pre-existing client-role memberships but SET FALSE. The database remains owned by the successful QA374 runner.
+- The non-owner's initial state is asserted as `true|anon:false:true:false|authenticated:false:true:false`; the first field confirms that the role is not the database owner.
+- The real runner must exit 4 with the existing owner/privilege diagnostic. A before/after snapshot includes the qima_test owner, qa373/qa374 role counts, client memberships, public catalog inventory, extension count, offers, and action executions.
+- The snapshot must remain unchanged, demonstrating that ADMIN OPTION alone does not bypass the database-owner requirement. Runtime CI evidence: pending.

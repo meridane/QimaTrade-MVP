@@ -157,7 +157,9 @@ catalog_snapshot() {
     (SELECT count(*) FROM pg_extension)::text || '|' ||
     (SELECT count(*) FROM public.offers)::text || '|' ||
     (SELECT count(*) FROM public.action_executions)::text || '|' ||
-    (SELECT count(*) FROM pg_auth_members WHERE member IN (SELECT oid FROM pg_roles WHERE rolname LIKE 'qa373_%'))::text;"
+    (SELECT pg_get_userbyid(datdba) FROM pg_database WHERE datname = 'qima_test')::text || '|' ||
+    (SELECT count(*) FROM pg_roles WHERE rolname LIKE 'qa373_%' OR rolname LIKE 'qa374_%')::text || '|' ||
+    (SELECT count(*) FROM pg_auth_members WHERE member IN (SELECT oid FROM pg_roles WHERE rolname LIKE 'qa373_%' OR rolname LIKE 'qa374_%'))::text;"
 }
 
 run_expected_rejection() {
@@ -304,5 +306,50 @@ if [[ "$admin_option_set_state" != "anon:true:2|authenticated:true:2" ]]; then
 fi
 
 echo "QA374 passed: pre-existing authenticated/anon memberships with ADMIN OPTION but SET FALSE were accepted; the fixture established one-way SET ROLE access and the complete non-superuser runner plus concurrency tests succeeded."
+
+# QA375: ADMIN OPTION does not bypass database ownership. This role can
+# administer both existing client-role memberships but does not own qima_test.
+admin_psql <<'SQL'
+CREATE ROLE qa374_admin_option_non_owner LOGIN PASSWORD 'qa374-non-owner-admin-only'
+  CREATEROLE NOSUPERUSER NOCREATEDB NOREPLICATION NOBYPASSRLS;
+GRANT CONNECT ON DATABASE qima_test TO qa374_admin_option_non_owner;
+GRANT authenticated TO qa374_admin_option_non_owner
+  WITH ADMIN TRUE, INHERIT FALSE, SET FALSE;
+GRANT anon TO qa374_admin_option_non_owner
+  WITH ADMIN TRUE, INHERIT FALSE, SET FALSE;
+SQL
+
+non_owner_admin_state="$(db_psql -c "
+  SELECT
+    (db.datdba <> 'qa374_admin_option_non_owner'::regrole)::text || '|' ||
+    string_agg(
+      target.rolname || ':' ||
+      pg_has_role('qa374_admin_option_non_owner', target.oid, 'SET')::text || ':' ||
+      membership.admin_option::text || ':' ||
+      membership.set_option::text,
+      '|' ORDER BY target.rolname
+    )
+  FROM pg_database db
+  CROSS JOIN pg_roles target
+  JOIN pg_auth_members membership ON membership.roleid = target.oid
+  WHERE db.datname = 'qima_test'
+    AND target.rolname IN ('anon', 'authenticated')
+    AND membership.member = 'qa374_admin_option_non_owner'::regrole
+  GROUP BY db.datdba;
+")"
+if [[ "$non_owner_admin_state" != "true|anon:false:true:false|authenticated:false:true:false" ]]; then
+  echo "ERROR: QA375 did not establish a non-owner with ADMIN OPTION but no SET ROLE: '$non_owner_admin_state'." >&2
+  exit 1
+fi
+
+before_non_owner_snapshot="$(catalog_snapshot)"
+run_expected_rejection "qa374_admin_option_non_owner" "qa374-non-owner-admin-only"
+after_non_owner_snapshot="$(catalog_snapshot)"
+if [[ "$after_non_owner_snapshot" != "$before_non_owner_snapshot" ]]; then
+  echo "ERROR: QA375 non-owner with ADMIN OPTION changed the initialized fixture catalog or data before rejection." >&2
+  exit 1
+fi
+
+echo "QA375 passed: a non-owner with CREATEROLE and ADMIN OPTION but no SET ROLE was rejected before fixture changes; catalog and data snapshots remained unchanged."
 
 echo "QA373 passed: a non-superuser database owner with CREATEROLE completed the full fixture, pgcrypto installation, migration, SECURITY DEFINER, SET ROLE, and concurrency runner without CREATEDB or pg_monitor; non-owner and no-CREATEROLE roles were rejected before any fixture change."
