@@ -24,23 +24,20 @@ line_number() {
 }
 
 guard_line="$(line_number 'if [[ ! "$DATABASE_URL" =~')"
-preflight_line="$(line_number 'if preflight_state="$("${PSQL_TUPLE[@]}" -c "$preflight_query")"; then')"
+preflight_file_line="$(line_number 'preflight_sql="$ROOT/tests/sql/create-offer-bootstrap-preflight.sql"')"
+preflight_line="$(line_number 'if preflight_state=')"
 fixture_line="$(line_number '"${PSQL[@]}" -f "$ROOT/tests/sql/fixtures/create-offer-schema.sql"')"
 
-if ! (( guard_line < preflight_line && preflight_line < fixture_line )); then
-  fail "URL allowlist, read-only preflight, and first fixture DDL must remain in that order"
+if ! (( guard_line < preflight_file_line && preflight_file_line < preflight_line && preflight_line < fixture_line )); then
+  fail "URL allowlist, read-only shared preflight, and first fixture DDL must remain in that order"
 fi
 
-query="$(awk '
-  /^preflight_query=/ { in_query = 1; next }
-  in_query && /^QIMA_PREFLIGHT_SQL$/ { exit }
-  in_query { print }
-' "$RUNNER")"
-[[ -n "$query" ]] || fail "QA363 preflight SQL heredoc is missing"
-first_sql_line="$(printf '%s\n' "$query" | sed '/^[[:space:]]*$/d' | head -n 1)"
-[[ "$first_sql_line" == "SELECT CASE" ]] || fail "bootstrap preflight must begin with a read-only SELECT CASE"
+grep -Fq 'expected_database=qima_test' "$RUNNER" ||
+  fail "runner must bind the expected database name into the shared preflight SQL"
 
-for required in "current_database()" "pg_namespace" "pg_class" "n.nspname = 'public'" "c.relkind IN ('r', 'p', 'v', 'm', 'S', 'f')"; do
+query="$(cat "$ROOT/tests/sql/create-offer-bootstrap-preflight.sql")"
+
+for required in "current_database()" "pg_namespace" "pg_class" "pg_proc" "pg_type" "pg_depend" "n.nspname = 'public'" "c.relkind IN ('r', 'p', 'v', 'm', 'S', 'f', 'c')" "d.deptype = 'e'" "t.typtype IN ('b', 'd', 'e', 'r', 'm')" "t.typelem = 0"; do
   grep -Fq -- "$required" <<< "$query" || fail "preflight SQL is missing required catalog check: $required"
 done
 
@@ -56,7 +53,7 @@ grep -Fq "no fixture DDL/DML was attempted" "$RUNNER" ||
 cat > "$MOCK_BIN/psql" <<'PSQL'
 #!/usr/bin/env bash
 set -euo pipefail
-if [[ " $* " == *" -c "* ]]; then
+if [[ " $* " == *"create-offer-bootstrap-preflight.sql"* ]]; then
   printf 'preflight\n' >> "$MOCK_PSQL_CALLS"
   if [[ "${MOCK_PREFLIGHT_EXIT:-0}" -ne 0 ]]; then
     exit "$MOCK_PREFLIGHT_EXIT"
