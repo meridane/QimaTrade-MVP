@@ -85,25 +85,15 @@ for required in \
   "after_partial_admin_snapshot" \
   "QA376 passed" \
   "qa377_mixed_membership_runner" \
-
   "CREATE DATABASE qima_test OWNER qa377_mixed_membership_runner" \
-
   "WITH ADMIN FALSE, INHERIT FALSE, SET TRUE" \
-
   "WITH ADMIN TRUE, INHERIT FALSE, SET FALSE" \
-
   "true|false|true|true|false|true|false|true|false" \
-
   "anon:true:1|authenticated:true:2" \
-
   "QA377 passed" \
-
   "mixed_initial_state" \
-
   "mixed_after_state" \
-
   "mixed_grantor_state" \
-
   "Observed one granted and one waiting same-tenant advisory lock" \
   "before_non_owner_snapshot" \
   "after_non_owner_snapshot" \
