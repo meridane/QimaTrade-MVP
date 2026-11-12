@@ -3,7 +3,7 @@
 -- columns/constraints used by the two RPCs and seeds synthetic records only.
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
-DO $$
+DO $qa373_client_roles$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
     CREATE ROLE authenticated NOLOGIN;
@@ -12,7 +12,7 @@ BEGIN
     CREATE ROLE anon NOLOGIN;
   END IF;
 END
-$;
+$qa373_client_roles$;
 
 -- A non-superuser full-runner role must be able to SET ROLE into the two
 -- client-facing fixture roles. The runner owns this disposable fixture and
