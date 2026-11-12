@@ -8452,3 +8452,16 @@ QA373 should characterize the minimum write privileges required by the full inte
 - The runtime now waits for a host-side `SELECT 1` after internal `pg_isready`, checks container state during readiness, and prints bounded container diagnostics on failure. Cleanup only queries the second database after it has been created.
 - Final validation is pending; the observed connection error is not classified as a confirmed PostgreSQL defect.
 
+
+
+### QA372/QA369 corrective validation — 13 November 2026
+
+- Corrected code HEAD: `a4d194ffcf34580910db0bdf900f047059eb8f56`.
+- QIMA CI [#43280824308](https://github.com/meridane/QimaTrade-MVP/actions/runs/43280824308): **SUCCESS**. Both PostgreSQL integration jobs (16 and 17.6) passed; the QA369 logical-slot runtime and QA372 non-superuser catalog-visibility runtime passed on both versions.
+- The QA372 Verify contract passed, including the assertion that database CONNECT grants are revoked before disposable roles are dropped. npm audit at the high threshold, TypeScript, Next.js production build, Chromium installation, and Playwright all passed. Playwright: **347 passed in 10.6 seconds**.
+- CodeQL [#43280824337](https://github.com/meridane/QimaTrade-MVP/actions/runs/43280824337): **SUCCESS**.
+- Earlier CI #43280742571 failed only in Verify because its static guard expected unescaped identifier quotes; both PostgreSQL jobs, including QA369 and QA372 runtime probes, succeeded. The matcher was corrected in commit `a4d194f` and the corrected HEAD passed CI #43280824308.
+- The prepared-transaction failure harness jobs retain their intentional failure outcomes; their separate blocking assertions succeeded. The skipped harness remains skipped with its assertion successful.
+- Vercel remains rate-limited for the final HEAD. No Preview success is claimed for this HEAD.
+- PR #26 remains open, mergeable, in draft, unmerged, with no human reviews or review threads.
+

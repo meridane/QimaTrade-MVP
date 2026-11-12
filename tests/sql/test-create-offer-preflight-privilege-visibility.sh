@@ -86,4 +86,8 @@ grep -Fq "QA372 code-validation evidence" "$APPENDIX" ||
 grep -Fq "QA372 CodeQL evidence" "$APPENDIX" ||
   fail "QA372 appendix must reserve a section for CodeQL evidence"
 
+grep -Fq "QIMA CI #43280824308" "$REGISTER"
+grep -Fq "CodeQL #43280824337" "$REGISTER"
+grep -Fq "QA372/QA369 corrective validation" "$APPENDIX"
+
 echo "QA372 static contract PASS: the preflight uses the public user-mappings view without reading credentials, and the non-superuser runtime is wired to PostgreSQL 16 and 17.6."
