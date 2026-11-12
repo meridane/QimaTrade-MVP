@@ -79,7 +79,13 @@ for required in \
   "before_non_owner_snapshot" \
   "after_non_owner_snapshot" \
   "pg_get_userbyid(datdba)" \
-  "rolname LIKE 'qa373_%' OR rolname LIKE 'qa374_%'" \
+  "rolname LIKE 'qa373_%' OR rolname LIKE 'qa374_%' OR rolname LIKE 'qa376_%'" \
+  "qa376_partial_admin_option_runner" \
+  "true|anon:false:true:false|authenticated:false:false:false" \
+  "ALTER DATABASE qima_test OWNER TO qa376_partial_admin_option_runner" \
+  "before_partial_admin_snapshot" \
+  "after_partial_admin_snapshot" \
+  "QA376 passed" \
   "QA374 passed" \
   "catalog_snapshot" \
   "docker exec -i" \
@@ -127,4 +133,4 @@ grep -Fq "## QA375 — ADMIN OPTION does not bypass database ownership" "$APPEND
 grep -Fq "### QA375 — ADMIN OPTION does not bypass database ownership" "$REGISTER" ||
   fail "canonical register is missing QA375 ownership-boundary coverage"
 
-echo "QA373/QA374/QA375 static contract PASS: the runner fails closed on unsupported roles, covers the ADMIN OPTION-only path, and rejects non-owners without fixture changes."
+echo "QA373/QA374/QA375/QA376 static contract PASS: the runner accepts the complete ADMIN OPTION-only path and rejects non-owners or owners missing either client-role membership before fixture changes."
