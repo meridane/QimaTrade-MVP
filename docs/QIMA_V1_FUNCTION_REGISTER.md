@@ -8597,3 +8597,11 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 - Vercel Preview commit status: **SUCCESS** for this code HEAD. This is Preview-only evidence; no Production deployment was performed.
 - The earlier QA375 static assertion mismatch in CI #1359 was a Markdown heading-level defect, corrected before CI #1364. No PostgreSQL test failure or npm vulnerability was reported by that mismatch.
 - QA375 is closed as a disposable-runtime characterization; it does not establish that a Production runner currently has or lacks this privilege configuration.
+
+
+### QA376 — partial ADMIN OPTION is insufficient
+
+- Added a negative runtime case where a non-superuser CREATEROLE role owns the disposable `qima_test` database but has ADMIN OPTION with SET FALSE on `anon` only and no membership for `authenticated`.
+- The exact pre-run capability state is `true|anon:false:true:false|authenticated:false:false:false`. The runner must exit 4 before fixture DDL/DML because it cannot enter or administer both required client roles.
+- A before/after catalog/data snapshot includes the database owner, QA373/QA374/QA376 role counts and memberships, public relations/routines, extensions, offers, and action executions. The snapshot must remain unchanged.
+- Runtime validation on PostgreSQL 16 and 17.6: pending.
