@@ -14,6 +14,56 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 PSQL=(psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1)
 PSQL_TUPLE=(psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t)
 
+# QA363: inspect the disposable database before any fixture DDL/DML. A runner
+# replay against an initialized database must stop after this read-only query.
+preflight_query=$(cat <<'QIMA_PREFLIGHT_SQL'
+SELECT CASE
+  WHEN current_database() <> 'qima_test' THEN 'wrong_database'
+  WHEN EXISTS (
+    SELECT 1
+    FROM pg_namespace n
+    WHERE n.nspname NOT IN ('pg_catalog', 'information_schema', 'public')
+      AND n.nspname NOT LIKE 'pg_toast%'
+      AND n.nspname NOT LIKE 'pg_temp_%'
+  ) THEN 'not_empty'
+  WHEN EXISTS (
+    SELECT 1
+    FROM pg_class c
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE n.nspname = 'public'
+      AND c.relkind IN ('r', 'p', 'v', 'm', 'S', 'f')
+  ) THEN 'not_empty'
+  ELSE 'empty'
+END;
+QIMA_PREFLIGHT_SQL
+)
+
+if preflight_state="$("${PSQL_TUPLE[@]}" -c "$preflight_query")"; then
+  :
+else
+  preflight_status=$?
+  echo "::error::Could not inspect qima_test bootstrap state (psql exit $preflight_status); no fixture DDL/DML was attempted." >&2
+  exit "$preflight_status"
+fi
+
+case "$preflight_state" in
+  empty)
+    echo "QA363 preflight accepted an empty qima_test database."
+    ;;
+  wrong_database)
+    echo "::error::Refusing CREATE_OFFER integration setup: current database is not qima_test; no fixture DDL/DML was attempted." >&2
+    exit 3
+    ;;
+  not_empty)
+    echo "::error::Refusing CREATE_OFFER integration setup: qima_test already contains application relations or non-default schemas; use a fresh disposable database; no fixture DDL/DML was attempted." >&2
+    exit 3
+    ;;
+  *)
+    echo "::error::Refusing CREATE_OFFER integration setup: qima_test preflight returned an unexpected state; no fixture DDL/DML was attempted." >&2
+    exit 3
+    ;;
+esac
+
 # This script is only intended for the ephemeral PostgreSQL service in CI.
 # Never point DATABASE_URL at Supabase production.
 "${PSQL[@]}" -f "$ROOT/tests/sql/fixtures/create-offer-schema.sql"
