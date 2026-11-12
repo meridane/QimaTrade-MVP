@@ -14,6 +14,54 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 PSQL=(psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1)
 PSQL_TUPLE=(psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t)
 
+
+# QA373: the full runner writes fixtures, creates test roles, installs pgcrypto,
+# owns the functions it replaces, and switches into anon/authenticated. Refuse
+# unsupported credentials before the first fixture or migration DDL/DML.
+if runner_privilege_state="$("${PSQL_TUPLE[@]}" -c "
+  SELECT CASE
+    WHEN runner_role.rolsuper THEN 'superuser'
+    WHEN runner_role.rolcreaterole
+      AND runner_database.datdba = runner_role.oid
+      AND NOT EXISTS (
+        SELECT 1
+        FROM pg_roles target_role
+        WHERE target_role.rolname IN ('anon', 'authenticated')
+          AND NOT (
+            pg_has_role(runner_role.oid, target_role.oid, 'SET')
+            OR EXISTS (
+              SELECT 1
+              FROM pg_auth_members membership
+              WHERE membership.roleid = target_role.oid
+                AND membership.member = runner_role.oid
+                AND membership.admin_option
+            )
+          )
+      )
+    THEN 'database_owner_with_createrole'
+    ELSE 'insufficient_privileges'
+  END
+  FROM pg_roles runner_role
+  JOIN pg_database runner_database
+    ON runner_database.datname = current_database()
+  WHERE runner_role.rolname = current_user;
+")"; then
+  :
+else
+  privilege_status=$?
+  echo "::error::Could not inspect CREATE_OFFER runner privileges (psql exit $privilege_status); no fixture DDL/DML was attempted." >&2
+  exit "$privilege_status"
+fi
+
+case "$runner_privilege_state" in
+  superuser|database_owner_with_createrole)
+    ;;
+  *)
+    echo "::error::Refusing CREATE_OFFER integration setup: DATABASE_URL role must be a superuser or own qima_test with CREATEROLE and be able to enter or administer existing anon/authenticated roles; no fixture DDL/DML was attempted." >&2
+    exit 4
+    ;;
+esac
+
 # QA363/QA364: inspect the disposable database before any fixture DDL/DML. A runner
 # replay against an initialized database must stop after this read-only query.
 preflight_sql="$ROOT/tests/sql/create-offer-bootstrap-preflight.sql"
