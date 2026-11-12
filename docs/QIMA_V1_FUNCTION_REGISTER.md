@@ -8193,3 +8193,17 @@ MKT-1.2 remains unapproved and MKT-1.3 remains decision-required. No idempotency
 ### Next step
 
 QA369: inspect any remaining replication metadata only if it can be scoped safely to the current database. Do not add cluster-wide catalog predicates without a database ownership key.
+
+
+### QA368 final-register verification
+
+- QIMA CI #1324 on final documentation HEAD `9f383b48ddc9200eb37731148ce07ebd9b10dd3a`: **SUCCESS** — https://github.com/meridane/QimaTrade-MVP/actions/runs/43231341774.
+  - Static QA366/QA367/QA368 bootstrap contract: **PASS**.
+  - PostgreSQL 16 and PostgreSQL 17.6 integration, repeat-run guard, and QA368 runtime catalog characterization: **SUCCESS**.
+  - Both database logs contain the QA368 pass marker. Current-database subscriptions are rejected without connection-string reads, remote connections, or replication slots; subscriptions belonging to another database do not affect the `postgres` preflight. Cluster-wide replication origins remain intentionally outside the database-local preflight.
+  - npm audit (high threshold), TypeScript, Next.js build, Chromium, and audit enforcement: **SUCCESS**.
+  - Playwright: **347 passed in 12.7 seconds**.
+  - QA353/QA354 deliberate harness failures and the skipped-harness result retained their expected semantics; independent blocking assertions passed.
+- CodeQL #1274: **SUCCESS** — https://github.com/meridane/QimaTrade-MVP/actions/runs/43231341808.
+- Vercel Preview on this final documentation HEAD: **SUCCESS** — https://vercel.com/bmk1/qimatrade-mvp/E3aT7bVgvuwtbNPXQ3C9chBh9uBZ.
+- Both PostgreSQL jobs emitted the expected warning that the disabled subscription was not connected and the hint that logical replication requires `wal_level=logical`. QA368 deliberately makes no `wal_level` change and creates no slot or publisher connection.
