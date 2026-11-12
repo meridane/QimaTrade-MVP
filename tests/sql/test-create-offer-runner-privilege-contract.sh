@@ -1,0 +1,93 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+RUNNER="$ROOT/tests/sql/run-create-offer-integration.sh"
+FIXTURE="$ROOT/tests/sql/fixtures/create-offer-schema.sql"
+RUNTIME="$ROOT/tests/sql/test-create-offer-runner-privilege-runtime.sh"
+WORKFLOW="$ROOT/.github/workflows/ci.yml"
+REGISTER="$ROOT/docs/QIMA_V1_FUNCTION_REGISTER.md"
+APPENDIX="$ROOT/docs/QIMA_V1_FUNCTION_REGISTER_QA373_APPEND.md"
+
+fail() {
+  echo "ERROR: $*" >&2
+  exit 1
+}
+
+for required in \
+  "rolsuper" \
+  "rolcreaterole" \
+  "runner_database.datdba = runner_role.oid" \
+  "database_owner_with_createrole" \
+  "pg_auth_members" \
+  "admin_option" \
+  "pg_has_role(runner_role.oid, target_role.oid, 'SET')" \
+  "no fixture DDL/DML was attempted" \
+  "exit 4"; do
+  grep -Fq -- "$required" "$RUNNER" ||
+    fail "runner privilege preflight is missing: $required"
+done
+
+role_check_line="$(grep -nF 'runner_privilege_state=' "$RUNNER" | head -n 1 | cut -d: -f1)"
+preflight_line="$(grep -nF 'preflight_sql=' "$RUNNER" | head -n 1 | cut -d: -f1)"
+[[ -n "$role_check_line" && -n "$preflight_line" && "$role_check_line" -lt "$preflight_line" ]] ||
+  fail "runner privilege preflight must execute before the catalog preflight and every fixture"
+
+for required in \
+  "DO $runner_role_membership$" \
+  "IF NOT COALESCE(v_runner_is_superuser, false)" \
+  "GRANT authenticated TO" \
+  "GRANT anon TO" \
+  "pg_has_role(current_user, 'authenticated', 'SET')" \
+  "pg_has_role(current_user, 'anon', 'SET')"; do
+  grep -Fq -- "$required" "$FIXTURE" ||
+    fail "fixture is missing non-superuser SET ROLE preparation: $required"
+done
+
+for required in \
+  "PG_RUNNER_PRIVILEGE_TEST_IMAGE" \
+  "postgres:16" \
+  "postgres:17.6" \
+  "run-create-offer-integration.sh" \
+  "qa373_runner" \
+  "CREATEROLE" \
+  "NOCREATEDB" \
+  "NOSUPERUSER" \
+  "NOREPLICATION" \
+  "NOBYPASSRLS" \
+  "Observed one granted and one waiting same-tenant advisory lock" \
+  "qa373_not_owner" \
+  "qa373_no_createrole" \
+  "catalog_snapshot" \
+  "docker rm -f" \
+  "trap cleanup EXIT"; do
+  grep -Fq -- "$required" "$RUNTIME" ||
+    fail "QA373 runtime characterization is missing: $required"
+done
+
+if grep -Fq "ALTER SYSTEM" "$RUNTIME"; then
+  fail "QA373 must not alter persistent PostgreSQL configuration"
+fi
+if grep -Eiq 'postgres(ql)?://[^[:space:]]*(production|supabase)' "$RUNTIME"; then
+  fail "QA373 runtime must not contain a Production/Supabase connection URL"
+fi
+bash -n "$RUNNER" || fail "CREATE_OFFER runner has invalid Bash syntax"
+bash -n "$RUNTIME" || fail "QA373 runtime has invalid Bash syntax"
+
+static_count="$(grep -Fc 'run: bash tests/sql/test-create-offer-runner-privilege-contract.sh' "$WORKFLOW")"
+[[ "$static_count" -eq 1 ]] || fail "QA373 static contract must run exactly once in Verify"
+runtime_count="$(grep -Fc 'run: bash tests/sql/test-create-offer-runner-privilege-runtime.sh' "$WORKFLOW")"
+[[ "$runtime_count" -eq 2 ]] || fail "QA373 runtime must run on PostgreSQL 16 and 17.6"
+grep -Fq 'PG_RUNNER_PRIVILEGE_TEST_IMAGE: postgres:16' "$WORKFLOW" ||
+  fail "PostgreSQL 16 QA373 image is not pinned"
+grep -Fq 'PG_RUNNER_PRIVILEGE_TEST_IMAGE: postgres:17.6' "$WORKFLOW" ||
+  fail "PostgreSQL 17.6 QA373 image is not pinned"
+
+grep -Fq "### QA373 — full CREATE_OFFER runner write-privilege contract" "$REGISTER" ||
+  fail "canonical register is missing QA373"
+grep -Fq "QA373 code-validation evidence" "$APPENDIX" ||
+  fail "QA373 appendix must reserve code-validation evidence"
+grep -Fq "QA373 CodeQL evidence" "$APPENDIX" ||
+  fail "QA373 appendix must reserve CodeQL evidence"
+
+echo "QA373 static contract PASS: the runner fails closed on unsupported roles before fixture DDL, while a disposable database-owner/CREATEROLE runtime tests the complete non-superuser path."
