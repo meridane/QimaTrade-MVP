@@ -8412,3 +8412,13 @@ QA371 should audit database-local configuration objects that can influence test 
 - CodeQL #1286 on `49eeb03546f35c59e8b9a69c61b31ae77d3c8ab3`: **SUCCESS** — https://github.com/meridane/QimaTrade-MVP/actions/runs/43268760509.
 - Vercel on the final code HEAD remained **RATE LIMITED** (`build-rate-limit`); no Preview success is claimed.
 - QA353/QA354 intentional failure conclusions and the skipped-harness conclusion retained their expected semantics; independent blocking assertions passed.
+
+
+### QA371 final HEAD verification
+
+- QIMA CI #1337 on documentation HEAD `1e06f694ceffa5a1a61e248346803a4fe8623bcf`: **SUCCESS** — https://github.com/meridane/QimaTrade-MVP/actions/runs/43269438140.
+- PostgreSQL 16 and PostgreSQL 17.6 integration jobs: **SUCCESS**; both QA371 parameter ACL and extension configuration runtime probes passed. PostgreSQL 17.6 reported `server_version_num=170006`.
+- QA371 static contract: **PASS**. npm audit: **0 total vulnerabilities** (0 critical, 0 high, 0 moderate, 0 low). TypeScript, Next.js build, Chromium, Playwright, and audit enforcement: **SUCCESS**.
+- Next.js compiled in 8.4 seconds. Playwright: **347 passed in 10.5 seconds**.
+- CodeQL #1287 on final documentation HEAD: **SUCCESS** — https://github.com/meridane/QimaTrade-MVP/actions/runs/43269438136.
+- Vercel remained **RATE LIMITED** (`build-rate-limit`); no Preview success is claimed.
