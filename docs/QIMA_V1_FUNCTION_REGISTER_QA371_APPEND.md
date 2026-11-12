@@ -94,3 +94,16 @@ The new extension runtime test uses only `postgres:16` and `postgres:17.6`, chec
 Audit the runner's execution identity and visibility of the catalogues used by the read-only preflight. In particular, determine whether a non-superuser connection can see the relevant rows in `pg_subscription`, `pg_replication_slots`, and `pg_user_mapping`, while the URL guard currently accepts any username. Characterize on disposable PostgreSQL 16 and 17.6 first; do not broaden the URL guard or change runner credentials without evidence and an explicit contract.
 
 MKT-1.2 (independent idempotency) and MKT-1.3 (numeric normalization) remain pending business approval.
+
+
+## Final validation
+
+- QIMA CI #1335 on evidence HEAD `a86a4209ce01a5202caef5ed467f62c6842b1d2a`: **FAILURE** only because the static documentation check expected `Vercel: **RATE LIMITED**`, while this appendix recorded `Vercel status on this code HEAD: **RATE LIMITED**`. This was a literal matcher defect, not an application or PostgreSQL failure. Both PostgreSQL integration jobs completed **SUCCESS**; Verify stopped before npm audit, TypeScript, build and browser tests.
+- Fixed by commit `49eeb03546f35c59e8b9a69c61b31ae77d3c8ab3`, which now checks the exact appendix wording.
+- QIMA CI #1336 on code/documentation-evidence HEAD `49eeb03546f35c59e8b9a69c61b31ae77d3c8ab3`: **SUCCESS** — https://github.com/meridane/QimaTrade-MVP/actions/runs/43268760344.
+- PostgreSQL 16 and 17.6 QA371 runtime tests: **SUCCESS**. npm audit: **0 total vulnerabilities**. TypeScript, Next.js build, Chromium, audit enforcement: **SUCCESS**. Next.js compiled in 13.1 seconds; Playwright: **347 passed in 13.7 seconds**.
+- CodeQL #1285: **SUCCESS** — https://github.com/meridane/QimaTrade-MVP/actions/runs/43268611104.
+- CodeQL #1286: **SUCCESS** — https://github.com/meridane/QimaTrade-MVP/actions/runs/43268760509.
+- Vercel on the final code HEAD: **RATE LIMITED** (`build-rate-limit`); no Preview success is claimed.
+- QA353/QA354 intentional failure conclusions and the skipped-harness conclusion retained their expected semantics; independent blocking assertions passed.
+
