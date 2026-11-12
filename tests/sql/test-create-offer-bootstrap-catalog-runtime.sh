@@ -39,7 +39,7 @@ trap cleanup EXIT
 
 # These extensions install public functions and a public base type. Their
 # extension-owned members must not make an otherwise empty database look used.
-"${PSQL_TEMP[@]}" -c "CREATE EXTENSION pgcrypto WITH SCHEMA public; CREATE EXTENSION hstore WITH SCHEMA public; CREATE EXTENSION btree_gist WITH SCHEMA public; CREATE EXTENSION unaccent WITH SCHEMA public;" >/dev/null
+"${PSQL_TEMP[@]}" -c "CREATE EXTENSION pgcrypto WITH SCHEMA public; CREATE EXTENSION hstore WITH SCHEMA public; CREATE EXTENSION btree_gist WITH SCHEMA public; CREATE EXTENSION unaccent WITH SCHEMA public; CREATE EXTENSION postgres_fdw WITH SCHEMA public;" >/dev/null
 
 extension_function_count="$("${PSQL_TEMP[@]}" -q -A -t -c "
   SELECT count(*)
@@ -295,5 +295,110 @@ assert_state "empty" "baseline after dropping standalone collation"
 assert_state "not_empty" "standalone database publication"
 "${PSQL_TEMP[@]}" -c "DROP PUBLICATION qa365_user_publication;" >/dev/null
 assert_state "empty" "baseline after dropping standalone publication"
+
+# QA367: large objects and foreign-data objects are independent bootstrap residue.
+# No FDW connection is attempted; the server options point only at loopback and
+# are never used by a foreign-table query.
+extension_fdw_count="$(\"${PSQL_TEMP[@]}\" -q -A -t -c "
+  SELECT count(*)
+  FROM pg_foreign_data_wrapper fdw
+  JOIN pg_depend d
+    ON d.classid = 'pg_foreign_data_wrapper'::regclass
+   AND d.objid = fdw.oid
+   AND d.refclassid = 'pg_extension'::regclass
+   AND d.deptype = 'e'
+  JOIN pg_extension e ON e.oid = d.refobjid
+  WHERE e.extname = 'postgres_fdw'
+    AND fdw.fdwname = 'postgres_fdw';
+")"
+if [[ "$extension_fdw_count" -ne 1 ]]; then
+  echo "ERROR: expected postgres_fdw to own its foreign-data wrapper through extension membership." >&2
+  exit 1
+fi
+assert_state "empty" "extension-only baseline including postgres_fdw"
+
+large_object_oid="$(\"${PSQL_TEMP[@]}\" -q -A -t -c "SELECT lo_create(0);")"
+if [[ ! "$large_object_oid" =~ ^[0-9]+$ ]]; then
+  echo "ERROR: QA367 did not receive a valid OID for its disposable large object." >&2
+  exit 1
+fi
+large_object_count="$(\"${PSQL_TEMP[@]}\" -q -A -t -c "SELECT count(*) FROM pg_largeobject_metadata WHERE oid = $large_object_oid;")"
+if [[ "$large_object_count" -ne 1 ]]; then
+  echo "ERROR: QA367 large object metadata was not persisted." >&2
+  exit 1
+fi
+assert_state "not_empty" "standalone large object metadata"
+\"${PSQL_TEMP[@]}\" -c "SELECT lo_unlink($large_object_oid);" >/dev/null
+assert_state "empty" "baseline after unlinking standalone large object"
+
+fdw_handler_ref="$(\"${PSQL_TEMP[@]}\" -q -A -t -c "
+  SELECT format('%I.%I', n.nspname, p.proname)
+  FROM pg_proc p
+  JOIN pg_namespace n ON n.oid = p.pronamespace
+  WHERE p.proname = 'postgres_fdw_handler'
+  LIMIT 1;
+")"
+fdw_validator_ref="$(\"${PSQL_TEMP[@]}\" -q -A -t -c "
+  SELECT format('%I.%I', n.nspname, p.proname)
+  FROM pg_proc p
+  JOIN pg_namespace n ON n.oid = p.pronamespace
+  WHERE p.proname = 'postgres_fdw_validator'
+  LIMIT 1;
+")"
+if [[ -z "$fdw_handler_ref" || -z "$fdw_validator_ref" ]]; then
+  echo "ERROR: QA367 could not resolve postgres_fdw handler and validator functions." >&2
+  exit 1
+fi
+\"${PSQL_TEMP[@]}\" -c "CREATE FOREIGN DATA WRAPPER qa367_user_fdw HANDLER $fdw_handler_ref VALIDATOR $fdw_validator_ref;" >/dev/null
+assert_state "not_empty" "standalone foreign-data wrapper"
+\"${PSQL_TEMP[@]}\" -c "DROP FOREIGN DATA WRAPPER qa367_user_fdw;" >/dev/null
+assert_state "empty" "baseline after dropping standalone foreign-data wrapper"
+
+# A server definition is catalog residue even though this test never connects
+# to the remote endpoint.
+\"${PSQL_TEMP[@]}\" -c "CREATE SERVER qa367_user_server FOREIGN DATA WRAPPER postgres_fdw OPTIONS (host '127.0.0.1', dbname 'qima_test');" >/dev/null
+assert_state "not_empty" "standalone foreign server"
+\"${PSQL_TEMP[@]}\" -c "DROP SERVER qa367_user_server;" >/dev/null
+assert_state "empty" "baseline after dropping standalone foreign server"
+
+# Put a server inside the postgres_fdw extension so the user-mapping predicate
+# is exercised independently: the wrapper and server are extension-owned,
+# while CREATE USER MAPPING is not an extension member.
+\"${PSQL_TEMP[@]}\" -c "CREATE SERVER qa367_extension_server FOREIGN DATA WRAPPER postgres_fdw OPTIONS (host '127.0.0.1', dbname 'qima_test'); ALTER EXTENSION postgres_fdw ADD SERVER qa367_extension_server;" >/dev/null
+extension_server_count="$(\"${PSQL_TEMP[@]}\" -q -A -t -c "
+  SELECT count(*)
+  FROM pg_foreign_server srv
+  JOIN pg_depend d
+    ON d.classid = 'pg_foreign_server'::regclass
+   AND d.objid = srv.oid
+   AND d.refclassid = 'pg_extension'::regclass
+   AND d.deptype = 'e'
+  JOIN pg_extension e ON e.oid = d.refobjid
+  WHERE e.extname = 'postgres_fdw'
+    AND srv.srvname = 'qa367_extension_server';
+")"
+if [[ "$extension_server_count" -ne 1 ]]; then
+  echo "ERROR: QA367 server was not registered as a postgres_fdw extension member." >&2
+  exit 1
+fi
+\"${PSQL_TEMP[@]}\" -c "CREATE USER MAPPING FOR CURRENT_USER SERVER qa367_extension_server OPTIONS (user 'qa367_remote_user');" >/dev/null
+user_mapping_count="$(\"${PSQL_TEMP[@]}\" -q -A -t -c "
+  SELECT count(*)
+  FROM pg_user_mapping um
+  JOIN pg_foreign_server srv ON srv.oid = um.umserver
+  WHERE srv.srvname = 'qa367_extension_server'
+    AND um.umuser = (SELECT oid FROM pg_roles WHERE rolname = current_user);
+")"
+if [[ "$user_mapping_count" -ne 1 ]]; then
+  echo "ERROR: QA367 expected one user mapping on the extension-owned server." >&2
+  exit 1
+fi
+assert_state "not_empty" "user mapping on an extension-owned server"
+\"${PSQL_TEMP[@]}\" -c "DROP USER MAPPING FOR CURRENT_USER SERVER qa367_extension_server;" >/dev/null
+assert_state "empty" "baseline after dropping user mapping while extension-owned server remains"
+\"${PSQL_TEMP[@]}\" -c "DROP EXTENSION postgres_fdw CASCADE;" >/dev/null
+assert_state "empty" "baseline after removing postgres_fdw extension and its server"
+
+echo "QA367 passed: standalone large objects, foreign-data wrappers, servers, and user mappings were detected; postgres_fdw-owned wrapper/server objects were ignored; no remote FDW connection was attempted; all probes used a disposable database."
 
 echo "QA366 passed: extension-owned unaccent text-search dictionary was ignored; standalone text-search dictionaries/configurations and conversions were rejected; relation-dependent statistics/policies and event-trigger handlers remained covered by existing relation/routine checks; all probes ran in a disposable database."
