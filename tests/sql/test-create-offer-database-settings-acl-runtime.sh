@@ -29,6 +29,7 @@ TEMP_DB_CREATED=false
 OTHER_DB_CREATED=false
 ROLE_CREATED=false
 GRANTEE_CREATED=false
+PARAMETER_ACL_GRANTED=false
 
 PSQL_ADMIN=("$REAL_PSQL" "$ADMIN_URL" -X -v ON_ERROR_STOP=1)
 PSQL_TEMP=("$REAL_PSQL" "$TEMP_URL" -X -v ON_ERROR_STOP=1)
@@ -46,6 +47,9 @@ cleanup() {
   fi
   if [[ "$OTHER_DB_CREATED" == true ]]; then
     "${PSQL_ADMIN[@]}" -c "DROP DATABASE IF EXISTS \"$OTHER_DB\" WITH (FORCE);" >/dev/null 2>&1 || cleanup_status=1
+  fi
+  if [[ "$PARAMETER_ACL_GRANTED" == true ]]; then
+    "${PSQL_ADMIN[@]}" -c "REVOKE SET ON PARAMETER work_mem FROM \"$ROLE_NAME\";" >/dev/null 2>&1 || cleanup_status=1
   fi
   if [[ "$ROLE_CREATED" == true ]]; then
     "${PSQL_ADMIN[@]}" -c "DROP ROLE IF EXISTS \"$ROLE_NAME\";" >/dev/null 2>&1 || cleanup_status=1
@@ -117,6 +121,34 @@ assert_count() {
 
 assert_state "$TEMP_URL" "$TEMP_DB" "empty" "initial QA370 database"
 assert_state "$OTHER_URL" "$OTHER_DB" "empty" "initial QA370 comparison database"
+
+# QA371: parameter ACLs are cluster-wide (pg_parameter_acl has no database
+# ownership key). Characterize the grant from both databases, but do not let
+# an unrelated cluster-wide grant make either database look initialized.
+parameter_acl_query="SELECT count(*) FROM pg_parameter_acl p CROSS JOIN LATERAL aclexplode(p.paracl) a WHERE p.parname = 'work_mem' AND a.grantee = (SELECT oid FROM pg_roles WHERE rolname = '$ROLE_NAME') AND a.privilege_type = 'SET';"
+parameter_acl_before="$(query_scalar "$ADMIN_URL" "$parameter_acl_query")"
+assert_count "$parameter_acl_before" "0" "initial QA371 parameter ACL grant"
+
+"${PSQL_ADMIN[@]}" -c "GRANT SET ON PARAMETER work_mem TO \"$ROLE_NAME\";" >/dev/null
+PARAMETER_ACL_GRANTED=true
+
+parameter_acl_temp="$(query_scalar "$TEMP_URL" "$parameter_acl_query")"
+parameter_acl_other="$(query_scalar "$OTHER_URL" "$parameter_acl_query")"
+assert_count "$parameter_acl_temp" "1" "shared parameter ACL visible from current database"
+assert_count "$parameter_acl_other" "1" "shared parameter ACL visible from comparison database"
+role_has_parameter_set="$(query_scalar "$TEMP_URL" "SELECT has_parameter_privilege('$ROLE_NAME', 'work_mem', 'SET');")"
+assert_count "$role_has_parameter_set" "t" "granted role SET privilege on work_mem"
+assert_state "$TEMP_URL" "$TEMP_DB" "empty" "cluster-wide parameter ACL must not poison current database"
+assert_state "$OTHER_URL" "$OTHER_DB" "empty" "cluster-wide parameter ACL must not poison comparison database"
+
+"${PSQL_ADMIN[@]}" -c "REVOKE SET ON PARAMETER work_mem FROM \"$ROLE_NAME\";" >/dev/null
+PARAMETER_ACL_GRANTED=false
+parameter_acl_after="$(query_scalar "$TEMP_URL" "$parameter_acl_query")"
+assert_count "$parameter_acl_after" "0" "QA371 parameter ACL revoke cleanup"
+role_has_parameter_set="$(query_scalar "$TEMP_URL" "SELECT has_parameter_privilege('$ROLE_NAME', 'work_mem', 'SET');")"
+assert_count "$role_has_parameter_set" "f" "revoked role SET privilege on work_mem"
+assert_state "$TEMP_URL" "$TEMP_DB" "empty" "baseline after revoking cluster-wide parameter ACL"
+assert_state "$OTHER_URL" "$OTHER_DB" "empty" "comparison baseline after revoking cluster-wide parameter ACL"
 
 # ALTER ROLE without IN DATABASE creates a shared role setting (setdatabase=0).
 # It is intentionally not attributed to either database by this preflight.
