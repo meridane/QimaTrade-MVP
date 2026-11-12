@@ -104,8 +104,7 @@ SHARE_DIR="$(docker exec "$CONTAINER_NAME" pg_config --sharedir)"
 EXTENSION_DIR="$SHARE_DIR/extension"
 docker cp "$TEMP_DIR/qa371_config_probe.control" "$CONTAINER_NAME:$EXTENSION_DIR/qa371_config_probe.control" >/dev/null
 docker cp "$TEMP_DIR/qa371_config_probe--1.0.sql" "$CONTAINER_NAME:$EXTENSION_DIR/qa371_config_probe--1.0.sql" >/dev/null
-PSQL=(psql "$TEMP_URL" -X -v ON_ERROR_STOP=1)
-SERVER_VERSION_NUM="$("${PSQL[@]}" -q -A -t -c 'SHOW server_version_num')"
+SERVER_VERSION_NUM="$(psql "$TEMP_URL" -X -v ON_ERROR_STOP=1 -q -A -t -c 'SHOW server_version_num')"
 case "$PG_EXTENSION_CONFIG_TEST_IMAGE" in
   postgres:16)
     if [[ "$SERVER_VERSION_NUM" -lt 160000 || "$SERVER_VERSION_NUM" -ge 170000 ]]; then
@@ -122,7 +121,7 @@ case "$PG_EXTENSION_CONFIG_TEST_IMAGE" in
 esac
 
 preflight_state() {
-  "\${PSQL[@]}" -q -A -t -v "expected_database=$TEMP_DB" -f "$PREFLIGHT_SQL"
+  psql "$TEMP_URL" -X -v ON_ERROR_STOP=1 -q -A -t -v "expected_database=$TEMP_DB" -f "$PREFLIGHT_SQL"
 }
 
 assert_state() {
@@ -138,12 +137,12 @@ assert_state() {
 
 query_scalar() {
   local query="$1"
-  "\${PSQL[@]}" -q -A -t -c "$query"
+  psql "$TEMP_URL" -X -v ON_ERROR_STOP=1 -q -A -t -c "$query"
 }
 
 assert_state "empty" "initial QA371 extension test database"
 
-"\${PSQL[@]}" -c "CREATE EXTENSION qa371_config_probe WITH SCHEMA public;" >/dev/null
+psql "$TEMP_URL" -X -v ON_ERROR_STOP=1 -c "CREATE EXTENSION qa371_config_probe WITH SCHEMA public;" >/dev/null
 
 config_metadata="$(query_scalar "SELECT CASE WHEN e.extconfig IS NOT NULL AND array_position(e.extconfig, 'public.qa371_extension_config_probe'::regclass::oid) IS NOT NULL THEN 'present' ELSE 'missing' END || '|' || COALESCE(e.extcondition[array_position(e.extconfig, 'public.qa371_extension_config_probe'::regclass::oid)], '<null>') FROM pg_extension e WHERE e.extname = 'qa371_config_probe';")"
 if [[ "$config_metadata" != "present|WHERE NOT is_builtin" ]]; then
@@ -161,7 +160,7 @@ fi
 # The preflight does not need to interpret extcondition or execute its SQL text.
 assert_state "not_empty" "extension-owned public configuration relation"
 
-"\${PSQL[@]}" -c "INSERT INTO public.qa371_extension_config_probe (key, is_builtin, value) VALUES ('user-custom', false, 'custom');" >/dev/null
+psql "$TEMP_URL" -X -v ON_ERROR_STOP=1 -c "INSERT INTO public.qa371_extension_config_probe (key, is_builtin, value) VALUES ('user-custom', false, 'custom');" >/dev/null
 assert_state "not_empty" "extension configuration table with user data"
 
 dump_output="$(docker exec "$CONTAINER_NAME" pg_dump -U postgres --data-only --dbname="$TEMP_DB")"
@@ -174,7 +173,7 @@ if grep -Fq $'builtin\tt\tbaseline' <<< "$dump_output"; then
   exit 1
 fi
 
-"\${PSQL[@]}" -c "DROP EXTENSION qa371_config_probe;" >/dev/null
+psql "$TEMP_URL" -X -v ON_ERROR_STOP=1 -c "DROP EXTENSION qa371_config_probe;" >/dev/null
 assert_state "empty" "baseline after dropping the extension configuration relation"
 
 remaining_extension_count="$(query_scalar "SELECT count(*) FROM pg_extension WHERE extname = 'qa371_config_probe';")"
