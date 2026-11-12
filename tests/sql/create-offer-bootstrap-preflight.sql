@@ -1,6 +1,7 @@
 -- QA366: read-only CREATE_OFFER bootstrap catalog preflight.
 -- expected_database is supplied by psql (-v expected_database=...).
--- Extension-owned catalog objects are not treated as application residue.
+-- Extension-owned non-relation catalog objects are not treated as application residue.
+-- Public relations remain disallowed, including extension-owned configuration tables.
 SELECT CASE
   WHEN current_database() <> :'expected_database' THEN 'wrong_database'
   WHEN EXISTS (
@@ -257,5 +258,11 @@ SELECT CASE
     SELECT 1
     FROM pg_default_acl
   ) THEN 'not_empty'
+  -- pg_parameter_acl is shared cluster-wide and has no database ownership key.
+  -- It is characterized separately and is not a database-local preflight predicate.
+  -- Extension configuration tables registered in pg_extension.extconfig are
+  -- relations: public relations are rejected above, while non-default schemas
+  -- are rejected by the namespace guard. extcondition is pg_dump row-filter
+  -- metadata and is intentionally not evaluated dynamically by this preflight.
   ELSE 'empty'
 END;
