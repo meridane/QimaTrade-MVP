@@ -24,6 +24,7 @@ Characterize the complete tests/sql/run-create-offer-integration.sh flow on disp
 |---|---:|---:|---|
 | qa373_runner | yes | yes | Full runner succeeds |
 | qa373_not_owner | no | yes | Refused before preflight/fixtures |
+| qa373_no_role_admin | yes | yes, but no SET/ADMIN OPTION on existing client roles | Refused before preflight/fixtures |
 | qa373_no_createrole | yes | no | Refused before preflight/fixtures |
 
 ### QA373 code-validation evidence
