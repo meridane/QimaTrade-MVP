@@ -8465,3 +8465,11 @@ QA373 should characterize the minimum write privileges required by the full inte
 - Vercel remains rate-limited for the final HEAD. No Preview success is claimed for this HEAD.
 - PR #26 remains open, mergeable, in draft, unmerged, with no human reviews or review threads.
 
+
+
+### QA372 final-register assertion correction — 13 November 2026
+
+- CI #43281662101 (run #1345) stopped in Verify because newly added documentation-evidence grep assertions were bare commands under `set -e` and used a label that omitted the Markdown link bracket.
+- This is a static-test defect. The PostgreSQL runtime jobs are evaluated separately; no production security finding is inferred.
+- The guard now searches stable run-ID substrings and emits explicit failure messages. Corrected validation is pending.
+

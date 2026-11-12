@@ -72,3 +72,8 @@ Final validation is pending. The observed connection error is not classified as 
 - Vercel remains rate-limited for the final HEAD. No Preview success is claimed for this HEAD.
 - PR #26 remains open, mergeable, in draft, unmerged, with no human reviews or review threads.
 
+
+
+### QA372 final-register assertion correction — 2026-11-13
+
+CI run [#43281662101](https://github.com/meridane/QimaTrade-MVP/actions/runs/43281662101) (run #1345) reached Verify and stopped in the newly added documentation-evidence guard. The guard used bare grep commands under `set -e` and searched a run label without accounting for the Markdown link bracket. This was a static-test defect, not a PostgreSQL runtime failure. The correction searches stable run-ID substrings and adds explicit failure messages. Validation of the corrected guard is pending.
