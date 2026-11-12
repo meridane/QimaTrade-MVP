@@ -26,11 +26,11 @@ Characterize the complete tests/sql/run-create-offer-integration.sh flow on disp
 | qa373_not_owner | no | yes | Refused before preflight/fixtures |
 | qa373_no_createrole | yes | no | Refused before preflight/fixtures |
 
-### Code-validation evidence
+### QA373 code-validation evidence
 
 Pending the first CI run for the QA373 code HEAD.
 
-### CodeQL evidence
+### QA373 CodeQL evidence
 
 Pending the first CodeQL run for the QA373 code HEAD.
 
