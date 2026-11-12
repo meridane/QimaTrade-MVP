@@ -90,4 +90,14 @@ All objects remain inside the disposable PostgreSQL 16/17.6 container. No produc
 
 ### Initial validation evidence
 
-Pending the first QA375 CI run.
+The initial CI #1359 run exposed a Markdown heading-level mismatch in the static documentation assertion; the assertion was corrected in commit `1ab9d70`. The final runtime evidence is recorded below.
+
+
+### QA375 final validation — 13 November 2026
+
+- CI [#1364](https://github.com/meridane/QimaTrade-MVP/actions/runs/43314718836): **SUCCESS**. PostgreSQL 16 and PostgreSQL 17.6 both emitted the explicit `QA375 passed` marker. In each runtime, a non-owner with CREATEROLE and ADMIN OPTION on both existing client roles, but with SET FALSE, was rejected with exit 4 before fixture changes. The catalog/data snapshot was unchanged.
+- The same two jobs also completed the full QA374 ADMIN OPTION-only positive runner path and emitted `QA374 passed`.
+- Verify passed the QA373/QA374/QA375 static contract, dependency audit, TypeScript, Next.js production build, Chromium installation, and 347 Playwright tests (10.0 seconds in the recorded log).
+- CodeQL [#1313](https://github.com/meridane/QimaTrade-MVP/actions/runs/43314718852): **SUCCESS**.
+- Vercel Preview commit status: **SUCCESS** for this HEAD. This is a Preview result only; no Production deployment was performed.
+- QA375 is closed as a disposable-runtime characterization. It demonstrates the runner's fail-closed ownership boundary under the tested PostgreSQL 16/17.6 roles; it does not establish the privilege configuration of any Production runner.
