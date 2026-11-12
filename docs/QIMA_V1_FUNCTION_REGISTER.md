@@ -8437,3 +8437,10 @@ QA371 should audit database-local configuration objects that can influence test 
 ### QA372 next step
 
 QA373 should characterize the minimum write privileges required by the full integration runner separately from read-only preflight visibility. Preserve fail-closed behavior and do not change the runner's credential contract without explicit evidence and review.
+
+
+### QA372 first CI failure triage — 13 November 2026
+
+- CI #43279189235 failed at PostgreSQL 16 QA372 cleanup because the disposable probe roles still held explicit database `CONNECT` grants. The correction revokes those grants before `DROP ROLE`; the static regression contract requires this ordering.
+- CodeQL #43279189048 succeeded. The correction's final CI validation is pending.
+- No production data, migration, persistent PostgreSQL setting, secret, or credential policy was changed.

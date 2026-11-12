@@ -44,3 +44,12 @@ These are runtime permission and catalog-visibility characterizations on disposa
 ### QA372 next step
 
 QA373 should separately characterize the write privileges required by the full fixture runner (database ownership, role creation, extension installation, and migration DDL). Do not infer full-runner support from preflight-only visibility tests, and do not change credential policy without an explicit, evidence-based contract.
+
+
+### QA372 first CI failure triage — 2026-11-13
+
+CI run [#43279189235](https://github.com/meridane/QimaTrade-MVP/actions/runs/43279189235) exposed a test-harness cleanup defect on PostgreSQL 16: the two disposable login roles retained explicit `CONNECT` grants on the disposable database, so PostgreSQL correctly refused `DROP ROLE`. The runtime now revokes those grants before dropping the roles, and the static contract requires this cleanup ordering.
+
+CodeQL run [#43279189048](https://github.com/meridane/QimaTrade-MVP/actions/runs/43279189048) succeeded. Final validation of the cleanup correction is pending.
+
+No production data, migration, persistent PostgreSQL setting, or credential policy was changed.

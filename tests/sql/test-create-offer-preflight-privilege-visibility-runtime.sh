@@ -259,6 +259,8 @@ assert_state "$PROBE_URL" "empty" "final empty baseline after removing all catal
 assert_state "$MONITOR_URL" "empty" "final pg_monitor empty baseline"
 
 psql "$ADMIN_URL" -X -v ON_ERROR_STOP=1 -c \
+  "REVOKE CONNECT ON DATABASE \"$DB_NAME\" FROM \"$PROBE_ROLE\", \"$MONITOR_ROLE\";" >/dev/null
+psql "$ADMIN_URL" -X -v ON_ERROR_STOP=1 -c \
   "DROP EXTENSION postgres_fdw; DROP ROLE \"$PROBE_ROLE\", \"$MONITOR_ROLE\", \"$MAPPED_ROLE\";" >/dev/null
 remaining_roles="$(query_scalar "$ADMIN_URL" \
   "SELECT count(*) FROM pg_catalog.pg_roles WHERE rolname IN ('$PROBE_ROLE', '$MONITOR_ROLE', '$MAPPED_ROLE');")"
