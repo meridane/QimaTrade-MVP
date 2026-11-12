@@ -8144,3 +8144,17 @@ The PostgreSQL logs include the pre-existing QA365 warning that `wal_level` is i
 Code commits: `a5cd70a`, `3aeacf1`, `67624cd`, `396692e`. Files changed: `tests/sql/create-offer-bootstrap-preflight.sql`, `tests/sql/test-create-offer-bootstrap-catalog-runtime.sh`, and `tests/sql/test-create-offer-bootstrap-preflight.sh`. The separate QA367 append records the full runtime sequence, the evidence boundary, and the next audit.
 
 No Supabase Production data, schema, migration, function, RLS policy, grant, secret, or persistent configuration was modified. No Production deployment, PR merge, force update, or branch-protection change occurred. MKT-1.2 remains unapproved and MKT-1.3 remains decision-required.
+
+
+### QA367 post-publication validation of the canonical register
+
+- QIMA CI #1321: **SUCCESS** on documentation HEAD `7a8768bd3c95196afdc04f3843badbe88ddc9e6e` — https://github.com/meridane/QimaTrade-MVP/actions/runs/43218224890.
+  - QA366/QA367 static bootstrap catalog contract: **PASS**.
+  - PostgreSQL 16 and PostgreSQL 17.6 CREATE_OFFER integration, repeat-run guard, QA367 runtime characterization, RLS/ACL, cleanup and prepared-transaction checks: **SUCCESS**.
+  - npm audit (high threshold), TypeScript, Next.js build, Chromium installation, and audit enforcement: **SUCCESS**.
+  - Playwright: **347 passed in 9.0 seconds**.
+  - The deliberate QA353/QA354 harness failures and skipped-harness result retained their expected conclusions; independent blocking assertions passed.
+- CodeQL #1271: **SUCCESS** on the same documentation HEAD — https://github.com/meridane/QimaTrade-MVP/actions/runs/43218224882.
+- Vercel combined status on the documentation HEAD remained **FAILURE** with `build-rate-limit`; GitHub Actions' Next.js build succeeded. No Preview or Production deployment is claimed.
+
+The QA367 append contains the full disposable runtime evidence and the safety boundary. This final CI/CodeQL cycle validates the canonical register after its post-publication result was recorded.
