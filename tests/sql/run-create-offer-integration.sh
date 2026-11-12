@@ -16,29 +16,9 @@ PSQL_TUPLE=(psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t)
 
 # QA363: inspect the disposable database before any fixture DDL/DML. A runner
 # replay against an initialized database must stop after this read-only query.
-preflight_query=$(cat <<'QIMA_PREFLIGHT_SQL'
-SELECT CASE
-  WHEN current_database() <> 'qima_test' THEN 'wrong_database'
-  WHEN EXISTS (
-    SELECT 1
-    FROM pg_namespace n
-    WHERE n.nspname NOT IN ('pg_catalog', 'information_schema', 'public')
-      AND n.nspname NOT LIKE 'pg_toast%'
-      AND n.nspname NOT LIKE 'pg_temp_%'
-  ) THEN 'not_empty'
-  WHEN EXISTS (
-    SELECT 1
-    FROM pg_class c
-    JOIN pg_namespace n ON n.oid = c.relnamespace
-    WHERE n.nspname = 'public'
-      AND c.relkind IN ('r', 'p', 'v', 'm', 'S', 'f')
-  ) THEN 'not_empty'
-  ELSE 'empty'
-END;
-QIMA_PREFLIGHT_SQL
-)
+preflight_sql="$ROOT/tests/sql/create-offer-bootstrap-preflight.sql"
 
-if preflight_state="$("${PSQL_TUPLE[@]}" -c "$preflight_query")"; then
+if preflight_state="$("${PSQL_TUPLE[@]}" -v "expected_database=qima_test" -f "$preflight_sql")"; then"$("${PSQL_TUPLE[@]}" -c "$preflight_query")"; then
   :
 else
   preflight_status=$?
@@ -55,7 +35,7 @@ case "$preflight_state" in
     exit 3
     ;;
   not_empty)
-    echo "::error::Refusing CREATE_OFFER integration setup: qima_test already contains application relations or non-default schemas; use a fresh disposable database; no fixture DDL/DML was attempted." >&2
+    echo "::error::Refusing CREATE_OFFER integration setup: qima_test already contains application relations or non-default schemas (including standalone routines and types); use a fresh disposable database; no fixture DDL/DML was attempted." >&2
     exit 3
     ;;
   *)
