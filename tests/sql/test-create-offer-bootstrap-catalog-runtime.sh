@@ -175,9 +175,9 @@ assert_state "not_empty" "standalone composite type relation"
 "${PSQL_TEMP[@]}" -c "DROP TYPE public.qa364_user_composite;" >/dev/null
 assert_state "empty" "baseline after dropping composite type"
 
-"${PSQL_TEMP[@]}" -c "CREATE OPERATOR public.qa365_user_operator (LEFTARG = integer, RIGHTARG = integer, FUNCTION = pg_catalog.int4eq);" >/dev/null
+"${PSQL_TEMP[@]}" -c "CREATE OPERATOR public.=== (LEFTARG = integer, RIGHTARG = integer, FUNCTION = pg_catalog.int4eq);" >/dev/null
 assert_state "not_empty" "standalone public operator"
-"${PSQL_TEMP[@]}" -c "DROP OPERATOR public.qa365_user_operator(integer, integer);" >/dev/null
+"${PSQL_TEMP[@]}" -c "DROP OPERATOR public.===(integer, integer);" >/dev/null
 assert_state "empty" "baseline after dropping standalone operator"
 
 "${PSQL_TEMP[@]}" -c "CREATE OPERATOR FAMILY public.qa365_user_opfamily USING btree;" >/dev/null
