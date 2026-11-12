@@ -7274,3 +7274,13 @@ Validation on the new code commit: pending GitHub Actions. No Supabase Productio
 - **Périmètre :** aucune donnée, migration, fonction SQL, schéma, politique RLS, grant, secret ou configuration Supabase Production modifié ; aucun déploiement Production, aucune fusion, aucun force-push et aucune modification des protections de branche.
 - **Appendice :** `docs/QIMA_V1_FUNCTION_REGISTER_QA355_APPEND.md`.
 - **Prochaine étape :** attendre et vérifier les résultats définitifs de CI #1278 et CodeQL #1228, puis compléter ce relevé avec les conclusions réelles.
+
+
+### QA355 — actualisation des validations — 12 novembre 2026
+
+- **CodeQL #1228 : SUCCESS**, run `43128751016` : https://github.com/meridane/QimaTrade-MVP/actions/runs/43128751016.
+- **QIMA CI #1278 : IN PROGRESS** (run `43128751019`) à la dernière inspection. Le job Verify a réussi les contrôles de concurrence, de câblage QA353/QA354 et le nouveau test runtime QA355 ; `npm ci` et le build Next.js ont réussi. L'installation Chromium et les parcours PostgreSQL 16/17.6 étaient encore en cours.
+- Les deux harnesses de simulation ont terminé avec les échecs attendus ; les deux assertions bloquantes indépendantes ont réussi.
+- **Vercel : PENDING** pour le HEAD de code `b5ed6544831fe1b9ee4507719fb14815691ea2fe`. Aucun Preview QA355 n'est revendiqué.
+- La validation de référence avant QA355 reste QIMA CI #1277 SUCCESS et CodeQL #1227 SUCCESS sur le HEAD précédent.
+- Prochaine action : récupérer la conclusion finale de CI #1278 et actualiser ce registre avec les résultats des jobs PostgreSQL et navigateur.
