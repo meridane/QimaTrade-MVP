@@ -57,6 +57,8 @@ jobs:
         run: bash tests/sql/test-create-offer-bootstrap-preflight.sh
       - name: Verify replication-slot bootstrap scope and isolated runtime contract
         run: bash tests/sql/test-create-offer-replication-slot-preflight.sh
+      - name: Verify database-scoped role settings and default ACL bootstrap contract
+        run: bash tests/sql/test-create-offer-database-settings-acl-preflight.sh
       - name: Set up Node.js
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
@@ -214,6 +216,8 @@ jobs:
         env:
           PG_SLOT_TEST_IMAGE: postgres:16
         run: bash tests/sql/test-create-offer-replication-slot-catalog-runtime.sh
+      - name: Characterize database-local role settings and default ACLs on PostgreSQL 16
+        run: bash tests/sql/test-create-offer-database-settings-acl-runtime.sh
 
       - name: Verify legacy offers INSERT RLS binds provider actor to authenticated profile
         env:
@@ -332,6 +336,8 @@ jobs:
         env:
           PG_SLOT_TEST_IMAGE: postgres:17.6
         run: bash tests/sql/test-create-offer-replication-slot-catalog-runtime.sh
+      - name: Characterize database-local role settings and default ACLs on PostgreSQL 17.6
+        run: bash tests/sql/test-create-offer-database-settings-acl-runtime.sh
 
       - name: Verify legacy offers INSERT RLS binds provider actor to authenticated profile
         env:

@@ -239,5 +239,23 @@ SELECT CASE
         WHERE db.datname = current_database()
       )
   ) THEN 'not_empty'
+  -- pg_db_role_setting is shared across databases. Only settings whose
+  -- setdatabase matches current_database() are database-local residue;
+  -- setdatabase = 0 represents cluster-wide role defaults and is excluded.
+  WHEN EXISTS (
+    SELECT 1
+    FROM pg_db_role_setting s
+    WHERE s.setdatabase = (
+      SELECT db.oid
+      FROM pg_database db
+      WHERE db.datname = current_database()
+    )
+  ) THEN 'not_empty'
+  -- Default privileges are stored per database. Both database-wide
+  -- (defaclnamespace = 0) and schema-specific entries affect future objects.
+  WHEN EXISTS (
+    SELECT 1
+    FROM pg_default_acl
+  ) THEN 'not_empty'
   ELSE 'empty'
 END;

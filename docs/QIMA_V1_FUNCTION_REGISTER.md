@@ -8308,3 +8308,36 @@ QA370 should audit database-scoped role/database settings (`pg_db_role_setting`)
   - QA353/QA354 intentional failure conclusions and the skipped-harness conclusion retained their expected semantics; independent blocking assertions passed.
 - CodeQL #1277 on the same documentation HEAD: **SUCCESS** — https://github.com/meridane/QimaTrade-MVP/actions/runs/43236938485.
 - Vercel combined status on the documentation HEAD: **FAILURE** due to the free daily deployment limit (`api-deployments-free-per-day` / `build-rate-limit`). No Preview is claimed for this HEAD. GitHub Actions build succeeded; no Production deployment occurred.
+
+
+### QA370 — database-scoped role settings and default ACL bootstrap state
+
+- Added read-only pg_db_role_setting inspection scoped to setdatabase equal to the OID of current_database(). Cluster-wide role defaults (setdatabase = 0) and settings owned by another database are deliberately excluded.
+- Added read-only inspection of all pg_default_acl rows in the current database. Both database-wide defaults (defaclnamespace = 0) and schema-specific defaults can alter privileges on future objects, so either means the disposable bootstrap database is not pristine.
+- Runtime characterization uses two disposable databases cloned from template0 and unique NOLOGIN roles. It covers ALTER DATABASE, ALTER ROLE ... IN DATABASE, a global role setting, database-wide default privileges, schema-specific default privileges, and equivalent state in another database.
+- The runner refusal diagnostic now identifies database-scoped settings and default ACLs explicitly.
+- No Supabase Production state, migration, persistent PostgreSQL configuration, or business idempotency contract was changed.
+
+### QA370 initial validation
+
+- Code and workflow changes are committed on the QA370 work branch and awaiting GitHub Actions execution.
+- PostgreSQL 16 and 17.6 runtime jobs are wired to run the same isolated catalog characterization.
+- Static contract is wired into Verify.
+- Results will be recorded after the first CI and CodeQL runs complete.
+
+### QA370 evidence boundary and safety
+
+These are disposable PostgreSQL catalog tests. They do not establish a Production vulnerability, incident, or misconfiguration. Global role defaults are intentionally not classified as database-local residue; their possible effect on a connection using that role remains outside this guard and should be managed through the test connection's explicit role/session contract.
+
+MKT-1.2 remains unapproved and MKT-1.3 remains decision-required. No numeric canonicalization, idempotency retention, price precision, or legacy-hash policy was changed.
+
+### QA370 documentation references
+
+- PostgreSQL 16 pg_db_role_setting: https://www.postgresql.org/docs/16/catalog-pg-db-role-setting.html
+- PostgreSQL 17 pg_db_role_setting: https://www.postgresql.org/docs/17/catalog-pg-db-role-setting.html
+- PostgreSQL 16 pg_default_acl: https://www.postgresql.org/docs/16/catalog-pg-default-acl.html
+- PostgreSQL 17 pg_default_acl: https://www.postgresql.org/docs/17/catalog-pg-default-acl.html
+
+### QA370 next step
+
+QA371 should audit database-local configuration objects that can influence test behavior without creating ordinary relations, beginning with per-database configuration parameters and extension configuration state only if a concrete, database-local catalog owner and safe positive/negative runtime probe can be established. Do not expand the preflight based solely on synthetic findings.
