@@ -58,7 +58,7 @@ No production data, migration, persistent PostgreSQL setting, or credential poli
 
 CI #43279189235 failed in the PostgreSQL 17.6 QA369 slot runtime with `psql: server closed the connection unexpectedly` against the disposable container's published port. The available job log does not establish whether this was a startup race or a container termination. The runtime now waits for a host-side `SELECT 1` after internal `pg_isready`, checks container state during readiness, and prints the bounded container log tail if the host probe fails or the container stops. Cleanup only queries the second database after its successful creation.
 
-Final validation is pending. The observed connection error is not classified as a confirmed PostgreSQL defect.
+Final validation succeeded in CI #1346 (run #43281883350) on PostgreSQL 16 and 17.6. The host-side readiness probe passed on both versions; the original connection error remains an unconfirmed transient symptom, not a confirmed PostgreSQL defect.
 
 
 ### QA372/QA369 corrective validation — 13 November 2026
@@ -76,4 +76,17 @@ Final validation is pending. The observed connection error is not classified as 
 
 ### QA372 final-register assertion correction — 2026-11-13
 
-CI run [#43281662101](https://github.com/meridane/QimaTrade-MVP/actions/runs/43281662101) (run #1345) reached Verify and stopped in the newly added documentation-evidence guard. The guard used bare grep commands under `set -e` and searched a run label without accounting for the Markdown link bracket. This was a static-test defect, not a PostgreSQL runtime failure. The correction searches stable run-ID substrings and adds explicit failure messages. Validation of the corrected guard is pending.
+CI run [#43281662101](https://github.com/meridane/QimaTrade-MVP/actions/runs/43281662101) (run #1345) reached Verify and stopped in the newly added documentation-evidence guard. The guard used bare grep commands under `set -e` and searched a run label without accounting for the Markdown link bracket. This was a static-test defect, not a PostgreSQL runtime failure. The correction searches stable run-ID substrings and adds explicit failure messages. The corrected guard passed in CI #1346 (run #43281883350).
+
+
+### QA372 / QA369 final corrective validation — 13 November 2026
+
+- Final code-and-documentation HEAD before this evidence-only update: `d2f3473dc14b11ba37b84ead73a37d02e4cce3a7`.
+- QIMA CI [#1346](https://github.com/meridane/QimaTrade-MVP/actions/runs/43281883350): **SUCCESS**. PostgreSQL 16 and PostgreSQL 17.6 integration jobs both succeeded. QA369 logical-slot runtime and QA372 non-superuser visibility runtime passed on both versions.
+- Verify job: QA369 and QA372 static contracts passed; npm audit at the high threshold, TypeScript, Next.js production build, Chromium, and Playwright succeeded. Playwright: **347 passed in 9.4 seconds**.
+- CodeQL [#1295](https://github.com/meridane/QimaTrade-MVP/actions/runs/43281883127): **SUCCESS**.
+- CI #1345 (run #43281662101) failed only in the newly added QA372 documentation-evidence guard; both PostgreSQL integration jobs succeeded. The bare-grep / Markdown-link matching defect was corrected in commit `d2f3473`, and CI #1346 validated the corrected guard.
+- The prepared-transaction failure harness jobs retain intentional failure conclusions; their separate blocking assertions passed. The skipped harness remains skipped and its assertion passed.
+- Vercel remains **RATE LIMITED** (`build-rate-limit`) on the final code HEAD. No Preview success is claimed for this HEAD.
+- PR #26 remains **OPEN**, **DRAFT**, **MERGEABLE**, unmerged, with zero human reviews and zero review threads.
+
