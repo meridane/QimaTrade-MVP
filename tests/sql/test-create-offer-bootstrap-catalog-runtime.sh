@@ -299,7 +299,7 @@ assert_state "empty" "baseline after dropping standalone publication"
 # QA367: large objects and foreign-data objects are independent bootstrap residue.
 # No FDW connection is attempted; the server options point only at loopback and
 # are never used by a foreign-table query.
-extension_fdw_count="$(\"${PSQL_TEMP[@]}\" -q -A -t -c "
+extension_fdw_count="$("${PSQL_TEMP[@]}" -q -A -t -c "
   SELECT count(*)
   FROM pg_foreign_data_wrapper fdw
   JOIN pg_depend d
@@ -317,28 +317,28 @@ if [[ "$extension_fdw_count" -ne 1 ]]; then
 fi
 assert_state "empty" "extension-only baseline including postgres_fdw"
 
-large_object_oid="$(\"${PSQL_TEMP[@]}\" -q -A -t -c "SELECT lo_create(0);")"
+large_object_oid="$("${PSQL_TEMP[@]}" -q -A -t -c "SELECT lo_create(0);")"
 if [[ ! "$large_object_oid" =~ ^[0-9]+$ ]]; then
   echo "ERROR: QA367 did not receive a valid OID for its disposable large object." >&2
   exit 1
 fi
-large_object_count="$(\"${PSQL_TEMP[@]}\" -q -A -t -c "SELECT count(*) FROM pg_largeobject_metadata WHERE oid = $large_object_oid;")"
+large_object_count="$("${PSQL_TEMP[@]}" -q -A -t -c "SELECT count(*) FROM pg_largeobject_metadata WHERE oid = $large_object_oid;")"
 if [[ "$large_object_count" -ne 1 ]]; then
   echo "ERROR: QA367 large object metadata was not persisted." >&2
   exit 1
 fi
 assert_state "not_empty" "standalone large object metadata"
-\"${PSQL_TEMP[@]}\" -c "SELECT lo_unlink($large_object_oid);" >/dev/null
+"${PSQL_TEMP[@]}" -c "SELECT lo_unlink($large_object_oid);" >/dev/null
 assert_state "empty" "baseline after unlinking standalone large object"
 
-fdw_handler_ref="$(\"${PSQL_TEMP[@]}\" -q -A -t -c "
+fdw_handler_ref="$("${PSQL_TEMP[@]}" -q -A -t -c "
   SELECT format('%I.%I', n.nspname, p.proname)
   FROM pg_proc p
   JOIN pg_namespace n ON n.oid = p.pronamespace
   WHERE p.proname = 'postgres_fdw_handler'
   LIMIT 1;
 ")"
-fdw_validator_ref="$(\"${PSQL_TEMP[@]}\" -q -A -t -c "
+fdw_validator_ref="$("${PSQL_TEMP[@]}" -q -A -t -c "
   SELECT format('%I.%I', n.nspname, p.proname)
   FROM pg_proc p
   JOIN pg_namespace n ON n.oid = p.pronamespace
@@ -349,23 +349,23 @@ if [[ -z "$fdw_handler_ref" || -z "$fdw_validator_ref" ]]; then
   echo "ERROR: QA367 could not resolve postgres_fdw handler and validator functions." >&2
   exit 1
 fi
-\"${PSQL_TEMP[@]}\" -c "CREATE FOREIGN DATA WRAPPER qa367_user_fdw HANDLER $fdw_handler_ref VALIDATOR $fdw_validator_ref;" >/dev/null
+"${PSQL_TEMP[@]}" -c "CREATE FOREIGN DATA WRAPPER qa367_user_fdw HANDLER $fdw_handler_ref VALIDATOR $fdw_validator_ref;" >/dev/null
 assert_state "not_empty" "standalone foreign-data wrapper"
-\"${PSQL_TEMP[@]}\" -c "DROP FOREIGN DATA WRAPPER qa367_user_fdw;" >/dev/null
+"${PSQL_TEMP[@]}" -c "DROP FOREIGN DATA WRAPPER qa367_user_fdw;" >/dev/null
 assert_state "empty" "baseline after dropping standalone foreign-data wrapper"
 
 # A server definition is catalog residue even though this test never connects
 # to the remote endpoint.
-\"${PSQL_TEMP[@]}\" -c "CREATE SERVER qa367_user_server FOREIGN DATA WRAPPER postgres_fdw OPTIONS (host '127.0.0.1', dbname 'qima_test');" >/dev/null
+"${PSQL_TEMP[@]}" -c "CREATE SERVER qa367_user_server FOREIGN DATA WRAPPER postgres_fdw OPTIONS (host '127.0.0.1', dbname 'qima_test');" >/dev/null
 assert_state "not_empty" "standalone foreign server"
-\"${PSQL_TEMP[@]}\" -c "DROP SERVER qa367_user_server;" >/dev/null
+"${PSQL_TEMP[@]}" -c "DROP SERVER qa367_user_server;" >/dev/null
 assert_state "empty" "baseline after dropping standalone foreign server"
 
 # Put a server inside the postgres_fdw extension so the user-mapping predicate
 # is exercised independently: the wrapper and server are extension-owned,
 # while CREATE USER MAPPING is not an extension member.
-\"${PSQL_TEMP[@]}\" -c "CREATE SERVER qa367_extension_server FOREIGN DATA WRAPPER postgres_fdw OPTIONS (host '127.0.0.1', dbname 'qima_test'); ALTER EXTENSION postgres_fdw ADD SERVER qa367_extension_server;" >/dev/null
-extension_server_count="$(\"${PSQL_TEMP[@]}\" -q -A -t -c "
+"${PSQL_TEMP[@]}" -c "CREATE SERVER qa367_extension_server FOREIGN DATA WRAPPER postgres_fdw OPTIONS (host '127.0.0.1', dbname 'qima_test'); ALTER EXTENSION postgres_fdw ADD SERVER qa367_extension_server;" >/dev/null
+extension_server_count="$("${PSQL_TEMP[@]}" -q -A -t -c "
   SELECT count(*)
   FROM pg_foreign_server srv
   JOIN pg_depend d
@@ -381,8 +381,8 @@ if [[ "$extension_server_count" -ne 1 ]]; then
   echo "ERROR: QA367 server was not registered as a postgres_fdw extension member." >&2
   exit 1
 fi
-\"${PSQL_TEMP[@]}\" -c "CREATE USER MAPPING FOR CURRENT_USER SERVER qa367_extension_server OPTIONS (user 'qa367_remote_user');" >/dev/null
-user_mapping_count="$(\"${PSQL_TEMP[@]}\" -q -A -t -c "
+"${PSQL_TEMP[@]}" -c "CREATE USER MAPPING FOR CURRENT_USER SERVER qa367_extension_server OPTIONS (user 'qa367_remote_user');" >/dev/null
+user_mapping_count="$("${PSQL_TEMP[@]}" -q -A -t -c "
   SELECT count(*)
   FROM pg_user_mapping um
   JOIN pg_foreign_server srv ON srv.oid = um.umserver
@@ -394,9 +394,9 @@ if [[ "$user_mapping_count" -ne 1 ]]; then
   exit 1
 fi
 assert_state "not_empty" "user mapping on an extension-owned server"
-\"${PSQL_TEMP[@]}\" -c "DROP USER MAPPING FOR CURRENT_USER SERVER qa367_extension_server;" >/dev/null
+"${PSQL_TEMP[@]}" -c "DROP USER MAPPING FOR CURRENT_USER SERVER qa367_extension_server;" >/dev/null
 assert_state "empty" "baseline after dropping user mapping while extension-owned server remains"
-\"${PSQL_TEMP[@]}\" -c "DROP EXTENSION postgres_fdw CASCADE;" >/dev/null
+"${PSQL_TEMP[@]}" -c "DROP EXTENSION postgres_fdw CASCADE;" >/dev/null
 assert_state "empty" "baseline after removing postgres_fdw extension and its server"
 
 echo "QA367 passed: standalone large objects, foreign-data wrappers, servers, and user mappings were detected; postgres_fdw-owned wrapper/server objects were ignored; no remote FDW connection was attempted; all probes used a disposable database."
