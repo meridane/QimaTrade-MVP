@@ -37,9 +37,9 @@ Vérifier que les scénarios QA353 (setup échoué, restauration réussie) et QA
   - `npm ci` a également réussi ; le build Next.js était encore en cours à la dernière inspection.
   - Les jobs PostgreSQL 16 et PostgreSQL 17.6 étaient encore en cours.
   - Les deux harnesses ont terminé avec les échecs contrôlés attendus ; les deux jobs d'assertion correspondants ont réussi.
-- **CodeQL #1228** : `in_progress`, run `43128751016` : https://github.com/meridane/QimaTrade-MVP/actions/runs/43128751016
+- **CodeQL #1228 : SUCCESS**, run `43128751016` : https://github.com/meridane/QimaTrade-MVP/actions/runs/43128751016
 - Les validations de référence sur le HEAD précédent étaient QIMA CI #1277 SUCCESS (run `43119716248`) et CodeQL #1227 SUCCESS (run `43119716356`).
-- Le statut Vercel du nouveau HEAD de code était `pending` lors de la dernière inspection. Le HEAD précédent avait le statut `build-rate-limit`.
+- **Vercel :** le statut du nouveau HEAD de code est resté `pending` lors de la dernière inspection ; le HEAD précédent avait le statut `build-rate-limit`.
 
 ## Commits et état de la PR
 
@@ -56,6 +56,13 @@ Vérifier que les scénarios QA353 (setup échoué, restauration réussie) et QA
 - Aucun code applicatif, SQL, migration, donnée, fonction, schéma, politique RLS, grant, secret ou configuration Supabase Production n'a été modifié.
 - Aucun déploiement Production, aucune fusion, aucun force-push et aucune modification des protections de branche.
 
+## Statut actualisé après la première validation
+
+- **CodeQL #1228 : SUCCESS** (run `43128751016`).
+- **QIMA CI #1278 : toujours IN PROGRESS** (run `43128751019`) à la dernière interrogation. Les étapes Verify (dont le test QA355) et `npm ci` sont SUCCESS ; le build Next.js est SUCCESS ; l'installation Chromium est encore en cours. Les jobs PostgreSQL 16 et 17.6 poursuivent leurs tests d'intégration.
+- Les deux harnesses QA353/QA354 ont terminé avec leurs échecs simulés attendus ; leurs deux jobs d'assertion indépendants ont réussi.
+- **Vercel : PENDING** pour le HEAD de code `b5ed654`; aucun Preview QA355 n'est déclaré.
+
 ## Prochaine étape
 
-Récupérer les résultats définitifs de QIMA CI #1278 et CodeQL #1228. Si tous les jobs réussissent, inscrire leurs résultats finaux dans le registre canonique. Si un contrôle échoue, inspecter son journal et corriger uniquement la cause démontrée.
+Récupérer la conclusion finale de QIMA CI #1278. Si un job échoue, inspecter son journal et corriger uniquement la cause démontrée ; si tous réussissent, consigner le résultat final sans modifier le code.
