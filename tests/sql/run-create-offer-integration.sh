@@ -35,7 +35,7 @@ case "$preflight_state" in
     exit 3
     ;;
   not_empty)
-    echo "::error::Refusing CREATE_OFFER integration setup: qima_test already contains application relations, routines, types, or non-default schemas; use a fresh disposable database; no fixture DDL/DML was attempted." >&2
+    echo "::error::Refusing CREATE_OFFER integration setup: qima_test already contains application catalog objects or non-default schemas; use a fresh disposable database; no fixture DDL/DML was attempted." >&2
     exit 3
     ;;
   *)

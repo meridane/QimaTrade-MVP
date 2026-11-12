@@ -37,21 +37,21 @@ grep -Fq 'expected_database=qima_test' "$RUNNER" ||
 
 query="$(cat "$ROOT/tests/sql/create-offer-bootstrap-preflight.sql")"
 
-for required in "current_database()" "pg_namespace" "pg_class" "pg_proc" "pg_type" "pg_operator" "pg_opclass" "pg_opfamily" "pg_collation" "pg_publication" "pg_depend" "n.nspname = 'public'" "c.relkind IN ('r', 'p', 'v', 'm', 'S', 'f', 'c')" "d.deptype = 'e'" "t.typtype IN ('b', 'd', 'e', 'r', 'm')" "t.typelem = 0"; do
+for required in "current_database()" "pg_namespace" "pg_class" "pg_proc" "pg_type" "pg_operator" "pg_opclass" "pg_opfamily" "pg_collation" "pg_publication" "pg_ts_dict" "pg_ts_config" "pg_conversion" "pg_depend" "n.nspname = 'public'" "c.relkind IN ('r', 'p', 'v', 'm', 'S', 'f', 'c')" "d.deptype = 'e'" "t.typtype IN ('b', 'd', 'e', 'r', 'm')" "t.typelem = 0"; do
   grep -Fq -- "$required" <<< "$query" || fail "preflight SQL is missing required catalog check: $required"
 done
 
-for required in "d.classid = 'pg_proc'::regclass" "d.classid = 'pg_type'::regclass" "d.classid = 'pg_operator'::regclass" "d.classid = 'pg_opclass'::regclass" "d.classid = 'pg_opfamily'::regclass" "d.classid = 'pg_collation'::regclass" "d.classid = 'pg_publication'::regclass" "d.refclassid = 'pg_extension'::regclass" "WHEN current_database() <> :'expected_database'"; do
+for required in "d.classid = 'pg_proc'::regclass" "d.classid = 'pg_type'::regclass" "d.classid = 'pg_operator'::regclass" "d.classid = 'pg_opclass'::regclass" "d.classid = 'pg_opfamily'::regclass" "d.classid = 'pg_collation'::regclass" "d.classid = 'pg_publication'::regclass" "d.classid = 'pg_ts_dict'::regclass" "d.classid = 'pg_ts_config'::regclass" "d.classid = 'pg_conversion'::regclass" "d.refclassid = 'pg_extension'::regclass" "WHEN current_database() <> :'expected_database'"; do
   grep -Fq -- "$required" <<< "$query" || fail "preflight SQL is missing extension-ownership or database-identity check: $required"
 done
 
 RUNTIME_TEST="$ROOT/tests/sql/test-create-offer-bootstrap-catalog-runtime.sh"
 WORKFLOW="$ROOT/.github/workflows/ci.yml"
-for required in "CREATE EXTENSION pgcrypto" "CREATE EXTENSION hstore" "CREATE EXTENSION btree_gist" "CREATE FUNCTION public.qa364_user_function" "CREATE TYPE public.qa364_user_enum AS ENUM" "CREATE DOMAIN public.qa364_user_domain" "AS RANGE" "qa364_user_composite" "CREATE OPERATOR public.===" "CREATE OPERATOR FAMILY public.qa365_user_opfamily" "CREATE OPERATOR CLASS public.qa365_user_opclass" "CREATE COLLATION public.qa365_user_collation" "CREATE PUBLICATION qa365_user_publication" "extension_operator_count" "extension_opclass_count" "extension_opfamily_count" "DROP DATABASE IF EXISTS"; do
-  grep -Fq -- "$required" "$RUNTIME_TEST" || fail "QA364 runtime test is missing catalog probe: $required"
+for required in "CREATE EXTENSION pgcrypto" "CREATE EXTENSION hstore" "CREATE EXTENSION btree_gist" "CREATE EXTENSION unaccent" "extension_dictionary_count" "CREATE TEXT SEARCH DICTIONARY public.qa366_user_dictionary" "CREATE TEXT SEARCH CONFIGURATION public.qa366_user_config" "CREATE CONVERSION public.qa366_user_conversion" "CREATE STATISTICS public.qa366_extended_stats_probe" "CREATE POLICY qa366_policy_probe" "CREATE EVENT TRIGGER qa366_user_event_trigger" "qa366_event_trigger_fn" "CREATE FUNCTION public.qa364_user_function" "CREATE TYPE public.qa364_user_enum AS ENUM" "CREATE DOMAIN public.qa364_user_domain" "AS RANGE" "qa364_user_composite" "CREATE OPERATOR public.===" "CREATE OPERATOR FAMILY public.qa365_user_opfamily" "CREATE OPERATOR CLASS public.qa365_user_opclass" "CREATE COLLATION public.qa365_user_collation" "CREATE PUBLICATION qa365_user_publication" "extension_operator_count" "extension_opclass_count" "extension_opfamily_count" "DROP DATABASE IF EXISTS"; do
+  grep -Fq -- "$required" "$RUNTIME_TEST" || fail "QA366 runtime test is missing catalog probe: $required"
 done
 runtime_step_count="$(grep -Fc 'run: bash tests/sql/test-create-offer-bootstrap-catalog-runtime.sh' "$WORKFLOW")"
-[[ "$runtime_step_count" -eq 2 ]] || fail "QA364 runtime characterization must run on both PostgreSQL jobs; found $runtime_step_count workflow steps"
+[[ "$runtime_step_count" -eq 2 ]] || fail "QA366 runtime characterization must run on both PostgreSQL jobs; found $runtime_step_count workflow steps"
 
 REPEAT_GUARD="$ROOT/tests/sql/test-create-offer-integration-repeat-guard.sh"
 repeat_preflight_line="$(grep -nF 'create-offer-bootstrap-preflight.sql' "$REPEAT_GUARD" | head -n 1 | cut -d: -f1)"
@@ -63,7 +63,7 @@ if grep -Ein '^[[:space:]]*(INSERT|UPDATE|DELETE|MERGE|CREATE|ALTER|DROP|TRUNCAT
   fail "bootstrap preflight SQL must remain read-only"
 fi
 
-grep -Fq "qima_test already contains application relations, routines, types, or non-default schemas" "$RUNNER" ||
+grep -Fq "qima_test already contains application catalog objects or non-default schemas" "$RUNNER" ||
   fail "non-empty database refusal diagnostic is missing"
 grep -Fq "no fixture DDL/DML was attempted" "$RUNNER" ||
   fail "preflight refusal must explicitly state that fixture DDL/DML was not attempted"
@@ -123,7 +123,7 @@ run_case() {
 }
 
 run_case "initialized database" "not_empty" 0 3 "preflight" \
-  "qima_test already contains application relations, routines, types, or non-default schemas"
+  "qima_test already contains application catalog objects or non-default schemas"
 run_case "wrong current database" "wrong_database" 0 3 "preflight" \
   "current database is not qima_test"
 run_case "unexpected preflight result" "unexpected" 0 3 "preflight" \
@@ -133,4 +133,4 @@ run_case "preflight connection failure" "empty" 42 42 "preflight" \
 run_case "empty database" "empty" 0 99 $'preflight\nfixture' \
   "mock psql reached fixture file"
 
-echo "QA365 bootstrap catalog contract PASS: operators, operator classes/families, collations and publications are extension-aware, read-only, and characterized on both PostgreSQL jobs."
+echo "QA366 bootstrap catalog contract PASS: text-search dictionaries/configurations and conversions are extension-aware; relation-dependent statistics/policies and event-trigger handlers are covered by existing guards; the preflight remains read-only and runs on both PostgreSQL jobs."

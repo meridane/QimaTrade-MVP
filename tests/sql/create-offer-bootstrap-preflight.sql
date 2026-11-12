@@ -1,4 +1,4 @@
--- QA365: read-only CREATE_OFFER bootstrap catalog preflight.
+-- QA366: read-only CREATE_OFFER bootstrap catalog preflight.
 -- expected_database is supplied by psql (-v expected_database=...).
 -- Extension-owned catalog objects are not treated as application residue.
 SELECT CASE
@@ -124,6 +124,50 @@ SELECT CASE
         AND d.refclassid = 'pg_extension'::regclass
         AND d.deptype = 'e'
     )
+  ) THEN 'not_empty'
+  -- Text-search dictionaries/configurations and conversions can exist
+  -- without ordinary relations, so inspect their public namespace explicitly.
+  WHEN EXISTS (
+    SELECT 1
+    FROM pg_ts_dict tsd
+    JOIN pg_namespace n ON n.oid = tsd.dictnamespace
+    WHERE n.nspname = 'public'
+      AND NOT EXISTS (
+        SELECT 1
+        FROM pg_depend dep
+        WHERE dep.classid = 'pg_ts_dict'::regclass
+          AND dep.objid = tsd.oid
+          AND dep.refclassid = 'pg_extension'::regclass
+          AND dep.deptype = 'e'
+      )
+  ) THEN 'not_empty'
+  WHEN EXISTS (
+    SELECT 1
+    FROM pg_ts_config tsc
+    JOIN pg_namespace n ON n.oid = tsc.cfgnamespace
+    WHERE n.nspname = 'public'
+      AND NOT EXISTS (
+        SELECT 1
+        FROM pg_depend dep
+        WHERE dep.classid = 'pg_ts_config'::regclass
+          AND dep.objid = tsc.oid
+          AND dep.refclassid = 'pg_extension'::regclass
+          AND dep.deptype = 'e'
+      )
+  ) THEN 'not_empty'
+  WHEN EXISTS (
+    SELECT 1
+    FROM pg_conversion conv
+    JOIN pg_namespace n ON n.oid = conv.connamespace
+    WHERE n.nspname = 'public'
+      AND NOT EXISTS (
+        SELECT 1
+        FROM pg_depend dep
+        WHERE dep.classid = 'pg_conversion'::regclass
+          AND dep.objid = conv.oid
+          AND dep.refclassid = 'pg_extension'::regclass
+          AND dep.deptype = 'e'
+      )
   ) THEN 'not_empty'
   ELSE 'empty'
 END;

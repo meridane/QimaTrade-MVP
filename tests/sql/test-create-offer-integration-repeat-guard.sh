@@ -122,8 +122,8 @@ if [[ "$runner_status" -ne 3 ]]; then
   exit 1
 fi
 
-grep -Fq "qima_test already contains application relations, routines, types, or non-default schemas" "$OUTPUT" || {
-  echo "ERROR: second runner invocation failed without the QA363 non-empty-database diagnostic." >&2
+grep -Fq "qima_test already contains application catalog objects or non-default schemas" "$OUTPUT" || {
+  echo "ERROR: second runner invocation failed without the QA366 non-empty-database diagnostic." >&2
   cat "$OUTPUT" >&2
   exit 1
 }
