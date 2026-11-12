@@ -41,7 +41,7 @@ for required in "current_database()" "pg_namespace" "pg_class" "pg_proc" "pg_typ
   grep -Fq -- "$required" <<< "$query" || fail "preflight SQL is missing required catalog check: $required"
 done
 
-for required in "d.classid = 'pg_proc'::regclass" "d.classid = 'pg_type'::regclass" "d.classid = 'pg_operator'::regclass" "d.classid = 'pg_opclass'::regclass" "d.classid = 'pg_opfamily'::regclass" "d.classid = 'pg_collation'::regclass" "d.classid = 'pg_publication'::regclass" "d.classid = 'pg_ts_dict'::regclass" "d.classid = 'pg_ts_config'::regclass" "d.classid = 'pg_conversion'::regclass" "d.refclassid = 'pg_extension'::regclass" "WHEN current_database() <> :'expected_database'"; do
+for required in "d.classid = 'pg_proc'::regclass" "d.classid = 'pg_type'::regclass" "d.classid = 'pg_operator'::regclass" "d.classid = 'pg_opclass'::regclass" "d.classid = 'pg_opfamily'::regclass" "d.classid = 'pg_collation'::regclass" "d.classid = 'pg_publication'::regclass" "dep.classid = 'pg_ts_dict'::regclass" "dep.classid = 'pg_ts_config'::regclass" "dep.classid = 'pg_conversion'::regclass" "d.refclassid = 'pg_extension'::regclass" "WHEN current_database() <> :'expected_database'"; do
   grep -Fq -- "$required" <<< "$query" || fail "preflight SQL is missing extension-ownership or database-identity check: $required"
 done
 
