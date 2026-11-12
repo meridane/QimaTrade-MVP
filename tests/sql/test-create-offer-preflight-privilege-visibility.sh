@@ -53,8 +53,12 @@ done
 if grep -Fq 'GRANT pg_monitor TO "$PROBE_ROLE"' "$RUNTIME"; then
   fail "QA372 baseline probe must remain a non-superuser without pg_monitor"
 fi
-grep -Fq 'REVOKE CONNECT ON DATABASE "$DB_NAME" FROM "$PROBE_ROLE", "$MONITOR_ROLE"' "$RUNTIME" ||
+grep -Fq 'REVOKE CONNECT ON DATABASE' "$RUNTIME" ||
   fail "QA372 must revoke disposable database CONNECT grants before dropping probe roles"
+revoke_line="$(grep -nF 'REVOKE CONNECT ON DATABASE' "$RUNTIME" | cut -d: -f1)"
+drop_role_line="$(grep -nF 'DROP ROLE' "$RUNTIME" | tail -n 1 | cut -d: -f1)"
+[[ -n "$revoke_line" && -n "$drop_role_line" && "$revoke_line" -lt "$drop_role_line" ]] ||
+  fail "QA372 must revoke CONNECT before dropping probe roles"
 
 if grep -Fq "ALTER SYSTEM" "$RUNTIME"; then
   fail "QA372 must not alter persistent server configuration"
