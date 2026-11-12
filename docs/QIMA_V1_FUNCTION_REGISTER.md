@@ -8544,3 +8544,12 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 - QIMA CI #1356 is the final successful code validation. CodeQL runs #1300 through #1305 all completed SUCCESS on the six successive QA373 code/documentation heads.
 - The expected individual failure conclusions in the prepared-transaction cleanup harnesses remain intentional; their separate blocking assertions passed. The expected skipped harness remains skipped, and the complete QIMA CI workflow is green.
 
+
+
+### QA373 final documentation-head verification — 13 November 2026
+
+- Documentation HEAD 91af8b8deab945fcefe5ac5058251109bc344fac was validated by QIMA CI [#1357](https://github.com/meridane/QimaTrade-MVP/actions/runs/43291205377): SUCCESS, and CodeQL [#1306](https://github.com/meridane/QimaTrade-MVP/actions/runs/43291205279): SUCCESS.
+- Both PostgreSQL 16 and PostgreSQL 17.6 integration jobs passed, including the complete QA373 non-superuser runner characterization. Verify passed npm audit at the high threshold, TypeScript, Next.js build, Chromium, and 347 Playwright tests.
+- The Vercel status on this documentation-only HEAD is build-rate-limit; no Preview is claimed for 91af8b8. The code HEAD 40f0801 had a successful Preview, recorded above.
+- No application code, SQL migration, or runtime behavior changed after the code HEAD 40f0801. The final commits after that code HEAD only update the QA373 appendix and canonical register.
+
