@@ -126,26 +126,26 @@ if ! grep -Fq "Observed one granted and one waiting same-tenant advisory lock" "
 fi
 
 role_state="$(db_psql -c "SELECT rolsuper::text || '|' || rolcreaterole::text || '|' || rolcreatedb::text || '|' || rolreplication::text || '|' || rolbypassrls::text FROM pg_roles WHERE rolname = 'qa373_runner';")"
-if [[ "$role_state" != "f|t|f|f|f" ]]; then
+if [[ "$role_state" != "false|true|false|false|false" ]]; then
   echo "ERROR: QA373 runner role attributes were not least-privilege as expected: '$role_state'." >&2
   exit 1
 fi
 
 membership_state="$(db_psql -c "SELECT pg_has_role('qa373_runner', 'authenticated', 'SET')::text || '|' || pg_has_role('qa373_runner', 'anon', 'SET')::text || '|' || pg_has_role('authenticated', 'qa373_runner', 'MEMBER')::text || '|' || pg_has_role('anon', 'qa373_runner', 'MEMBER')::text;")"
-if [[ "$membership_state" != "t|t|f|f" ]]; then
+if [[ "$membership_state" != "true|true|false|false" ]]; then
   echo "ERROR: QA373 client-role membership direction was unexpected: '$membership_state'." >&2
   exit 1
 fi
 
 pg_monitor_state="$(db_psql -c "SELECT pg_has_role('qa373_runner', 'pg_monitor', 'MEMBER')::text;")"
-if [[ "$pg_monitor_state" != "f" ]]; then
+if [[ "$pg_monitor_state" != "false" ]]; then
   echo "ERROR: QA373 unexpectedly required pg_monitor for the full runner." >&2
   exit 1
 fi
 
 extension_state="$(db_psql -c "SELECT count(*)::text FROM pg_extension WHERE extname = 'pgcrypto';")"
 wrapper_state="$(db_psql -c "SELECT (to_regprocedure('public.execute_create_offer_v1(uuid,text,jsonb,text,uuid,uuid,uuid,numeric,numeric,text,text,text,text,jsonb,text,text,text,text)') IS NOT NULL)::text;")"
-if [[ "$extension_state" != "1" || "$wrapper_state" != "t" ]]; then
+if [[ "$extension_state" != "1" || "$wrapper_state" != "true" ]]; then
   echo "ERROR: QA373 did not install pgcrypto and apply the CREATE_OFFER wrapper migration as the non-superuser runner." >&2
   exit 1
 fi
