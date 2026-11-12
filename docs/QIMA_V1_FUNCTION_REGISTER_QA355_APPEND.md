@@ -56,13 +56,20 @@ Vérifier que les scénarios QA353 (setup échoué, restauration réussie) et QA
 - Aucun code applicatif, SQL, migration, donnée, fonction, schéma, politique RLS, grant, secret ou configuration Supabase Production n'a été modifié.
 - Aucun déploiement Production, aucune fusion, aucun force-push et aucune modification des protections de branche.
 
-## Statut actualisé après la première validation
+## Résultats définitifs — CI #1278 et CodeQL #1228
 
-- **CodeQL #1228 : SUCCESS** (run `43128751016`).
-- **QIMA CI #1278 : toujours IN PROGRESS** (run `43128751019`) à la dernière interrogation. Les étapes Verify (dont le test QA355) et `npm ci` sont SUCCESS ; le build Next.js est SUCCESS ; l'installation Chromium est encore en cours. Les jobs PostgreSQL 16 et 17.6 poursuivent leurs tests d'intégration.
-- Les deux harnesses QA353/QA354 ont terminé avec leurs échecs simulés attendus ; leurs deux jobs d'assertion indépendants ont réussi.
-- **Vercel : PENDING** pour le HEAD de code `b5ed654`; aucun Preview QA355 n'est déclaré.
+- **QIMA CI #1278 : SUCCESS**, run `43128751019` : https://github.com/meridane/QimaTrade-MVP/actions/runs/43128751019.
+  - Verify : 21/21 étapes réussies, dont les contrôles de concurrence, le contrat statique QA353/QA354 et le test runtime concurrent QA355.
+  - npm ci, npm audit au seuil high, TypeScript, build Next.js et installation Chromium : SUCCESS.
+  - Playwright : **347 tests réussis en 12,8 secondes**.
+  - PostgreSQL 16 : **29/29 étapes réussies** ; intégration CREATE_OFFER, RLS/ACL, migrations jetables et restauration des transactions préparées réussies ; baseline `max_prepared_transactions=0` et absence de ressources résiduelles confirmées.
+  - PostgreSQL 17.6 : **14/14 étapes réussies** ; intégration et compatibilité réussies.
+  - Harness QA353 : setup échoué volontairement (47), restauration réussie ; assertion bloquante SUCCESS.
+  - Harness QA354 : setup échoué volontairement (47), restauration échouée volontairement (52) ; assertion bloquante SUCCESS.
+  - QA355 : le journal confirme l'exécution simultanée des deux chemins avec des `RUNNER_TEMP` et `GITHUB_OUTPUT` distincts ; le chemin succès a émis uniquement les sorties attendues (code 0, `cleanup_ran=true`), le chemin échec uniquement le code 52 et `cleanup_failure_observed=true`.
+- **CodeQL #1228 : SUCCESS**, run `43128751016` : https://github.com/meridane/QimaTrade-MVP/actions/runs/43128751016.
+- **Vercel : FAILURE / build-rate-limit** (`api-deployments-free-per-day`) pour le HEAD documentaire final. Ce quota ne constitue pas un échec du build Next.js, qui a réussi dans CI. Aucun Preview QA355 n'est revendiqué et aucun déploiement Production n'a eu lieu.
 
 ## Prochaine étape
 
-Récupérer la conclusion finale de QIMA CI #1278. Si un job échoue, inspecter son journal et corriger uniquement la cause démontrée ; si tous réussissent, consigner le résultat final sans modifier le code.
+QA355 est validé par CI #1278 et CodeQL #1228. QA356 peut vérifier que l'assertion bloquante échoue proprement si une sortie de harness manque, est vide à tort ou contient une valeur inattendue, sans changer le parcours PostgreSQL réel.
