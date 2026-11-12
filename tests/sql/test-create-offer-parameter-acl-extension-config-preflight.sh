@@ -23,9 +23,9 @@ fi
 grep -Fq "Extension configuration tables registered in pg_extension.extconfig" <<< "$query" ||
   fail "preflight must document that extension config relations are already covered"
 grep -Fq "extcondition is pg_dump row-filter" <<< "$query" ||
+  fail "preflight must document extcondition as dump metadata rather than a dynamic preflight predicate"
 if grep -Fq 'unnest(e.extconfig)' <<< "$query" || grep -Fq 'extcondition[' <<< "$query"; then
   fail "preflight must not dynamically inspect extension configuration filters"
-fi
 fi
 
 for required in \
