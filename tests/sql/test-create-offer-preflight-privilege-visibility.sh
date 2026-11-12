@@ -45,7 +45,11 @@ for required in \
   "postgres:16" \
   "postgres:17.6" \
   "trap cleanup EXIT" \
-  "docker rm -f"; do
+  "docker rm -f" \
+  "host_ready=false" \
+  "SELECT 1" \
+  "docker inspect --format" \
+  "docker logs --tail 80"; do
   grep -Fq -- "$required" "$RUNTIME" ||
     fail "QA372 runtime characterization is missing: $required"
 done
@@ -59,6 +63,11 @@ revoke_line="$(grep -nF 'REVOKE CONNECT ON DATABASE' "$RUNTIME" | cut -d: -f1)"
 drop_role_line="$(grep -nF 'DROP ROLE' "$RUNTIME" | tail -n 1 | cut -d: -f1)"
 [[ -n "$revoke_line" && -n "$drop_role_line" && "$revoke_line" -lt "$drop_role_line" ]] ||
   fail "QA372 must revoke CONNECT before dropping probe roles"
+
+grep -Fq 'host_ready=false' "$RUNTIME" ||
+  fail "QA372 must wait for a real host-side SQL connection after internal readiness"
+grep -Fq 'docker logs --tail 80' "$RUNTIME" ||
+  fail "QA372 must preserve bounded container diagnostics on failure"
 
 if grep -Fq "ALTER SYSTEM" "$RUNTIME"; then
   fail "QA372 must not alter persistent server configuration"

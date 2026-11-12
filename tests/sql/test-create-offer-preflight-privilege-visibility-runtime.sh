@@ -46,11 +46,19 @@ LARGE_OBJECT_OID=""
 cleanup() {
   local original_status=$?
   local cleanup_status=0
+  local container_running=false
   set +e
 
-  # The cluster is wholly disposable. If any assertion fails, removing this
-  # container is the final cleanup boundary for every remaining SQL object.
   if [[ "$CONTAINER_STARTED" == true ]]; then
+    container_running="$(docker inspect --format '{{.State.Running}}' "$CONTAINER_NAME" 2>/dev/null)"
+    if [[ "$original_status" -ne 0 || "$container_running" != true ]]; then
+      echo "ERROR: QA372 disposable PostgreSQL container state at cleanup (original exit=$original_status)." >&2
+      docker inspect --format 'status={{.State.Status}} exit={{.State.ExitCode}} oom={{.State.OOMKilled}}' "$CONTAINER_NAME" >&2 2>/dev/null || true
+      docker logs --tail 80 "$CONTAINER_NAME" >&2 2>/dev/null || true
+    fi
+    if [[ "$container_running" != true && "$original_status" -eq 0 ]]; then
+      cleanup_status=1
+    fi
     docker rm -f "$CONTAINER_NAME" >/dev/null 2>&1 || cleanup_status=1
   fi
   rm -rf "$TEMP_DIR" || cleanup_status=1
@@ -95,6 +103,25 @@ for attempt in $(seq 1 60); do
 done
 if [[ "$ready" != true ]]; then
   echo "ERROR: QA372 disposable PostgreSQL container did not become ready." >&2
+  exit 1
+fi
+
+# Internal pg_isready does not prove Docker's published host port accepts SQL.
+host_ready=false
+for attempt in $(seq 1 60); do
+  if psql "$ADMIN_URL" -X -v ON_ERROR_STOP=1 -q -A -t -c 'SELECT 1' >/dev/null 2>&1; then
+    host_ready=true
+    break
+  fi
+  if [[ "$(docker inspect --format '{{.State.Running}}' "$CONTAINER_NAME" 2>/dev/null)" != true ]]; then
+    break
+  fi
+  sleep 1
+done
+if [[ "$host_ready" != true ]]; then
+  echo "ERROR: QA372 PostgreSQL was ready inside the container but did not accept a host-side SQL connection." >&2
+  docker inspect --format 'status={{.State.Status}} exit={{.State.ExitCode}} oom={{.State.OOMKilled}}' "$CONTAINER_NAME" >&2 2>/dev/null || true
+  docker logs --tail 80 "$CONTAINER_NAME" >&2 2>/dev/null || true
   exit 1
 fi
 

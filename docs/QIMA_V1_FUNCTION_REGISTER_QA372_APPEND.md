@@ -99,3 +99,8 @@ CI run [#43281662101](https://github.com/meridane/QimaTrade-MVP/actions/runs/432
 - GitHub's combined status still reports Vercel **RATE LIMITED** (`build-rate-limit`); no Preview success is claimed for this HEAD.
 - The run #1347 is the CI/CodeQL verification of the prior documentation-only evidence commit. No Production deployment, PR merge, or branch-protection change occurred.
 
+
+
+### QA372 PostgreSQL 17.6 host-port failure triage — 13 November 2026
+
+CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) failed only in the PostgreSQL 17.6 QA372 runtime at the first host-side psql connection: `server closed the connection unexpectedly` on the disposable container's published port. PostgreSQL 16 QA372, both main integration jobs' other steps, and the Verify job succeeded. CodeQL #1298 succeeded. The QA372 runtime previously waited only for internal `docker exec pg_isready`; it now also waits for a real host-side `SELECT 1`, checks whether the container remains running, and emits container state plus the last 80 log lines on failure. The exact cause of the observed server closure is not established; validation of this hardening is pending.
