@@ -78,10 +78,12 @@ grep -Fq 'postgres17-create-offer-compatibility:' "$WORKFLOW" ||
 
 grep -Fq '### QA370 — database-scoped role settings and default ACL bootstrap state' "$REGISTER" ||
   fail "canonical function register is missing the QA370 section"
-grep -Eq 'QIMA CI #[0-9]+: **SUCCESS**' "$APPENDIX" ||
+if ! grep -F 'QIMA CI #' "$APPENDIX" | grep -Fq '**SUCCESS**'; then
   fail "QA370 appendix must record a successful QIMA CI run"
-grep -Eq 'CodeQL #[0-9]+: **SUCCESS**' "$APPENDIX" ||
+fi
+if ! grep -F 'CodeQL #' "$APPENDIX" | grep -Fq '**SUCCESS**'; then
   fail "QA370 appendix must record a successful CodeQL run"
+fi
 grep -Fq 'Vercel Preview: **SUCCESS**' "$APPENDIX" ||
   fail "QA370 appendix must record the Preview outcome"
 

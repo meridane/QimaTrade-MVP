@@ -8349,3 +8349,13 @@ MKT-1.2 remains unapproved and MKT-1.3 remains decision-required. No numeric can
 ### QA370 next step
 
 QA371 should audit database-local configuration objects that can influence test behavior without creating ordinary relations, beginning with per-database configuration parameters and extension configuration state only if a concrete, database-local catalog owner and safe positive/negative runtime probe can be established. Do not expand the preflight based solely on synthetic findings.
+
+
+### QA370 follow-up documentation-check correction
+
+- QIMA CI #1330: **FAILURE** — https://github.com/meridane/QimaTrade-MVP/actions/runs/43255657971.
+- The failure was limited to the newly added documentation-evidence matcher. Its extended regular expression treated Markdown asterisks as regex operators and did not match the valid QIMA CI line, which includes the code HEAD text between the run number and the SUCCESS marker.
+- PostgreSQL 16 and PostgreSQL 17.6 integration jobs both completed **SUCCESS** in #1330; both emitted the QA370 runtime PASS marker. The Verify job stopped at the documentation matcher before npm audit, TypeScript, Next.js build, or Playwright. Those later checks were skipped, not failed, in #1330.
+- CodeQL #1280: **SUCCESS** — https://github.com/meridane/QimaTrade-MVP/actions/runs/43255658193.
+- Vercel Preview on the documentation HEAD: **SUCCESS** — https://vercel.com/bmk1/qimatrade-mvp/8mK3SyJZHktuWpkXeSMnSwJDR9tz.
+- The evidence matcher was corrected to use fixed-string matching. The code/runtime validation from CI #1329 remains **SUCCESS**.

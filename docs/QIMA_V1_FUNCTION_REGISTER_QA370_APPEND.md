@@ -65,6 +65,15 @@ The script accepts only the existing loopback qima_test:5432 service URL as an a
 - Vercel Preview: **SUCCESS** — https://vercel.com/bmk1/qimatrade-mvp/ENqGsAFmxHcALQBrJQPPThBp5jnt.
 - QA353/QA354 intentional failure conclusions and the skipped-harness conclusion retained their expected semantics; independent blocking assertions passed.
 
+### Follow-up validation and correction
+
+- QIMA CI #1330: **FAILURE** — https://github.com/meridane/QimaTrade-MVP/actions/runs/43255657971.
+- The failure was isolated to the new documentation-evidence assertion: its extended regular expression treated Markdown asterisks as regex quantifiers and did not match the valid recorded line containing "on code HEAD" before the SUCCESS marker.
+- The PostgreSQL 16 and PostgreSQL 17.6 integration jobs both completed **SUCCESS** in #1330 and both emitted the QA370 runtime PASS marker. The Verify job stopped at the documentation matcher before npm audit, TypeScript, build, or Playwright; those checks are not classified as failed by this run.
+- CodeQL #1280: **SUCCESS** — https://github.com/meridane/QimaTrade-MVP/actions/runs/43255658193.
+- Vercel Preview on the documentation HEAD: **SUCCESS** — https://vercel.com/bmk1/qimatrade-mvp/8mK3SyJZHktuWpkXeSMnSwJDR9tz.
+- Corrected the evidence assertion to use fixed-string matching on the CI/CodeQL lines. The initial code validation in CI #1329 remains successful.
+
 ## Safety boundary
 
 No Supabase Production data, schema, migration, SQL function, RLS policy, grant, secret, or persistent PostgreSQL configuration was modified. No Production deployment, PR merge, force update, or branch-protection change occurred. The tests do not establish a Production vulnerability or incident.
