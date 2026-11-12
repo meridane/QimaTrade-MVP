@@ -7677,3 +7677,16 @@ This is source-level characterization of the disposable fixture tests; it does n
 ### Next step
 
 QA361 can add a narrow static regression guard that preserves the existing post-rejection assertions in OFFER-QA-73/74/75: one original idempotency row/hash/result, one execution, one offer, and one success event after IDEMPOTENCY_KEY_REUSE. Do not change numeric normalization, request-hash compatibility, or MKT-1.2/MKT-1.3 decisions without product approval.
+
+
+## QA361 — preserve post-rejection numeric replay state assertions
+
+Date: 2026-11-12 (KST)
+
+Added `tests/sql/test-create-offer-numeric-replay-contract.sh` and wired it into the Verify job. The guard protects all four existing replay paths in OFFER-QA-73/74/75: one JSONB numeric-scale replay, separate typed quantity and price scale replays, and one nested attributes replay. Each path must capture `IDEMPOTENCY_KEY_REUSE` before asserting exactly one original idempotency row/hash/result, completed execution/input/result/object identity, offer/business fields, and `ACTION_SUCCEEDED` event/payload. The guard also rejects direct writes in these replay assertion segments and verifies its own CI wiring.
+
+Validation: QIMA CI #1299 SUCCESS (https://github.com/meridane/QimaTrade-MVP/actions/runs/43172940662); QA361 Verify step PASS; PostgreSQL 16 and PostgreSQL 17.6 integration SUCCESS; npm ci, high-threshold npm audit, TypeScript, Next.js build, Chromium, and **347 Playwright tests passed in 10.6 seconds**. CodeQL #1249 SUCCESS (https://github.com/meridane/QimaTrade-MVP/actions/runs/43172940726). Vercel Preview status SUCCESS for code HEAD `4f339c1a87024cebdf9d63b65167d9e2a7a17ca5` (https://vercel.com/bmk1/qimatrade-mvp/5KG322hNy4ZibirBsgMRyz5Bt4cg).
+
+Files changed: `.github/workflows/ci.yml`, `tests/sql/test-create-offer-numeric-replay-contract.sh`, and this register append (plus the QA361 append document). No runtime SQL, runner, migration, application logic, or business normalization rule changed. This is static regression coverage and disposable-fixture CI evidence, not proof of a Production incident or vulnerability. MKT-1.2 and MKT-1.3 remain unapproved/decision-required. No Supabase Production data/schema/migration/RLS/grant/secret/configuration was changed; no Production deployment, merge, force update, or protection change occurred.
+
+Work branch: `work/qa361-numeric-replay-post-rejection-contract-20261112-1604`. Code commits: `fe349044cd11ec7ca2aaaf9d72392d0febbbaadb` (test) and `4f339c1a87024cebdf9d63b65167d9e2a7a17ca5` (CI wiring). The branch was fast-forwarded to PR #26 after a compare showed two commits ahead and zero behind. Next: read-only audit fixture-key uniqueness and isolation for QA73/QA74/QA75; do not alter numeric normalization or replay semantics without product approval.
