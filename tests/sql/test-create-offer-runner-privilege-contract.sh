@@ -76,10 +76,18 @@ for required in \
   "qa374_admin_option_non_owner" \
   "anon:false:true:false|authenticated:false:true:false" \
   "QA375 passed" \
+  "qa376_partial_admin_runner" \
+  "ALTER DATABASE qima_test OWNER TO qa376_partial_admin_runner" \
+  "GRANT anon TO qa376_partial_admin_runner" \
+  "true|true|false|false|true|false|false|true" \
+  "authenticated_members.member IS NULL" \
+  "before_partial_admin_snapshot" \
+  "after_partial_admin_snapshot" \
+  "QA376 passed" \
   "before_non_owner_snapshot" \
   "after_non_owner_snapshot" \
   "pg_get_userbyid(datdba)" \
-  "rolname LIKE 'qa373_%' OR rolname LIKE 'qa374_%'" \
+  "rolname LIKE 'qa373_%' OR rolname LIKE 'qa374_%' OR rolname LIKE 'qa376_%'" \
   "QA374 passed" \
   "catalog_snapshot" \
   "docker exec -i" \
@@ -126,5 +134,12 @@ grep -Fq "## QA375 — ADMIN OPTION does not bypass database ownership" "$APPEND
   fail "QA374 appendix is missing QA375 ownership-boundary coverage"
 grep -Fq "### QA375 — ADMIN OPTION does not bypass database ownership" "$REGISTER" ||
   fail "canonical register is missing QA375 ownership-boundary coverage"
+grep -Fq "## QA376 — ADMIN OPTION must cover every existing client role" "$APPENDIX_QA374" ||
+  fail "QA374 appendix is missing QA376 partial-membership coverage"
+grep -Fq "### QA376 — ADMIN OPTION must cover every existing client role" "$REGISTER" ||
+  fail "canonical register is missing QA376 partial-membership coverage"
+if grep -Fq "GRANT authenticated TO qa376_partial_admin_runner" "$RUNTIME"; then
+  fail "QA376 must not grant the missing authenticated ADMIN OPTION membership"
+fi
 
-echo "QA373/QA374/QA375 static contract PASS: the runner fails closed on unsupported roles, covers the ADMIN OPTION-only path, and rejects non-owners without fixture changes."
+echo "QA373/QA374/QA375/QA376 static contract PASS: the runner fails closed on unsupported roles, covers ADMIN OPTION-only membership, rejects non-owners, and rejects partial client-role administration without fixture changes."
