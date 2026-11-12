@@ -8093,3 +8093,16 @@ MKT-1.2 remains unapproved and MKT-1.3 remains decision-required. No idempotency
 ## Next step
 
 QA367: assess a finite, evidence-based scope for other independent database-local objects (for example large objects and foreign-data wrappers/servers). Do not add catalog predicates merely to maximize catalog coverage; identify whether each object can exist without already being caught by the current relation/routine/type/schema checks, preserve extension ownership exclusions, and validate only on disposable PostgreSQL 16 and 17.6.
+
+
+## Post-publication validation of the QA366 register
+
+- QIMA CI #1317: **SUCCESS** on documentation HEAD `750eda3fec5cde3626ef2e137601a31cab2e20a9` — https://github.com/meridane/QimaTrade-MVP/actions/runs/43212452757.
+  - QA366 static bootstrap catalog contract: **PASS**.
+  - PostgreSQL 16 and PostgreSQL 17.6 CREATE_OFFER integration, repeat-run guard, and QA366 runtime catalog characterization: **SUCCESS**.
+  - Existing concurrency, RLS, ACL, migration cleanup, and prepared-transaction checks completed with their expected outcomes.
+  - npm audit at the high threshold, TypeScript, Next.js production build, and Chromium installation: **SUCCESS**.
+  - Playwright: **347 passed in 12.6 seconds**.
+  - The deliberate QA353/QA354 harness failures and skipped harness retained their expected conclusions; independent blocking assertions passed.
+- CodeQL #1267: **SUCCESS** on the same documentation HEAD — https://github.com/meridane/QimaTrade-MVP/actions/runs/43212452759.
+- Vercel combined status on documentation HEAD `750eda3fec5cde3626ef2e137601a31cab2e20a9`: **FAILURE** due to `build-rate-limit`. The GitHub Actions Next.js build succeeded; no Vercel Preview is claimed for this HEAD. No Production deployment occurred.
