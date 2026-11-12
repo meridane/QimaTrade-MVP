@@ -16,7 +16,7 @@ if [[ ! -x "$ASSERTION_SCRIPT" && ! -f "$ASSERTION_SCRIPT" ]]; then
 fi
 
 env \
-  HARNESS_RESULT=failure \
+  HARNESS_RESULT=success \
   SETUP_OUTCOME=failure \
   CLEANUP_OUTCOME=success \
   CLEANUP_RAN=true \
@@ -25,7 +25,7 @@ env \
   bash "$ASSERTION_SCRIPT" success >/dev/null
 
 env \
-  HARNESS_RESULT=failure \
+  HARNESS_RESULT=success \
   SETUP_OUTCOME=failure \
   CLEANUP_OUTCOME=failure \
   CLEANUP_RAN= \
@@ -108,8 +108,8 @@ expect_rejected "QA353 rejects a cancelled harness despite success-shaped output
   HARNESS_RESULT=cancelled SETUP_OUTCOME=failure CLEANUP_OUTCOME=success CLEANUP_RAN=true CLEANUP_EXIT_CODE=0 CLEANUP_FAILURE_OBSERVED=false
 expect_rejected "QA353 rejects a skipped harness despite success-shaped outputs" success \
   HARNESS_RESULT=skipped SETUP_OUTCOME=failure CLEANUP_OUTCOME=success CLEANUP_RAN=true CLEANUP_EXIT_CODE=0 CLEANUP_FAILURE_OBSERVED=false
-expect_rejected "QA353 rejects a successful job result for an expected-failure harness" success \
-  HARNESS_RESULT=success SETUP_OUTCOME=failure CLEANUP_OUTCOME=success CLEANUP_RAN=true CLEANUP_EXIT_CODE=0 CLEANUP_FAILURE_OBSERVED=false
+expect_rejected "QA353 rejects a failure job result for an expected-failure harness" success \
+  HARNESS_RESULT=failure SETUP_OUTCOME=failure CLEANUP_OUTCOME=success CLEANUP_RAN=true CLEANUP_EXIT_CODE=0 CLEANUP_FAILURE_OBSERVED=false
 
 expect_rejected "QA354 rejects a missing harness job result" failure \
   HARNESS_RESULT= SETUP_OUTCOME=failure CLEANUP_OUTCOME=failure CLEANUP_RAN= CLEANUP_EXIT_CODE=52 CLEANUP_FAILURE_OBSERVED=true
@@ -117,7 +117,7 @@ expect_rejected "QA354 rejects a cancelled harness despite failure-shaped output
   HARNESS_RESULT=cancelled SETUP_OUTCOME=failure CLEANUP_OUTCOME=failure CLEANUP_RAN= CLEANUP_EXIT_CODE=52 CLEANUP_FAILURE_OBSERVED=true
 expect_rejected "QA354 rejects a skipped harness despite failure-shaped outputs" failure \
   HARNESS_RESULT=skipped SETUP_OUTCOME=failure CLEANUP_OUTCOME=failure CLEANUP_RAN= CLEANUP_EXIT_CODE=52 CLEANUP_FAILURE_OBSERVED=true
-expect_rejected "QA354 rejects a successful job result for an expected-failure harness" failure \
-  HARNESS_RESULT=success SETUP_OUTCOME=failure CLEANUP_OUTCOME=failure CLEANUP_RAN= CLEANUP_EXIT_CODE=52 CLEANUP_FAILURE_OBSERVED=true
+expect_rejected "QA354 rejects a failure job result for an expected-failure harness" failure \
+  HARNESS_RESULT=failure SETUP_OUTCOME=failure CLEANUP_OUTCOME=failure CLEANUP_RAN= CLEANUP_EXIT_CODE=52 CLEANUP_FAILURE_OBSERVED=true
 
-echo "QA359 passed: QA353 and QA354 require the expected-failure job conclusion; all 28 negative output and job-result combinations were rejected."
+echo "QA359 passed: QA353 and QA354 require HARNESS_RESULT=success after job-level continue-on-error; all 28 negative output and job-result combinations were rejected."
