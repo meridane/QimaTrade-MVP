@@ -59,16 +59,21 @@ The test emits a deterministic `ERROR:` diagnostic for each rejected combination
 - New PR-head CI: [QIMA CI #1289](https://github.com/meridane/QimaTrade-MVP/actions/runs/43147744342).
 - New PR-head CodeQL: [CodeQL #1239](https://github.com/meridane/QimaTrade-MVP/actions/runs/43147744350).
 
-At the time this append was written:
+Final validation:
 
-- The Verify job had completed the workflow-concurrency check, the prepared-transaction workflow-wiring check, the cleanup assertion matrix (including the new QA358 cases), the parallel-harness isolation check, and the PostgreSQL 17.6 version guard successfully.
-- The two dependent runtime assertion jobs for QA353 and QA354 had completed successfully.
-- The expected-failure QA353/QA354 harness jobs had their expected individual `failure` conclusions.
-- The skipped-result harness had its expected `skipped` conclusion, and its dependent assertion had succeeded.
-- PostgreSQL 16 integration, PostgreSQL 17.6 compatibility, the Verify build/browser job, and CodeQL were still in progress. No final conclusion is claimed here for CI #1289 or CodeQL #1239.
-- The combined Vercel status for the new code head reported the daily deployment quota failure (`api-deployments-free-per-day`). This is a deployment quota result, not a failed Next.js build result.
+- **QIMA CI #1289: SUCCESS**, run [43147744342](https://github.com/meridane/QimaTrade-MVP/actions/runs/43147744342).
+  - Verify job: workflow-concurrency guard, prepared-transaction workflow wiring, cleanup assertion matrix, parallel harness isolation, and PostgreSQL 17.6 version-guard tests all passed.
+  - The QA358 assertion test log explicitly lists all 20 negative cases as rejected: the eight retained QA356 cases plus twelve skipped/cancelled/unknown-state cases. The three valid success, failure, and skipped contracts were accepted. Final log: `QA358 passed: the valid success, failure and skipped contracts were accepted; all eight QA356 cases and twelve skipped, cancelled or unknown-state cases were rejected.`
+  - Dependency installation, npm audit at the high threshold, TypeScript, Next.js production build, Chromium installation, and browser tests all succeeded. **347 Playwright tests passed in 9.8 seconds.**
+  - PostgreSQL 16 integration job: SUCCESS. CREATE_OFFER integration/concurrency, legacy offers RLS, wrapper-owner/ACL, legacy migration cleanup, prepared-transaction setup/restoration, and participant self-enrollment checks passed. The real disposable PostgreSQL service returned `max_prepared_transactions` to baseline 0; post-job container cleanup completed.
+  - PostgreSQL 17.6 compatibility job: SUCCESS. CREATE_OFFER idempotency, actor/tenant validation, concurrency, wrapper-owner and ACL regressions passed; container cleanup completed.
+  - QA353 and QA354 harness jobs retained their expected individual `failure` conclusions; their independent blocking assertions both succeeded.
+  - The skipped-result harness retained its expected `skipped` conclusion; its dependent assertion succeeded.
+  - Overall workflow conclusion: SUCCESS.
+- **CodeQL #1239: SUCCESS**, run [43147744350](https://github.com/meridane/QimaTrade-MVP/actions/runs/43147744350).
+- Vercel combined status for the QA358 code commit `5d2ae401b9a33bded21268be6d80bcb41e54c567`: SUCCESS. This is a Preview/status check, not a Production deployment.
+- The previous code head's successful CI #1288 and CodeQL #1238 remain historical baseline evidence only; CI #1289 and CodeQL #1239 are the validations for QA358.
 
-The previous code head's successful CI #1288 and CodeQL #1238 are historical baseline evidence only; they do not validate the new QA358 commit.
 
 ## Evidence boundary
 
