@@ -8385,3 +8385,16 @@ QA371 should audit database-local configuration objects that can influence test 
 - CodeQL #1282: **SUCCESS** — https://github.com/meridane/QimaTrade-MVP/actions/runs/43256688938.
 - Vercel Preview: **SUCCESS** — https://vercel.com/bmk1/qimatrade-mvp/G6yTSCLuWBajnLsH28MLAR1VCasB.
 - QA353/QA354 intentional failure conclusions and the skipped-harness conclusion retained their expected semantics; independent blocking assertions passed.
+
+
+### QA371 — cluster-wide parameter ACL and extension configuration tables
+
+- `pg_parameter_acl` is cluster-wide and has no database ownership key. A disposable `GRANT SET ON PARAMETER work_mem` was visible from both temporary databases, `has_parameter_privilege` changed from true to false after REVOKE, and neither database-local preflight was poisoned. No `pg_parameter_acl` predicate was added.
+- A temporary extension registered a public configuration table through `pg_extension_config_dump`; `pg_extension.extconfig` and the matching `extcondition` value were verified. The table was an extension member and was rejected by the existing public-relation guard. `pg_dump --data-only` included the user row selected by `WHERE NOT is_builtin` and excluded the built-in row. `DROP EXTENSION` restored the empty baseline.
+- No dynamic execution of `extcondition` or new catalogue predicate was added. Configuration-table placement in `pg_catalog` or `information_schema` remains uncharacterized and is explicitly outside this QA371 conclusion.
+- QIMA CI #1334 on code HEAD `71e222c670a7da57a38e8ff993dcf62dcfdcdcdd`: **SUCCESS** — https://github.com/meridane/QimaTrade-MVP/actions/runs/43268066021. PostgreSQL 16 and 17.6 QA371 runtime tests passed; PostgreSQL 17.6 reported `server_version_num=170006`.
+- npm audit (configured high threshold), TypeScript, Next.js build, Chromium installation, audit enforcement: **SUCCESS**. Next.js compiled in 8.5 seconds; Playwright: **347 passed in 12.0 seconds**.
+- CodeQL #1284: **SUCCESS** — https://github.com/meridane/QimaTrade-MVP/actions/runs/43268067654.
+- Vercel: **RATE LIMITED** on the code HEAD (`build-rate-limit`); no Preview success is claimed.
+- QA353/QA354 intentional failure conclusions and the skipped-harness conclusion retained their expected semantics; independent blocking assertions passed.
+- QA372 should audit non-superuser visibility of the catalogues used by the bootstrap preflight before any credential-policy change.
