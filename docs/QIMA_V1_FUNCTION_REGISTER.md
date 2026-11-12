@@ -8359,3 +8359,17 @@ QA371 should audit database-local configuration objects that can influence test 
 - CodeQL #1280: **SUCCESS** — https://github.com/meridane/QimaTrade-MVP/actions/runs/43255658193.
 - Vercel Preview on the documentation HEAD: **SUCCESS** — https://vercel.com/bmk1/qimatrade-mvp/8mK3SyJZHktuWpkXeSMnSwJDR9tz.
 - The evidence matcher was corrected to use fixed-string matching. The code/runtime validation from CI #1329 remains **SUCCESS**.
+
+
+### QA370 corrected final validation
+
+- QIMA CI #1331: **SUCCESS** — https://github.com/meridane/QimaTrade-MVP/actions/runs/43256171073.
+- The corrected fixed-string documentation-evidence matcher passed.
+- PostgreSQL 16 and PostgreSQL 17.6 integration jobs: **SUCCESS**; both emitted the QA370 runtime pass marker. PostgreSQL 17.6 reported server_version_num=170006.
+- Current-database ALTER DATABASE and ALTER ROLE IN DATABASE rows, database-wide default ACLs, and schema-specific default ACLs were detected. Other-database rows and setdatabase=0 global role defaults remained outside the current-database boundary.
+- Both disposable databases and both disposable roles were removed; cleanup absence checks passed.
+- npm audit at the configured high-severity threshold, TypeScript, Next.js build, Chromium, and audit enforcement: **SUCCESS**.
+- Next.js compiled in 10.6 seconds. Playwright: **347 passed in 12.6 seconds**.
+- CodeQL #1281: **SUCCESS** — https://github.com/meridane/QimaTrade-MVP/actions/runs/43256170823.
+- Vercel Preview: **SUCCESS** — https://vercel.com/bmk1/qimatrade-mvp/8gbrRBEiTYTH4pxY8HMkfrBhnYBj.
+- QA353/QA354 intentional failure conclusions and the skipped-harness conclusion retained their expected semantics; independent blocking assertions passed.

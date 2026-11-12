@@ -90,3 +90,19 @@ MKT-1.2 remains unapproved and MKT-1.3 remains decision-required.
 ## Evidence boundary
 
 The CI and CodeQL results validate the disposable test implementation and repository checks. They do not establish a Production vulnerability, incident, or misconfiguration. No Supabase Production data or migration was accessed or modified. No Production deployment occurred.
+
+### Corrected final validation
+
+- QIMA CI #1331 on corrected documentation HEAD 61f2e707a089c0bdeff33a9d257ef37165a52a55: **SUCCESS** — https://github.com/meridane/QimaTrade-MVP/actions/runs/43256171073.
+- The fixed-string QA370 evidence matcher passed in Verify.
+- PostgreSQL 16 integration job: **SUCCESS**; QA370 runtime marker observed.
+- PostgreSQL 17.6 integration job: **SUCCESS**; QA370 runtime marker observed and server_version_num=170006 confirmed.
+- Both runtime probes again detected current-database ALTER DATABASE and ALTER ROLE IN DATABASE settings, database-wide and schema-specific default ACLs, and ignored other-database settings/default ACLs plus setdatabase=0 global role defaults. Both disposable databases and roles were removed.
+- npm audit at the configured high-severity threshold: **SUCCESS**.
+- TypeScript: **SUCCESS**.
+- Next.js production build: **SUCCESS** (compiled in 10.6 seconds).
+- Chromium installation and audit enforcement: **SUCCESS**.
+- Playwright: **347 passed in 12.6 seconds**.
+- CodeQL #1281: **SUCCESS** — https://github.com/meridane/QimaTrade-MVP/actions/runs/43256170823.
+- Vercel Preview: **SUCCESS** — https://vercel.com/bmk1/qimatrade-mvp/8gbrRBEiTYTH4pxY8HMkfrBhnYBj.
+- QA353/QA354 intentional failure conclusions and the skipped-harness conclusion retained their expected semantics; independent blocking assertions passed.
