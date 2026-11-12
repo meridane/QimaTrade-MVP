@@ -4,6 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 SQL_FILE="$ROOT/tests/sql/create-offer-runtime.sql"
 RUNNER="$ROOT/tests/sql/run-create-offer-integration.sh"
+NUMERIC_FILE="$ROOT/tests/sql/idempotency-numeric-lexical-characterization.sql"
 WORKFLOW="$ROOT/.github/workflows/ci.yml"
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' EXIT
@@ -13,7 +14,7 @@ fail() {
   exit 1
 }
 
-for file in "$SQL_FILE" "$RUNNER" "$WORKFLOW"; do
+for file in "$SQL_FILE" "$RUNNER" "$NUMERIC_FILE" "$WORKFLOW"; do
   [[ -f "$file" ]] || fail "required fixture-isolation file is missing: $file"
 done
 
@@ -133,6 +134,9 @@ for key in "$key73" "$key74_quantity" "$key74_price" "$key75"; do
     fail "$key is reused outside its dedicated QA73/QA74/QA75 seed/assertion blocks"
   if grep -Fq "$key" "$RUNNER"; then
     fail "$key must not collide with a runner-level idempotency key"
+  fi
+  if grep -Fq "$key" "$NUMERIC_FILE"; then
+    fail "$key must not collide with the later numeric lexical characterization fixture"
   fi
 done
 
