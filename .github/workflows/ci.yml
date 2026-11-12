@@ -41,7 +41,7 @@ jobs:
         run: bash tests/ci/verify-workflow-concurrency.sh
       - name: Verify prepared-transaction always-cleanup workflow wiring
         run: bash tests/ci/verify-prepared-transactions-always-cleanup-contract.sh
-      - name: Verify prepared-transaction cleanup assertions reject malformed outputs
+      - name: Verify prepared-transaction cleanup assertions reject malformed, skipped and cancelled outcomes
         run: bash tests/ci/test-prepared-transactions-cleanup-assertions.sh
       - name: Verify parallel prepared-transaction cleanup harness isolation
         run: bash tests/ci/test-prepared-transactions-harness-isolation.sh
@@ -422,3 +422,42 @@ jobs:
           CLEANUP_EXIT_CODE: ${{ needs.prepared_transactions_always_cleanup_failure_contract.outputs.cleanup_exit_code }}
           CLEANUP_FAILURE_OBSERVED: ${{ needs.prepared_transactions_always_cleanup_failure_contract.outputs.cleanup_failure_observed }}
         run: bash tests/ci/assert-prepared-transactions-cleanup-contract.sh failure
+
+
+  prepared_transactions_cleanup_skipped_contract:
+    name: Prepared-transaction cleanup skipped-result contract (expected skipped job)
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    if: ${{ false }}
+    outputs:
+      setup_outcome: ${{ steps.never_run.outputs.setup_outcome }}
+      cleanup_outcome: ${{ steps.never_run.outputs.cleanup_outcome }}
+      cleanup_ran: ${{ steps.never_run.outputs.cleanup_ran }}
+      cleanup_exit_code: ${{ steps.never_run.outputs.cleanup_exit_code }}
+      cleanup_failure_observed: ${{ steps.never_run.outputs.cleanup_failure_observed }}
+    steps:
+      - name: This step must not run because the job is skipped
+        id: never_run
+        shell: bash
+        run: |
+          printf 'setup_outcome=failure\\ncleanup_outcome=success\\ncleanup_ran=true\\n' >> "$GITHUB_OUTPUT"
+
+  prepared_transactions_cleanup_skipped_assert:
+    name: Assert skipped cleanup harness cannot be treated as success
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: always()
+    needs: prepared_transactions_cleanup_skipped_contract
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Assert skipped harness has no cleanup outputs
+        shell: bash
+        env:
+          HARNESS_RESULT: ${{ needs.prepared_transactions_cleanup_skipped_contract.result }}
+          SETUP_OUTCOME: ${{ needs.prepared_transactions_cleanup_skipped_contract.outputs.setup_outcome }}
+          CLEANUP_OUTCOME: ${{ needs.prepared_transactions_cleanup_skipped_contract.outputs.cleanup_outcome }}
+          CLEANUP_RAN: ${{ needs.prepared_transactions_cleanup_skipped_contract.outputs.cleanup_ran }}
+          CLEANUP_EXIT_CODE: ${{ needs.prepared_transactions_cleanup_skipped_contract.outputs.cleanup_exit_code }}
+          CLEANUP_FAILURE_OBSERVED: ${{ needs.prepared_transactions_cleanup_skipped_contract.outputs.cleanup_failure_observed }}
+        run: bash tests/ci/assert-prepared-transactions-cleanup-contract.sh skipped

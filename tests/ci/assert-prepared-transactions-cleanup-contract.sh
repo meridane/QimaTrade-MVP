@@ -7,6 +7,7 @@ CLEANUP_OUTCOME="${CLEANUP_OUTCOME-}"
 CLEANUP_RAN="${CLEANUP_RAN-}"
 CLEANUP_EXIT_CODE="${CLEANUP_EXIT_CODE-}"
 CLEANUP_FAILURE_OBSERVED="${CLEANUP_FAILURE_OBSERVED-}"
+HARNESS_RESULT="${HARNESS_RESULT-}"
 
 fail() {
   echo "ERROR: $*" >&2
@@ -30,7 +31,20 @@ case "$MODE" in
     [[ -z "$CLEANUP_RAN" ]] || fail "QA354 must not publish CLEANUP_RAN."
     echo "QA354 passed: cleanup failure 52 and its failure marker were forwarded without a success marker."
     ;;
+  skipped)
+    [[ "$HARNESS_RESULT" == "skipped" ]] || fail "QA357 requires HARNESS_RESULT=skipped."
+    [[ -z "$SETUP_OUTCOME" ]] || fail "QA357 skipped harness must not expose SETUP_OUTCOME."
+    [[ -z "$CLEANUP_OUTCOME" ]] || fail "QA357 skipped harness must not expose CLEANUP_OUTCOME."
+    [[ -z "$CLEANUP_RAN" ]] || fail "QA357 skipped harness must not expose CLEANUP_RAN."
+    [[ -z "$CLEANUP_EXIT_CODE" ]] || fail "QA357 skipped harness must not expose CLEANUP_EXIT_CODE."
+    [[ -z "$CLEANUP_FAILURE_OBSERVED" ]] || fail "QA357 skipped harness must not expose CLEANUP_FAILURE_OBSERVED."
+    echo "QA357 passed: skipped harness exposed no cleanup outputs and was not treated as success."
+    ;;
+  cancelled)
+    [[ "$HARNESS_RESULT" == "cancelled" ]] || fail "QA357 requires HARNESS_RESULT=cancelled."
+    fail "QA357 rejects a cancelled harness; cancellation cannot satisfy a cleanup contract."
+    ;;
   *)
-    fail "mode must be either success or failure."
+    fail "mode must be success, failure, skipped or cancelled."
     ;;
 esac

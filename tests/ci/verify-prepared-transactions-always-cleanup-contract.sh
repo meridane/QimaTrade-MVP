@@ -68,7 +68,7 @@ FAILURE_ASSERT_CHECKOUT_STEP="$TEMP_DIR/failure-assert-checkout-step.yml"
 extract_job "verify" "$VERIFY_JOB"
 extract_step "$VERIFY_JOB" "Verify prepared-transaction always-cleanup workflow wiring" "$VERIFY_STEP"
 require_line "$VERIFY_STEP" "        run: bash tests/ci/verify-prepared-transactions-always-cleanup-contract.sh"
-extract_step "$VERIFY_JOB" "Verify prepared-transaction cleanup assertions reject malformed outputs" "$ASSERTION_TEST_STEP"
+extract_step "$VERIFY_JOB" "Verify prepared-transaction cleanup assertions reject malformed, skipped and cancelled outcomes" "$ASSERTION_TEST_STEP"
 require_line "$ASSERTION_TEST_STEP" "        run: bash tests/ci/test-prepared-transactions-cleanup-assertions.sh"
 
 extract_job "postgres-integration" "$POSTGRES_JOB"
@@ -202,4 +202,39 @@ if grep -Fq "needs.prepared_transactions_always_cleanup_contract" "$FAILURE_ASSE
   fail "the failure assertion must not read success-harness outputs"
 fi
 
-echo "Prepared-transaction workflow contract passed: both cleanup paths and their independent parallel harness/assertion wiring are verified; the expected failure is isolated and a separate blocking job verifies its exact exit code and absence of a success marker."
+SKIPPED_HARNESS_JOB="$TEMP_DIR/skipped-harness-job.yml"
+SKIPPED_ASSERT_JOB="$TEMP_DIR/skipped-assert-job.yml"
+SKIPPED_ASSERT_CHECKOUT_STEP="$TEMP_DIR/skipped-assert-checkout-step.yml"
+SKIPPED_ASSERT_STEP="$TEMP_DIR/skipped-assert-step.yml"
+
+extract_job "prepared_transactions_cleanup_skipped_contract" "$SKIPPED_HARNESS_JOB"
+require_line "$SKIPPED_HARNESS_JOB" "    runs-on: ubuntu-latest"
+require_line "$SKIPPED_HARNESS_JOB" '    if: ${{ false }}'
+forbid_line "$SKIPPED_HARNESS_JOB" "    continue-on-error: true"
+require_line "$SKIPPED_HARNESS_JOB" '      setup_outcome: ${{ steps.never_run.outputs.setup_outcome }}'
+require_line "$SKIPPED_HARNESS_JOB" '      cleanup_outcome: ${{ steps.never_run.outputs.cleanup_outcome }}'
+require_line "$SKIPPED_HARNESS_JOB" '      cleanup_ran: ${{ steps.never_run.outputs.cleanup_ran }}'
+require_line "$SKIPPED_HARNESS_JOB" '      cleanup_exit_code: ${{ steps.never_run.outputs.cleanup_exit_code }}'
+require_line "$SKIPPED_HARNESS_JOB" '      cleanup_failure_observed: ${{ steps.never_run.outputs.cleanup_failure_observed }}'
+
+extract_job "prepared_transactions_cleanup_skipped_assert" "$SKIPPED_ASSERT_JOB"
+require_line "$SKIPPED_ASSERT_JOB" "    if: always()"
+require_line "$SKIPPED_ASSERT_JOB" "    needs: prepared_transactions_cleanup_skipped_contract"
+forbid_line "$SKIPPED_ASSERT_JOB" "    continue-on-error: true"
+extract_step "$SKIPPED_ASSERT_JOB" "Checkout repository" "$SKIPPED_ASSERT_CHECKOUT_STEP"
+require_line "$SKIPPED_ASSERT_CHECKOUT_STEP" "        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1"
+extract_step "$SKIPPED_ASSERT_JOB" "Assert skipped harness has no cleanup outputs" "$SKIPPED_ASSERT_STEP"
+require_line "$SKIPPED_ASSERT_STEP" '          HARNESS_RESULT: ${{ needs.prepared_transactions_cleanup_skipped_contract.result }}'
+require_line "$SKIPPED_ASSERT_STEP" '          SETUP_OUTCOME: ${{ needs.prepared_transactions_cleanup_skipped_contract.outputs.setup_outcome }}'
+require_line "$SKIPPED_ASSERT_STEP" '          CLEANUP_OUTCOME: ${{ needs.prepared_transactions_cleanup_skipped_contract.outputs.cleanup_outcome }}'
+require_line "$SKIPPED_ASSERT_STEP" '          CLEANUP_RAN: ${{ needs.prepared_transactions_cleanup_skipped_contract.outputs.cleanup_ran }}'
+require_line "$SKIPPED_ASSERT_STEP" '          CLEANUP_EXIT_CODE: ${{ needs.prepared_transactions_cleanup_skipped_contract.outputs.cleanup_exit_code }}'
+require_line "$SKIPPED_ASSERT_STEP" '          CLEANUP_FAILURE_OBSERVED: ${{ needs.prepared_transactions_cleanup_skipped_contract.outputs.cleanup_failure_observed }}'
+require_line "$SKIPPED_ASSERT_STEP" "        run: bash tests/ci/assert-prepared-transactions-cleanup-contract.sh skipped"
+
+grep -Fq 'cancelled harness cannot be accepted with fabricated success outputs' "$ROOT/tests/ci/test-prepared-transactions-cleanup-assertions.sh" ||
+  fail "the cancelled-result regression case is missing"
+grep -Fq 'cancelled harness cannot be accepted with fabricated failure outputs' "$ROOT/tests/ci/test-prepared-transactions-cleanup-assertions.sh" ||
+  fail "the cancelled-result failure-output regression case is missing"
+
+echo "Prepared-transaction workflow contract passed: success/failure harnesses remain isolated; a real skipped job is observed by an always() blocking assertion; cancelled outcomes are rejected by the shared contract tests; the real PostgreSQL restore remains blocking."

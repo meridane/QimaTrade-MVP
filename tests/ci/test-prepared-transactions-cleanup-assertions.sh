@@ -31,6 +31,15 @@ env \
   CLEANUP_FAILURE_OBSERVED=true \
   bash "$ASSERTION_SCRIPT" failure >/dev/null
 
+env \
+  HARNESS_RESULT=skipped \
+  SETUP_OUTCOME= \
+  CLEANUP_OUTCOME= \
+  CLEANUP_RAN= \
+  CLEANUP_EXIT_CODE= \
+  CLEANUP_FAILURE_OBSERVED= \
+  bash "$ASSERTION_SCRIPT" skipped >/dev/null
+
 case_number=0
 expect_rejected() {
   local label="$1"
@@ -64,4 +73,17 @@ expect_rejected "failure output incorrectly publishes cleanup_ran" failure \
 expect_rejected "failure output reports success outcome" failure \
   SETUP_OUTCOME=failure CLEANUP_OUTCOME=success CLEANUP_RAN= CLEANUP_EXIT_CODE=52 CLEANUP_FAILURE_OBSERVED=true
 
-echo "QA356 passed: both valid cleanup contracts were accepted and all eight malformed or incomplete output combinations were rejected."
+expect_rejected "skipped harness result is missing" skipped \
+  HARNESS_RESULT= SETUP_OUTCOME= CLEANUP_OUTCOME= CLEANUP_RAN= CLEANUP_EXIT_CODE= CLEANUP_FAILURE_OBSERVED=
+expect_rejected "skipped harness unexpectedly publishes a cleanup outcome" skipped \
+  HARNESS_RESULT=skipped SETUP_OUTCOME= CLEANUP_OUTCOME=success CLEANUP_RAN= CLEANUP_EXIT_CODE= CLEANUP_FAILURE_OBSERVED=
+expect_rejected "skipped harness unexpectedly publishes a success marker" skipped \
+  HARNESS_RESULT=skipped SETUP_OUTCOME= CLEANUP_OUTCOME= CLEANUP_RAN=true CLEANUP_EXIT_CODE= CLEANUP_FAILURE_OBSERVED=
+expect_rejected "cancelled harness result is missing" cancelled \
+  HARNESS_RESULT=
+expect_rejected "cancelled harness cannot be accepted with fabricated success outputs" cancelled \
+  HARNESS_RESULT=cancelled SETUP_OUTCOME=failure CLEANUP_OUTCOME=success CLEANUP_RAN=true CLEANUP_EXIT_CODE=0 CLEANUP_FAILURE_OBSERVED=false
+expect_rejected "cancelled harness cannot be accepted with fabricated failure outputs" cancelled \
+  HARNESS_RESULT=cancelled SETUP_OUTCOME=failure CLEANUP_OUTCOME=failure CLEANUP_RAN= CLEANUP_EXIT_CODE=52 CLEANUP_FAILURE_OBSERVED=true
+
+echo "QA357 passed: the skipped contract was accepted only with empty outputs; all eight QA356 malformed cases and six skipped/cancelled cases were rejected."
