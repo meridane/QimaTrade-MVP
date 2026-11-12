@@ -7256,3 +7256,21 @@ Validation on the new code commit: pending GitHub Actions. No Supabase Productio
 - Comparaison `main...79036936` : 1 480 commits en avance, zéro en retard.
 - Aucun nouveau run QIMA CI/CodeQL n'est associé au HEAD documentaire, car les changements postérieurs au HEAD de code QA354 sont uniquement sous `docs/**`, ignorés par le workflow. La validation du code reste QIMA CI #1275 SUCCESS et CodeQL #1225 SUCCESS sur `e3ff981`.
 - Vercel : statut combiné FAILURE avec `build-rate-limit` / `api-deployments-free-per-day`. Aucun Preview QA354 revendiqué ; aucun déploiement Production.
+
+
+## QA355 — isolation des harnesses de restauration parallèles — 12 novembre 2026
+
+- **Objectif :** exécuter simultanément les scénarios de restauration réussie (QA353) et échouée (QA354), puis vérifier l'isolation des répertoires temporaires et des sorties GitHub Actions.
+- **Nouveau test :** `tests/ci/test-prepared-transactions-harness-isolation.sh` lance les deux modes du véritable runtime harness en parallèle, avec deux `RUNNER_TEMP`, deux fichiers d'état et deux `GITHUB_OUTPUT` distincts. Il exige le code 0 et exactement les trois sorties de succès pour QA353, puis le code 52 et exactement les deux sorties d'échec pour QA354, sans `cleanup_ran`.
+- **Contrat statique :** `tests/ci/verify-prepared-transactions-always-cleanup-contract.sh` vérifie que les deux jobs de simulation sont indépendants (aucun `needs`), utilisent des runners `ubuntu-latest`, et que chaque assertion bloquante lit exclusivement les sorties de son propre harness. Les assertions conservent `if: always()` et n'ont pas `continue-on-error`.
+- **Workflow :** `.github/workflows/ci.yml` exécute le nouveau test d'isolation dans le job Verify. Le job PostgreSQL 16 réel et son step de restauration n'ont pas été modifiés.
+- **Validation partielle :** QIMA CI #1278 (run `43128751019`) était encore `in_progress` à la dernière inspection. Les trois contrôles du job Verify relatifs à la concurrence, au câblage QA353/QA354 et au nouveau test d'isolation étaient SUCCESS ; `npm ci` était SUCCESS ; le build, les jobs PostgreSQL 16/17.6 et CodeQL #1228 restaient en cours. Les deux jobs de simulation ont produit les échecs contrôlés attendus et leurs assertions bloquantes ont réussi.
+- **Référence précédente :** QIMA CI #1277 et CodeQL #1227 étaient SUCCESS sur le HEAD antérieur.
+- **Vercel :** statut du nouveau HEAD de code encore `pending` au contrôle ; statut précédent `build-rate-limit`. Aucun Preview final QA355 revendiqué à ce stade.
+- **Commits QA355 :** `f33799b9417c327f43e40dba206d9683fda0a396`, `55847b9c3fb3d24b7e6dfdc731f43dc32e4a7904`, `b5ed6544831fe1b9ee4507719fb14815691ea2fe`.
+- **Branche de travail :** `work/qa355-parallel-cleanup-harness-isolation-20261112-0936`.
+- **État PR au contrôle :** OPEN/DRAFT, mergeable, non fusionnée ; 1 485 commits, 114 fichiers, zéro commit en retard, aucune review humaine ni thread.
+- **Interprétation :** le test concurrent et les mocks caractérisent l'isolation des processus et le contrat de sorties ; ils ne démontrent aucun incident ni vulnérabilité en Production.
+- **Périmètre :** aucune donnée, migration, fonction SQL, schéma, politique RLS, grant, secret ou configuration Supabase Production modifié ; aucun déploiement Production, aucune fusion, aucun force-push et aucune modification des protections de branche.
+- **Appendice :** `docs/QIMA_V1_FUNCTION_REGISTER_QA355_APPEND.md`.
+- **Prochaine étape :** attendre et vérifier les résultats définitifs de CI #1278 et CodeQL #1228, puis compléter ce relevé avec les conclusions réelles.
