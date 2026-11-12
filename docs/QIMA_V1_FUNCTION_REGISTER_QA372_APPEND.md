@@ -90,3 +90,12 @@ CI run [#43281662101](https://github.com/meridane/QimaTrade-MVP/actions/runs/432
 - Vercel remains **RATE LIMITED** (`build-rate-limit`) on the final code HEAD. No Preview success is claimed for this HEAD.
 - PR #26 remains **OPEN**, **DRAFT**, **MERGEABLE**, unmerged, with zero human reviews and zero review threads.
 
+
+
+### QA372 final HEAD documentation verification — 13 November 2026
+
+- Documentation HEAD `e0207bdc97dbcf029417950502c734929c562852` was validated by QIMA CI [#1347](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282469525): **SUCCESS**. Both PostgreSQL 16 and 17.6 integration jobs passed, including QA369 slot and QA372 non-superuser visibility runtime probes. The Verify job passed the QA369/QA372 static contracts, npm audit at the high threshold, TypeScript, Next.js production build, Chromium, and **347 Playwright tests in 13.1 seconds**.
+- CodeQL [#1296](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282469560): **SUCCESS**.
+- GitHub's combined status still reports Vercel **RATE LIMITED** (`build-rate-limit`); no Preview success is claimed for this HEAD.
+- The run #1347 is the CI/CodeQL verification of the prior documentation-only evidence commit. No Production deployment, PR merge, or branch-protection change occurred.
+
