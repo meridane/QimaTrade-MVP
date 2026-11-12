@@ -93,7 +93,9 @@ fi
 cat > "$MOCK_BIN/psql" <<'PSQL'
 #!/usr/bin/env bash
 set -euo pipefail
-if [[ " $* " == *"create-offer-bootstrap-preflight.sql"* ]]; then
+if [[ " $* " == *"rolcreaterole"* ]]; then
+  printf 'privilege\n' >> "$PSQL_CALL_LOG"
+elif [[ " $* " == *"create-offer-bootstrap-preflight.sql"* ]]; then
   printf 'query\n' >> "$PSQL_CALL_LOG"
 elif [[ " $* " == *" -c "* ]]; then
   printf 'query\n' >> "$PSQL_CALL_LOG"
@@ -133,8 +135,21 @@ if grep -Fq "postgres:postgres" "$OUTPUT"; then
   exit 1
 fi
 
-if [[ "$(cat "$CALLS")" != "query" ]]; then
-  echo "ERROR: second runner invocation performed more than its single read-only preflight psql call: $(cat "$CALLS")" >&2
+if [[ "$(cat "$CALLS")" != 
+  cat "$OUTPUT" >&2
+  exit 1
+fi
+
+after_snapshot="$(snapshot)"
+if [[ "$after_snapshot" != "$before_snapshot" ]]; then
+  echo "ERROR: initialized qima_test schema or fixture data changed during the rejected second runner invocation." >&2
+  diff -u <(printf '%s\n' "$before_snapshot") <(printf '%s\n' "$after_snapshot") >&2 || true
+  exit 1
+fi
+
+echo "QA363 passed: the second CREATE_OFFER runner invocation was rejected after read-only privilege and catalog preflight queries; public schema inventory and all ten fixture-table data digests remained unchanged."
+privilege\nquery' ]]; then
+  echo "ERROR: second runner invocation did not perform exactly one read-only privilege query followed by one read-only catalog preflight query: $(cat "$CALLS")" >&2
   cat "$OUTPUT" >&2
   exit 1
 fi
