@@ -64,8 +64,10 @@ for required in \
   "NOBYPASSRLS" \
   "Observed one granted and one waiting same-tenant advisory lock" \
   "qa373_not_owner" \
+  "qa373_no_role_admin" \
   "qa373_no_createrole" \
   "catalog_snapshot" \
+  "docker exec -i" \
   "docker rm -f" \
   "trap cleanup EXIT"; do
   grep -Fq -- "$required" "$RUNTIME" ||
