@@ -39,7 +39,7 @@ trap cleanup EXIT
 
 # These extensions install public functions and a public base type. Their
 # extension-owned members must not make an otherwise empty database look used.
-"${PSQL_TEMP[@]}" -c "CREATE EXTENSION pgcrypto WITH SCHEMA public; CREATE EXTENSION hstore WITH SCHEMA public;" >/dev/null
+"${PSQL_TEMP[@]}" -c "CREATE EXTENSION pgcrypto WITH SCHEMA public; CREATE EXTENSION hstore WITH SCHEMA public; CREATE EXTENSION btree_gist WITH SCHEMA public;" >/dev/null
 
 extension_function_count="$("${PSQL_TEMP[@]}" -q -A -t -c "
   SELECT count(*)
@@ -76,6 +76,60 @@ extension_type_count="$("${PSQL_TEMP[@]}" -q -A -t -c "
 ")"
 if [[ "$extension_type_count" -ne 1 ]]; then
   echo "ERROR: expected hstore to be registered as an extension-owned public type." >&2
+  exit 1
+fi
+
+extension_operator_count="$( "${PSQL_TEMP[@]}" -q -A -t -c "
+  SELECT count(*)
+  FROM pg_operator o
+  JOIN pg_namespace n ON n.oid = o.oprnamespace
+  JOIN pg_depend d
+    ON d.classid = 'pg_operator'::regclass
+   AND d.objid = o.oid
+   AND d.refclassid = 'pg_extension'::regclass
+   AND d.deptype = 'e'
+  JOIN pg_extension e ON e.oid = d.refobjid
+  WHERE n.nspname = 'public'
+    AND e.extname = 'hstore';
+")"
+if [[ "$extension_operator_count" -lt 1 ]]; then
+  echo "ERROR: expected hstore to own public operators through extension membership." >&2
+  exit 1
+fi
+
+extension_opclass_count="$( "${PSQL_TEMP[@]}" -q -A -t -c "
+  SELECT count(*)
+  FROM pg_opclass c
+  JOIN pg_namespace n ON n.oid = c.opcnamespace
+  JOIN pg_depend d
+    ON d.classid = 'pg_opclass'::regclass
+   AND d.objid = c.oid
+   AND d.refclassid = 'pg_extension'::regclass
+   AND d.deptype = 'e'
+  JOIN pg_extension e ON e.oid = d.refobjid
+  WHERE n.nspname = 'public'
+    AND e.extname = 'btree_gist';
+")"
+if [[ "$extension_opclass_count" -lt 1 ]]; then
+  echo "ERROR: expected btree_gist to own public operator classes through extension membership." >&2
+  exit 1
+fi
+
+extension_opfamily_count="$( "${PSQL_TEMP[@]}" -q -A -t -c "
+  SELECT count(*)
+  FROM pg_opfamily f
+  JOIN pg_namespace n ON n.oid = f.opfnamespace
+  JOIN pg_depend d
+    ON d.classid = 'pg_opfamily'::regclass
+   AND d.objid = f.oid
+   AND d.refclassid = 'pg_extension'::regclass
+   AND d.deptype = 'e'
+  JOIN pg_extension e ON e.oid = d.refobjid
+  WHERE n.nspname = 'public'
+    AND e.extname = 'btree_gist';
+")"
+if [[ "$extension_opfamily_count" -lt 1 ]]; then
+  echo "ERROR: expected btree_gist to own public operator families through extension membership." >&2
   exit 1
 fi
 
@@ -121,4 +175,31 @@ assert_state "not_empty" "standalone composite type relation"
 "${PSQL_TEMP[@]}" -c "DROP TYPE public.qa364_user_composite;" >/dev/null
 assert_state "empty" "baseline after dropping composite type"
 
-echo "QA364 passed: extension-owned pgcrypto functions and hstore type were ignored; standalone function, enum, domain, range/multirange, and composite type were rejected; all probes ran in a disposable database."
+"${PSQL_TEMP[@]}" -c "CREATE OPERATOR public.qa365_user_operator (LEFTARG = integer, RIGHTARG = integer, FUNCTION = pg_catalog.int4eq);" >/dev/null
+assert_state "not_empty" "standalone public operator"
+"${PSQL_TEMP[@]}" -c "DROP OPERATOR public.qa365_user_operator(integer, integer);" >/dev/null
+assert_state "empty" "baseline after dropping standalone operator"
+
+"${PSQL_TEMP[@]}" -c "CREATE OPERATOR FAMILY public.qa365_user_opfamily USING btree;" >/dev/null
+assert_state "not_empty" "standalone public operator family"
+"${PSQL_TEMP[@]}" -c "DROP OPERATOR FAMILY public.qa365_user_opfamily USING btree;" >/dev/null
+assert_state "empty" "baseline after dropping standalone operator family"
+
+"${PSQL_TEMP[@]}" -c "CREATE OPERATOR FAMILY public.qa365_user_opclass_family USING btree;" >/dev/null
+"${PSQL_TEMP[@]}" -c "CREATE OPERATOR CLASS public.qa365_user_opclass FOR TYPE integer USING btree FAMILY public.qa365_user_opclass_family AS OPERATOR 3 pg_catalog.=, FUNCTION 1 pg_catalog.btint4cmp(integer, integer);" >/dev/null
+assert_state "not_empty" "standalone public operator class"
+"${PSQL_TEMP[@]}" -c "DROP OPERATOR CLASS public.qa365_user_opclass USING btree; DROP OPERATOR FAMILY public.qa365_user_opclass_family USING btree;" >/dev/null
+assert_state "empty" "baseline after dropping standalone operator class and family"
+
+"${PSQL_TEMP[@]}" -c "CREATE COLLATION public.qa365_user_collation (provider = libc, locale = 'C');" >/dev/null
+assert_state "not_empty" "standalone public collation"
+"${PSQL_TEMP[@]}" -c "DROP COLLATION public.qa365_user_collation;" >/dev/null
+assert_state "empty" "baseline after dropping standalone collation"
+
+# Publications are database-scoped; even an empty publication is bootstrap residue.
+"${PSQL_TEMP[@]}" -c "CREATE PUBLICATION qa365_user_publication;" >/dev/null
+assert_state "not_empty" "standalone database publication"
+"${PSQL_TEMP[@]}" -c "DROP PUBLICATION qa365_user_publication;" >/dev/null
+assert_state "empty" "baseline after dropping standalone publication"
+
+echo "QA365 passed: extension-owned routines, types, operators, operator classes and families were ignored; standalone operators, operator families/classes, collations and publications were rejected; all probes ran in a disposable database."

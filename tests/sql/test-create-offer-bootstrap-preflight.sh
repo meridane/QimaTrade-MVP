@@ -37,17 +37,17 @@ grep -Fq 'expected_database=qima_test' "$RUNNER" ||
 
 query="$(cat "$ROOT/tests/sql/create-offer-bootstrap-preflight.sql")"
 
-for required in "current_database()" "pg_namespace" "pg_class" "pg_proc" "pg_type" "pg_depend" "n.nspname = 'public'" "c.relkind IN ('r', 'p', 'v', 'm', 'S', 'f', 'c')" "d.deptype = 'e'" "t.typtype IN ('b', 'd', 'e', 'r', 'm')" "t.typelem = 0"; do
+for required in "current_database()" "pg_namespace" "pg_class" "pg_proc" "pg_type" "pg_operator" "pg_opclass" "pg_opfamily" "pg_collation" "pg_publication" "pg_depend" "n.nspname = 'public'" "c.relkind IN ('r', 'p', 'v', 'm', 'S', 'f', 'c')" "d.deptype = 'e'" "t.typtype IN ('b', 'd', 'e', 'r', 'm')" "t.typelem = 0"; do
   grep -Fq -- "$required" <<< "$query" || fail "preflight SQL is missing required catalog check: $required"
 done
 
-for required in "d.classid = 'pg_proc'::regclass" "d.classid = 'pg_type'::regclass" "d.refclassid = 'pg_extension'::regclass" "WHEN current_database() <> :'expected_database'"; do
+for required in "d.classid = 'pg_proc'::regclass" "d.classid = 'pg_type'::regclass" "d.classid = 'pg_operator'::regclass" "d.classid = 'pg_opclass'::regclass" "d.classid = 'pg_opfamily'::regclass" "d.classid = 'pg_collation'::regclass" "d.classid = 'pg_publication'::regclass" "d.refclassid = 'pg_extension'::regclass" "WHEN current_database() <> :'expected_database'"; do
   grep -Fq -- "$required" <<< "$query" || fail "preflight SQL is missing extension-ownership or database-identity check: $required"
 done
 
 RUNTIME_TEST="$ROOT/tests/sql/test-create-offer-bootstrap-catalog-runtime.sh"
 WORKFLOW="$ROOT/.github/workflows/ci.yml"
-for required in "CREATE EXTENSION pgcrypto" "CREATE EXTENSION hstore" "CREATE FUNCTION public.qa364_user_function" "CREATE TYPE public.qa364_user_enum AS ENUM" "CREATE DOMAIN public.qa364_user_domain" "AS RANGE" "qa364_user_composite" "DROP DATABASE IF EXISTS"; do
+for required in "CREATE EXTENSION pgcrypto" "CREATE EXTENSION hstore" "CREATE EXTENSION btree_gist" "CREATE FUNCTION public.qa364_user_function" "CREATE TYPE public.qa364_user_enum AS ENUM" "CREATE DOMAIN public.qa364_user_domain" "AS RANGE" "qa364_user_composite" "CREATE OPERATOR public.qa365_user_operator" "CREATE OPERATOR FAMILY public.qa365_user_opfamily" "CREATE OPERATOR CLASS public.qa365_user_opclass" "CREATE COLLATION public.qa365_user_collation" "CREATE PUBLICATION qa365_user_publication" "extension_operator_count" "extension_opclass_count" "extension_opfamily_count" "DROP DATABASE IF EXISTS"; do
   grep -Fq -- "$required" "$RUNTIME_TEST" || fail "QA364 runtime test is missing catalog probe: $required"
 done
 runtime_step_count="$(grep -Fc 'run: bash tests/sql/test-create-offer-bootstrap-catalog-runtime.sh' "$WORKFLOW")"
@@ -133,4 +133,4 @@ run_case "preflight connection failure" "empty" 42 42 "preflight" \
 run_case "empty database" "empty" 0 99 $'preflight\nfixture' \
   "mock psql reached fixture file"
 
-echo "QA364 bootstrap preflight contract PASS: shared SQL is read-only, extension-owned routines/types are excluded, user-defined routines/types are covered, and runtime probes are wired to both PostgreSQL jobs."
+echo "QA365 bootstrap catalog contract PASS: operators, operator classes/families, collations and publications are extension-aware, read-only, and characterized on both PostgreSQL jobs."

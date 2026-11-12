@@ -1,6 +1,6 @@
--- QA364: read-only CREATE_OFFER bootstrap catalog preflight.
+-- QA365: read-only CREATE_OFFER bootstrap catalog preflight.
 -- expected_database is supplied by psql (-v expected_database=...).
--- Extension-owned routines/types are not treated as application residue.
+-- Extension-owned catalog objects are not treated as application residue.
 SELECT CASE
   WHEN current_database() <> :'expected_database' THEN 'wrong_database'
   WHEN EXISTS (
@@ -59,6 +59,71 @@ SELECT CASE
           AND d.refclassid = 'pg_extension'::regclass
           AND d.deptype = 'e'
       )
+  ) THEN 'not_empty'
+  WHEN EXISTS (
+    SELECT 1
+    FROM pg_operator o
+    JOIN pg_namespace n ON n.oid = o.oprnamespace
+    WHERE n.nspname = 'public'
+      AND NOT EXISTS (
+        SELECT 1 FROM pg_depend d
+        WHERE d.classid = 'pg_operator'::regclass
+          AND d.objid = o.oid
+          AND d.refclassid = 'pg_extension'::regclass
+          AND d.deptype = 'e'
+      )
+  ) THEN 'not_empty'
+  WHEN EXISTS (
+    SELECT 1
+    FROM pg_opclass c
+    JOIN pg_namespace n ON n.oid = c.opcnamespace
+    WHERE n.nspname = 'public'
+      AND NOT EXISTS (
+        SELECT 1 FROM pg_depend d
+        WHERE d.classid = 'pg_opclass'::regclass
+          AND d.objid = c.oid
+          AND d.refclassid = 'pg_extension'::regclass
+          AND d.deptype = 'e'
+      )
+  ) THEN 'not_empty'
+  WHEN EXISTS (
+    SELECT 1
+    FROM pg_opfamily f
+    JOIN pg_namespace n ON n.oid = f.opfnamespace
+    WHERE n.nspname = 'public'
+      AND NOT EXISTS (
+        SELECT 1 FROM pg_depend d
+        WHERE d.classid = 'pg_opfamily'::regclass
+          AND d.objid = f.oid
+          AND d.refclassid = 'pg_extension'::regclass
+          AND d.deptype = 'e'
+      )
+  ) THEN 'not_empty'
+  WHEN EXISTS (
+    SELECT 1
+    FROM pg_collation c
+    JOIN pg_namespace n ON n.oid = c.collnamespace
+    WHERE n.nspname = 'public'
+      AND NOT EXISTS (
+        SELECT 1 FROM pg_depend d
+        WHERE d.classid = 'pg_collation'::regclass
+          AND d.objid = c.oid
+          AND d.refclassid = 'pg_extension'::regclass
+          AND d.deptype = 'e'
+      )
+  ) THEN 'not_empty'
+  -- Publications are database-scoped rather than schema-scoped; any
+  -- non-extension publication means this disposable database is initialized.
+  WHEN EXISTS (
+    SELECT 1
+    FROM pg_publication p
+    WHERE NOT EXISTS (
+      SELECT 1 FROM pg_depend d
+      WHERE d.classid = 'pg_publication'::regclass
+        AND d.objid = p.oid
+        AND d.refclassid = 'pg_extension'::regclass
+        AND d.deptype = 'e'
+    )
   ) THEN 'not_empty'
   ELSE 'empty'
 END;
