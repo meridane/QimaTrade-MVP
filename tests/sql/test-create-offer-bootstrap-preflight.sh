@@ -53,6 +53,12 @@ done
 runtime_step_count="$(grep -Fc 'run: bash tests/sql/test-create-offer-bootstrap-catalog-runtime.sh' "$WORKFLOW")"
 [[ "$runtime_step_count" -eq 2 ]] || fail "QA364 runtime characterization must run on both PostgreSQL jobs; found $runtime_step_count workflow steps"
 
+REPEAT_GUARD="$ROOT/tests/sql/test-create-offer-integration-repeat-guard.sh"
+repeat_preflight_line="$(grep -nF 'create-offer-bootstrap-preflight.sql' "$REPEAT_GUARD" | head -n 1 | cut -d: -f1)"
+repeat_file_line="$(grep -nF '== *" -f "*' "$REPEAT_GUARD" | head -n 1 | cut -d: -f1)"
+[[ -n "$repeat_preflight_line" && -n "$repeat_file_line" && "$repeat_preflight_line" -lt "$repeat_file_line" ]] ||
+  fail "repeat-run guard must classify the shared preflight SQL as a read-only query before generic fixture files"
+
 if grep -Ein '^[[:space:]]*(INSERT|UPDATE|DELETE|MERGE|CREATE|ALTER|DROP|TRUNCATE|GRANT|REVOKE|CALL|COPY|EXECUTE|PERFORM|COMMIT|ROLLBACK|SAVEPOINT|SET|RESET)([[:space:]]|;)' <<< "$query"; then
   fail "bootstrap preflight SQL must remain read-only"
 fi
