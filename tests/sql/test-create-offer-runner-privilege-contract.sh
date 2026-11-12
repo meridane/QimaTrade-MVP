@@ -104,7 +104,7 @@ grep -Fq "QA373 code-validation evidence" "$APPENDIX" ||
 grep -Fq "QA373 CodeQL evidence" "$APPENDIX" ||
   fail "QA373 appendix must reserve CodeQL evidence"
 
-grep -Fq "### QA374 — ADMIN OPTION-only runner membership path" "$APPENDIX_QA374" ||
+grep -Fq "## QA374 — ADMIN OPTION-only runner membership path" "$APPENDIX_QA374" ||
   fail "QA374 appendix is missing its scope"
 grep -Fq "QA374 code-validation evidence" "$APPENDIX_QA374" ||
   fail "QA374 appendix must reserve code-validation evidence"
