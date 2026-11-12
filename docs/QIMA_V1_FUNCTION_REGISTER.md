@@ -8207,3 +8207,90 @@ QA369: inspect any remaining replication metadata only if it can be scoped safel
 - CodeQL #1274: **SUCCESS** — https://github.com/meridane/QimaTrade-MVP/actions/runs/43231341808.
 - Vercel Preview on this final documentation HEAD: **SUCCESS** — https://vercel.com/bmk1/qimatrade-mvp/E3aT7bVgvuwtbNPXQ3C9chBh9uBZ.
 - Both PostgreSQL jobs emitted the expected warning that the disabled subscription was not connected and the hint that logical replication requires `wal_level=logical`. QA368 deliberately makes no `wal_level` change and creates no slot or publisher connection.
+
+
+## QA369 — database-scoped logical and cluster-wide physical replication slots (2026-11-12)
+
+### Initial state and scope
+
+- PR #26 was **OPEN**, **DRAFT**, not merged, and mergeable; base `main`.
+- Initial PR head: `ea178d31a8d733016066a2f0eb125d96f0f36627`.
+- Initial comparison: 1,567 commits ahead of `main`, 0 behind, 137 changed files.
+- No human reviews or inline review threads were present.
+- Canonical register blob at start: `70dcd232f618e559189d429d752f6538680bc582`, 1,707,372 characters.
+- Initial checks on the QA368 HEAD: QIMA CI #1325 **SUCCESS**, CodeQL #1275 **SUCCESS**, Vercel **SUCCESS**.
+
+### Catalog decision
+
+PostgreSQL 16 and 17 document `pg_replication_slots` as a cluster-wide view:
+
+- Every slot has a cluster-wide unique name.
+- `slot_type` distinguishes `logical` and `physical`.
+- Only logical slots have a database association: `datoid` references `pg_database.oid`, and `database` contains the database name.
+- Physical slots have NULL database identity.
+
+The preflight therefore rejects only logical slots whose `datoid` matches the OID of `current_database()`. It deliberately does not reject physical slots or logical slots owned by another database. Cluster-wide replication origins remain excluded because they have no database ownership key.
+
+### Code and test changes
+
+1. `tests/sql/create-offer-bootstrap-preflight.sql`
+   - Added a read-only `pg_replication_slots` predicate.
+   - Requires `slot_type = 'logical'`.
+   - Scopes through `datoid = (SELECT oid FROM pg_database WHERE datname = current_database())`.
+   - Does not read connection strings or inspect cluster-wide origin state.
+
+2. `tests/sql/test-create-offer-replication-slot-catalog-runtime.sh`
+   - Added a separate disposable Docker PostgreSQL cluster, pinned to `postgres:16` or `postgres:17.6`.
+   - The isolated container starts with `wal_level=logical`, `max_replication_slots=10`, and `max_wal_senders=10`; this does not alter the existing CI service or any persistent PostgreSQL configuration.
+   - Creates two databases and verifies both begin with an `empty` preflight.
+   - Creates a physical slot and verifies `slot_type=physical`, `database IS NULL`, and `datoid IS NULL`; neither database is rejected.
+   - Creates a logical slot in the current database and verifies only that database becomes `not_empty`.
+   - Creates a logical slot in the other database and verifies the current database remains `empty` while the owning database becomes `not_empty`.
+   - Drops all slots and verifies both databases return to `empty`.
+   - Uses only loopback host-port mapping. No publisher connection, remote replication connection, subscription, or external slot is created.
+   - EXIT cleanup drops any remaining test slots and removes the disposable container; cleanup failure is blocking.
+
+3. `tests/sql/test-create-offer-replication-slot-preflight.sh`
+   - Protects the logical-only, database-OID predicate and the deliberate exclusion of physical slots and cluster-wide origins.
+   - Checks Bash syntax, pinned test images, runtime cleanup, and workflow wiring.
+
+4. `.github/workflows/ci.yml`
+   - Runs the static contract once in Verify.
+   - Runs the runtime characterization on both PostgreSQL 16 and 17.6 using separate, explicitly pinned disposable Docker containers.
+
+### QA369 validation
+
+- QIMA CI #1326 on code HEAD `9f063eaa4b0796d7b5fc1d144ec68dc072bdf061`: **SUCCESS** — https://github.com/meridane/QimaTrade-MVP/actions/runs/43236261275.
+  - Static replication-slot contract: **PASS**.
+  - PostgreSQL 16 CREATE_OFFER integration job: **SUCCESS**; QA369 runtime marker observed.
+  - PostgreSQL 17.6 compatibility job: **SUCCESS**; QA369 runtime marker observed.
+  - Both runtime logs confirm current-database logical slots were detected, other-database logical slots and physical cluster-wide slots did not affect the current database, and all slots plus the isolated container were removed.
+  - PostgreSQL 17.6 version guard remains in the existing compatibility job.
+  - npm audit: **0 info, 0 low, 0 moderate, 0 high, 0 critical**.
+  - TypeScript: **SUCCESS**.
+  - Next.js build: **SUCCESS** (compiled successfully in 8.2 seconds).
+  - Chromium installation and audit enforcement: **SUCCESS**.
+  - Playwright: **347 passed in 10.0 seconds**.
+  - Existing concurrency, RLS/ACL, repeat-run, migration cleanup, and prepared-transaction contracts completed with their expected outcomes.
+  - QA353/QA354 harness jobs retain intentional individual `failure` conclusions and the skipped harness remains `skipped`; their independent blocking assertions passed. The overall workflow is **SUCCESS**.
+- CodeQL #1276 on the same code HEAD: **SUCCESS** — https://github.com/meridane/QimaTrade-MVP/actions/runs/43236261372.
+- Vercel combined status on code HEAD: **FAILURE** due to the daily free deployment limit (`api-deployments-free-per-day` / `build-rate-limit`). No Preview is claimed for this HEAD. GitHub Actions Next.js build succeeded; no Production deployment occurred.
+
+The existing PostgreSQL 16/17 service logs still contain the expected QA368 warning that the disabled subscription is not connected and logical subscriptions require `wal_level=logical`. QA369's slot characterization uses a separate disposable server with `wal_level=logical`; it does not change the existing service configuration.
+
+### Evidence boundary and safety
+
+This is disposable PostgreSQL catalog characterization. It is not evidence of a Production replication issue, vulnerability, or incident. No Supabase Production data, schema, migration, SQL function, RLS policy, grant, secret, or persistent configuration was modified. No Production deployment, PR merge, force update, or branch-protection change occurred.
+
+MKT-1.2 remains unapproved and MKT-1.3 remains decision-required. No idempotency retention, numeric equivalence, price precision, canonicalization, or legacy-hash policy was changed.
+
+### PostgreSQL documentation
+
+- PostgreSQL 16 `pg_replication_slots`: https://www.postgresql.org/docs/16/view-pg-replication-slots.html
+- PostgreSQL 17 `pg_replication_slots`: https://www.postgresql.org/docs/17/view-pg-replication-slots.html
+- PostgreSQL 17 logical decoding example and `wal_level=logical` prerequisite: https://www.postgresql.org/docs/17/logicaldecoding-example.html
+- PostgreSQL 17 WAL configuration and startup-only `wal_level`: https://www.postgresql.org/docs/17/runtime-config-wal.html
+
+### Next step
+
+QA370 should audit database-scoped role/database settings (`pg_db_role_setting`) and default-privilege state (`pg_default_acl`) to determine whether either can exist without ordinary relations and materially alter the disposable CREATE_OFFER test environment. Characterize both on disposable PostgreSQL 16 and 17.6, distinguish database-local state from cluster-wide state, and do not add preflight predicates until positive/negative probes establish the intended boundary.
