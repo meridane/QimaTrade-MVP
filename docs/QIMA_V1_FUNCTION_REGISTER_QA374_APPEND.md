@@ -101,3 +101,31 @@ The initial CI #1359 run exposed a Markdown heading-level mismatch in the static
 - CodeQL [#1313](https://github.com/meridane/QimaTrade-MVP/actions/runs/43314718852): **SUCCESS**.
 - Vercel Preview commit status: **SUCCESS** for this HEAD. This is a Preview result only; no Production deployment was performed.
 - QA375 is closed as a disposable-runtime characterization. It demonstrates the runner's fail-closed ownership boundary under the tested PostgreSQL 16/17.6 roles; it does not establish the privilege configuration of any Production runner.
+
+
+## QA376 — partial ADMIN OPTION is insufficient
+
+### Scope
+
+Characterize the negative boundary where the runner owns the disposable database and has CREATEROLE, but has ADMIN OPTION on only one of the two pre-existing client roles. This isolates the requirement to enter or administer both `anon` and `authenticated`.
+
+### Runtime setup
+
+- Create `qa376_partial_admin_option_runner` as LOGIN, CREATEROLE, NOSUPERUSER, NOCREATEDB, NOREPLICATION, NOBYPASSRLS.
+- Grant CONNECT and CREATE on the disposable `qima_test` database, then transfer database ownership to this role.
+- Grant ADMIN OPTION with SET FALSE on `anon` only; do not create any membership for `authenticated`.
+- Assert the exact pre-run state: `true|anon:false:true:false|authenticated:false:false:false`. The first field confirms database ownership; the remaining fields show SET FALSE, ADMIN TRUE only for anon, and no authenticated membership.
+- Invoke the real integration runner. It must exit 4 with the existing fail-closed privilege diagnostic before fixture DDL/DML.
+- Compare the catalog/data snapshot before and after rejection, including public relations/routines, extensions, offers, action executions, database owner, and QA373/QA374/QA376 role and membership counts.
+
+### Expected result
+
+Owning the database and holding ADMIN OPTION on only one required client role is insufficient. The runner rejects the role before any fixture change, and the snapshot remains identical.
+
+### Safety and interpretation
+
+All roles and database changes occur inside the disposable PostgreSQL 16/17.6 test container, removed by the existing EXIT cleanup trap. No Supabase Production data, migration, secret, persistent PostgreSQL configuration, or branch-protection setting is accessed or modified. This synthetic runtime case characterizes the runner contract; it does not prove any Production role currently has this configuration.
+
+### Initial validation evidence
+
+Pending the first QA376 CI run.
