@@ -203,16 +203,18 @@ SELECT CASE
         AND d.deptype = 'e'
     )
   ) THEN 'not_empty'
-  -- A user mapping can remain even when its server is extension-owned;
-  -- detect it independently instead of relying only on the server guard.
+  -- pg_user_mapping is restricted from normal users. Its public view exposes
+  -- mapping identity while masking credential-bearing options when unauthorized.
+  -- Keep the extension-membership test, but join by the view's umid and never
+  -- select umoptions.
   WHEN EXISTS (
     SELECT 1
-    FROM pg_user_mapping um
+    FROM pg_user_mappings um
     WHERE NOT EXISTS (
       SELECT 1
       FROM pg_depend d
       WHERE d.classid = 'pg_user_mapping'::regclass
-        AND d.objid = um.oid
+        AND d.objid = um.umid
         AND d.refclassid = 'pg_extension'::regclass
         AND d.deptype = 'e'
     )
