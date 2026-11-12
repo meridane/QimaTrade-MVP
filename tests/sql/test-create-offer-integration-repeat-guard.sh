@@ -27,7 +27,7 @@ snapshot_sql=$(cat <<'QIMA_QA363_SNAPSHOT'
 SELECT concat_ws('|',
   current_database(),
   (
-    SELECT md5(coalesce(string_agg(n.nspname || ':' || c.relkind || ':' || c.relname,
+    SELECT md5(coalesce(string_agg(n.nspname::text || ':' || c.relkind::text || ':' || c.relname::text,
                                    E'\n' ORDER BY n.nspname, c.relkind, c.relname), ''))
     FROM pg_class c
     JOIN pg_namespace n ON n.oid = c.relnamespace
