@@ -93,7 +93,9 @@ fi
 cat > "$MOCK_BIN/psql" <<'PSQL'
 #!/usr/bin/env bash
 set -euo pipefail
-if [[ " $* " == *" -c "* ]]; then
+if [[ " $* " == *"create-offer-bootstrap-preflight.sql"* ]]; then
+  printf 'query\n' >> "$PSQL_CALL_LOG"
+elif [[ " $* " == *" -c "* ]]; then
   printf 'query\n' >> "$PSQL_CALL_LOG"
 elif [[ " $* " == *" -f "* ]]; then
   printf 'file\n' >> "$PSQL_CALL_LOG"
