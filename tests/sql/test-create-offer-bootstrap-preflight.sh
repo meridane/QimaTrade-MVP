@@ -24,12 +24,13 @@ line_number() {
 }
 
 guard_line="$(line_number 'if [[ ! "$DATABASE_URL" =~')"
+privilege_line="$(line_number 'if runner_privilege_state=')"
 preflight_file_line="$(line_number 'preflight_sql="$ROOT/tests/sql/create-offer-bootstrap-preflight.sql"')"
 preflight_line="$(line_number 'if preflight_state=')"
 fixture_line="$(line_number '"${PSQL[@]}" -f "$ROOT/tests/sql/fixtures/create-offer-schema.sql"')"
 
-if ! (( guard_line < preflight_file_line && preflight_file_line < preflight_line && preflight_line < fixture_line )); then
-  fail "URL allowlist, read-only shared preflight, and first fixture DDL must remain in that order"
+if ! (( guard_line < privilege_line && privilege_line < preflight_file_line && preflight_file_line < preflight_line && preflight_line < fixture_line )); then
+  fail "URL allowlist, read-only runner/catalog preflights, and first fixture DDL must remain in that order"
 fi
 
 grep -Fq 'expected_database=qima_test' "$RUNNER" ||
@@ -89,6 +90,11 @@ grep -Fq "no fixture DDL/DML was attempted" "$RUNNER" ||
 cat > "$MOCK_BIN/psql" <<'PSQL'
 #!/usr/bin/env bash
 set -euo pipefail
+if [[ " $* " == *"rolcreaterole"* ]]; then
+  printf 'privilege\\n' >> "$MOCK_PSQL_CALLS"
+  printf '%s\\n' "${MOCK_RUNNER_PRIVILEGE_STATE:-superuser}"
+  exit 0
+fi
 if [[ " $* " == *"create-offer-bootstrap-preflight.sql"* ]]; then
   printf 'preflight\n' >> "$MOCK_PSQL_CALLS"
   if [[ "${MOCK_PREFLIGHT_EXIT:-0}" -ne 0 ]]; then
