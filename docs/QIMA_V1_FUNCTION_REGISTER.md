@@ -8586,3 +8586,14 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 - The non-owner's initial state is asserted as `true|anon:false:true:false|authenticated:false:true:false`; the first field confirms that the role is not the database owner.
 - The real runner must exit 4 with the existing owner/privilege diagnostic. A before/after snapshot includes the qima_test owner, qa373/qa374 role counts, client memberships, public catalog inventory, extension count, offers, and action executions.
 - The snapshot must remain unchanged, demonstrating that ADMIN OPTION alone does not bypass the database-owner requirement. Runtime CI evidence: pending.
+
+
+### QA375 final validation — 13 November 2026
+
+- QIMA CI [#1364](https://github.com/meridane/QimaTrade-MVP/actions/runs/43314718836): **SUCCESS**. PostgreSQL 16 and PostgreSQL 17.6 both emitted `QA375 passed`. The non-owner CREATEROLE role had ADMIN OPTION on both existing client-role memberships but SET FALSE; the runner rejected it with exit 4 before fixture changes. The read-only catalog/data snapshot was unchanged in both runtimes.
+- Both PostgreSQL jobs also completed the positive QA374 ADMIN OPTION-only runner path and emitted `QA374 passed`.
+- Verify passed the QA373/QA374/QA375 static contract, dependency audit, TypeScript, Next.js production build, Chromium installation, and 347 Playwright tests (10.0 seconds in the recorded log).
+- QIMA CodeQL [#1313](https://github.com/meridane/QimaTrade-MVP/actions/runs/43314718852): **SUCCESS**.
+- Vercel Preview commit status: **SUCCESS** for this code HEAD. This is Preview-only evidence; no Production deployment was performed.
+- The earlier QA375 static assertion mismatch in CI #1359 was a Markdown heading-level defect, corrected before CI #1364. No PostgreSQL test failure or npm vulnerability was reported by that mismatch.
+- QA375 is closed as a disposable-runtime characterization; it does not establish that a Production runner currently has or lacks this privilege configuration.
