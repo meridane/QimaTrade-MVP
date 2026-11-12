@@ -8594,4 +8594,9 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 - The starting state is asserted explicitly as `true|true|false|false|true|false|false|true`: owner, CREATEROLE, non-superuser, anon SET false/admin true, authenticated SET false/admin false, and no authenticated membership row.
 - The real runner must reject the role with exit 4 and the existing fail-closed privilege diagnostic before fixture DDL/DML. A read-only catalog/data snapshot is compared before and after rejection.
 - The runtime remains isolated to disposable PostgreSQL 16/17.6 containers; no Production data, secrets, migrations, or persistent settings are accessed.
-- Initial QA376 CI evidence: pending.
+- QIMA CI [#1365](https://github.com/meridane/QimaTrade-MVP/actions/runs/43320304379): **SUCCESS**. PostgreSQL 16 and PostgreSQL 17.6 both emitted the explicit QA376 passed marker. The database owner with CREATEROLE and ADMIN OPTION only for anon, but no SET/ADMIN OPTION for authenticated, was rejected with exit 4 before fixture changes; before/after catalog and data snapshots matched on both versions.
+- The same runtime jobs emitted QA374 passed and QA375 passed; all runner privilege characterizations and cleanup completed successfully.
+- Verify passed the QA373/QA374/QA375/QA376 static contract, npm audit (0 vulnerabilities reported across all severities), TypeScript, Next.js production build (10.7 seconds), Chromium, and 347 Playwright tests (12.9 seconds).
+- CodeQL [#1314](https://github.com/meridane/QimaTrade-MVP/actions/runs/43320304348): **SUCCESS**.
+- Vercel status on this final code HEAD: build-rate-limit; no Preview is claimed. GitHub Actions build success is not a Vercel deployment.
+- QA376 is closed as a synthetic runtime characterization only; it does not establish that any Production runner has this role configuration.
