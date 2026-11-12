@@ -18,7 +18,7 @@ PSQL_TUPLE=(psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t)
 # replay against an initialized database must stop after this read-only query.
 preflight_sql="$ROOT/tests/sql/create-offer-bootstrap-preflight.sql"
 
-if preflight_state="$("${PSQL_TUPLE[@]}" -v "expected_database=qima_test" -f "$preflight_sql")"; then"$("${PSQL_TUPLE[@]}" -c "$preflight_query")"; then
+if preflight_state="$("${PSQL_TUPLE[@]}" -v "expected_database=qima_test" -f "$preflight_sql")"; then
   :
 else
   preflight_status=$?
