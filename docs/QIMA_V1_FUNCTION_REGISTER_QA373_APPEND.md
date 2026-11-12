@@ -29,11 +29,19 @@ Characterize the complete tests/sql/run-create-offer-integration.sh flow on disp
 
 ### QA373 code-validation evidence
 
-Pending the first CI run for the QA373 code HEAD.
+- Final code HEAD: 40f0801cd45856197e8f60a692f0233dcebf6be6.
+- QIMA CI [#1356](https://github.com/meridane/QimaTrade-MVP/actions/runs/43290307373): SUCCESS.
+- PostgreSQL 16 and PostgreSQL 17.6 integration jobs both passed the full runner privilege characterization.
+- The synthetic non-superuser candidate owned qima_test and had CREATEROLE, without SUPERUSER, CREATEDB, REPLICATION, BYPASSRLS, or pg_monitor membership. The complete fixture, pgcrypto installation, migration, SECURITY DEFINER wrapper, SET ROLE, and concurrency runner succeeded.
+- The runtime verified role attributes false|true|false|false|false, client-role SET membership true|true, reverse membership false|false, and pg_monitor membership false.
+- The three negative cases (non-owner with CREATEROLE; database owner with CREATEROLE but no SET/ADMIN OPTION on pre-existing client roles; database owner without CREATEROLE) were rejected with exit 4 before fixture changes. Catalog/data snapshots remained unchanged.
+- Verify: QA373 static PASS, npm audit high-threshold PASS, TypeScript PASS, Next.js build PASS (11.0 seconds), Chromium PASS, Playwright 347/347 (13.2 seconds).
+- Vercel Preview for the final code HEAD: SUCCESS at https://vercel.com/bmk1/qimatrade-mvp/9Z5ZmEt4y3pPRiTN5nvQDNTHz61K. Preview only; no Production deployment.
 
 ### QA373 CodeQL evidence
 
-Pending the first CodeQL run for the QA373 code HEAD.
+- QIMA CodeQL [#1305](https://github.com/meridane/QimaTrade-MVP/actions/runs/43290307298): SUCCESS.
+- CodeQL runs #1300, #1301, #1302, #1303, #1304, and #1305 on the successive QA373 heads all completed SUCCESS.
 
 ### Safety and interpretation
 
@@ -50,3 +58,14 @@ A successful synthetic runtime characterization establishes the tested CI contra
 - The earlier PostgreSQL 17.6 host-port closure in CI #1349 remains an unconfirmed transient symptom. The bounded readiness retry/diagnostic hardening passed; no root cause is asserted.
 - Combined GitHub status continues to report Vercel build-rate-limit; no Preview success is claimed for this HEAD.
 - PR #26 remains open, draft, mergeable, unmerged, with zero human reviews and zero review threads.
+
+
+### QA373 CI correction history
+
+- QIMA CI #1351: initial fixture delimiter and static-contract quoting defects; corrected with a tagged dollar delimiter and a rewritten static test. The audit-enforcement step did not receive a completed report after Verify stopped; this was not an npm vulnerability finding.
+- QIMA CI #1352: stale preflight mocks and static contract defects; corrected to mock the read-only runner privilege query before the catalog preflight.
+- QIMA CI #1353: repeat-run guard expected one psql call; corrected to expect the role-capability query followed by the read-only catalog preflight.
+- QIMA CI #1354: Docker setup SQL was not passed through stdin; corrected by using docker exec -i for the setup heredoc.
+- QIMA CI #1355: boolean::text assertions expected t/f rather than true/false; corrected.
+- QIMA CI #1356: final full workflow SUCCESS. The expected individual failures in prepared-transaction cleanup harnesses remain intentional and their separate blocking assertions passed; the skipped harness remains skipped.
+
