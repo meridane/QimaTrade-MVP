@@ -7690,3 +7690,76 @@ Validation: QIMA CI #1299 SUCCESS (https://github.com/meridane/QimaTrade-MVP/act
 Files changed: `.github/workflows/ci.yml`, `tests/sql/test-create-offer-numeric-replay-contract.sh`, and this register append (plus the QA361 append document). No runtime SQL, runner, migration, application logic, or business normalization rule changed. This is static regression coverage and disposable-fixture CI evidence, not proof of a Production incident or vulnerability. MKT-1.2 and MKT-1.3 remain unapproved/decision-required. No Supabase Production data/schema/migration/RLS/grant/secret/configuration was changed; no Production deployment, merge, force update, or protection change occurred.
 
 Work branch: `work/qa361-numeric-replay-post-rejection-contract-20261112-1604`. Code commits: `fe349044cd11ec7ca2aaaf9d72392d0febbbaadb` (test) and `4f339c1a87024cebdf9d63b65167d9e2a7a17ca5` (CI wiring). The branch was fast-forwarded to PR #26 after a compare showed two commits ahead and zero behind. Next: read-only audit fixture-key uniqueness and isolation for QA73/QA74/QA75; do not alter numeric normalization or replay semantics without product approval.
+
+
+## QA362 — QA73/QA74/QA75 numeric replay fixture isolation
+
+Date: 2026-11-12 (KST)
+
+### Scope and findings
+
+Audited the fixture seeds and assertions for OFFER-QA-73, OFFER-QA-74, and OFFER-QA-75, the CREATE_OFFER disposable integration runner, and the PostgreSQL 16/17.6 workflow jobs.
+
+The three characterization groups intentionally share the disposable tenant `10000000-0000-4000-8000-000000000001` and actor `30000000-0000-4000-8000-000000000001`. They use four distinct idempotency keys:
+- `fixture-jsonb-numeric-scale-completed` (QA73).
+- `fixture-typed-quantity-scale-completed` (QA74 quantity).
+- `fixture-typed-price-scale-completed` (QA74 price).
+- `fixture-nested-attributes-numeric-scale-completed` (QA75).
+
+The seed blocks declare 12 generated record/correlation UUID identifiers (3 + 6 + 3), and each creates its own offer, action execution, idempotency row, and success event. The matching assertion blocks scope reads to the same disposable tenant and use the corresponding key.
+
+A read-only source scan found no use of the four keys outside their six dedicated seed/assertion blocks in `create-offer-runtime.sql`, in `run-create-offer-integration.sh`, or in the later `idempotency-numeric-lexical-characterization.sql` file.
+
+The integration runner enforces a loopback-only `qima_test` URL before the first database connection, invokes the runtime fixture once, and then invokes the numeric lexical characterization. CI invokes the same runner once on PostgreSQL 16 and once on PostgreSQL 17.6, with the exact 17.6 version guard before the latter invocation.
+
+### Change
+
+Added `tests/sql/test-create-offer-fixture-isolation-contract.sh` and wired it into the Verify job in `.github/workflows/ci.yml`.
+
+The contract protects:
+- complete QA73/QA74/QA75 seed and assertion blocks;
+- the expected 3/6/3 generated UUID declarations;
+- the intentionally shared disposable tenant and actor;
+- four distinct fixture keys and their seed/assertion correspondence;
+- absence of key reuse outside the dedicated blocks, in the runner, and in the later numeric lexical characterization file;
+- the runner URL guard, one-time runtime invocation, and runtime-before-characterization order;
+- exactly two workflow runner invocations and the PostgreSQL 17.6 version guard;
+- execution of the isolation contract in the CI Verify job.
+
+No runtime SQL, integration runner, fixture schema, migration, SQL function, idempotency behavior, numeric normalization, or business rule was changed.
+
+### Validation
+
+- QIMA CI #1301: **SUCCESS** — https://github.com/meridane/QimaTrade-MVP/actions/runs/43176855106. QA362 passed; PostgreSQL 16 and 17.6 jobs succeeded; npm ci, high-threshold npm audit, TypeScript, Next.js build, Chromium, and Playwright succeeded; 347 Playwright tests passed in 9.4 seconds.
+- CodeQL #1251: **SUCCESS** — https://github.com/meridane/QimaTrade-MVP/actions/runs/43176855175.
+- The cross-file key guard was then added to cover the later numeric lexical characterization file.
+- QIMA CI #1302 on the final code HEAD: **SUCCESS** — https://github.com/meridane/QimaTrade-MVP/actions/runs/43177121302. QA362 passed; PostgreSQL 16.15 and PostgreSQL 17.6 (`server_version_num=170006`) succeeded; both logs contain the QA315 PASS marker and the existing QA73/QA74/QA75 numeric characterization assertions passed; npm ci, high-threshold npm audit, TypeScript, Next.js build, Chromium, and Playwright succeeded; 347 Playwright tests passed in 7.9 seconds.
+- CodeQL #1252: **SUCCESS** — https://github.com/meridane/QimaTrade-MVP/actions/runs/43177121258.
+- Vercel combined status for final code HEAD `05ad47229178789932debe41f525f8ecc23b838f`: **failure**; its target URL identifies the Vercel build-rate-limit path. No Preview success is claimed for the final HEAD.
+
+The QA353/QA354 harness jobs retain their expected individual failure conclusions because their failures are deliberate; their independent blocking assertions succeeded. The skipped harness remains skipped and its dependent assertion succeeded. The overall QIMA CI conclusion is SUCCESS.
+
+### Commits and files
+
+Work branches:
+- `work/qa362-numeric-replay-fixture-isolation-20261112-1634`
+- `work/qa362-cross-file-fixture-key-guard-20261112-1640`
+
+PR commits:
+- `4bff247d7d52ebeed4679de65a44b6a8cd721651` — add fixture-isolation contract.
+- `ce97dadf322fc1a959e369fe0b7ff520f5a7d690` — fix expected key argument counting.
+- `53f0df0cdd4f4d2fa65fd55e07067888b0cbf830` — wire contract into CI.
+- `c81eebfbe321ca4646cb068800913cf2bfbd546f` — remove redundant argument shift.
+- `05ad47229178789932debe41f525f8ecc23b838f` — guard cross-file fixture-key reuse.
+
+Files changed: `.github/workflows/ci.yml`, `tests/sql/test-create-offer-fixture-isolation-contract.sh`, this register, and `docs/QIMA_V1_FUNCTION_REGISTER_QA362_APPEND.md`.
+
+### Evidence boundary and safety
+
+QA362 is a static source-contract check plus a read-only source audit; it is not evidence of a Production incident, vulnerability, or cross-tenant authorization defect. Behavioral SQL tests ran only against disposable PostgreSQL CI services. The shared tenant/actor are intentional fixture scope, not a claim of cross-tenant isolation.
+
+No Supabase Production data, schema, migration, SQL function, RLS policy, grant, secret, or persistent configuration was modified. No Production deployment, PR merge, force update, or branch-protection change occurred. MKT-1.2 remains unapproved and MKT-1.3 remains decision-required; no idempotency retention, numeric equivalence, precision, canonicalization, or legacy-hash policy was invented.
+
+### Next step
+
+QA363: inspect the disposable CREATE_OFFER schema/bootstrap preflight for repeatability and non-empty-database protection. Determine whether a second integration-runner invocation against an already initialized local `qima_test` database is safely rejected before DDL/DML. Keep the loopback guard and never target Supabase Production.
