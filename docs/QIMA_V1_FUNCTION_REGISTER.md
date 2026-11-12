@@ -8516,6 +8516,31 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 - QA373 characterizes the complete fixture/migration/concurrency runner, not only the read-only preflight. The supported non-superuser candidate is a database owner with CREATEROLE, able to SET ROLE into or administer existing anon/authenticated roles.
 - The runner performs a read-only privilege preflight before the catalog preflight and before any fixture DDL/DML. Unsupported roles are rejected with exit 4.
 - The disposable fixture grants the runner role membership in authenticated and anon only for non-superuser runs, enabling the runtime's explicit SET ROLE tests. The wrapper-owner migration continues to reject the reverse membership direction.
-- QA373 runtime and CI evidence: pending the first CI run for this code HEAD.
+- QA373 runtime and CI evidence: QIMA CI #1356 (run 43290307373) and CodeQL #1305 (run 43290307298) both completed SUCCESS on the final code HEAD 40f0801cd45856197e8f60a692f0233dcebf6be6; PostgreSQL 16 and 17.6 full-runner privilege characterizations both passed.
 - No production data, migration, secret, or persistent PostgreSQL configuration is accessed or changed.
+
+
+
+### QA373 final validation — 13 November 2026
+
+- Final code HEAD: 40f0801cd45856197e8f60a692f0233dcebf6be6.
+- QIMA CI [#1356](https://github.com/meridane/QimaTrade-MVP/actions/runs/43290307373): SUCCESS.
+- PostgreSQL 16 and PostgreSQL 17.6 integration jobs: SUCCESS, including QA373 full-runner write-privilege runtime.
+- The synthetic non-superuser candidate owned qima_test and had CREATEROLE, but no SUPERUSER, CREATEDB, REPLICATION, BYPASSRLS, or pg_monitor membership. It completed the full CREATE_OFFER fixture, pgcrypto installation, migration, SECURITY DEFINER wrapper, SET ROLE, and same-tenant concurrency path.
+- The runner's observed candidate attributes were false|true|false|false|false for rolsuper/rolcreaterole/rolcreatedb/rolreplication/rolbypassrls; client-role SET membership was true|true, reverse membership was false|false, and pg_monitor membership was false.
+- Negative runtime cases were rejected with exit 4 before fixture DDL/DML: a CREATEROLE role that did not own qima_test; a database owner with CREATEROLE but no SET/ADMIN OPTION on existing anon/authenticated roles; and a database owner without CREATEROLE. Catalog/data snapshots remained unchanged after each rejection.
+- Verify: QA373 static contract PASS; npm audit at the high threshold PASS; TypeScript PASS; Next.js production build PASS (11.0 seconds); Chromium PASS; Playwright 347/347 (13.2 seconds).
+- QIMA CodeQL [#1305](https://github.com/meridane/QimaTrade-MVP/actions/runs/43290307298): SUCCESS.
+- Vercel Preview for the final code HEAD: SUCCESS at https://vercel.com/bmk1/qimatrade-mvp/9Z5ZmEt4y3pPRiTN5nvQDNTHz61K. This is a Preview only; no Production deployment was made.
+- PR #26 remains OPEN, DRAFT, MERGEABLE, unmerged, with 1,632 commits, 152 changed files, zero human reviews, and zero review threads.
+
+### QA373 CI correction history
+
+- QIMA CI #1351 failed during the first integration: the fixture's original dollar-quote delimiter was malformed after insertion, and the initial QA373 static test had a quoting/syntax defect. The fixture was changed to a tagged dollar delimiter and the static contract was rewritten. The dependency-audit enforcement step did not receive a completed audit report after Verify stopped; this was not an npm vulnerability finding.
+- QIMA CI #1352 exposed stale bootstrap-preflight mocks and a malformed static contract. The mocks were updated to return the new read-only runner-privilege state before the catalog preflight.
+- QIMA CI #1353 showed the repeat-run guard still expected one psql query. It now expects the read-only role-capability query followed by the read-only catalog preflight, and still verifies no fixture DDL/DML and unchanged data.
+- QIMA CI #1354 showed that the Docker setup heredoc was not passed to psql because docker exec lacked interactive stdin. The disposable runtime now uses docker exec -i only for the setup SQL input.
+- QIMA CI #1355 showed PostgreSQL boolean::text values are true/false, not t/f. The runtime assertions were corrected to compare the actual textual representation.
+- QIMA CI #1356 is the final successful code validation. CodeQL runs #1300 through #1305 all completed SUCCESS on the six successive QA373 code/documentation heads.
+- The expected individual failure conclusions in the prepared-transaction cleanup harnesses remain intentional; their separate blocking assertions passed. The expected skipped harness remains skipped, and the complete QIMA CI workflow is green.
 
