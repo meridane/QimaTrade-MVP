@@ -14,7 +14,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 PSQL=(psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1)
 PSQL_TUPLE=(psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t)
 
-# QA363: inspect the disposable database before any fixture DDL/DML. A runner
+# QA363/QA364: inspect the disposable database before any fixture DDL/DML. A runner
 # replay against an initialized database must stop after this read-only query.
 preflight_sql="$ROOT/tests/sql/create-offer-bootstrap-preflight.sql"
 
@@ -28,14 +28,14 @@ fi
 
 case "$preflight_state" in
   empty)
-    echo "QA363 preflight accepted an empty qima_test database."
+    echo "QA364 preflight accepted an empty qima_test database."
     ;;
   wrong_database)
     echo "::error::Refusing CREATE_OFFER integration setup: current database is not qima_test; no fixture DDL/DML was attempted." >&2
     exit 3
     ;;
   not_empty)
-    echo "::error::Refusing CREATE_OFFER integration setup: qima_test already contains application relations or non-default schemas (including standalone routines and types); use a fresh disposable database; no fixture DDL/DML was attempted." >&2
+    echo "::error::Refusing CREATE_OFFER integration setup: qima_test already contains application relations, routines, types, or non-default schemas; use a fresh disposable database; no fixture DDL/DML was attempted." >&2
     exit 3
     ;;
   *)
