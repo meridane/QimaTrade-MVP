@@ -53,11 +53,12 @@ assert_seed() {
   local file="$2"
   local expected_uuid_count="$3"
   shift 3
-  local expected_key_count="$#"
   local actual_uuid_count
   local actual_key_count
   local key
   local key_count
+  shift 3
+  local expected_key_count="$#"
 
   actual_uuid_count="$(grep -Ec '^[[:space:]]+[[:alnum:]_]+ uuid := gen_random_uuid\(\);$' "$file" || true)"
   [[ "$actual_uuid_count" -eq "$expected_uuid_count" ]] ||
