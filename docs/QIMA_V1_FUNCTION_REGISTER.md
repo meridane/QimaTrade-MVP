@@ -7639,9 +7639,55 @@ No SQL characterization, integration runner, application code, migration, busine
 - Verify job: dependency installation, npm audit at the high threshold, TypeScript, Next.js build, Chromium, and browser tests were successful; 347 Playwright tests passed.
 - The PG16 and PG17.6 integration jobs were successful.
 
+### Initial validation and correction
+
+- Initial code commit: f1a91dfbbf8e768a8a178ab866b219847c26c622.
+- QIMA CI #1295: FAILURE, run https://github.com/meridane/QimaTrade-MVP/actions/runs/43162249962. The new static test initially treated SQL comparison expressions using IS DISTINCT FROM as database table reads. It printed the four QA315 comparison lines and stopped before dependency installation/build. This was a false positive in the new guard, not a failure of QA315 or a PostgreSQL integration test.
+- Corrective commit: 14279b562006060518c8d484cd122b525e64aa4b. The FROM-source scan was narrowed to actual line-start FROM clauses, matching the current line-oriented QA315 SQL layout and avoiding IS DISTINCT FROM comparisons. The test remains a static regression guard, not a general SQL parser.
+
 ### Final validation for QA360
 
-Pending at the time this section was written. Record the actual GitHub Actions and CodeQL conclusions after the new commit; do not infer success from the prior QA315 runs.
+- QIMA CI #1296: SUCCESS, run https://github.com/meridane/QimaTrade-MVP/actions/runs/43162330755.
+  - Verify job: the new QA360 contract test printed its PASS marker; workflow concurrency, prepared-transaction wiring, assertion matrix, harness isolation, and PostgreSQL version guard all passed.
+  - PostgreSQL 16 integration job: SUCCESS. Its log contains: QA315 numeric scale and exponent lexical-form characterization PASS.
+  - PostgreSQL 17.6 compatibility job: SUCCESS; server_version_num was confirmed as 170006. Its log also contains the QA315 PASS marker.
+  - TypeScript, npm audit at the high threshold, Next.js build, Chromium, and browser tests: SUCCESS; 347 Playwright tests passed in 10.9 seconds.
+  - QA353/QA354 harnesses retained their expected individual failure conclusions; their independent blocking assertions passed. The skipped harness remained skipped and its dependent assertion passed.
+  - Overall QIMA CI conclusion: SUCCESS.
+- CodeQL #1246: SUCCESS, run https://github.com/meridane/QimaTrade-MVP/actions/runs/43162330728.
+- Vercel combined status for corrected code HEAD 14279b562006060518c8d484cd122b525e64aa4b: SUCCESS. This is a Preview/status check, not a Production deployment.
+- The earlier CI #1295 false-positive failure remains recorded as an intermediate result; corrected CI #1296 is the final code validation.
+
+### Follow-up read-only audit of QA73/QA74/QA75
+
+The numeric replay characterization blocks in tests/sql/create-offer-runtime.sql were inspected after QA360:
+- OFFER-QA-73, after IDEMPOTENCY_KEY_REUSE, asserts exactly one original idempotency row with the original hash/result, one unchanged completed execution, one original offer with its business fields, and one original ACTION_SUCCEEDED event.
+- OFFER-QA-74 performs the same persisted-state checks independently for typed quantity-scale and price-scale rejections.
+- OFFER-QA-75 performs the same checks for nested p_attributes numeric-scale rejection.
+This is source-level characterization of the disposable fixture tests; it does not establish Production behavior or select the future numeric normalization policy.
+
+### Commits and branch
+
+- Work branch: work/qa360-idempotency-numeric-readonly-contract-20261112-1430.
+- f1a91dfbbf8e768a8a178ab866b219847c26c622 — initial static guard and workflow wiring; exposed the IS DISTINCT FROM false positive in CI #1295.
+- 14279b562006060518c8d484cd122b525e64aa4b — corrected the line-oriented FROM scan; validated by CI #1296 and CodeQL #1246.
+- The work branch was fast-forwarded to fix/create-offer-status-contract with an expected-SHA check; no force update was used.
+- Code files changed: .github/workflows/ci.yml and tests/sql/test-idempotency-numeric-characterization-contract.sh.
+- Documentation files: docs/QIMA_V1_FUNCTION_REGISTER.md and docs/QIMA_V1_FUNCTION_REGISTER_QA360_APPEND.md.
+
+### Decision boundary and safety
+
+- MKT-1.3 remains CHARACTERIZATION / DECISION REQUIRED — NOT APPROVED. No decision was made about whether numeric scales are semantically equivalent for quantities, prices, or nested JSONB fields.
+- No change to the request hash, MD5 usage, idempotency key scope, retention, replay semantics, tenant ownership, or legacy draft contract was made.
+- QA315 is characterization evidence from disposable PostgreSQL fixtures; it is not proof of a Production defect, incident, or vulnerability.
+- The integration runner applies fixture DDL, branch migrations, and runtime tests to that disposable database. The QA315 SQL block itself is read-only and operates on local PL/pgSQL arrays.
+- No Supabase Production data, migration, schema, SQL function, RLS policy, grant, secret, or persistent configuration was modified.
+- No Production deployment, PR merge, force update, or branch-protection change was performed.
+
+### Next step
+
+QA361 can add a narrow static regression guard that preserves the existing post-rejection assertions in OFFER-QA-73/74/75: one original idempotency row/hash/result, one execution, one offer, and one success event after IDEMPOTENCY_KEY_REUSE. Do not change numeric normalization, request-hash compatibility, or MKT-1.2/MKT-1.3 decisions without product approval.
+
 
 ### Commits and branch
 
