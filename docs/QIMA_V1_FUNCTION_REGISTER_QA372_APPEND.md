@@ -103,4 +103,15 @@ CI run [#43281662101](https://github.com/meridane/QimaTrade-MVP/actions/runs/432
 
 ### QA372 PostgreSQL 17.6 host-port failure triage — 13 November 2026
 
-CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) failed only in the PostgreSQL 17.6 QA372 runtime at the first host-side psql connection: `server closed the connection unexpectedly` on the disposable container's published port. PostgreSQL 16 QA372, both main integration jobs' other steps, and the Verify job succeeded. CodeQL #1298 succeeded. The QA372 runtime previously waited only for internal `docker exec pg_isready`; it now also waits for a real host-side `SELECT 1`, checks whether the container remains running, and emits container state plus the last 80 log lines on failure. The exact cause of the observed server closure is not established; validation of this hardening is pending.
+CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) failed only in the PostgreSQL 17.6 QA372 runtime at the first host-side psql connection: `server closed the connection unexpectedly` on the disposable container's published port. PostgreSQL 16 QA372, both main integration jobs' other steps, and the Verify job succeeded. CodeQL #1298 succeeded. The QA372 runtime previously waited only for internal `docker exec pg_isready`; it now also waits for a real host-side `SELECT 1`, checks whether the container remains running, and emits container state plus the last 80 log lines on failure. The exact cause of the observed server closure is not established. The hardening subsequently passed on PostgreSQL 16 and 17.6 in QIMA CI #1350; no root cause is asserted.
+
+
+### QA372 final host-port readiness validation — 13 November 2026
+
+- The latest QA372 code HEAD 0dce09fda2dd65d15bf30e97dbd3ca0282b00105 was validated by QIMA CI run #43283708687, run number #1350: SUCCESS.
+- PostgreSQL 16 and PostgreSQL 17.6 integration jobs both passed. The QA372 non-superuser visibility runtime, including the host-side SELECT 1 readiness probe, passed on both versions.
+- The Verify job passed QA369/QA372 static contracts, npm audit at the high threshold, TypeScript, Next.js production build, Chromium, and 347 Playwright tests.
+- CodeQL #43283708686, run number #1299: SUCCESS.
+- The earlier PostgreSQL 17.6 host-port closure in CI #1349 remains an unconfirmed transient symptom. The bounded readiness retry/diagnostic hardening passed; no root cause is asserted.
+- Combined GitHub status continues to report Vercel build-rate-limit; no Preview success is claimed for this HEAD.
+- PR #26 remains open, draft, mergeable, unmerged, with zero human reviews and zero review threads.
