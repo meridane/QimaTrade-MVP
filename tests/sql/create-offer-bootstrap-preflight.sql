@@ -261,8 +261,10 @@ SELECT CASE
   -- pg_parameter_acl is shared cluster-wide and has no database ownership key.
   -- It is characterized separately and is not a database-local preflight predicate.
   -- Extension configuration tables registered in pg_extension.extconfig are
-  -- relations: public relations are rejected above, while non-default schemas
-  -- are rejected by the namespace guard. extcondition is pg_dump row-filter
-  -- metadata and is intentionally not evaluated dynamically by this preflight.
+  -- relations. A public configuration relation is rejected above, and a
+  -- relation in a non-default application schema is rejected by the namespace
+  -- guard. This characterization covers a public config table; placements in
+  -- pg_catalog or information_schema remain uncharacterized.
+  -- extcondition is pg_dump row-filter metadata and is not evaluated dynamically.
   ELSE 'empty'
 END;
