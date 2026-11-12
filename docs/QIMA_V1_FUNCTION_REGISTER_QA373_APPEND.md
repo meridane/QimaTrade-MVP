@@ -69,3 +69,12 @@ A successful synthetic runtime characterization establishes the tested CI contra
 - QIMA CI #1355: boolean::text assertions expected t/f rather than true/false; corrected.
 - QIMA CI #1356: final full workflow SUCCESS. The expected individual failures in prepared-transaction cleanup harnesses remain intentional and their separate blocking assertions passed; the skipped harness remains skipped.
 
+
+
+### QA373 final documentation-head verification
+
+- Documentation HEAD 91af8b8deab945fcefe5ac5058251109bc344fac: QIMA CI [#1357](https://github.com/meridane/QimaTrade-MVP/actions/runs/43291205377) SUCCESS and CodeQL [#1306](https://github.com/meridane/QimaTrade-MVP/actions/runs/43291205279) SUCCESS.
+- PostgreSQL 16 and 17.6 jobs passed, including QA373 full-runner runtime. Verify passed npm audit at the high threshold, TypeScript, Next.js build, Chromium, and 347 Playwright tests.
+- Vercel on this documentation-only HEAD returned build-rate-limit. The successful Preview belongs to code HEAD 40f0801, not this final documentation HEAD.
+- The commits after 40f0801 contain documentation only; no runtime code or SQL migration changed.
+
