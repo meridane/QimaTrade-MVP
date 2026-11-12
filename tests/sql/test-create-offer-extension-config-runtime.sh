@@ -26,7 +26,7 @@ ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 PREFLIGHT_SQL="$ROOT/tests/sql/create-offer-bootstrap-preflight.sql"
 TEMP_DIR="$(mktemp -d)"
 TEMP_DB="qima_qa371_extension_test"
-RUN_ID="$GITHUB_RUN_ID"
+RUN_ID="$(printenv GITHUB_RUN_ID || true)"
 if [[ -z "$RUN_ID" ]]; then RUN_ID="local"; fi
 CONTAINER_NAME="qima-qa371-extension-$RUN_ID-$RANDOM-$$"
 CONTAINER_STARTED=false
@@ -104,9 +104,22 @@ SHARE_DIR="$(docker exec "$CONTAINER_NAME" pg_config --sharedir)"
 EXTENSION_DIR="$SHARE_DIR/extension"
 docker cp "$TEMP_DIR/qa371_config_probe.control" "$CONTAINER_NAME:$EXTENSION_DIR/qa371_config_probe.control" >/dev/null
 docker cp "$TEMP_DIR/qa371_config_probe--1.0.sql" "$CONTAINER_NAME:$EXTENSION_DIR/qa371_config_probe--1.0.sql" >/dev/null
-docker exec "$CONTAINER_NAME" chmod 0644 "$EXTENSION_DIR/qa371_config_probe.control" "$EXTENSION_DIR/qa371_config_probe--1.0.sql"
-
 PSQL=(psql "$TEMP_URL" -X -v ON_ERROR_STOP=1)
+SERVER_VERSION_NUM="$("${PSQL[@]}" -q -A -t -c 'SHOW server_version_num')"
+case "$PG_EXTENSION_CONFIG_TEST_IMAGE" in
+  postgres:16)
+    if [[ "$SERVER_VERSION_NUM" -lt 160000 || "$SERVER_VERSION_NUM" -ge 170000 ]]; then
+      echo "ERROR: QA371 postgres:16 container reported unexpected server_version_num '$SERVER_VERSION_NUM'." >&2
+      exit 1
+    fi
+    ;;
+  postgres:17.6)
+    if [[ "$SERVER_VERSION_NUM" -ne 170006 ]]; then
+      echo "ERROR: QA371 postgres:17.6 container reported server_version_num '$SERVER_VERSION_NUM'; expected 170006." >&2
+      exit 1
+    fi
+    ;;
+esac
 
 preflight_state() {
   "\${PSQL[@]}" -q -A -t -v "expected_database=$TEMP_DB" -f "$PREFLIGHT_SQL"
