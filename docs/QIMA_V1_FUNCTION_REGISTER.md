@@ -8118,3 +8118,29 @@ QA367: assess a finite, evidence-based scope for other independent database-loca
   - Expected QA353/QA354 harness failures and skipped-harness result retained their documented semantics; all blocking assertions passed.
 - CodeQL #1268: **SUCCESS** on the same HEAD — https://github.com/meridane/QimaTrade-MVP/actions/runs/43212767576.
 - Vercel combined status on this HEAD remained **FAILURE** with `build-rate-limit`; GitHub Actions' Next.js build succeeded. No Preview or Production deployment is claimed.
+
+
+## QA367 — large objects and foreign-data bootstrap catalog (2026-11-12)
+
+The CREATE_OFFER bootstrap preflight now treats any row in `pg_largeobject_metadata` as database-local residue. It also detects independently owned foreign-data wrappers, foreign servers, and user mappings. Wrapper/server objects registered as extension members are excluded through `pg_depend` membership dependencies (`refclassid = pg_extension`, `deptype = 'e'`). User mappings are checked independently so a mapping on an extension-owned server is still rejected.
+
+The disposable runtime characterization installs `postgres_fdw` and verifies that its extension-owned wrapper and an extension-owned server do not make the database non-empty. It creates and removes an empty large object, a standalone FDW wrapper, and a standalone server, checking the `empty → not_empty → empty` transitions. It then creates a user mapping on an extension-owned server and confirms that the mapping alone is detected; removing the mapping returns the state to empty while the extension-owned server remains. No foreign table is queried and no remote FDW connection is attempted.
+
+The static contract requires the four catalog checks, extension ownership predicates, runtime probes, and existing read-only/runner-order guarantees. The existing runtime script remains wired into both PostgreSQL CI jobs.
+
+### QA367 validation
+
+- QIMA CI #1320 on code HEAD `396692ea7ae6dd1495ac2338830ebbdbe6af7e77`: **SUCCESS** — https://github.com/meridane/QimaTrade-MVP/actions/runs/43217765870.
+- PostgreSQL 16: CREATE_OFFER integration, repeat-run guard, QA367 runtime characterization, RLS/ACL, cleanup and prepared-transaction checks: **SUCCESS**.
+- PostgreSQL 17.6: version guard (`server_version_num=170006`), CREATE_OFFER integration, repeat-run guard, QA367 runtime characterization, RLS/ACL and cleanup checks: **SUCCESS**.
+- Static QA366/QA367 bootstrap contract: **PASS**.
+- npm audit (high threshold), TypeScript, Next.js build, Chromium and audit enforcement: **SUCCESS**.
+- Playwright: **347 passed in 8.9 seconds**.
+- CodeQL #1270: **SUCCESS** — https://github.com/meridane/QimaTrade-MVP/actions/runs/43217766464.
+- Vercel combined status: **FAILURE** due to `build-rate-limit`; no Preview is claimed for this HEAD. No Production deployment occurred.
+
+The PostgreSQL logs include the pre-existing QA365 warning that `wal_level` is insufficient for logical changes during publication characterization. QA367 does not create subscriptions or replication slots and does not alter `wal_level`.
+
+Code commits: `a5cd70a`, `3aeacf1`, `67624cd`, `396692e`. Files changed: `tests/sql/create-offer-bootstrap-preflight.sql`, `tests/sql/test-create-offer-bootstrap-catalog-runtime.sh`, and `tests/sql/test-create-offer-bootstrap-preflight.sh`. The separate QA367 append records the full runtime sequence, the evidence boundary, and the next audit.
+
+No Supabase Production data, schema, migration, function, RLS policy, grant, secret, or persistent configuration was modified. No Production deployment, PR merge, force update, or branch-protection change occurred. MKT-1.2 remains unapproved and MKT-1.3 remains decision-required.
