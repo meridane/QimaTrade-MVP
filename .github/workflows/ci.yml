@@ -55,6 +55,8 @@ jobs:
         run: bash tests/sql/test-create-offer-fixture-isolation-contract.sh
       - name: Verify CREATE_OFFER bootstrap preflight covers extension-aware catalog objects
         run: bash tests/sql/test-create-offer-bootstrap-preflight.sh
+      - name: Verify replication-slot bootstrap scope and isolated runtime contract
+        run: bash tests/sql/test-create-offer-replication-slot-preflight.sh
       - name: Set up Node.js
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
@@ -208,6 +210,10 @@ jobs:
 
       - name: Characterize extension-aware bootstrap catalog objects on PostgreSQL 16
         run: bash tests/sql/test-create-offer-bootstrap-catalog-runtime.sh
+      - name: Characterize database-scoped logical and cluster-wide physical replication slots on PostgreSQL 16
+        env:
+          PG_SLOT_TEST_IMAGE: postgres:16
+        run: bash tests/sql/test-create-offer-replication-slot-catalog-runtime.sh
 
       - name: Verify legacy offers INSERT RLS binds provider actor to authenticated profile
         env:
@@ -322,6 +328,10 @@ jobs:
 
       - name: Characterize extension-aware bootstrap catalog objects on PostgreSQL 17.6
         run: bash tests/sql/test-create-offer-bootstrap-catalog-runtime.sh
+      - name: Characterize database-scoped logical and cluster-wide physical replication slots on PostgreSQL 17.6
+        env:
+          PG_SLOT_TEST_IMAGE: postgres:17.6
+        run: bash tests/sql/test-create-offer-replication-slot-catalog-runtime.sh
 
       - name: Verify legacy offers INSERT RLS binds provider actor to authenticated profile
         env:

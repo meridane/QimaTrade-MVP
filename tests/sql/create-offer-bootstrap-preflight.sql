@@ -227,5 +227,17 @@ SELECT CASE
       WHERE db.datname = current_database()
     )
   ) THEN 'not_empty'
+  -- Replication slots are cluster-wide. Only logical slots carry a database OID;
+  -- physical slots have no database owner and must not poison every database.
+  WHEN EXISTS (
+    SELECT 1
+    FROM pg_replication_slots s
+    WHERE s.slot_type = 'logical'
+      AND s.datoid = (
+        SELECT db.oid
+        FROM pg_database db
+        WHERE db.datname = current_database()
+      )
+  ) THEN 'not_empty'
   ELSE 'empty'
 END;
