@@ -16,6 +16,7 @@ fail() {
 
 case "$MODE" in
   success)
+    [[ "$HARNESS_RESULT" == "failure" ]] || fail "QA353 requires HARNESS_RESULT=failure from the expected-failure harness job."
     [[ "$SETUP_OUTCOME" == "failure" ]] || fail "QA353 requires SETUP_OUTCOME=failure."
     [[ "$CLEANUP_OUTCOME" == "success" ]] || fail "QA353 requires CLEANUP_OUTCOME=success."
     [[ "$CLEANUP_RAN" == "true" ]] || fail "QA353 requires CLEANUP_RAN=true."
@@ -24,6 +25,7 @@ case "$MODE" in
     echo "QA353 passed: setup failed, cleanup succeeded, exit code 0 and the success marker were forwarded."
     ;;
   failure)
+    [[ "$HARNESS_RESULT" == "failure" ]] || fail "QA354 requires HARNESS_RESULT=failure from the expected-failure harness job."
     [[ "$SETUP_OUTCOME" == "failure" ]] || fail "QA354 requires SETUP_OUTCOME=failure."
     [[ "$CLEANUP_OUTCOME" == "failure" ]] || fail "QA354 requires CLEANUP_OUTCOME=failure."
     [[ "$CLEANUP_EXIT_CODE" == "52" ]] || fail "QA354 requires CLEANUP_EXIT_CODE=52."

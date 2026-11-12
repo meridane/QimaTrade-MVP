@@ -16,6 +16,7 @@ if [[ ! -x "$ASSERTION_SCRIPT" && ! -f "$ASSERTION_SCRIPT" ]]; then
 fi
 
 env \
+  HARNESS_RESULT=failure \
   SETUP_OUTCOME=failure \
   CLEANUP_OUTCOME=success \
   CLEANUP_RAN=true \
@@ -24,6 +25,7 @@ env \
   bash "$ASSERTION_SCRIPT" success >/dev/null
 
 env \
+  HARNESS_RESULT=failure \
   SETUP_OUTCOME=failure \
   CLEANUP_OUTCOME=failure \
   CLEANUP_RAN= \
@@ -99,4 +101,23 @@ expect_rejected "skipped mode rejects a different harness result" skipped \
 expect_rejected "unknown assertion mode is rejected" unknown \
   HARNESS_RESULT=skipped SETUP_OUTCOME= CLEANUP_OUTCOME= CLEANUP_RAN= CLEANUP_EXIT_CODE= CLEANUP_FAILURE_OBSERVED=
 
-echo "QA358 passed: the valid success, failure and skipped contracts were accepted; all eight QA356 cases and twelve skipped, cancelled or unknown-state cases were rejected."
+
+expect_rejected "QA353 rejects a missing harness job result" success \
+  HARNESS_RESULT= SETUP_OUTCOME=failure CLEANUP_OUTCOME=success CLEANUP_RAN=true CLEANUP_EXIT_CODE=0 CLEANUP_FAILURE_OBSERVED=false
+expect_rejected "QA353 rejects a cancelled harness despite success-shaped outputs" success \
+  HARNESS_RESULT=cancelled SETUP_OUTCOME=failure CLEANUP_OUTCOME=success CLEANUP_RAN=true CLEANUP_EXIT_CODE=0 CLEANUP_FAILURE_OBSERVED=false
+expect_rejected "QA353 rejects a skipped harness despite success-shaped outputs" success \
+  HARNESS_RESULT=skipped SETUP_OUTCOME=failure CLEANUP_OUTCOME=success CLEANUP_RAN=true CLEANUP_EXIT_CODE=0 CLEANUP_FAILURE_OBSERVED=false
+expect_rejected "QA353 rejects a successful job result for an expected-failure harness" success \
+  HARNESS_RESULT=success SETUP_OUTCOME=failure CLEANUP_OUTCOME=success CLEANUP_RAN=true CLEANUP_EXIT_CODE=0 CLEANUP_FAILURE_OBSERVED=false
+
+expect_rejected "QA354 rejects a missing harness job result" failure \
+  HARNESS_RESULT= SETUP_OUTCOME=failure CLEANUP_OUTCOME=failure CLEANUP_RAN= CLEANUP_EXIT_CODE=52 CLEANUP_FAILURE_OBSERVED=true
+expect_rejected "QA354 rejects a cancelled harness despite failure-shaped outputs" failure \
+  HARNESS_RESULT=cancelled SETUP_OUTCOME=failure CLEANUP_OUTCOME=failure CLEANUP_RAN= CLEANUP_EXIT_CODE=52 CLEANUP_FAILURE_OBSERVED=true
+expect_rejected "QA354 rejects a skipped harness despite failure-shaped outputs" failure \
+  HARNESS_RESULT=skipped SETUP_OUTCOME=failure CLEANUP_OUTCOME=failure CLEANUP_RAN= CLEANUP_EXIT_CODE=52 CLEANUP_FAILURE_OBSERVED=true
+expect_rejected "QA354 rejects a successful job result for an expected-failure harness" failure \
+  HARNESS_RESULT=success SETUP_OUTCOME=failure CLEANUP_OUTCOME=failure CLEANUP_RAN= CLEANUP_EXIT_CODE=52 CLEANUP_FAILURE_OBSERVED=true
+
+echo "QA359 passed: QA353 and QA354 require the expected-failure job conclusion; all 28 negative output and job-result combinations were rejected."

@@ -363,6 +363,7 @@ jobs:
       - name: Assert cleanup ran after failed setup and reported success
         shell: bash
         env:
+          HARNESS_RESULT: ${{ needs.prepared_transactions_always_cleanup_contract.result }}
           SETUP_OUTCOME: ${{ needs.prepared_transactions_always_cleanup_contract.outputs.setup_outcome }}
           CLEANUP_OUTCOME: ${{ needs.prepared_transactions_always_cleanup_contract.outputs.cleanup_outcome }}
           CLEANUP_RAN: ${{ needs.prepared_transactions_always_cleanup_contract.outputs.cleanup_ran }}
@@ -416,6 +417,7 @@ jobs:
       - name: Assert cleanup failure was preserved and not reported as success
         shell: bash
         env:
+          HARNESS_RESULT: ${{ needs.prepared_transactions_always_cleanup_failure_contract.result }}
           SETUP_OUTCOME: ${{ needs.prepared_transactions_always_cleanup_failure_contract.outputs.setup_outcome }}
           CLEANUP_OUTCOME: ${{ needs.prepared_transactions_always_cleanup_failure_contract.outputs.cleanup_outcome }}
           CLEANUP_RAN: ${{ needs.prepared_transactions_always_cleanup_failure_contract.outputs.cleanup_ran }}

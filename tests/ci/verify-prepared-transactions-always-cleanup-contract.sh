@@ -126,6 +126,7 @@ require_line "$ASSERT_CHECKOUT_STEP" "        uses: actions/checkout@3d3c42e5aac
 forbid_line "$ASSERT_JOB" "    continue-on-error: true"
 require_line "$ASSERT_JOB" "    if: always()"
 require_line "$ASSERT_JOB" "    needs: prepared_transactions_always_cleanup_contract"
+require_line "$ASSERT_JOB" '          HARNESS_RESULT: ${{ needs.prepared_transactions_always_cleanup_contract.result }}'
 require_line "$ASSERT_JOB" '          SETUP_OUTCOME: ${{ needs.prepared_transactions_always_cleanup_contract.outputs.setup_outcome }}'
 require_line "$ASSERT_JOB" '          CLEANUP_OUTCOME: ${{ needs.prepared_transactions_always_cleanup_contract.outputs.cleanup_outcome }}'
 require_line "$ASSERT_JOB" '          CLEANUP_RAN: ${{ needs.prepared_transactions_always_cleanup_contract.outputs.cleanup_ran }}'
@@ -163,6 +164,7 @@ require_line "$FAILURE_ASSERT_CHECKOUT_STEP" "        uses: actions/checkout@3d3
 forbid_line "$FAILURE_ASSERT_JOB" "    continue-on-error: true"
 require_line "$FAILURE_ASSERT_JOB" "    if: always()"
 require_line "$FAILURE_ASSERT_JOB" "    needs: prepared_transactions_always_cleanup_failure_contract"
+require_line "$FAILURE_ASSERT_JOB" '          HARNESS_RESULT: ${{ needs.prepared_transactions_always_cleanup_failure_contract.result }}'
 require_line "$FAILURE_ASSERT_JOB" '          CLEANUP_OUTCOME: ${{ needs.prepared_transactions_always_cleanup_failure_contract.outputs.cleanup_outcome }}'
 require_line "$FAILURE_ASSERT_JOB" '          CLEANUP_RAN: ${{ needs.prepared_transactions_always_cleanup_failure_contract.outputs.cleanup_ran }}'
 require_line "$FAILURE_ASSERT_JOB" '          CLEANUP_EXIT_CODE: ${{ needs.prepared_transactions_always_cleanup_failure_contract.outputs.cleanup_exit_code }}'
@@ -191,6 +193,7 @@ forbid_line "$FAILURE_HARNESS_JOB" "    needs: prepared_transactions_always_clea
 # Each blocking assertion may consume only its matching harness outputs.
 require_line "$SUCCESS_ASSERT_JOB" "    needs: prepared_transactions_always_cleanup_contract"
 require_line "$FAILURE_ASSERT_JOB" "    needs: prepared_transactions_always_cleanup_failure_contract"
+require_line "$FAILURE_ASSERT_JOB" '          HARNESS_RESULT: ${{ needs.prepared_transactions_always_cleanup_failure_contract.result }}'
 require_line "$SUCCESS_ASSERT_JOB" "    if: always()"
 require_line "$FAILURE_ASSERT_JOB" "    if: always()"
 forbid_line "$SUCCESS_ASSERT_JOB" "    continue-on-error: true"
