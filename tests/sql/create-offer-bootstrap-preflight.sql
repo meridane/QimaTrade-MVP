@@ -169,5 +169,52 @@ SELECT CASE
           AND dep.deptype = 'e'
       )
   ) THEN 'not_empty'
+  -- Large objects are database-local data and are not extension members.
+  -- Even an empty large object has a metadata row and means the disposable
+  -- bootstrap database is no longer pristine.
+  WHEN EXISTS (
+    SELECT 1
+    FROM pg_largeobject_metadata
+  ) THEN 'not_empty'
+  -- Foreign-data wrappers and servers are database-level objects. Ignore
+  -- extension-owned wrappers/servers, but reject independently created ones.
+  WHEN EXISTS (
+    SELECT 1
+    FROM pg_foreign_data_wrapper fdw
+    WHERE NOT EXISTS (
+      SELECT 1
+      FROM pg_depend d
+      WHERE d.classid = 'pg_foreign_data_wrapper'::regclass
+        AND d.objid = fdw.oid
+        AND d.refclassid = 'pg_extension'::regclass
+        AND d.deptype = 'e'
+    )
+  ) THEN 'not_empty'
+  WHEN EXISTS (
+    SELECT 1
+    FROM pg_foreign_server srv
+    WHERE NOT EXISTS (
+      SELECT 1
+      FROM pg_depend d
+      WHERE d.classid = 'pg_foreign_server'::regclass
+        AND d.objid = srv.oid
+        AND d.refclassid = 'pg_extension'::regclass
+        AND d.deptype = 'e'
+    )
+  ) THEN 'not_empty'
+  -- A user mapping can remain even when its server is extension-owned;
+  -- detect it independently instead of relying only on the server guard.
+  WHEN EXISTS (
+    SELECT 1
+    FROM pg_user_mapping um
+    WHERE NOT EXISTS (
+      SELECT 1
+      FROM pg_depend d
+      WHERE d.classid = 'pg_user_mapping'::regclass
+        AND d.objid = um.oid
+        AND d.refclassid = 'pg_extension'::regclass
+        AND d.deptype = 'e'
+    )
+  ) THEN 'not_empty'
   ELSE 'empty'
 END;
