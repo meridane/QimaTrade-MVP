@@ -8172,7 +8172,17 @@ The test removes the subscription and origin, and the EXIT trap repeats best-eff
 
 ### QA368 code validation
 
-Pending the first GitHub Actions run on the code commit. Results will be recorded after the PostgreSQL 16 and 17.6 jobs complete.
+- QIMA CI #1323 on code HEAD `76eda201416699c0365ae0e27dfd4a2418d5fe39`: **SUCCESS** — https://github.com/meridane/QimaTrade-MVP/actions/runs/43230841086.
+  - Static QA366/QA367/QA368 bootstrap contract: **PASS**.
+  - PostgreSQL 16 and PostgreSQL 17.6 CREATE_OFFER integration, repeat-run guard, and QA368 runtime catalog characterization: **SUCCESS**.
+  - Both runtime logs contain the QA368 pass marker. The subscription belonging to the current database was detected; the same shared-catalog subscription did not affect the separate `postgres` database; no replication slot or remote connection was created. A cluster-wide replication origin was visible from another database and intentionally did not affect either database-local preflight.
+  - Existing concurrency, RLS/ACL, migration cleanup, and prepared-transaction checks completed with expected outcomes.
+  - npm audit (high threshold), TypeScript, Next.js build, Chromium, and audit enforcement: **SUCCESS**.
+  - Playwright: **347 passed in 12.0 seconds**.
+  - QA353/QA354 deliberate harness failures and the skipped-harness conclusion retained their expected semantics; independent blocking assertions passed.
+- CodeQL #1273: **SUCCESS** — https://github.com/meridane/QimaTrade-MVP/actions/runs/43230840977.
+- Vercel Preview on the code HEAD: **SUCCESS** — https://vercel.com/bmk1/qimatrade-mvp/7UuNctqJLS6sGNbzqeZqkbgtrmco.
+- The disposable subscription probe emitted the expected logical-replication warning/hint because the CI server does not use `wal_level=logical`. QA368 does not change `wal_level`, create a replication slot, or connect to a publisher.
 
 ### Evidence boundary and safety
 

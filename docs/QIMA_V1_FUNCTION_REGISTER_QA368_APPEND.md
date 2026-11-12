@@ -25,12 +25,21 @@ The subscription connection string points to loopback port 1 and `connect=false`
 
 The runtime test uses only a uniquely named disposable database and removes the subscription and origin in normal and EXIT-trap cleanup paths.
 
-## Validation status at code publication
+## Final code validation
 
-- Static contract: pending CI.
-- PostgreSQL 16 runtime: pending CI.
-- PostgreSQL 17.6 runtime: pending CI.
-- npm audit, TypeScript, Next.js build, Playwright, and CodeQL: pending CI.
+- QIMA CI #1323 on code HEAD `76eda201416699c0365ae0e27dfd4a2418d5fe39`: **SUCCESS** — https://github.com/meridane/QimaTrade-MVP/actions/runs/43230841086.
+  - Static QA366/QA367/QA368 bootstrap contract: **PASS**.
+  - PostgreSQL 16 CREATE_OFFER integration, repeat-run guard, and catalog runtime characterization: **SUCCESS**.
+  - PostgreSQL 17.6 version guard (`server_version_num=170006`), CREATE_OFFER integration, repeat-run guard, and catalog runtime characterization: **SUCCESS**.
+  - QA368 runtime marker was observed in both PostgreSQL job logs: current-database subscriptions were rejected by the preflight; another database remained empty; no replication slot or remote connection was created; cluster-wide origins were visible across databases and did not make either database-local preflight non-empty.
+  - Existing RLS/ACL, concurrency, migration-cleanup, and prepared-transaction checks completed successfully.
+  - npm audit at the high threshold, TypeScript, Next.js build, Chromium installation, and audit enforcement: **SUCCESS**.
+  - Playwright: **347 passed in 12.0 seconds**.
+  - QA353/QA354 harness jobs retain their intentional individual `failure` conclusions; independent blocking assertions passed. The skipped harness remains `skipped` and its assertion passed.
+- CodeQL #1273 on the same code HEAD: **SUCCESS** — https://github.com/meridane/QimaTrade-MVP/actions/runs/43230840977.
+- Vercel Preview on the code HEAD: **SUCCESS** — https://vercel.com/bmk1/qimatrade-mvp/7UuNctqJLS6sGNbzqeZqkbgtrmco.
+- PostgreSQL emitted the expected logical-replication warning/hint during the disabled-subscription probe. This is not a test failure: QA368 deliberately leaves `wal_level` unchanged, uses `connect=false` and `slot_name=NONE`, creates no slot, and makes no publisher connection.
+
 
 ## Evidence boundary
 
