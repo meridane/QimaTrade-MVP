@@ -41,11 +41,23 @@ for required in "current_database()" "pg_namespace" "pg_class" "pg_proc" "pg_typ
   grep -Fq -- "$required" <<< "$query" || fail "preflight SQL is missing required catalog check: $required"
 done
 
+for required in "d.classid = 'pg_proc'::regclass" "d.classid = 'pg_type'::regclass" "d.refclassid = 'pg_extension'::regclass" "WHEN current_database() <> :'expected_database'"; do
+  grep -Fq -- "$required" <<< "$query" || fail "preflight SQL is missing extension-ownership or database-identity check: $required"
+done
+
+RUNTIME_TEST="$ROOT/tests/sql/test-create-offer-bootstrap-catalog-runtime.sh"
+WORKFLOW="$ROOT/.github/workflows/ci.yml"
+for required in "CREATE EXTENSION pgcrypto" "CREATE EXTENSION hstore" "CREATE FUNCTION public.qa364_user_function" "CREATE TYPE public.qa364_user_enum AS ENUM" "CREATE DOMAIN public.qa364_user_domain" "AS RANGE" "qa364_user_composite" "DROP DATABASE IF EXISTS"; do
+  grep -Fq -- "$required" "$RUNTIME_TEST" || fail "QA364 runtime test is missing catalog probe: $required"
+done
+runtime_step_count="$(grep -Fc 'run: bash tests/sql/test-create-offer-bootstrap-catalog-runtime.sh' "$WORKFLOW")"
+[[ "$runtime_step_count" -eq 2 ]] || fail "QA364 runtime characterization must run on both PostgreSQL jobs; found $runtime_step_count workflow steps"
+
 if grep -Ein '^[[:space:]]*(INSERT|UPDATE|DELETE|MERGE|CREATE|ALTER|DROP|TRUNCATE|GRANT|REVOKE|CALL|COPY|EXECUTE|PERFORM|COMMIT|ROLLBACK|SAVEPOINT|SET|RESET)([[:space:]]|;)' <<< "$query"; then
   fail "bootstrap preflight SQL must remain read-only"
 fi
 
-grep -Fq "qima_test already contains application relations or non-default schemas" "$RUNNER" ||
+grep -Fq "qima_test already contains application relations, routines, types, or non-default schemas" "$RUNNER" ||
   fail "non-empty database refusal diagnostic is missing"
 grep -Fq "no fixture DDL/DML was attempted" "$RUNNER" ||
   fail "preflight refusal must explicitly state that fixture DDL/DML was not attempted"
@@ -105,7 +117,7 @@ run_case() {
 }
 
 run_case "initialized database" "not_empty" 0 3 "preflight" \
-  "qima_test already contains application relations or non-default schemas"
+  "qima_test already contains application relations, routines, types, or non-default schemas"
 run_case "wrong current database" "wrong_database" 0 3 "preflight" \
   "current database is not qima_test"
 run_case "unexpected preflight result" "unexpected" 0 3 "preflight" \
@@ -115,4 +127,4 @@ run_case "preflight connection failure" "empty" 42 42 "preflight" \
 run_case "empty database" "empty" 0 99 $'preflight\nfixture' \
   "mock psql reached fixture file"
 
-echo "QA363 bootstrap preflight contract PASS: initialized, wrong-database, unexpected, and failed preflights stop before fixture DDL/DML; an empty qima_test reaches only the first fixture call."
+echo "QA364 bootstrap preflight contract PASS: shared SQL is read-only, extension-owned routines/types are excluded, user-defined routines/types are covered, and runtime probes are wired to both PostgreSQL jobs."
