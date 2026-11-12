@@ -108,3 +108,20 @@ MKT-1.2 remains unapproved and MKT-1.3 remains decision-required. No idempotency
 ## Next step
 
 QA368 should first audit whether database-local replication metadata such as subscriptions and replication origins can exist independently in the disposable test database, whether those objects are relevant to a pristine CREATE_OFFER bootstrap, and whether their runtime characterization can be performed without remote connections or changing server configuration. Do not add catalog predicates until that relevance and the extension/ownership semantics are demonstrated on disposable PostgreSQL 16 and 17.6.
+
+
+## Post-publication validation
+
+The documentation commit `7a8768bd3c95196afdc04f3843badbe88ddc9e6e` was validated on the PR branch:
+
+- QIMA CI #1321: **SUCCESS** — https://github.com/meridane/QimaTrade-MVP/actions/runs/43218224890.
+  - QA366/QA367 static bootstrap contract: **PASS**.
+  - PostgreSQL 16 CREATE_OFFER integration, repeat-run guard, QA367 runtime catalog characterization, RLS/ACL, migration cleanup, and prepared-transaction checks: **SUCCESS**.
+  - PostgreSQL 17.6 version guard (`server_version_num=170006`), integration, repeat-run guard, QA367 runtime characterization, RLS/ACL and cleanup checks: **SUCCESS**.
+  - npm audit at the high threshold, TypeScript, Next.js build, Chromium installation, and audit enforcement: **SUCCESS**.
+  - Playwright: **347 passed in 9.0 seconds**.
+  - QA353/QA354 expected harness failures and the skipped-harness conclusion retained their documented semantics; independent blocking assertions passed.
+- CodeQL #1271: **SUCCESS** — https://github.com/meridane/QimaTrade-MVP/actions/runs/43218224882.
+- Vercel combined status on the same documentation HEAD remains **FAILURE** due to `build-rate-limit`. GitHub Actions' Next.js build succeeded; no Vercel Preview is claimed. No Production deployment occurred.
+
+The final-register verification cycle confirms the appended QA367 evidence on the PR HEAD. The register is not amended again merely to record the CI run that verifies this same register.
