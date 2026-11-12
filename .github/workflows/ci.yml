@@ -41,6 +41,8 @@ jobs:
         run: bash tests/ci/verify-workflow-concurrency.sh
       - name: Verify prepared-transaction always-cleanup workflow wiring
         run: bash tests/ci/verify-prepared-transactions-always-cleanup-contract.sh
+      - name: Verify parallel prepared-transaction cleanup harness isolation
+        run: bash tests/ci/test-prepared-transactions-harness-isolation.sh
       - name: Verify PostgreSQL 17.6 version guard boundary cases
         run: bash tests/sql/test-postgres-17-6-version-guard.sh
       - name: Set up Node.js
