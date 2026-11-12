@@ -107,3 +107,13 @@ MKT-1.2 (independent idempotency) and MKT-1.3 (numeric normalization) remain pen
 - Vercel on the final code HEAD: **RATE LIMITED** (`build-rate-limit`); no Preview success is claimed.
 - QA353/QA354 intentional failure conclusions and the skipped-harness conclusion retained their expected semantics; independent blocking assertions passed.
 
+
+
+## Final documentation HEAD verification
+
+- QIMA CI #1337 on `1e06f694ceffa5a1a61e248346803a4fe8623bcf`: **SUCCESS** — https://github.com/meridane/QimaTrade-MVP/actions/runs/43269438140.
+- PostgreSQL 16 and 17.6 jobs: **SUCCESS**; both QA371 runtime probes passed; PG17.6 reported `server_version_num=170006`.
+- QA371 static contract: **PASS**. npm audit: **0 total vulnerabilities**. TypeScript, Next.js build, Chromium, audit enforcement: **SUCCESS**. Build: 8.4 seconds. Playwright: **347 passed in 10.5 seconds**.
+- CodeQL #1287: **SUCCESS** — https://github.com/meridane/QimaTrade-MVP/actions/runs/43269438136.
+- Vercel: **RATE LIMITED**; no Preview success is claimed.
+
