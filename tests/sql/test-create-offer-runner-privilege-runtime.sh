@@ -88,7 +88,7 @@ case "$IMAGE" in
 esac
 
 admin_psql() {
-  docker exec "$CONTAINER_NAME" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 -q -A -t "$@"
+  docker exec -i "$CONTAINER_NAME" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 -q -A -t "$@"
 }
 db_psql() {
   docker exec "$CONTAINER_NAME" psql -U postgres -d qima_test -X -v ON_ERROR_STOP=1 -q -A -t "$@"
@@ -100,9 +100,11 @@ CREATE ROLE qa373_runner LOGIN PASSWORD 'qa373-runner-only'
 CREATE DATABASE qima_test OWNER qa373_runner;
 CREATE ROLE qa373_not_owner LOGIN PASSWORD 'qa373-not-owner-only'
   CREATEROLE NOSUPERUSER NOCREATEDB NOREPLICATION NOBYPASSRLS;
+CREATE ROLE qa373_no_role_admin LOGIN PASSWORD 'qa373-no-role-admin-only'
+  CREATEROLE NOSUPERUSER NOCREATEDB NOREPLICATION NOBYPASSRLS;
 CREATE ROLE qa373_no_createrole LOGIN PASSWORD 'qa373-no-createrole-only'
   NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;
-GRANT CONNECT ON DATABASE qima_test TO qa373_not_owner, qa373_no_createrole;
+GRANT CONNECT ON DATABASE qima_test TO qa373_not_owner, qa373_no_role_admin, qa373_no_createrole;
 SQL
 
 RUNNER_URL="postgresql://qa373_runner:qa373-runner-only@localhost:5432/qima_test"
@@ -186,6 +188,15 @@ run_expected_rejection "qa373_not_owner" "qa373-not-owner-only"
 after_not_owner_snapshot="$(catalog_snapshot)"
 if [[ "$after_not_owner_snapshot" != "$before_snapshot" ]]; then
   echo "ERROR: QA373 non-owner rejection changed the initialized fixture catalog or data." >&2
+  exit 1
+fi
+
+admin_psql -c "ALTER DATABASE qima_test OWNER TO qa373_no_role_admin;"
+before_no_role_admin_snapshot="$(catalog_snapshot)"
+run_expected_rejection "qa373_no_role_admin" "qa373-no-role-admin-only"
+after_no_role_admin_snapshot="$(catalog_snapshot)"
+if [[ "$after_no_role_admin_snapshot" != "$before_no_role_admin_snapshot" ]]; then
+  echo "ERROR: QA373 role without SET/ADMIN OPTION was rejected after changing fixture catalog or data." >&2
   exit 1
 fi
 
