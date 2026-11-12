@@ -106,3 +106,14 @@ The CI and CodeQL results validate the disposable test implementation and reposi
 - CodeQL #1281: **SUCCESS** — https://github.com/meridane/QimaTrade-MVP/actions/runs/43256170823.
 - Vercel Preview: **SUCCESS** — https://vercel.com/bmk1/qimatrade-mvp/8gbrRBEiTYTH4pxY8HMkfrBhnYBj.
 - QA353/QA354 intentional failure conclusions and the skipped-harness conclusion retained their expected semantics; independent blocking assertions passed.
+
+## Final-register verification
+
+- QIMA CI #1332 on final QA370 documentation HEAD c002a43226789f322bd4d31072529f6468380c13: **SUCCESS** — https://github.com/meridane/QimaTrade-MVP/actions/runs/43256688888.
+- PostgreSQL 16 and PostgreSQL 17.6 integration jobs: **SUCCESS**; both emitted the QA370 runtime PASS marker. PostgreSQL 17.6 reported server_version_num=170006.
+- The fixed-string documentation-evidence matcher passed.
+- npm audit at the configured high-severity threshold, TypeScript, Next.js production build, Chromium, and audit enforcement: **SUCCESS**.
+- Next.js compiled in 11.1 seconds. Playwright: **347 passed in 14.5 seconds**.
+- CodeQL #1282: **SUCCESS** — https://github.com/meridane/QimaTrade-MVP/actions/runs/43256688938.
+- Vercel Preview: **SUCCESS** — https://vercel.com/bmk1/qimatrade-mvp/G6yTSCLuWBajnLsH28MLAR1VCasB.
+- The deliberate QA353/QA354 failure harness conclusions and skipped-harness conclusion retained their expected semantics; independent blocking assertions passed.
