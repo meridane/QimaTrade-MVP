@@ -8444,3 +8444,11 @@ QA373 should characterize the minimum write privileges required by the full inte
 - CI #43279189235 failed at PostgreSQL 16 QA372 cleanup because the disposable probe roles still held explicit database `CONNECT` grants. The correction revokes those grants before `DROP ROLE`; the static regression contract requires this ordering.
 - CodeQL #43279189048 succeeded. The correction's final CI validation is pending.
 - No production data, migration, persistent PostgreSQL setting, secret, or credential policy was changed.
+
+
+### QA369 host-port failure triage — 13 November 2026
+
+- CI #43279189235 failed in the PostgreSQL 17.6 QA369 slot runtime with `psql: server closed the connection unexpectedly` against the disposable container's published port. The available log does not establish whether this was a startup race or a container termination.
+- The runtime now waits for a host-side `SELECT 1` after internal `pg_isready`, checks container state during readiness, and prints bounded container diagnostics on failure. Cleanup only queries the second database after it has been created.
+- Final validation is pending; the observed connection error is not classified as a confirmed PostgreSQL defect.
+

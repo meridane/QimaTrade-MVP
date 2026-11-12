@@ -44,10 +44,18 @@ for required in \
   'datoid' \
   'database' \
   'docker rm -f' \
-  'trap cleanup EXIT'; do
+  'trap cleanup EXIT' \
+  'OTHER_DB_CREATED=false' \
+  'host_ready=false' \
+  "SELECT 1" \
+  'docker inspect --format' \
+  'docker logs --tail 80'; do
   grep -Fq -- "$required" "$RUNTIME" ||
     fail "runtime characterization is missing required isolated-slot behavior: $required"
 done
+
+grep -Fq 'if [[ "$OTHER_DB_CREATED" == true && -n "$OTHER_URL" ]]' "$RUNTIME" ||
+  fail "QA369 cleanup must not connect to the other database before it has been created"
 
 if grep -Fq 'ALTER SYSTEM' "$RUNTIME"; then
   fail "QA369 must not alter the existing PostgreSQL service configuration"

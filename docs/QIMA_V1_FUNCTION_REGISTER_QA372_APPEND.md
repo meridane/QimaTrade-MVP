@@ -53,3 +53,9 @@ CI run [#43279189235](https://github.com/meridane/QimaTrade-MVP/actions/runs/432
 CodeQL run [#43279189048](https://github.com/meridane/QimaTrade-MVP/actions/runs/43279189048) succeeded. Final validation of the cleanup correction is pending.
 
 No production data, migration, persistent PostgreSQL setting, or credential policy was changed.
+
+### QA369 host-port failure triage — 2026-11-13
+
+CI #43279189235 failed in the PostgreSQL 17.6 QA369 slot runtime with `psql: server closed the connection unexpectedly` against the disposable container's published port. The available job log does not establish whether this was a startup race or a container termination. The runtime now waits for a host-side `SELECT 1` after internal `pg_isready`, checks container state during readiness, and prints the bounded container log tail if the host probe fails or the container stops. Cleanup only queries the second database after its successful creation.
+
+Final validation is pending. The observed connection error is not classified as a confirmed PostgreSQL defect.

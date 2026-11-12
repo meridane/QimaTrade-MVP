@@ -36,28 +36,32 @@ PORT=""
 TEMP_URL=""
 OTHER_URL=""
 ADMIN_URL=""
+OTHER_DB_CREATED=false
 
 cleanup() {
   local original_status=$?
   local cleanup_status=0
+  local container_running=false
   set +e
 
-  if [[ -n "$TEMP_URL" ]]; then
-    psql "$TEMP_URL" -X -v ON_ERROR_STOP=1 -c \
-      "SELECT pg_drop_replication_slot('$LOGICAL_SLOT_NAME') FROM pg_replication_slots WHERE slot_name = '$LOGICAL_SLOT_NAME';" \
-      >/dev/null 2>&1 || cleanup_status=1
-    psql "$TEMP_URL" -X -v ON_ERROR_STOP=1 -c \
-      "SELECT pg_drop_replication_slot('$PHYSICAL_SLOT_NAME') FROM pg_replication_slots WHERE slot_name = '$PHYSICAL_SLOT_NAME';" \
-      >/dev/null 2>&1 || cleanup_status=1
-  fi
-
-  if [[ -n "$OTHER_URL" ]]; then
-    psql "$OTHER_URL" -X -v ON_ERROR_STOP=1 -c \
-      "SELECT pg_drop_replication_slot('$OTHER_LOGICAL_SLOT_NAME') FROM pg_replication_slots WHERE slot_name = '$OTHER_LOGICAL_SLOT_NAME';" \
-      >/dev/null 2>&1 || cleanup_status=1
-  fi
-
   if [[ "$CONTAINER_STARTED" == true ]]; then
+    container_running="$(docker inspect --format '{{.State.Running}}' "$CONTAINER_NAME" 2>/dev/null)"
+    if [[ "$container_running" == true ]]; then
+      if [[ -n "$TEMP_URL" ]]; then
+        psql "$TEMP_URL" -X -v ON_ERROR_STOP=1 -c "SELECT pg_drop_replication_slot('$LOGICAL_SLOT_NAME') FROM pg_replication_slots WHERE slot_name = '$LOGICAL_SLOT_NAME';" >/dev/null 2>&1 || cleanup_status=1
+        psql "$TEMP_URL" -X -v ON_ERROR_STOP=1 -c "SELECT pg_drop_replication_slot('$PHYSICAL_SLOT_NAME') FROM pg_replication_slots WHERE slot_name = '$PHYSICAL_SLOT_NAME';" >/dev/null 2>&1 || cleanup_status=1
+      fi
+
+      if [[ "$OTHER_DB_CREATED" == true && -n "$OTHER_URL" ]]; then
+        psql "$OTHER_URL" -X -v ON_ERROR_STOP=1 -c "SELECT pg_drop_replication_slot('$OTHER_LOGICAL_SLOT_NAME') FROM pg_replication_slots WHERE slot_name = '$OTHER_LOGICAL_SLOT_NAME';" >/dev/null 2>&1 || cleanup_status=1
+      fi
+    else
+      cleanup_status=1
+      echo "ERROR: QA369 disposable PostgreSQL container stopped before cleanup (original exit=$original_status)." >&2
+      docker inspect --format 'status={{.State.Status}} exit={{.State.ExitCode}} oom={{.State.OOMKilled}}' "$CONTAINER_NAME" >&2 2>/dev/null || true
+      docker logs --tail 80 "$CONTAINER_NAME" >&2 2>/dev/null || true
+    fi
+
     docker rm -f "$CONTAINER_NAME" >/dev/null 2>&1 || cleanup_status=1
   fi
 
@@ -104,6 +108,25 @@ if [[ "$ready" != true ]]; then
   exit 1
 fi
 
+# Internal pg_isready does not prove Docker's published host port accepts SQL.
+host_ready=false
+for attempt in $(seq 1 60); do
+  if psql "$TEMP_URL" -X -v ON_ERROR_STOP=1 -q -A -t -c 'SELECT 1' >/dev/null 2>&1; then
+    host_ready=true
+    break
+  fi
+  if [[ "$(docker inspect --format '{{.State.Running}}' "$CONTAINER_NAME" 2>/dev/null)" != true ]]; then
+    break
+  fi
+  sleep 1
+done
+if [[ "$host_ready" != true ]]; then
+  echo "ERROR: QA369 PostgreSQL was ready inside the container but did not accept a host-side SQL connection." >&2
+  docker inspect --format 'status={{.State.Status}} exit={{.State.ExitCode}} oom={{.State.OOMKilled}}' "$CONTAINER_NAME" >&2 2>/dev/null || true
+  docker logs --tail 80 "$CONTAINER_NAME" >&2 2>/dev/null || true
+  exit 1
+fi
+
 PSQL_ADMIN=(psql "$ADMIN_URL" -X -v ON_ERROR_STOP=1)
 PSQL_TEMP=(psql "$TEMP_URL" -X -v ON_ERROR_STOP=1)
 PSQL_OTHER=(psql "$OTHER_URL" -X -v ON_ERROR_STOP=1)
@@ -120,6 +143,7 @@ if [[ "$max_slots" -lt 1 ]]; then
 fi
 
 "${PSQL_ADMIN[@]}" -c "CREATE DATABASE \"$OTHER_DB\";" >/dev/null
+OTHER_DB_CREATED=true
 
 preflight_state() {
   local url="$1"
