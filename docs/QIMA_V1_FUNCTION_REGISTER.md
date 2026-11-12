@@ -7284,3 +7284,19 @@ Validation on the new code commit: pending GitHub Actions. No Supabase Productio
 - **Vercel : PENDING** pour le HEAD de code `b5ed6544831fe1b9ee4507719fb14815691ea2fe`. Aucun Preview QA355 n'est revendiqué.
 - La validation de référence avant QA355 reste QIMA CI #1277 SUCCESS et CodeQL #1227 SUCCESS sur le HEAD précédent.
 - Prochaine action : récupérer la conclusion finale de CI #1278 et actualiser ce registre avec les résultats des jobs PostgreSQL et navigateur.
+
+
+### QA355 — résultats définitifs — 12 novembre 2026
+
+- **QIMA CI #1278 : SUCCESS**, run `43128751019` : https://github.com/meridane/QimaTrade-MVP/actions/runs/43128751019.
+  - Verify : 21/21 étapes réussies, dont le contrôle statique d'indépendance et le test runtime concurrent QA355.
+  - npm ci, npm audit au seuil high, TypeScript, build Next.js et installation Chromium : SUCCESS.
+  - Playwright : **347 tests réussis en 12,8 secondes**.
+  - PostgreSQL 16 : **29/29 étapes réussies**, y compris CREATE_OFFER, RLS/ACL, migrations jetables et restauration des transactions préparées ; baseline 0 et absence de ressources résiduelles confirmées.
+  - PostgreSQL 17.6 : **14/14 étapes réussies** ; intégration et compatibilité réussies.
+  - Harness QA353 : setup échoué volontairement (47), restauration réussie ; assertion bloquante SUCCESS.
+  - Harness QA354 : setup échoué volontairement (47), restauration échouée volontairement (52) ; assertion bloquante SUCCESS.
+  - QA355 : les deux chemins ont été exécutés simultanément avec des `RUNNER_TEMP` et `GITHUB_OUTPUT` distincts ; le chemin succès émet uniquement ses sorties de succès, le chemin échec uniquement le code 52 et le marqueur d'échec observé.
+- **CodeQL #1228 : SUCCESS**, run `43128751016` : https://github.com/meridane/QimaTrade-MVP/actions/runs/43128751016.
+- **Vercel : FAILURE / build-rate-limit** (`api-deployments-free-per-day`) pour le HEAD documentaire final. Ce quota n'est pas un échec du build Next.js, qui a réussi dans CI. Aucun Preview QA355 revendiqué ; aucun déploiement Production.
+- **Prochaine étape :** QA356 peut vérifier que les assertions bloquantes échouent proprement si une sortie de harness est absente, vide à tort ou inattendue, sans modifier le job PostgreSQL réel.
