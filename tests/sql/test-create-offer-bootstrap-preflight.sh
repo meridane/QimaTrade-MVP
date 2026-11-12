@@ -126,6 +126,7 @@ run_case() {
   set +e
   PATH="$MOCK_BIN:$PATH" \
     MOCK_PSQL_CALLS="$CALLS" \
+    MOCK_RUNNER_PRIVILEGE_STATE="superuser" \
     MOCK_PREFLIGHT_STATE="$state" \
     MOCK_PREFLIGHT_EXIT="$mock_exit" \
     DATABASE_URL="postgresql://postgres:postgres@localhost:5432/qima_test" \
@@ -146,330 +147,38 @@ run_case() {
   fi
 }
 
-run_case "initialized database" "not_empty" 0 3   "qima_test already contains application catalog objects, database-scoped settings, default ACLs, or non-default schemas"
-run_case "wrong current database" "wrong_database" 0 3   "current database is not qima_test"
-run_case "unexpected preflight result" "unexpected" 0 3   "preflight returned an unexpected state"
-run_case "preflight connection failure" "empty" 42 42   "Could not inspect qima_test bootstrap state"
-run_case "empty database" "empty" 0 99   "mock psql reached fixture file"
+run_privilege_rejection() {
+  local status
+  : > "$CALLS"
+  set +e
+  PATH="$MOCK_BIN:$PATH" \
+    MOCK_PSQL_CALLS="$CALLS" \
+    MOCK_RUNNER_PRIVILEGE_STATE="insufficient_privileges" \
+    DATABASE_URL="postgresql://limited:limited@localhost:5432/qima_test" \
+    bash "$RUNNER" > "$OUTPUT" 2>&1
+  status=$?
+  set -e
+  [[ "$status" -eq 4 ]] ||
+    fail "unsupported runner role returned exit $status; expected 4: $(cat "$OUTPUT")"
+  [[ "$(cat "$CALLS")" == "privilege" ]] ||
+    fail "unsupported runner role reached catalog preflight or fixture: $(cat "$CALLS")"
+  grep -Fq "must be a superuser or own qima_test with CREATEROLE" "$OUTPUT" ||
+    fail "unsupported runner role did not receive the explicit privilege diagnostic"
+  if grep -Fq "limited:limited" "$OUTPUT"; then
+    fail "unsupported runner role diagnostic exposed DATABASE_URL credentials"
+  fi
+}
 
-echo "QA366/QA367/QA368/QA370 bootstrap catalog contract PASS: extension-aware text-search, conversion, large-object, foreign-data, and database-scoped subscription checks are protected; cluster-wide replication origins are intentionally excluded; the preflight remains read-only and runs on both PostgreSQL jobs."
-privilege\npreflight' \
+run_case "initialized database" "not_empty" 0 3 $'privilege\npreflight' \
   "qima_test already contains application catalog objects, database-scoped settings, default ACLs, or non-default schemas"
-run_case "wrong current database" "wrong_database" 0 3 "preflight" \
+run_case "wrong current database" "wrong_database" 0 3 $'privilege\npreflight' \
   "current database is not qima_test"
-run_case "unexpected preflight result" "unexpected" 0 3 "preflight" \
+run_case "unexpected preflight result" "unexpected" 0 3 $'privilege\npreflight' \
   "preflight returned an unexpected state"
-run_case "preflight connection failure" "empty" 42 42 "preflight" \
+run_case "preflight connection failure" "empty" 42 42 $'privilege\npreflight' \
   "Could not inspect qima_test bootstrap state"
-run_case "empty database" "empty" 0 99 $'preflight\nfixture' \
+run_case "empty database" "empty" 0 99 $'privilege\npreflight\nfixture' \
   "mock psql reached fixture file"
+run_privilege_rejection
 
-echo "QA366/QA367/QA368/QA370 bootstrap catalog contract PASS: extension-aware text-search, conversion, large-object, foreign-data, and database-scoped subscription checks are protected; cluster-wide replication origins are intentionally excluded; the preflight remains read-only and runs on both PostgreSQL jobs."
-privilege\npreflight' \
-  "current database is not qima_test"
-run_case "unexpected preflight result" "unexpected" 0 3 "preflight" \
-  "preflight returned an unexpected state"
-run_case "preflight connection failure" "empty" 42 42 "preflight" \
-  "Could not inspect qima_test bootstrap state"
-run_case "empty database" "empty" 0 99 $'preflight\nfixture' \
-  "mock psql reached fixture file"
-
-echo "QA366/QA367/QA368/QA370 bootstrap catalog contract PASS: extension-aware text-search, conversion, large-object, foreign-data, and database-scoped subscription checks are protected; cluster-wide replication origins are intentionally excluded; the preflight remains read-only and runs on both PostgreSQL jobs."
-privilege\npreflight' \
-  "qima_test already contains application catalog objects, database-scoped settings, default ACLs, or non-default schemas"
-run_case "wrong current database" "wrong_database" 0 3 "preflight" \
-  "current database is not qima_test"
-run_case "unexpected preflight result" "unexpected" 0 3 "preflight" \
-  "preflight returned an unexpected state"
-run_case "preflight connection failure" "empty" 42 42 "preflight" \
-  "Could not inspect qima_test bootstrap state"
-run_case "empty database" "empty" 0 99 $'preflight\nfixture' \
-  "mock psql reached fixture file"
-
-echo "QA366/QA367/QA368/QA370 bootstrap catalog contract PASS: extension-aware text-search, conversion, large-object, foreign-data, and database-scoped subscription checks are protected; cluster-wide replication origins are intentionally excluded; the preflight remains read-only and runs on both PostgreSQL jobs."
-privilege\npreflight' \
-  "preflight returned an unexpected state"
-run_case "preflight connection failure" "empty" 42 42 "preflight" \
-  "Could not inspect qima_test bootstrap state"
-run_case "empty database" "empty" 0 99 $'preflight\nfixture' \
-  "mock psql reached fixture file"
-
-echo "QA366/QA367/QA368/QA370 bootstrap catalog contract PASS: extension-aware text-search, conversion, large-object, foreign-data, and database-scoped subscription checks are protected; cluster-wide replication origins are intentionally excluded; the preflight remains read-only and runs on both PostgreSQL jobs."
-privilege\npreflight' \
-  "qima_test already contains application catalog objects, database-scoped settings, default ACLs, or non-default schemas"
-run_case "wrong current database" "wrong_database" 0 3 "preflight" \
-  "current database is not qima_test"
-run_case "unexpected preflight result" "unexpected" 0 3 "preflight" \
-  "preflight returned an unexpected state"
-run_case "preflight connection failure" "empty" 42 42 "preflight" \
-  "Could not inspect qima_test bootstrap state"
-run_case "empty database" "empty" 0 99 $'preflight\nfixture' \
-  "mock psql reached fixture file"
-
-echo "QA366/QA367/QA368/QA370 bootstrap catalog contract PASS: extension-aware text-search, conversion, large-object, foreign-data, and database-scoped subscription checks are protected; cluster-wide replication origins are intentionally excluded; the preflight remains read-only and runs on both PostgreSQL jobs."
-privilege\npreflight' \
-  "current database is not qima_test"
-run_case "unexpected preflight result" "unexpected" 0 3 "preflight" \
-  "preflight returned an unexpected state"
-run_case "preflight connection failure" "empty" 42 42 "preflight" \
-  "Could not inspect qima_test bootstrap state"
-run_case "empty database" "empty" 0 99 $'preflight\nfixture' \
-  "mock psql reached fixture file"
-
-echo "QA366/QA367/QA368/QA370 bootstrap catalog contract PASS: extension-aware text-search, conversion, large-object, foreign-data, and database-scoped subscription checks are protected; cluster-wide replication origins are intentionally excluded; the preflight remains read-only and runs on both PostgreSQL jobs."
-privilege\npreflight' \
-  "qima_test already contains application catalog objects, database-scoped settings, default ACLs, or non-default schemas"
-run_case "wrong current database" "wrong_database" 0 3 "preflight" \
-  "current database is not qima_test"
-run_case "unexpected preflight result" "unexpected" 0 3 "preflight" \
-  "preflight returned an unexpected state"
-run_case "preflight connection failure" "empty" 42 42 "preflight" \
-  "Could not inspect qima_test bootstrap state"
-run_case "empty database" "empty" 0 99 $'preflight\nfixture' \
-  "mock psql reached fixture file"
-
-echo "QA366/QA367/QA368/QA370 bootstrap catalog contract PASS: extension-aware text-search, conversion, large-object, foreign-data, and database-scoped subscription checks are protected; cluster-wide replication origins are intentionally excluded; the preflight remains read-only and runs on both PostgreSQL jobs."
-privilege\npreflight' \
-  "Could not inspect qima_test bootstrap state"
-run_case "empty database" "empty" 0 99 $'preflight\nfixture' \
-  "mock psql reached fixture file"
-
-echo "QA366/QA367/QA368/QA370 bootstrap catalog contract PASS: extension-aware text-search, conversion, large-object, foreign-data, and database-scoped subscription checks are protected; cluster-wide replication origins are intentionally excluded; the preflight remains read-only and runs on both PostgreSQL jobs."
-privilege\npreflight' \
-  "qima_test already contains application catalog objects, database-scoped settings, default ACLs, or non-default schemas"
-run_case "wrong current database" "wrong_database" 0 3 "preflight" \
-  "current database is not qima_test"
-run_case "unexpected preflight result" "unexpected" 0 3 "preflight" \
-  "preflight returned an unexpected state"
-run_case "preflight connection failure" "empty" 42 42 "preflight" \
-  "Could not inspect qima_test bootstrap state"
-run_case "empty database" "empty" 0 99 $'preflight\nfixture' \
-  "mock psql reached fixture file"
-
-echo "QA366/QA367/QA368/QA370 bootstrap catalog contract PASS: extension-aware text-search, conversion, large-object, foreign-data, and database-scoped subscription checks are protected; cluster-wide replication origins are intentionally excluded; the preflight remains read-only and runs on both PostgreSQL jobs."
-privilege\npreflight' \
-  "current database is not qima_test"
-run_case "unexpected preflight result" "unexpected" 0 3 "preflight" \
-  "preflight returned an unexpected state"
-run_case "preflight connection failure" "empty" 42 42 "preflight" \
-  "Could not inspect qima_test bootstrap state"
-run_case "empty database" "empty" 0 99 $'preflight\nfixture' \
-  "mock psql reached fixture file"
-
-echo "QA366/QA367/QA368/QA370 bootstrap catalog contract PASS: extension-aware text-search, conversion, large-object, foreign-data, and database-scoped subscription checks are protected; cluster-wide replication origins are intentionally excluded; the preflight remains read-only and runs on both PostgreSQL jobs."
-privilege\npreflight' \
-  "qima_test already contains application catalog objects, database-scoped settings, default ACLs, or non-default schemas"
-run_case "wrong current database" "wrong_database" 0 3 "preflight" \
-  "current database is not qima_test"
-run_case "unexpected preflight result" "unexpected" 0 3 "preflight" \
-  "preflight returned an unexpected state"
-run_case "preflight connection failure" "empty" 42 42 "preflight" \
-  "Could not inspect qima_test bootstrap state"
-run_case "empty database" "empty" 0 99 $'preflight\nfixture' \
-  "mock psql reached fixture file"
-
-echo "QA366/QA367/QA368/QA370 bootstrap catalog contract PASS: extension-aware text-search, conversion, large-object, foreign-data, and database-scoped subscription checks are protected; cluster-wide replication origins are intentionally excluded; the preflight remains read-only and runs on both PostgreSQL jobs."
-privilege\npreflight' \
-  "preflight returned an unexpected state"
-run_case "preflight connection failure" "empty" 42 42 "preflight" \
-  "Could not inspect qima_test bootstrap state"
-run_case "empty database" "empty" 0 99 $'preflight\nfixture' \
-  "mock psql reached fixture file"
-
-echo "QA366/QA367/QA368/QA370 bootstrap catalog contract PASS: extension-aware text-search, conversion, large-object, foreign-data, and database-scoped subscription checks are protected; cluster-wide replication origins are intentionally excluded; the preflight remains read-only and runs on both PostgreSQL jobs."
-privilege\npreflight' \
-  "qima_test already contains application catalog objects, database-scoped settings, default ACLs, or non-default schemas"
-run_case "wrong current database" "wrong_database" 0 3 "preflight" \
-  "current database is not qima_test"
-run_case "unexpected preflight result" "unexpected" 0 3 "preflight" \
-  "preflight returned an unexpected state"
-run_case "preflight connection failure" "empty" 42 42 "preflight" \
-  "Could not inspect qima_test bootstrap state"
-run_case "empty database" "empty" 0 99 $'preflight\nfixture' \
-  "mock psql reached fixture file"
-
-echo "QA366/QA367/QA368/QA370 bootstrap catalog contract PASS: extension-aware text-search, conversion, large-object, foreign-data, and database-scoped subscription checks are protected; cluster-wide replication origins are intentionally excluded; the preflight remains read-only and runs on both PostgreSQL jobs."
-privilege\npreflight' \
-  "current database is not qima_test"
-run_case "unexpected preflight result" "unexpected" 0 3 "preflight" \
-  "preflight returned an unexpected state"
-run_case "preflight connection failure" "empty" 42 42 "preflight" \
-  "Could not inspect qima_test bootstrap state"
-run_case "empty database" "empty" 0 99 $'preflight\nfixture' \
-  "mock psql reached fixture file"
-
-echo "QA366/QA367/QA368/QA370 bootstrap catalog contract PASS: extension-aware text-search, conversion, large-object, foreign-data, and database-scoped subscription checks are protected; cluster-wide replication origins are intentionally excluded; the preflight remains read-only and runs on both PostgreSQL jobs."
-privilege\npreflight' \
-  "qima_test already contains application catalog objects, database-scoped settings, default ACLs, or non-default schemas"
-run_case "wrong current database" "wrong_database" 0 3 "preflight" \
-  "current database is not qima_test"
-run_case "unexpected preflight result" "unexpected" 0 3 "preflight" \
-  "preflight returned an unexpected state"
-run_case "preflight connection failure" "empty" 42 42 "preflight" \
-  "Could not inspect qima_test bootstrap state"
-run_case "empty database" "empty" 0 99 $'preflight\nfixture' \
-  "mock psql reached fixture file"
-
-echo "QA366/QA367/QA368/QA370 bootstrap catalog contract PASS: extension-aware text-search, conversion, large-object, foreign-data, and database-scoped subscription checks are protected; cluster-wide replication origins are intentionally excluded; the preflight remains read-only and runs on both PostgreSQL jobs."
-privilege\npreflight\nfixture' \
-  "mock psql reached fixture file"
-
-echo "QA366/QA367/QA368/QA370 bootstrap catalog contract PASS: extension-aware text-search, conversion, large-object, foreign-data, and database-scoped subscription checks are protected; cluster-wide replication origins are intentionally excluded; the preflight remains read-only and runs on both PostgreSQL jobs."
-privilege\npreflight' \
-  "qima_test already contains application catalog objects, database-scoped settings, default ACLs, or non-default schemas"
-run_case "wrong current database" "wrong_database" 0 3 "preflight" \
-  "current database is not qima_test"
-run_case "unexpected preflight result" "unexpected" 0 3 "preflight" \
-  "preflight returned an unexpected state"
-run_case "preflight connection failure" "empty" 42 42 "preflight" \
-  "Could not inspect qima_test bootstrap state"
-run_case "empty database" "empty" 0 99 $'preflight\nfixture' \
-  "mock psql reached fixture file"
-
-echo "QA366/QA367/QA368/QA370 bootstrap catalog contract PASS: extension-aware text-search, conversion, large-object, foreign-data, and database-scoped subscription checks are protected; cluster-wide replication origins are intentionally excluded; the preflight remains read-only and runs on both PostgreSQL jobs."
-privilege\npreflight' \
-  "current database is not qima_test"
-run_case "unexpected preflight result" "unexpected" 0 3 "preflight" \
-  "preflight returned an unexpected state"
-run_case "preflight connection failure" "empty" 42 42 "preflight" \
-  "Could not inspect qima_test bootstrap state"
-run_case "empty database" "empty" 0 99 $'preflight\nfixture' \
-  "mock psql reached fixture file"
-
-echo "QA366/QA367/QA368/QA370 bootstrap catalog contract PASS: extension-aware text-search, conversion, large-object, foreign-data, and database-scoped subscription checks are protected; cluster-wide replication origins are intentionally excluded; the preflight remains read-only and runs on both PostgreSQL jobs."
-privilege\npreflight' \
-  "qima_test already contains application catalog objects, database-scoped settings, default ACLs, or non-default schemas"
-run_case "wrong current database" "wrong_database" 0 3 "preflight" \
-  "current database is not qima_test"
-run_case "unexpected preflight result" "unexpected" 0 3 "preflight" \
-  "preflight returned an unexpected state"
-run_case "preflight connection failure" "empty" 42 42 "preflight" \
-  "Could not inspect qima_test bootstrap state"
-run_case "empty database" "empty" 0 99 $'preflight\nfixture' \
-  "mock psql reached fixture file"
-
-echo "QA366/QA367/QA368/QA370 bootstrap catalog contract PASS: extension-aware text-search, conversion, large-object, foreign-data, and database-scoped subscription checks are protected; cluster-wide replication origins are intentionally excluded; the preflight remains read-only and runs on both PostgreSQL jobs."
-privilege\npreflight' \
-  "preflight returned an unexpected state"
-run_case "preflight connection failure" "empty" 42 42 "preflight" \
-  "Could not inspect qima_test bootstrap state"
-run_case "empty database" "empty" 0 99 $'preflight\nfixture' \
-  "mock psql reached fixture file"
-
-echo "QA366/QA367/QA368/QA370 bootstrap catalog contract PASS: extension-aware text-search, conversion, large-object, foreign-data, and database-scoped subscription checks are protected; cluster-wide replication origins are intentionally excluded; the preflight remains read-only and runs on both PostgreSQL jobs."
-privilege\npreflight' \
-  "qima_test already contains application catalog objects, database-scoped settings, default ACLs, or non-default schemas"
-run_case "wrong current database" "wrong_database" 0 3 "preflight" \
-  "current database is not qima_test"
-run_case "unexpected preflight result" "unexpected" 0 3 "preflight" \
-  "preflight returned an unexpected state"
-run_case "preflight connection failure" "empty" 42 42 "preflight" \
-  "Could not inspect qima_test bootstrap state"
-run_case "empty database" "empty" 0 99 $'preflight\nfixture' \
-  "mock psql reached fixture file"
-
-echo "QA366/QA367/QA368/QA370 bootstrap catalog contract PASS: extension-aware text-search, conversion, large-object, foreign-data, and database-scoped subscription checks are protected; cluster-wide replication origins are intentionally excluded; the preflight remains read-only and runs on both PostgreSQL jobs."
-privilege\npreflight' \
-  "current database is not qima_test"
-run_case "unexpected preflight result" "unexpected" 0 3 "preflight" \
-  "preflight returned an unexpected state"
-run_case "preflight connection failure" "empty" 42 42 "preflight" \
-  "Could not inspect qima_test bootstrap state"
-run_case "empty database" "empty" 0 99 $'preflight\nfixture' \
-  "mock psql reached fixture file"
-
-echo "QA366/QA367/QA368/QA370 bootstrap catalog contract PASS: extension-aware text-search, conversion, large-object, foreign-data, and database-scoped subscription checks are protected; cluster-wide replication origins are intentionally excluded; the preflight remains read-only and runs on both PostgreSQL jobs."
-privilege\npreflight' \
-  "qima_test already contains application catalog objects, database-scoped settings, default ACLs, or non-default schemas"
-run_case "wrong current database" "wrong_database" 0 3 "preflight" \
-  "current database is not qima_test"
-run_case "unexpected preflight result" "unexpected" 0 3 "preflight" \
-  "preflight returned an unexpected state"
-run_case "preflight connection failure" "empty" 42 42 "preflight" \
-  "Could not inspect qima_test bootstrap state"
-run_case "empty database" "empty" 0 99 $'preflight\nfixture' \
-  "mock psql reached fixture file"
-
-echo "QA366/QA367/QA368/QA370 bootstrap catalog contract PASS: extension-aware text-search, conversion, large-object, foreign-data, and database-scoped subscription checks are protected; cluster-wide replication origins are intentionally excluded; the preflight remains read-only and runs on both PostgreSQL jobs."
-privilege\npreflight' \
-  "Could not inspect qima_test bootstrap state"
-run_case "empty database" "empty" 0 99 $'preflight\nfixture' \
-  "mock psql reached fixture file"
-
-echo "QA366/QA367/QA368/QA370 bootstrap catalog contract PASS: extension-aware text-search, conversion, large-object, foreign-data, and database-scoped subscription checks are protected; cluster-wide replication origins are intentionally excluded; the preflight remains read-only and runs on both PostgreSQL jobs."
-privilege\npreflight' \
-  "qima_test already contains application catalog objects, database-scoped settings, default ACLs, or non-default schemas"
-run_case "wrong current database" "wrong_database" 0 3 "preflight" \
-  "current database is not qima_test"
-run_case "unexpected preflight result" "unexpected" 0 3 "preflight" \
-  "preflight returned an unexpected state"
-run_case "preflight connection failure" "empty" 42 42 "preflight" \
-  "Could not inspect qima_test bootstrap state"
-run_case "empty database" "empty" 0 99 $'preflight\nfixture' \
-  "mock psql reached fixture file"
-
-echo "QA366/QA367/QA368/QA370 bootstrap catalog contract PASS: extension-aware text-search, conversion, large-object, foreign-data, and database-scoped subscription checks are protected; cluster-wide replication origins are intentionally excluded; the preflight remains read-only and runs on both PostgreSQL jobs."
-privilege\npreflight' \
-  "current database is not qima_test"
-run_case "unexpected preflight result" "unexpected" 0 3 "preflight" \
-  "preflight returned an unexpected state"
-run_case "preflight connection failure" "empty" 42 42 "preflight" \
-  "Could not inspect qima_test bootstrap state"
-run_case "empty database" "empty" 0 99 $'preflight\nfixture' \
-  "mock psql reached fixture file"
-
-echo "QA366/QA367/QA368/QA370 bootstrap catalog contract PASS: extension-aware text-search, conversion, large-object, foreign-data, and database-scoped subscription checks are protected; cluster-wide replication origins are intentionally excluded; the preflight remains read-only and runs on both PostgreSQL jobs."
-privilege\npreflight' \
-  "qima_test already contains application catalog objects, database-scoped settings, default ACLs, or non-default schemas"
-run_case "wrong current database" "wrong_database" 0 3 "preflight" \
-  "current database is not qima_test"
-run_case "unexpected preflight result" "unexpected" 0 3 "preflight" \
-  "preflight returned an unexpected state"
-run_case "preflight connection failure" "empty" 42 42 "preflight" \
-  "Could not inspect qima_test bootstrap state"
-run_case "empty database" "empty" 0 99 $'preflight\nfixture' \
-  "mock psql reached fixture file"
-
-echo "QA366/QA367/QA368/QA370 bootstrap catalog contract PASS: extension-aware text-search, conversion, large-object, foreign-data, and database-scoped subscription checks are protected; cluster-wide replication origins are intentionally excluded; the preflight remains read-only and runs on both PostgreSQL jobs."
-privilege\npreflight' \
-  "preflight returned an unexpected state"
-run_case "preflight connection failure" "empty" 42 42 "preflight" \
-  "Could not inspect qima_test bootstrap state"
-run_case "empty database" "empty" 0 99 $'preflight\nfixture' \
-  "mock psql reached fixture file"
-
-echo "QA366/QA367/QA368/QA370 bootstrap catalog contract PASS: extension-aware text-search, conversion, large-object, foreign-data, and database-scoped subscription checks are protected; cluster-wide replication origins are intentionally excluded; the preflight remains read-only and runs on both PostgreSQL jobs."
-privilege\npreflight' \
-  "qima_test already contains application catalog objects, database-scoped settings, default ACLs, or non-default schemas"
-run_case "wrong current database" "wrong_database" 0 3 "preflight" \
-  "current database is not qima_test"
-run_case "unexpected preflight result" "unexpected" 0 3 "preflight" \
-  "preflight returned an unexpected state"
-run_case "preflight connection failure" "empty" 42 42 "preflight" \
-  "Could not inspect qima_test bootstrap state"
-run_case "empty database" "empty" 0 99 $'preflight\nfixture' \
-  "mock psql reached fixture file"
-
-echo "QA366/QA367/QA368/QA370 bootstrap catalog contract PASS: extension-aware text-search, conversion, large-object, foreign-data, and database-scoped subscription checks are protected; cluster-wide replication origins are intentionally excluded; the preflight remains read-only and runs on both PostgreSQL jobs."
-privilege\npreflight' \
-  "current database is not qima_test"
-run_case "unexpected preflight result" "unexpected" 0 3 "preflight" \
-  "preflight returned an unexpected state"
-run_case "preflight connection failure" "empty" 42 42 "preflight" \
-  "Could not inspect qima_test bootstrap state"
-run_case "empty database" "empty" 0 99 $'preflight\nfixture' \
-  "mock psql reached fixture file"
-
-echo "QA366/QA367/QA368/QA370 bootstrap catalog contract PASS: extension-aware text-search, conversion, large-object, foreign-data, and database-scoped subscription checks are protected; cluster-wide replication origins are intentionally excluded; the preflight remains read-only and runs on both PostgreSQL jobs."
-privilege\npreflight' \
-  "qima_test already contains application catalog objects, database-scoped settings, default ACLs, or non-default schemas"
-run_case "wrong current database" "wrong_database" 0 3 "preflight" \
-  "current database is not qima_test"
-run_case "unexpected preflight result" "unexpected" 0 3 "preflight" \
-  "preflight returned an unexpected state"
-run_case "preflight connection failure" "empty" 42 42 "preflight" \
-  "Could not inspect qima_test bootstrap state"
-run_case "empty database" "empty" 0 99 $'preflight\nfixture' \
-  "mock psql reached fixture file"
-
-echo "QA366/QA367/QA368/QA370 bootstrap catalog contract PASS: extension-aware text-search, conversion, large-object, foreign-data, and database-scoped subscription checks are protected; cluster-wide replication origins are intentionally excluded; the preflight remains read-only and runs on both PostgreSQL jobs."
+echo "QA366/QA367/QA368/QA370/QA373 bootstrap and runner privilege contracts PASS: URL, role-capability, and read-only catalog preflights precede fixture DDL; the catalog preflight remains read-only and runs on both PostgreSQL jobs."
