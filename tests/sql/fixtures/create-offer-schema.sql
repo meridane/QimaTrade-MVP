@@ -12,7 +12,30 @@ BEGIN
     CREATE ROLE anon NOLOGIN;
   END IF;
 END
-$$;
+$;
+
+-- A non-superuser full-runner role must be able to SET ROLE into the two
+-- client-facing fixture roles. The runner owns this disposable fixture and
+-- created these roles (or has their ADMIN OPTION); the reverse membership
+-- direction remains prohibited by the wrapper-owner migration.
+DO $runner_role_membership$
+DECLARE
+  v_runner_is_superuser boolean;
+BEGIN
+  SELECT rolsuper INTO v_runner_is_superuser
+  FROM pg_roles
+  WHERE rolname = current_user;
+
+  IF NOT COALESCE(v_runner_is_superuser, false) THEN
+    IF NOT pg_has_role(current_user, 'authenticated', 'SET') THEN
+      EXECUTE format('GRANT authenticated TO %I', current_user);
+    END IF;
+    IF NOT pg_has_role(current_user, 'anon', 'SET') THEN
+      EXECUTE format('GRANT anon TO %I', current_user);
+    END IF;
+  END IF;
+END
+$runner_role_membership$;
 
 CREATE SCHEMA IF NOT EXISTS auth;
 CREATE OR REPLACE FUNCTION auth.uid()
