@@ -50,12 +50,20 @@ The script accepts only the existing loopback qima_test:5432 service URL as an a
 
 ## Validation
 
-- Initial code CI: pending.
-- PostgreSQL 16 runtime characterization: pending.
-- PostgreSQL 17.6 runtime characterization: pending.
-- Static preflight contract: pending.
-- CodeQL: pending.
-- Vercel: not requested; no deployment is part of QA370.
+- QIMA CI #1329 on code HEAD cf8de05b62bb6e31eeade08cd152cf8ed84bbac1: **SUCCESS** — https://github.com/meridane/QimaTrade-MVP/actions/runs/43255145302.
+- PostgreSQL 16 integration job: **SUCCESS**; QA370 runtime marker observed.
+- PostgreSQL 17.6 integration job: **SUCCESS**; QA370 runtime marker observed and the existing server-version guard passed.
+- Runtime assertions: current-database ALTER DATABASE and ALTER ROLE IN DATABASE settings were detected; settings owned by another database were isolated; setdatabase=0 global role defaults did not poison either database; database-wide and schema-specific default ACLs were detected; a default ACL in another database did not poison the current database.
+- Cleanup: both disposable databases and both disposable roles were removed and absence was verified.
+- Static preflight contract: **PASS**; the preflight remains read-only.
+- npm audit at the configured high-severity threshold: **SUCCESS**.
+- TypeScript: **SUCCESS**.
+- Next.js production build: **SUCCESS** (compiled in 11.4 seconds).
+- Chromium installation and audit enforcement: **SUCCESS**.
+- Playwright: **347 passed in 13.0 seconds**.
+- CodeQL #1279: **SUCCESS** — https://github.com/meridane/QimaTrade-MVP/actions/runs/43255145050.
+- Vercel Preview: **SUCCESS** — https://vercel.com/bmk1/qimatrade-mvp/ENqGsAFmxHcALQBrJQPPThBp5jnt.
+- QA353/QA354 intentional failure conclusions and the skipped-harness conclusion retained their expected semantics; independent blocking assertions passed.
 
 ## Safety boundary
 
@@ -69,3 +77,7 @@ MKT-1.2 remains unapproved and MKT-1.3 remains decision-required.
 - PostgreSQL 17 pg_db_role_setting: https://www.postgresql.org/docs/17/catalog-pg-db-role-setting.html
 - PostgreSQL 16 pg_default_acl: https://www.postgresql.org/docs/16/catalog-pg-default-acl.html
 - PostgreSQL 17 pg_default_acl: https://www.postgresql.org/docs/17/catalog-pg-default-acl.html
+
+## Evidence boundary
+
+The CI and CodeQL results validate the disposable test implementation and repository checks. They do not establish a Production vulnerability, incident, or misconfiguration. No Supabase Production data or migration was accessed or modified. No Production deployment occurred.

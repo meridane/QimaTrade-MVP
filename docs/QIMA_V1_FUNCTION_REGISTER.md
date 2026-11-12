@@ -8318,12 +8318,20 @@ QA370 should audit database-scoped role/database settings (`pg_db_role_setting`)
 - The runner refusal diagnostic now identifies database-scoped settings and default ACLs explicitly.
 - No Supabase Production state, migration, persistent PostgreSQL configuration, or business idempotency contract was changed.
 
-### QA370 initial validation
+### QA370 validation — code HEAD cf8de05b62bb6e31eeade08cd152cf8ed84bbac1
 
-- Code and workflow changes are committed on the QA370 work branch and awaiting GitHub Actions execution.
-- PostgreSQL 16 and 17.6 runtime jobs are wired to run the same isolated catalog characterization.
-- Static contract is wired into Verify.
-- Results will be recorded after the first CI and CodeQL runs complete.
+- QIMA CI #1329: **SUCCESS** — https://github.com/meridane/QimaTrade-MVP/actions/runs/43255145302.
+- PostgreSQL 16 and PostgreSQL 17.6 integration jobs: **SUCCESS**; both emitted the QA370 runtime pass marker.
+- The runtime test detected current-database ALTER DATABASE and ALTER ROLE IN DATABASE rows, isolated equivalent settings in another database, ignored setdatabase=0 global role defaults, detected database-wide and schema-specific default ACLs, and confirmed another database's default ACL did not poison the current database.
+- Both generated databases and both generated roles were removed; cleanup absence checks passed.
+- Static preflight contract: **PASS**; preflight remained read-only.
+- npm audit at the configured high-severity threshold: **SUCCESS**.
+- TypeScript and Next.js production build: **SUCCESS** (compiled in 11.4 seconds).
+- Chromium installation, audit enforcement, and browser tests: **SUCCESS**.
+- Playwright: **347 passed in 13.0 seconds**.
+- CodeQL #1279: **SUCCESS** — https://github.com/meridane/QimaTrade-MVP/actions/runs/43255145050.
+- Vercel Preview: **SUCCESS** — https://vercel.com/bmk1/qimatrade-mvp/ENqGsAFmxHcALQBrJQPPThBp5jnt.
+- QA353/QA354 intentional failure conclusions and the skipped-harness conclusion retained their expected semantics; independent blocking assertions passed.
 
 ### QA370 evidence boundary and safety
 

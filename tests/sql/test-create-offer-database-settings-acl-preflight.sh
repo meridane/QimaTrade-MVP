@@ -5,6 +5,8 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 PREFLIGHT="$ROOT/tests/sql/create-offer-bootstrap-preflight.sql"
 RUNTIME="$ROOT/tests/sql/test-create-offer-database-settings-acl-runtime.sh"
 WORKFLOW="$ROOT/.github/workflows/ci.yml"
+REGISTER="$ROOT/docs/QIMA_V1_FUNCTION_REGISTER.md"
+APPENDIX="$ROOT/docs/QIMA_V1_FUNCTION_REGISTER_QA370_APPEND.md"
 
 fail() {
   echo "ERROR: $*" >&2
@@ -74,4 +76,13 @@ grep -Fq 'postgres-integration:' "$WORKFLOW" ||
 grep -Fq 'postgres17-create-offer-compatibility:' "$WORKFLOW" ||
   fail "PostgreSQL 17.6 compatibility job is missing"
 
-echo "QA370 static contract PASS: only current-database pg_db_role_setting rows and all database-local pg_default_acl rows are rejected; cluster-wide role settings and other-database settings remain outside the current-database boundary; runtime characterization is wired to PostgreSQL 16 and 17.6."
+grep -Fq '### QA370 — database-scoped role settings and default ACL bootstrap state' "$REGISTER" ||
+  fail "canonical function register is missing the QA370 section"
+grep -Eq 'QIMA CI #[0-9]+: **SUCCESS**' "$APPENDIX" ||
+  fail "QA370 appendix must record a successful QIMA CI run"
+grep -Eq 'CodeQL #[0-9]+: **SUCCESS**' "$APPENDIX" ||
+  fail "QA370 appendix must record a successful CodeQL run"
+grep -Fq 'Vercel Preview: **SUCCESS**' "$APPENDIX" ||
+  fail "QA370 appendix must record the Preview outcome"
+
+echo "QA370 static contract PASS: current-database pg_db_role_setting rows and all database-local pg_default_acl rows are rejected; global role settings and other-database settings remain outside the current-database boundary; PostgreSQL 16/17 runtime tests and CI/CodeQL/Preview evidence are recorded."
