@@ -113,3 +113,15 @@ QA367: assess a finite, evidence-based scope for other independent database-loca
   - The deliberate QA353/QA354 harness failures and skipped harness retained their expected conclusions; independent blocking assertions passed.
 - CodeQL #1267: **SUCCESS** on the same documentation HEAD — https://github.com/meridane/QimaTrade-MVP/actions/runs/43212452759.
 - Vercel combined status on documentation HEAD `750eda3fec5cde3626ef2e137601a31cab2e20a9`: **FAILURE** due to `build-rate-limit`. The GitHub Actions Next.js build succeeded; no Vercel Preview is claimed for this HEAD. No Production deployment occurred.
+
+
+## Final-register verification after QA366 publication
+
+- QIMA CI #1318: **SUCCESS** on final-register candidate HEAD `03c857dfdb585e0f69a3edb390bd631f519c3e3d` — https://github.com/meridane/QimaTrade-MVP/actions/runs/43212767577.
+  - QA366 static contract: **PASS**.
+  - PostgreSQL 16 and 17.6 integration, repeat-run guard, and QA366 catalog runtime characterization: **SUCCESS**.
+  - npm audit (high threshold), TypeScript, Next.js production build, Chromium installation, and audit enforcement: **SUCCESS**.
+  - Playwright: **347 passed in 12.0 seconds**.
+  - Expected QA353/QA354 harness failures and skipped-harness result retained their documented semantics; all blocking assertions passed.
+- CodeQL #1268: **SUCCESS** on the same HEAD — https://github.com/meridane/QimaTrade-MVP/actions/runs/43212767576.
+- Vercel combined status on this HEAD remained **FAILURE** with `build-rate-limit`; GitHub Actions' Next.js build succeeded. No Preview or Production deployment is claimed.
