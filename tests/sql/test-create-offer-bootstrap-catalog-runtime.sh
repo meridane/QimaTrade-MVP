@@ -3,7 +3,7 @@ set -euo pipefail
 
 : "${DATABASE_URL:?DATABASE_URL must point to the disposable qima_test service}"
 
-if [[ ! "$DATABASE_URL" =~ ^postgres(ql)?://[^@]+@(localhost|127\\.0\\.0\\.1|\\[::1\\]):5432/qima_test$ ]]; then
+if [[ ! "$DATABASE_URL" =~ ^postgres(ql)?://[^@]+@(localhost|127\.0\.0\.1|\[::1\]):5432/qima_test$ ]]; then
   echo "ERROR: refusing QA364 catalog characterization outside loopback qima_test; no database connection was attempted." >&2
   exit 2
 fi
@@ -23,8 +23,15 @@ PSQL_ADMIN=("$REAL_PSQL" "$ADMIN_URL" -X -v ON_ERROR_STOP=1)
 PSQL_TEMP=("$REAL_PSQL" "$TEMP_URL" -X -v ON_ERROR_STOP=1)
 
 cleanup() {
+  local original_status=$?
   set +e
-  "${PSQL_ADMIN[@]}" -c "DROP DATABASE IF EXISTS \"$TEMP_DB\" WITH (FORCE)" >/dev/null 2>&1
+  if ! "${PSQL_ADMIN[@]}" -c "DROP DATABASE IF EXISTS \"$TEMP_DB\" WITH (FORCE)" >/dev/null 2>&1; then
+    echo "ERROR: QA364 could not remove its disposable catalog database." >&2
+    if [[ "$original_status" -eq 0 ]]; then
+      original_status=1
+    fi
+  fi
+  exit "$original_status"
 }
 trap cleanup EXIT
 
