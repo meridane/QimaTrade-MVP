@@ -162,4 +162,37 @@ require_line "$FAILURE_ASSERT_JOB" '          [[ "$CLEANUP_EXIT_CODE" == "52" ]]
 require_line "$FAILURE_ASSERT_JOB" '          [[ "$CLEANUP_FAILURE_OBSERVED" == "true" ]]'
 require_line "$FAILURE_ASSERT_JOB" '          [[ -z "$CLEANUP_RAN" ]]'
 
-echo "Prepared-transaction workflow contract passed: both success and failure cleanup paths are exercised; the expected failure is isolated and a separate blocking job verifies its exact exit code and absence of a success marker."
+
+SUCCESS_HARNESS_JOB="$TEMP_DIR/success-harness-job.yml"
+FAILURE_HARNESS_JOB="$TEMP_DIR/failure-harness-job.yml"
+SUCCESS_ASSERT_JOB="$TEMP_DIR/success-assert-job.yml"
+FAILURE_ASSERT_JOB="$TEMP_DIR/failure-assert-job.yml"
+
+extract_job "prepared_transactions_always_cleanup_contract" "$SUCCESS_HARNESS_JOB"
+extract_job "prepared_transactions_always_cleanup_failure_contract" "$FAILURE_HARNESS_JOB"
+extract_job "prepared_transactions_always_cleanup_assert" "$SUCCESS_ASSERT_JOB"
+extract_job "prepared_transactions_always_cleanup_failure_assert" "$FAILURE_ASSERT_JOB"
+
+# The two harnesses must be independent GitHub-hosted jobs, not serialized through needs.
+require_line "$SUCCESS_HARNESS_JOB" "    runs-on: ubuntu-latest"
+require_line "$FAILURE_HARNESS_JOB" "    runs-on: ubuntu-latest"
+forbid_line "$SUCCESS_HARNESS_JOB" "    needs:"
+forbid_line "$FAILURE_HARNESS_JOB" "    needs:"
+forbid_line "$SUCCESS_HARNESS_JOB" "    needs: prepared_transactions_always_cleanup_failure_contract"
+forbid_line "$FAILURE_HARNESS_JOB" "    needs: prepared_transactions_always_cleanup_contract"
+
+# Each blocking assertion may consume only its matching harness outputs.
+require_line "$SUCCESS_ASSERT_JOB" "    needs: prepared_transactions_always_cleanup_contract"
+require_line "$FAILURE_ASSERT_JOB" "    needs: prepared_transactions_always_cleanup_failure_contract"
+require_line "$SUCCESS_ASSERT_JOB" "    if: always()"
+require_line "$FAILURE_ASSERT_JOB" "    if: always()"
+forbid_line "$SUCCESS_ASSERT_JOB" "    continue-on-error: true"
+forbid_line "$FAILURE_ASSERT_JOB" "    continue-on-error: true"
+if grep -Fq "needs.prepared_transactions_always_cleanup_failure_contract" "$SUCCESS_ASSERT_JOB"; then
+  fail "the success assertion must not read failure-harness outputs"
+fi
+if grep -Fq "needs.prepared_transactions_always_cleanup_contract" "$FAILURE_ASSERT_JOB"; then
+  fail "the failure assertion must not read success-harness outputs"
+fi
+
+echo "Prepared-transaction workflow contract passed: both cleanup paths and their independent parallel harness/assertion wiring are verified; the expected failure is isolated and a separate blocking job verifies its exact exit code and absence of a success marker."
