@@ -50,7 +50,7 @@ if awk '
   /^[[:space:]]*--/ { next }
   {
     line = tolower($0)
-    if (match(line, /from[[:space:]]+/)) {
+    if (match(line, /^[[:space:]]*from[[:space:]]+/)) {
       source = substr(line, RSTART + RLENGTH)
       if (source !~ /^unnest[[:space:]]*\(/) {
         print NR ":" $0
