@@ -216,5 +216,16 @@ SELECT CASE
         AND d.deptype = 'e'
     )
   ) THEN 'not_empty'
+  -- pg_subscription is shared across the cluster; only subscriptions owned by
+  -- the current database are bootstrap residue. Connection details are not read.
+  WHEN EXISTS (
+    SELECT 1
+    FROM pg_subscription s
+    WHERE s.subdbid = (
+      SELECT db.oid
+      FROM pg_database db
+      WHERE db.datname = current_database()
+    )
+  ) THEN 'not_empty'
   ELSE 'empty'
 END;

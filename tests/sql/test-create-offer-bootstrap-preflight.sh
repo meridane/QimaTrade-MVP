@@ -37,7 +37,7 @@ grep -Fq 'expected_database=qima_test' "$RUNNER" ||
 
 query="$(cat "$ROOT/tests/sql/create-offer-bootstrap-preflight.sql")"
 
-for required in "current_database()" "pg_namespace" "pg_class" "pg_proc" "pg_type" "pg_operator" "pg_opclass" "pg_opfamily" "pg_collation" "pg_publication" "pg_ts_dict" "pg_ts_config" "pg_conversion" "pg_largeobject_metadata" "pg_foreign_data_wrapper" "pg_foreign_server" "pg_user_mapping" "pg_depend" "n.nspname = 'public'" "c.relkind IN ('r', 'p', 'v', 'm', 'S', 'f', 'c')" "d.deptype = 'e'" "t.typtype IN ('b', 'd', 'e', 'r', 'm')" "t.typelem = 0"; do
+for required in "current_database()" "pg_namespace" "pg_class" "pg_proc" "pg_type" "pg_operator" "pg_opclass" "pg_opfamily" "pg_collation" "pg_publication" "pg_ts_dict" "pg_ts_config" "pg_conversion" "pg_largeobject_metadata" "pg_foreign_data_wrapper" "pg_foreign_server" "pg_user_mapping" "pg_subscription" "s.subdbid" "db.datname = current_database()" "pg_depend" "n.nspname = 'public'" "c.relkind IN ('r', 'p', 'v', 'm', 'S', 'f', 'c')" "d.deptype = 'e'" "t.typtype IN ('b', 'd', 'e', 'r', 'm')" "t.typelem = 0"; do
   grep -Fq -- "$required" <<< "$query" || fail "preflight SQL is missing required catalog check: $required"
 done
 
@@ -47,9 +47,19 @@ done
 
 RUNTIME_TEST="$ROOT/tests/sql/test-create-offer-bootstrap-catalog-runtime.sh"
 WORKFLOW="$ROOT/.github/workflows/ci.yml"
-for required in "CREATE EXTENSION pgcrypto" "CREATE EXTENSION hstore" "CREATE EXTENSION btree_gist" "CREATE EXTENSION unaccent" "extension_dictionary_count" "CREATE TEXT SEARCH DICTIONARY public.qa366_user_dictionary" "CREATE TEXT SEARCH CONFIGURATION public.qa366_user_config" "CREATE CONVERSION public.qa366_user_conversion" "CREATE STATISTICS public.qa366_extended_stats_probe" "CREATE POLICY qa366_policy_probe" "CREATE EVENT TRIGGER qa366_user_event_trigger" "qa366_event_trigger_fn" "CREATE FUNCTION public.qa364_user_function" "CREATE TYPE public.qa364_user_enum AS ENUM" "CREATE DOMAIN public.qa364_user_domain" "AS RANGE" "qa364_user_composite" "CREATE OPERATOR public.===" "CREATE OPERATOR FAMILY public.qa365_user_opfamily" "CREATE OPERATOR CLASS public.qa365_user_opclass" "CREATE COLLATION public.qa365_user_collation" "CREATE PUBLICATION qa365_user_publication" "CREATE EXTENSION postgres_fdw" "extension_fdw_count" "SELECT lo_create(0)" "pg_largeobject_metadata" "SELECT lo_unlink" "CREATE FOREIGN DATA WRAPPER qa367_user_fdw" "CREATE SERVER qa367_user_server" "ALTER EXTENSION postgres_fdw ADD SERVER" "CREATE USER MAPPING FOR CURRENT_USER" "pg_user_mapping" "extension_server_count" "extension_operator_count" "extension_opclass_count" "extension_opfamily_count" "DROP DATABASE IF EXISTS"; do
+for required in "CREATE EXTENSION pgcrypto" "CREATE EXTENSION hstore" "CREATE EXTENSION btree_gist" "CREATE EXTENSION unaccent" "extension_dictionary_count" "CREATE TEXT SEARCH DICTIONARY public.qa366_user_dictionary" "CREATE TEXT SEARCH CONFIGURATION public.qa366_user_config" "CREATE CONVERSION public.qa366_user_conversion" "CREATE STATISTICS public.qa366_extended_stats_probe" "CREATE POLICY qa366_policy_probe" "CREATE EVENT TRIGGER qa366_user_event_trigger" "qa366_event_trigger_fn" "CREATE FUNCTION public.qa364_user_function" "CREATE TYPE public.qa364_user_enum AS ENUM" "CREATE DOMAIN public.qa364_user_domain" "AS RANGE" "qa364_user_composite" "CREATE OPERATOR public.===" "CREATE OPERATOR FAMILY public.qa365_user_opfamily" "CREATE OPERATOR CLASS public.qa365_user_opclass" "CREATE COLLATION public.qa365_user_collation" "CREATE PUBLICATION qa365_user_publication" "CREATE EXTENSION postgres_fdw" "extension_fdw_count" "SELECT lo_create(0)" "pg_largeobject_metadata" "SELECT lo_unlink" "CREATE FOREIGN DATA WRAPPER qa367_user_fdw" "CREATE SERVER qa367_user_server" "ALTER EXTENSION postgres_fdw ADD SERVER" "CREATE USER MAPPING FOR CURRENT_USER" "pg_user_mapping" "extension_server_count" "extension_operator_count" "extension_opclass_count" "extension_opfamily_count" "CREATE SUBSCRIPTION" "WITH (connect = false, slot_name = NONE, enabled = false, create_slot = false, copy_data = false)" "pg_subscription" "pg_replication_slots" "pg_replication_origin_create" "pg_replication_origin_drop" "preflight_admin_state" "subscription_cluster_count" "origin_cluster_count" "host=127.0.0.1 port=1 dbname=qa368_remote" "DROP SUBSCRIPTION IF EXISTS" "DROP DATABASE IF EXISTS"; do
   grep -Fq -- "$required" "$RUNTIME_TEST" || fail "QA366 runtime test is missing catalog probe: $required"
 done
+if grep -Fq "subconninfo" <<< "$query"; then
+  fail "bootstrap preflight must never read subscription connection details"
+fi
+if grep -Fq "pg_replication_origin" <<< "$query"; then
+  fail "cluster-wide replication origins must not be treated as database-local bootstrap residue"
+fi
+if grep -Fq "subconninfo" "$RUNTIME_TEST"; then
+  fail "QA368 runtime test must not read subscription connection details"
+fi
+
 runtime_step_count="$(grep -Fc 'run: bash tests/sql/test-create-offer-bootstrap-catalog-runtime.sh' "$WORKFLOW")"
 [[ "$runtime_step_count" -eq 2 ]] || fail "QA366 runtime characterization must run on both PostgreSQL jobs; found $runtime_step_count workflow steps"
 
@@ -133,4 +143,4 @@ run_case "preflight connection failure" "empty" 42 42 "preflight" \
 run_case "empty database" "empty" 0 99 $'preflight\nfixture' \
   "mock psql reached fixture file"
 
-echo "QA366/QA367 bootstrap catalog contract PASS: extension-aware text-search, conversion, large-object, and foreign-data checks are protected; relation-dependent statistics/policies and event-trigger handlers remain covered by existing guards; the preflight remains read-only and runs on both PostgreSQL jobs."
+echo "QA366/QA367/QA368 bootstrap catalog contract PASS: extension-aware text-search, conversion, large-object, foreign-data, and database-scoped subscription checks are protected; cluster-wide replication origins are intentionally excluded; the preflight remains read-only and runs on both PostgreSQL jobs."

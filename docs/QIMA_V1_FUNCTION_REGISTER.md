@@ -8158,3 +8158,28 @@ No Supabase Production data, schema, migration, function, RLS policy, grant, sec
 - Vercel combined status on the documentation HEAD remained **FAILURE** with `build-rate-limit`; GitHub Actions' Next.js build succeeded. No Preview or Production deployment is claimed.
 
 The QA367 append contains the full disposable runtime evidence and the safety boundary. This final CI/CodeQL cycle validates the canonical register after its post-publication result was recorded.
+
+
+## QA368 — subscriptions and replication origins (2026-11-12)
+
+QA368 audited logical-replication subscriptions and replication origins before extending the CREATE_OFFER bootstrap preflight.
+
+The preflight now checks `pg_subscription`, which is shared across the PostgreSQL cluster, but scopes the result to the current database through `subdbid = pg_database.oid`. It does not read `subconninfo` or any other connection string. The disposable runtime test creates a subscription with `connect=false`, `slot_name=NONE`, `enabled=false`, and `create_slot=false`; it verifies the current database is rejected, another database remains empty, no replication slot exists, and no remote connection is attempted.
+
+The runtime test also creates a disposable replication origin and confirms it is visible from a different database. PostgreSQL documents `pg_replication_origin` as a cluster-shared catalog without a database ownership column, so QA368 intentionally does not add it to a database-local preflight. This avoids false positives from origins used by unrelated databases.
+
+The test removes the subscription and origin, and the EXIT trap repeats best-effort cleanup before dropping the disposable database. No `wal_level` or replication-slot configuration is changed.
+
+### QA368 code validation
+
+Pending the first GitHub Actions run on the code commit. Results will be recorded after the PostgreSQL 16 and 17.6 jobs complete.
+
+### Evidence boundary and safety
+
+This is disposable PostgreSQL catalog characterization, not evidence of a Production replication issue or vulnerability. No Supabase Production data, schema, migration, SQL function, RLS policy, grant, secret, or persistent configuration was modified. No Production deployment, PR merge, force update, or branch-protection change occurred.
+
+MKT-1.2 remains unapproved and MKT-1.3 remains decision-required. No idempotency or numeric canonicalization behavior was changed.
+
+### Next step
+
+QA369: inspect any remaining replication metadata only if it can be scoped safely to the current database. Do not add cluster-wide catalog predicates without a database ownership key.

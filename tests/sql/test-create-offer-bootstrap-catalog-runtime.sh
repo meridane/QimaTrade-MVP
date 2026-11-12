@@ -19,12 +19,29 @@ PREFLIGHT_SQL="$ROOT/tests/sql/create-offer-bootstrap-preflight.sql"
 ADMIN_URL="${DATABASE_URL%/qima_test}/postgres"
 TEMP_DB="qima_preflight_catalog_${$}_${RANDOM}"
 TEMP_URL="${DATABASE_URL%/qima_test}/$TEMP_DB"
+SUBSCRIPTION_NAME="qa368_subscription_${$}_${RANDOM}"
+ORIGIN_NAME="qa368_origin_${$}_${RANDOM}"
 PSQL_ADMIN=("$REAL_PSQL" "$ADMIN_URL" -X -v ON_ERROR_STOP=1)
 PSQL_TEMP=("$REAL_PSQL" "$TEMP_URL" -X -v ON_ERROR_STOP=1)
 
 cleanup() {
   local original_status=$?
+  local origin_exists
   set +e
+  if [[ -n "${SUBSCRIPTION_NAME:-}" ]]; then
+    "${PSQL_TEMP[@]}" -c "DROP SUBSCRIPTION IF EXISTS \"$SUBSCRIPTION_NAME\"" >/dev/null 2>&1 || true
+  fi
+  if [[ -n "${ORIGIN_NAME:-}" ]]; then
+    origin_exists="$("${PSQL_ADMIN[@]}" -q -A -t -c "SELECT EXISTS (SELECT 1 FROM pg_replication_origin WHERE roname = '$ORIGIN_NAME')" 2>/dev/null || true)"
+    if [[ "$origin_exists" == "t" ]]; then
+      if ! "${PSQL_ADMIN[@]}" -c "SELECT pg_replication_origin_drop('$ORIGIN_NAME')" >/dev/null 2>&1; then
+        echo "ERROR: QA368 could not remove its cluster-wide disposable replication origin." >&2
+        if [[ "$original_status" -eq 0 ]]; then
+          original_status=1
+        fi
+      fi
+    fi
+  fi
   if ! "${PSQL_ADMIN[@]}" -c "DROP DATABASE IF EXISTS \"$TEMP_DB\" WITH (FORCE)" >/dev/null 2>&1; then
     echo "ERROR: QA366 could not remove its disposable catalog database." >&2
     if [[ "$original_status" -eq 0 ]]; then
@@ -156,6 +173,10 @@ preflight_state() {
   "${PSQL_TEMP[@]}" -q -A -t -v "expected_database=$TEMP_DB" -f "$PREFLIGHT_SQL"
 }
 
+preflight_admin_state() {
+  "${PSQL_ADMIN[@]}" -q -A -t -v "expected_database=postgres" -f "$PREFLIGHT_SQL"
+}
+
 assert_state() {
   local expected="$1"
   local description="$2"
@@ -168,6 +189,79 @@ assert_state() {
 }
 
 assert_state "empty" "extension-only baseline"
+
+# QA368: subscriptions are stored in a shared catalog, but subdbid identifies
+# the owning database. connect=false plus slot_name=NONE avoids all remote I/O
+# and leaves no replication slot to clean up.
+"${PSQL_TEMP[@]}" -c "CREATE SUBSCRIPTION \"$SUBSCRIPTION_NAME\" CONNECTION 'host=127.0.0.1 port=1 dbname=qa368_remote' PUBLICATION qa368_remote_publication WITH (connect = false, slot_name = NONE, enabled = false, create_slot = false, copy_data = false);" >/dev/null
+subscription_count="$("${PSQL_TEMP[@]}" -q -A -t -c "
+  SELECT count(*)
+  FROM pg_subscription s
+  WHERE s.subdbid = (SELECT oid FROM pg_database WHERE datname = current_database())
+    AND s.subname = '$SUBSCRIPTION_NAME'
+    AND NOT s.subenabled;
+")"
+if [[ "$subscription_count" -ne 1 ]]; then
+  echo "ERROR: QA368 expected one disabled subscription scoped to the disposable database." >&2
+  exit 1
+fi
+slot_count="$("${PSQL_TEMP[@]}" -q -A -t -c "SELECT count(*) FROM pg_replication_slots WHERE slot_name = '$SUBSCRIPTION_NAME';")"
+if [[ "$slot_count" -ne 0 ]]; then
+  echo "ERROR: QA368 created an unexpected replication slot." >&2
+  exit 1
+fi
+assert_state "not_empty" "subscription owned by current database"
+
+subscription_cluster_count="$("${PSQL_ADMIN[@]}" -q -A -t -c "
+  SELECT count(*)
+  FROM pg_subscription s
+  JOIN pg_database db ON db.oid = s.subdbid
+  WHERE db.datname = '$TEMP_DB'
+    AND s.subname = '$SUBSCRIPTION_NAME';
+")"
+if [[ "$subscription_cluster_count" -ne 1 ]]; then
+  echo "ERROR: QA368 subscription was not visible through the shared catalog from another database." >&2
+  exit 1
+fi
+admin_state="$(preflight_admin_state)"
+if [[ "$admin_state" != "empty" ]]; then
+  echo "ERROR: QA368 subscription in $TEMP_DB incorrectly marked postgres as non-empty ('$admin_state')." >&2
+  exit 1
+fi
+
+"${PSQL_TEMP[@]}" -c "DROP SUBSCRIPTION \"$SUBSCRIPTION_NAME\";" >/dev/null
+assert_state "empty" "baseline after dropping current-database subscription"
+subscription_cluster_count="$("${PSQL_ADMIN[@]}" -q -A -t -c "SELECT count(*) FROM pg_subscription s JOIN pg_database db ON db.oid = s.subdbid WHERE db.datname = '$TEMP_DB' AND s.subname = '$SUBSCRIPTION_NAME';")"
+if [[ "$subscription_cluster_count" -ne 0 ]]; then
+  echo "ERROR: QA368 subscription catalog row remained after DROP SUBSCRIPTION." >&2
+  exit 1
+fi
+
+# Replication origins are cluster-wide and have no database ownership key.
+# Characterize their visibility from another database; do not add them to the
+# per-database bootstrap preflight.
+origin_id="$("${PSQL_TEMP[@]}" -q -A -t -c "SELECT pg_replication_origin_create('$ORIGIN_NAME');")"
+if [[ ! "$origin_id" =~ ^[0-9]+$ ]]; then
+  echo "ERROR: QA368 replication-origin creation returned an invalid OID." >&2
+  exit 1
+fi
+origin_cluster_count="$("${PSQL_ADMIN[@]}" -q -A -t -c "SELECT count(*) FROM pg_replication_origin WHERE roname = '$ORIGIN_NAME';")"
+if [[ "$origin_cluster_count" -ne 1 ]]; then
+  echo "ERROR: QA368 cluster-wide replication origin was not visible from another database." >&2
+  exit 1
+fi
+assert_state "empty" "cluster-wide replication origin is not database-local bootstrap residue"
+admin_state="$(preflight_admin_state)"
+if [[ "$admin_state" != "empty" ]]; then
+  echo "ERROR: QA368 cluster-wide replication origin incorrectly marked postgres as non-empty ('$admin_state')." >&2
+  exit 1
+fi
+"${PSQL_ADMIN[@]}" -c "SELECT pg_replication_origin_drop('$ORIGIN_NAME');" >/dev/null
+origin_cluster_count="$("${PSQL_ADMIN[@]}" -q -A -t -c "SELECT count(*) FROM pg_replication_origin WHERE roname = '$ORIGIN_NAME';")"
+if [[ "$origin_cluster_count" -ne 0 ]]; then
+  echo "ERROR: QA368 cluster-wide replication origin remained after cleanup." >&2
+  exit 1
+fi
 
 # Text-search dictionaries and configurations are schema-scoped but do not
 # require ordinary relations. Extension-owned unaccent dictionary is excluded.
@@ -400,5 +494,6 @@ assert_state "empty" "baseline after dropping user mapping while extension-owned
 assert_state "empty" "baseline after removing postgres_fdw extension and its server"
 
 echo "QA367 passed: standalone large objects, foreign-data wrappers, servers, and user mappings were detected; postgres_fdw-owned wrapper/server objects were ignored; no remote FDW connection was attempted; all probes used a disposable database."
+echo "QA368 passed: current-database subscriptions were detected without reading connection details or creating remote connections/slots; subscriptions in another database did not affect postgres preflight; cluster-wide replication origins were characterized and intentionally excluded from database-local preflight."
 
 echo "QA366 passed: extension-owned unaccent text-search dictionary was ignored; standalone text-search dictionaries/configurations and conversions were rejected; relation-dependent statistics/policies and event-trigger handlers remained covered by existing relation/routine checks; all probes ran in a disposable database."
