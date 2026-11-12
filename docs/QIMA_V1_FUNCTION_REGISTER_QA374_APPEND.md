@@ -41,11 +41,11 @@ This is a runtime characterization of the runner's supported role-membership pat
 
 ### QA374 code-validation evidence
 
-Pending the first CI run for the QA374 code HEAD.
+CI [#1361](https://github.com/meridane/QimaTrade-MVP/actions/runs/43301779435): **SUCCESS**. PostgreSQL 16 and 17.6 both completed the full runner and emitted the explicit `QA374 passed` marker; Verify passed npm audit, TypeScript, Next.js build, and 347 Playwright tests.
 
 ### QA374 CodeQL evidence
 
-Pending the first CodeQL run for the QA374 code HEAD.
+CodeQL [#1310](https://github.com/meridane/QimaTrade-MVP/actions/runs/43301779284): **SUCCESS**.
 
 
 ### QA374 failure triage — 13 November 2026
@@ -53,4 +53,13 @@ Pending the first CodeQL run for the QA374 code HEAD.
 - QIMA CI run #1360 failed in the full-runner runtime on PostgreSQL 16 and 17.6 after the complete runner and concurrency checks had succeeded. The failing assertion expected one `pg_auth_members` row per target role.
 - PostgreSQL retained separate membership rows for the original superuser grant and the runner's later GRANT. The observed post-fixture rows were `anon:false|anon:true|authenticated:false|authenticated:true`; this reflects two grantors, not missing SET access. The independent `pg_has_role(..., 'SET')` check already returned true for both roles, and the reverse-membership checks remained false.
 - The regression assertion now groups by target role, requires `bool_or(set_option)` to be true, and asserts two distinct grantors per role. This preserves the intended effective-membership contract without incorrectly requiring one catalog row per role.
-- CI #1360's Verify job passed, including the QA374 static contract, npm audit, TypeScript, Next.js build, and 347 Playwright tests. The two PostgreSQL jobs failed only at the over-strict row-count assertion. Corrected runtime validation is pending.
+- CI #1360's Verify job passed, including the QA374 static contract, npm audit, TypeScript, Next.js build, and 347 Playwright tests. The two PostgreSQL jobs failed only at the over-strict row-count assertion. The corrected runtime validation subsequently passed on both PostgreSQL 16 and 17.6 in CI #1361.
+
+
+### QA374 final validation — 13 November 2026
+
+- CI [#1361](https://github.com/meridane/QimaTrade-MVP/actions/runs/43301779435): **SUCCESS**. Both PostgreSQL versions completed the full ADMIN OPTION-only runner path, verified `anon:true:2|authenticated:true:2`, retained one-way SET ROLE membership, and completed the advisory-lock concurrency observation. Both logs emitted `QA374 passed`.
+- The Verify job passed the static contract, npm audit, TypeScript, Next.js production build, and 347 Playwright tests (9.4 seconds in the recorded log).
+- CodeQL [#1310](https://github.com/meridane/QimaTrade-MVP/actions/runs/43301779284): **SUCCESS**.
+- Vercel Preview commit status: **SUCCESS** for this HEAD. No Production deployment was requested or performed.
+- The earlier CI #1360 failure remains documented as a test assertion defect caused by multiple grantors; the corrected aggregate assertion is now validated by CI #1361.

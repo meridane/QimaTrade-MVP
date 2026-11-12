@@ -8558,13 +8558,23 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 - The runner guard already accepts either SET ROLE membership or ADMIN OPTION on existing `authenticated`/`anon` roles. QA374 adds a positive runtime case for the latter branch: pre-existing client roles have ADMIN TRUE, INHERIT FALSE, SET FALSE before the non-superuser database-owner runner starts.
 - The existing fixture GRANT path must convert those memberships into one-way SET ROLE access before the full CREATE_OFFER integration/concurrency flow runs. The test asserts both the pre-run and post-run membership states.
 - All resources remain inside disposable PostgreSQL 16 and 17.6 containers; no Production data, migrations, secrets, or persistent configuration are accessed.
-- Initial CI and CodeQL evidence: pending.
+- CI [#1361](https://github.com/meridane/QimaTrade-MVP/actions/runs/43301779435): **SUCCESS** on PostgreSQL 16 and 17.6. Both full-runner jobs emitted `QA374 passed`; the ADMIN OPTION-only path established one-way SET ROLE access and completed the CREATE_OFFER concurrency observation. Verify also passed npm audit, TypeScript, Next.js build, and 347 Playwright tests.
+- CodeQL [#1310](https://github.com/meridane/QimaTrade-MVP/actions/runs/43301779284): **SUCCESS**.
+- Vercel Preview status for this code HEAD: **SUCCESS**.
 
 
 ### QA374 grantor-aware membership assertion correction — 13 November 2026
 
 - CI [#1360](https://github.com/meridane/QimaTrade-MVP/actions/runs/43295122650) exposed an over-strict runtime assertion on PostgreSQL 16 and 17.6. The full non-superuser runner and advisory-lock concurrency observation completed; the final membership query then returned two `pg_auth_members` rows per client role because the original superuser grant and the runner's later GRANT have distinct grantors.
 - The effective `pg_has_role(..., 'SET')` checks were true for both `authenticated` and `anon`; reverse membership remained false. The failure was in the test's assumption of one catalog row per role, not evidence of a runner privilege defect.
-- The assertion now aggregates membership rows per target role using `bool_or(set_option)` and verifies the two distinct grantors explicitly. PostgreSQL runtime and full CI evidence for this correction are pending.
+- The assertion now aggregates membership rows per target role using `bool_or(set_option)` and verifies the two distinct grantors explicitly. CI [#1361](https://github.com/meridane/QimaTrade-MVP/actions/runs/43301779435) subsequently passed on PostgreSQL 16 and 17.6; both full-runner logs emitted `QA374 passed` after the grantor-aware assertion.
 - CI #1360 Verify passed the QA374 static contract, npm audit, TypeScript, Next.js build, and 347 Playwright tests. Both PostgreSQL jobs stopped only at the overly strict final membership-row assertion.
 - CodeQL [#1309](https://github.com/meridane/QimaTrade-MVP/actions/runs/43295122626): **SUCCESS**.
+
+### QA374 final validation — 13 November 2026
+
+- CI [#1361](https://github.com/meridane/QimaTrade-MVP/actions/runs/43301779435): **SUCCESS**. The PostgreSQL 16 and PostgreSQL 17.6 jobs both completed the full CREATE_OFFER runner, QA374 ADMIN OPTION-only path, advisory-lock concurrency observation, and cleanup. Both logs contain the explicit `QA374 passed` marker.
+- The Verify job passed the static runner-privilege contract, dependency audit, TypeScript, Next.js production build, and all 347 Playwright tests (9.4 seconds in the recorded log).
+- CodeQL [#1310](https://github.com/meridane/QimaTrade-MVP/actions/runs/43301779284): **SUCCESS**.
+- The Vercel commit status was **SUCCESS** and linked to the Preview deployment for this HEAD. This is a Preview result only, not a Production deployment.
+- QA374 is closed as a test-characterization task. It does not prove that any Production runner currently uses ADMIN OPTION-only memberships.
