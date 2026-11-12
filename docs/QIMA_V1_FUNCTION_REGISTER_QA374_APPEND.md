@@ -88,6 +88,38 @@ ADMIN OPTION is not a substitute for owning `qima_test`. The role is rejected be
 
 All objects remain inside the disposable PostgreSQL 16/17.6 container. No production database, migration, secret, persistent setting, or branch-protection configuration is accessed or modified.
 
+### Final validation evidence — 13 November 2026
+
+- QIMA CI [#1364](https://github.com/meridane/QimaTrade-MVP/actions/runs/43314718836): **SUCCESS**. PostgreSQL 16 and PostgreSQL 17.6 both emitted the explicit `QA375 passed` marker. The non-owner with CREATEROLE and ADMIN OPTION but no SET ROLE was rejected with exit 4 before fixture changes; before/after catalog and data snapshots matched on both versions.
+- The Verify job passed the QA373/QA374/QA375 static contract, dependency audit, TypeScript, Next.js production build, Chromium setup, and all 347 Playwright tests (10.0 seconds in the recorded log).
+- CodeQL [#1313](https://github.com/meridane/QimaTrade-MVP/actions/runs/43314718852): **SUCCESS**.
+- The Vercel commit status was **SUCCESS** for the Preview deployment linked to this HEAD. Preview only; no Production deployment was requested or performed.
+- QA375 is closed as a runtime characterization. It does not establish that any Production runner currently has this privilege configuration.
+
+## QA376 — ADMIN OPTION must cover every existing client role
+
+### Scope
+
+Characterize the complementary negative boundary of QA374: ADMIN OPTION on only one existing client-facing role must not satisfy the runner privilege guard when both `anon` and `authenticated` exist. Database ownership and CREATEROLE are necessary but not sufficient when one target role cannot be entered or administered.
+
+### Runtime setup
+
+- Reuse the disposable, initialized `qima_test` database after QA375.
+- Create `qa376_partial_admin_runner` as LOGIN, CREATEROLE, NOSUPERUSER, NOCREATEDB, NOREPLICATION, NOBYPASSRLS and make it the database owner.
+- Grant CONNECT and ADMIN OPTION only on `anon`, with INHERIT FALSE and SET FALSE.
+- Do not create a membership for `authenticated`; assert that its SET and ADMIN OPTION capabilities are both false.
+- Assert the complete starting state is `true|true|false|false|true|false|false|true`: database owner, CREATEROLE, non-superuser, anon SET false/admin true, authenticated SET false/admin false, and no authenticated membership row.
+- Invoke the real integration runner. It must exit 4 with the existing fail-closed owner/privilege diagnostic.
+- Compare the read-only catalog/data snapshot before and after rejection; no fixture DDL/DML may occur.
+
+### Expected result
+
+The database owner is rejected because the guard requires either SET or ADMIN OPTION for every existing target role. ADMIN OPTION for `anon` cannot compensate for the missing capability on `authenticated`.
+
+### Safety
+
+The scenario uses only roles and an initialized database inside the disposable PostgreSQL 16/17.6 test container. It performs no Production access, persistent configuration change, migration outside the existing disposable runner, or remote connection.
+
 ### Initial validation evidence
 
-Pending the first QA375 CI run.
+Pending the first QA376 CI run.
