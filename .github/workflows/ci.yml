@@ -440,7 +440,7 @@ jobs:
         id: never_run
         shell: bash
         run: |
-          printf 'setup_outcome=failure\\ncleanup_outcome=success\\ncleanup_ran=true\\n' >> "$GITHUB_OUTPUT"
+          printf 'setup_outcome=failure\ncleanup_outcome=success\ncleanup_ran=true\n' >> "$GITHUB_OUTPUT"
 
   prepared_transactions_cleanup_skipped_assert:
     name: Assert skipped cleanup harness cannot be treated as success
