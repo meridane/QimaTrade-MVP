@@ -60,3 +60,16 @@ MKT-1.2 remains unapproved and MKT-1.3 remains decision-required.
 ## Next step
 
 QA370: audit `pg_db_role_setting` and `pg_default_acl` for database-local bootstrap residue and potential effects on test execution. Keep the audit read-only until disposable positive/negative probes establish whether either category should be rejected.
+
+
+## Final-register verification
+
+- QIMA CI #1327 on documentation HEAD `35c8af034600396a4d574960e7d40eb71dbc798c`: **SUCCESS** — https://github.com/meridane/QimaTrade-MVP/actions/runs/43236938376.
+  - Static contract: **PASS**.
+  - PostgreSQL 16 and 17.6: **SUCCESS**, including the QA369 logical/physical slot runtime marker.
+  - npm audit: **zero findings at all reported severities**.
+  - TypeScript, Next.js build, Chromium, audit enforcement: **SUCCESS**.
+  - Playwright: **347 passed**.
+  - Intentional QA353/QA354 failure harnesses and skipped harness retained their expected semantics; independent blocking assertions passed.
+- CodeQL #1277: **SUCCESS** — https://github.com/meridane/QimaTrade-MVP/actions/runs/43236938485.
+- Vercel: **FAILURE** due to the daily free deployment limit. No Preview or Production deployment is claimed for this HEAD.

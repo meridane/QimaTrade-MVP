@@ -8294,3 +8294,17 @@ MKT-1.2 remains unapproved and MKT-1.3 remains decision-required. No idempotency
 ### Next step
 
 QA370 should audit database-scoped role/database settings (`pg_db_role_setting`) and default-privilege state (`pg_default_acl`) to determine whether either can exist without ordinary relations and materially alter the disposable CREATE_OFFER test environment. Characterize both on disposable PostgreSQL 16 and 17.6, distinguish database-local state from cluster-wide state, and do not add preflight predicates until positive/negative probes establish the intended boundary.
+
+
+### QA369 final-register verification
+
+- QIMA CI #1327 on final documentation HEAD `35c8af034600396a4d574960e7d40eb71dbc798c`: **SUCCESS** — https://github.com/meridane/QimaTrade-MVP/actions/runs/43236938376.
+  - Static replication-slot scope and runtime wiring contract: **PASS**.
+  - PostgreSQL 16 and PostgreSQL 17.6 integration jobs: **SUCCESS**; both emitted the QA369 pass marker from the isolated `wal_level=logical` test container.
+  - Current-database logical slots were detected; other-database logical slots and cluster-wide physical slots did not affect the current database. Cleanup removed every test slot and container.
+  - npm audit: **0 info, 0 low, 0 moderate, 0 high, 0 critical**.
+  - TypeScript, Next.js production build, Chromium, browser tests, and audit enforcement: **SUCCESS**.
+  - Playwright: **347 passed**.
+  - QA353/QA354 intentional failure conclusions and the skipped-harness conclusion retained their expected semantics; independent blocking assertions passed.
+- CodeQL #1277 on the same documentation HEAD: **SUCCESS** — https://github.com/meridane/QimaTrade-MVP/actions/runs/43236938485.
+- Vercel combined status on the documentation HEAD: **FAILURE** due to the free daily deployment limit (`api-deployments-free-per-day` / `build-rate-limit`). No Preview is claimed for this HEAD. GitHub Actions build succeeded; no Production deployment occurred.
