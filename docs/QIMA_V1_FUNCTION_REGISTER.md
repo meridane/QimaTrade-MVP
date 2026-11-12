@@ -8398,3 +8398,17 @@ QA371 should audit database-local configuration objects that can influence test 
 - Vercel: **RATE LIMITED** on the code HEAD (`build-rate-limit`); no Preview success is claimed.
 - QA353/QA354 intentional failure conclusions and the skipped-harness conclusion retained their expected semantics; independent blocking assertions passed.
 - QA372 should audit non-superuser visibility of the catalogues used by the bootstrap preflight before any credential-policy change.
+
+
+### QA371 final validation
+
+- QIMA CI #1335 on evidence HEAD `a86a4209ce01a5202caef5ed467f62c6842b1d2a`: **FAILURE** in the Verify job because the new static test expected the label `Vercel: **RATE LIMITED**`, while the appendix used `Vercel status on this code HEAD: **RATE LIMITED**. This was a literal documentation-matcher mismatch. The PostgreSQL 16 and PostgreSQL 17.6 integration jobs both completed **SUCCESS**; Verify stopped before npm install, npm audit, TypeScript, build, and browser tests, so those controls were not run in #1335.
+- The matcher was corrected in commit `49eeb03546f35c59e8b9a69c61b31ae77d3c8ab3` to match the recorded Vercel wording.
+- QIMA CI #1336 on code/documentation-evidence HEAD `49eeb03546f35c59e8b9a69c61b31ae77d3c8ab3`: **SUCCESS** — https://github.com/meridane/QimaTrade-MVP/actions/runs/43268760344.
+- PostgreSQL 16 and PostgreSQL 17.6 integration jobs: **SUCCESS**; both emitted the QA371 runtime PASS marker. PostgreSQL 17.6 reported `server_version_num=170006`.
+- QA371 static contract: **PASS**. npm audit reported **0 total vulnerabilities** (0 critical, 0 high, 0 moderate, 0 low); TypeScript, Next.js build, Chromium installation, browser tests, and audit enforcement: **SUCCESS**.
+- Next.js compiled successfully in 13.1 seconds. Playwright: **347 passed in 13.7 seconds**.
+- CodeQL #1285 on `a86a4209ce01a5202caef5ed467f62c6842b1d2a`: **SUCCESS** — https://github.com/meridane/QimaTrade-MVP/actions/runs/43268611104.
+- CodeQL #1286 on `49eeb03546f35c59e8b9a69c61b31ae77d3c8ab3`: **SUCCESS** — https://github.com/meridane/QimaTrade-MVP/actions/runs/43268760509.
+- Vercel on the final code HEAD remained **RATE LIMITED** (`build-rate-limit`); no Preview success is claimed.
+- QA353/QA354 intentional failure conclusions and the skipped-harness conclusion retained their expected semantics; independent blocking assertions passed.
