@@ -70,6 +70,9 @@ for required in \
   "qa374_admin_option_runner" \
   "WITH ADMIN TRUE, INHERIT FALSE, SET FALSE" \
   "anon:false:true:false|authenticated:false:true:false" \
+  "bool_or(membership.set_option)" \
+  "count(DISTINCT membership.grantor)" \
+  "anon:true:2|authenticated:true:2" \
   "QA374 passed" \
   "catalog_snapshot" \
   "docker exec -i" \

@@ -8559,3 +8559,12 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 - The existing fixture GRANT path must convert those memberships into one-way SET ROLE access before the full CREATE_OFFER integration/concurrency flow runs. The test asserts both the pre-run and post-run membership states.
 - All resources remain inside disposable PostgreSQL 16 and 17.6 containers; no Production data, migrations, secrets, or persistent configuration are accessed.
 - Initial CI and CodeQL evidence: pending.
+
+
+### QA374 grantor-aware membership assertion correction — 13 November 2026
+
+- CI [#1360](https://github.com/meridane/QimaTrade-MVP/actions/runs/43295122650) exposed an over-strict runtime assertion on PostgreSQL 16 and 17.6. The full non-superuser runner and advisory-lock concurrency observation completed; the final membership query then returned two `pg_auth_members` rows per client role because the original superuser grant and the runner's later GRANT have distinct grantors.
+- The effective `pg_has_role(..., 'SET')` checks were true for both `authenticated` and `anon`; reverse membership remained false. The failure was in the test's assumption of one catalog row per role, not evidence of a runner privilege defect.
+- The assertion now aggregates membership rows per target role using `bool_or(set_option)` and verifies the two distinct grantors explicitly. PostgreSQL runtime and full CI evidence for this correction are pending.
+- CI #1360 Verify passed the QA374 static contract, npm audit, TypeScript, Next.js build, and 347 Playwright tests. Both PostgreSQL jobs stopped only at the overly strict final membership-row assertion.
+- CodeQL [#1309](https://github.com/meridane/QimaTrade-MVP/actions/runs/43295122626): **SUCCESS**.

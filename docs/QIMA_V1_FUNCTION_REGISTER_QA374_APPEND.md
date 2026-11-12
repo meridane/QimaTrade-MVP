@@ -47,3 +47,10 @@ Pending the first CI run for the QA374 code HEAD.
 
 Pending the first CodeQL run for the QA374 code HEAD.
 
+
+### QA374 failure triage — 13 November 2026
+
+- QIMA CI run #1360 failed in the full-runner runtime on PostgreSQL 16 and 17.6 after the complete runner and concurrency checks had succeeded. The failing assertion expected one `pg_auth_members` row per target role.
+- PostgreSQL retained separate membership rows for the original superuser grant and the runner's later GRANT. The observed post-fixture rows were `anon:false|anon:true|authenticated:false|authenticated:true`; this reflects two grantors, not missing SET access. The independent `pg_has_role(..., 'SET')` check already returned true for both roles, and the reverse-membership checks remained false.
+- The regression assertion now groups by target role, requires `bool_or(set_option)` to be true, and asserts two distinct grantors per role. This preserves the intended effective-membership contract without incorrectly requiring one catalog row per role.
+- CI #1360's Verify job passed, including the QA374 static contract, npm audit, TypeScript, Next.js build, and 347 Playwright tests. The two PostgreSQL jobs failed only at the over-strict row-count assertion. Corrected runtime validation is pending.

@@ -280,15 +280,26 @@ if [[ "$admin_option_after_state" != "true|true|false|false" ]]; then
 fi
 
 admin_option_set_state="$(db_psql -c "
-  SELECT string_agg(target.rolname || ':' || membership.set_option::text,
-                   '|' ORDER BY target.rolname)
-  FROM pg_roles target
-  JOIN pg_auth_members membership ON membership.roleid = target.oid
-  WHERE target.rolname IN ('anon', 'authenticated')
-    AND membership.member = 'qa374_admin_option_runner'::regrole;
+  SELECT string_agg(
+    membership_state.role_name || ':' ||
+    membership_state.has_set::text || ':' ||
+    membership_state.grantor_count::text,
+    '|' ORDER BY membership_state.role_name
+  )
+  FROM (
+    SELECT
+      target.rolname AS role_name,
+      bool_or(membership.set_option) AS has_set,
+      count(DISTINCT membership.grantor) AS grantor_count
+    FROM pg_roles target
+    JOIN pg_auth_members membership ON membership.roleid = target.oid
+    WHERE target.rolname IN ('anon', 'authenticated')
+      AND membership.member = 'qa374_admin_option_runner'::regrole
+    GROUP BY target.oid, target.rolname
+  ) AS membership_state;
 ")"
-if [[ "$admin_option_set_state" != "anon:true|authenticated:true" ]]; then
-  echo "ERROR: QA374 fixture did not enable SET on both client-role memberships: '$admin_option_set_state'." >&2
+if [[ "$admin_option_set_state" != "anon:true:2|authenticated:true:2" ]]; then
+  echo "ERROR: QA374 expected SET access for both client roles across two grantors, got '$admin_option_set_state'." >&2
   exit 1
 fi
 
