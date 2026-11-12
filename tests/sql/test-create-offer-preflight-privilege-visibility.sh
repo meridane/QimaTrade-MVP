@@ -24,7 +24,8 @@ grep -Fq "d.objid = um.umid" <<< "$query" ||
 if grep -Eiq 'FROM[[:space:]]+pg_user_mapping([[:space:]]|$)' <<< "$query"; then
   fail "preflight must not SELECT directly from the restricted pg_user_mapping catalog"
 fi
-if grep -Eiq 'umoptions|subconninfo' <<< "$query"; then
+query_sql="$(sed '/^[[:space:]]*--/d' <<< "$query")"
+if grep -Eiq 'umoptions|subconninfo' <<< "$query_sql"; then
   fail "preflight must not inspect user-mapping options or subscription connection strings"
 fi
 
