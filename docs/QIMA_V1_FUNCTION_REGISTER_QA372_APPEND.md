@@ -50,7 +50,7 @@ QA373 should separately characterize the write privileges required by the full f
 
 CI run [#43279189235](https://github.com/meridane/QimaTrade-MVP/actions/runs/43279189235) exposed a test-harness cleanup defect on PostgreSQL 16: the two disposable login roles retained explicit `CONNECT` grants on the disposable database, so PostgreSQL correctly refused `DROP ROLE`. The runtime now revokes those grants before dropping the roles, and the static contract requires this cleanup ordering.
 
-CodeQL run [#43279189048](https://github.com/meridane/QimaTrade-MVP/actions/runs/43279189048) succeeded. Final validation of the cleanup correction is pending.
+CodeQL run [#43279189048](https://github.com/meridane/QimaTrade-MVP/actions/runs/43279189048) succeeded. The cleanup correction subsequently passed in CI #1346 (run #43281883350).
 
 No production data, migration, persistent PostgreSQL setting, or credential policy was changed.
 

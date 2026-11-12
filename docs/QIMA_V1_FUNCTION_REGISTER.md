@@ -8431,7 +8431,7 @@ QA371 should audit database-local configuration objects that can influence test 
 - QA372 runtime probes exercise a baseline non-superuser and a separate `pg_monitor` role against user mappings, subscription metadata, replication slots, and large-object metadata on disposable PostgreSQL 16 and 17.6 containers.
 - The test separately checks that `subdbid` is readable while `subconninfo` remains denied, and that the public user-mapping view exposes row identity while masking `umoptions`.
 - This is a preflight visibility contract only. It does not claim that a non-superuser can run the full fixture/migration runner, which also performs write operations and role creation. No credential policy change is made.
-- QA372 runtime and CI evidence: pending first code validation.
+- QA372 runtime and CI evidence: completed on PostgreSQL 16 and 17.6 in CI #1346 (run #43281883350).
 - No production vulnerability is inferred from this synthetic/disposable characterization.
 
 ### QA372 next step
@@ -8442,7 +8442,7 @@ QA373 should characterize the minimum write privileges required by the full inte
 ### QA372 first CI failure triage — 13 November 2026
 
 - CI #43279189235 failed at PostgreSQL 16 QA372 cleanup because the disposable probe roles still held explicit database `CONNECT` grants. The correction revokes those grants before `DROP ROLE`; the static regression contract requires this ordering.
-- CodeQL #43279189048 succeeded. The correction's final CI validation is pending.
+- CodeQL #43279189048 succeeded; the role-cleanup correction subsequently passed CI #1346 (run #43281883350).
 - No production data, migration, persistent PostgreSQL setting, secret, or credential policy was changed.
 
 
@@ -8471,7 +8471,7 @@ QA373 should characterize the minimum write privileges required by the full inte
 
 - CI #43281662101 (run #1345) stopped in Verify because newly added documentation-evidence grep assertions were bare commands under `set -e` and used a label that omitted the Markdown link bracket.
 - This is a static-test defect. The PostgreSQL runtime jobs are evaluated separately; no production security finding is inferred.
-- The guard now searches stable run-ID substrings and emits explicit failure messages. Corrected validation is pending.
+- The guard now searches stable run-ID substrings and emits explicit failure messages. Corrected validation passed in CI #1346 (run #43281883350).
 
 
 
