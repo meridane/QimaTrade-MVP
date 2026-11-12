@@ -8422,3 +8422,18 @@ QA371 should audit database-local configuration objects that can influence test 
 - Next.js compiled in 8.4 seconds. Playwright: **347 passed in 10.5 seconds**.
 - CodeQL #1287 on final documentation HEAD: **SUCCESS** — https://github.com/meridane/QimaTrade-MVP/actions/runs/43269438136.
 - Vercel remained **RATE LIMITED** (`build-rate-limit`); no Preview success is claimed.
+
+
+### QA372 — non-superuser bootstrap catalog visibility
+
+- The read-only preflight previously selected directly from `pg_user_mapping`, which PostgreSQL documents as restricted from normal users. A non-superuser therefore received a permission error before fixtures; the runner's `psql -v ON_ERROR_STOP=1` path fails closed rather than treating that error as an empty result.
+- The preflight now uses the publicly readable `pg_user_mappings` view and maps its `umid` to `pg_depend.objid` to preserve extension-member exclusion. It never selects `umoptions`, so the change does not expose mapping credentials.
+- QA372 runtime probes exercise a baseline non-superuser and a separate `pg_monitor` role against user mappings, subscription metadata, replication slots, and large-object metadata on disposable PostgreSQL 16 and 17.6 containers.
+- The test separately checks that `subdbid` is readable while `subconninfo` remains denied, and that the public user-mapping view exposes row identity while masking `umoptions`.
+- This is a preflight visibility contract only. It does not claim that a non-superuser can run the full fixture/migration runner, which also performs write operations and role creation. No credential policy change is made.
+- QA372 runtime and CI evidence: pending first code validation.
+- No production vulnerability is inferred from this synthetic/disposable characterization.
+
+### QA372 next step
+
+QA373 should characterize the minimum write privileges required by the full integration runner separately from read-only preflight visibility. Preserve fail-closed behavior and do not change the runner's credential contract without explicit evidence and review.
