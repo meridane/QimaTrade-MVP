@@ -76,6 +76,10 @@ for required in \
   "qa374_admin_option_non_owner" \
   "anon:false:true:false|authenticated:false:true:false" \
   "QA375 passed" \
+  "before_non_owner_snapshot" \
+  "after_non_owner_snapshot" \
+  "pg_get_userbyid(datdba)" \
+  "rolname LIKE 'qa373_%' OR rolname LIKE 'qa374_%'" \
   "QA374 passed" \
   "catalog_snapshot" \
   "docker exec -i" \
@@ -118,5 +122,9 @@ grep -Fq "QA374 CodeQL evidence" "$APPENDIX_QA374" ||
   fail "QA374 appendix must reserve CodeQL evidence"
 grep -Fq "### QA374 — ADMIN OPTION-only CREATE_OFFER runner membership path" "$REGISTER" ||
   fail "canonical register is missing QA374"
+grep -Fq "## QA375 — ADMIN OPTION does not bypass database ownership" "$APPENDIX_QA374" ||
+  fail "QA374 appendix is missing QA375 ownership-boundary coverage"
+grep -Fq "### QA375 — ADMIN OPTION does not bypass database ownership" "$REGISTER" ||
+  fail "canonical register is missing QA375 ownership-boundary coverage"
 
-echo "QA373/QA374 static contract PASS: the runner fails closed on unsupported roles and covers both SET membership and the ADMIN OPTION-only path."
+echo "QA373/QA374/QA375 static contract PASS: the runner fails closed on unsupported roles, covers the ADMIN OPTION-only path, and rejects non-owners without fixture changes."
