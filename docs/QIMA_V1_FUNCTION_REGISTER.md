@@ -7763,3 +7763,54 @@ No Supabase Production data, schema, migration, SQL function, RLS policy, grant,
 ### Next step
 
 QA363: inspect the disposable CREATE_OFFER schema/bootstrap preflight for repeatability and non-empty-database protection. Determine whether a second integration-runner invocation against an already initialized local `qima_test` database is safely rejected before DDL/DML. Keep the loopback guard and never target Supabase Production.
+
+## QA363 — CREATE_OFFER disposable bootstrap preflight and repeat-run guard
+
+Date: 2026-11-12 (KST)
+
+### Finding
+
+The CREATE_OFFER integration runner already restricted DATABASE_URL to loopback qima_test, but then invoked the schema fixture immediately. The fixture contains idempotent extension/role/schema setup and an auth.uid() replacement before unguarded CREATE TABLE statements. A second run against an initialized database could therefore reach fixture DDL before failing on an existing relation. This is a disposable-runner repeatability finding, not evidence of a Production incident or vulnerability.
+
+### Change
+
+Added a read-only catalog preflight to tests/sql/run-create-offer-integration.sh after the strict URL allowlist and before the first fixture file or migration call. It requires current_database() = qima_test, rejects non-default application schemas and public relations (tables, partitioned tables, views, materialized views, sequences, and foreign tables), accepts only the explicit empty result, and fails closed on wrong-database, non-empty, unexpected, or query-error results. Diagnostics do not echo DATABASE_URL credentials.
+
+Added tests/sql/test-create-offer-bootstrap-preflight.sh for static/mocked cases covering initialized, wrong-database, unexpected, failed-query, and empty-database paths. Added tests/sql/test-create-offer-integration-repeat-guard.sh; after the normal runner succeeds, it invokes the runner again through a psql wrapper, requires exactly one read-only -c call and no fixture/migration -f call, requires exit 3, and compares the public relation inventory plus row-content digests for all ten fixture tables before/after.
+
+The static contract runs in Verify. The real repeat-run regression runs after the normal CREATE_OFFER runner in PostgreSQL 16 and PostgreSQL 17.6 jobs.
+
+### Validation
+
+- QIMA CI #1304: FAILURE (intermediate test-query defect only). The first snapshot query concatenated PostgreSQL relkind ("char") with text without an explicit cast and failed with operator is not unique: text || "char". Both normal CREATE_OFFER integration runners succeeded; the repeat-guard snapshot failed. This was not an application or PostgreSQL integration failure.
+- CodeQL #1254: SUCCESS — https://github.com/meridane/QimaTrade-MVP/actions/runs/43189761028.
+- Corrected the snapshot expression by explicitly casting schema/relation names and relkind to text.
+- QIMA CI #1305: SUCCESS — https://github.com/meridane/QimaTrade-MVP/actions/runs/43190130837. Verify QA363 passed; PostgreSQL 16 and PostgreSQL 17.6 normal integration and second-invocation checks passed; each repeat-run test emitted the QA363 PASS marker after one read-only query and confirmed unchanged public relation inventory and ten fixture-table data digests. npm ci, high-threshold npm audit, TypeScript, Next.js build, Chromium, and Playwright succeeded; 347 Playwright tests passed in 10.0 seconds.
+- CodeQL #1255: SUCCESS — https://github.com/meridane/QimaTrade-MVP/actions/runs/43190130704.
+- Vercel combined status for final code HEAD 700bf4a3f09272bf91627bfe5623d9676f6ce23a: SUCCESS (Preview only; no Production deployment).
+
+QA353/QA354 harnesses retain their deliberate individual failure conclusions; their independent blocking assertions succeeded. The skipped harness remains skipped and its dependent assertion succeeded. Overall QIMA CI #1305 is SUCCESS.
+
+### Commits and files
+
+Work branch: work/qa363-qima-test-bootstrap-preflight-20261112-1805.
+
+- d1e7ef96b09c20f5e5219f59bc74da9af983d656 — add read-only qima_test bootstrap preflight.
+- 116f444128c469eb9db2d27c063909598f1a7a0f — add static/mocked preflight contract.
+- 2abc97cd79744da243e499102acc9183dddd316d — add real initialized-database repeat-run test.
+- 70e830d57e4c24ded83239486bdefe4040dd0459 — wire Verify and both PostgreSQL jobs.
+- 700bf4a3f09272bf91627bfe5623d9676f6ce23a — cast catalog snapshot fields explicitly after CI #1304.
+
+Files: tests/sql/run-create-offer-integration.sh; tests/sql/test-create-offer-bootstrap-preflight.sh (new); tests/sql/test-create-offer-integration-repeat-guard.sh (new); .github/workflows/ci.yml; this register and docs/QIMA_V1_FUNCTION_REGISTER_QA363_APPEND.md.
+
+The work branch was fast-forwarded to fix/create-offer-status-contract and the final compare showed the branches identical.
+
+### Evidence boundary and safety
+
+QA363 covers the disposable runner and PostgreSQL CI services only. The preflight checks non-default schemas and public relations; it is not a general inventory of every standalone routine/type in public. That residual scope is retained for QA364. No Supabase Production data, schema, migration, SQL function, RLS policy, grant, secret, or persistent configuration was modified. No Production deployment, PR merge, force update, or branch-protection change occurred. No vulnerability or Production incident is inferred from synthetic disposable-database tests.
+
+MKT-1.2 remains unapproved and MKT-1.3 remains decision-required; no idempotency retention, numeric equivalence, precision, canonicalization, or legacy-hash policy changed.
+
+### Next step
+
+QA364: extend the bootstrap preflight characterization to standalone user-defined functions/types in public while allowing extension-owned objects such as pgcrypto members. Keep the check read-only and validate only on disposable PostgreSQL services.
