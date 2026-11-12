@@ -48,38 +48,15 @@ cleanup() {
   local cleanup_status=0
   set +e
 
-  if [[ -n "$ADMIN_URL" ]]; then
-    psql "$ADMIN_URL" -X -v ON_ERROR_STOP=1 \
-      -c "DROP SUBSCRIPTION IF EXISTS \"$SUBSCRIPTION_NAME\";" >/dev/null 2>&1 || cleanup_status=1
-    psql "$ADMIN_URL" -X -v ON_ERROR_STOP=1 \
-      -c "SELECT pg_drop_replication_slot('$LOGICAL_SLOT_NAME') FROM pg_replication_slots WHERE slot_name = '$LOGICAL_SLOT_NAME';" >/dev/null 2>&1 || cleanup_status=1
-    psql "$ADMIN_URL" -X -v ON_ERROR_STOP=1 \
-      -c "SELECT pg_drop_replication_slot('$PHYSICAL_SLOT_NAME') FROM pg_replication_slots WHERE slot_name = '$PHYSICAL_SLOT_NAME';" >/dev/null 2>&1 || cleanup_status=1
-    if [[ -n "$LARGE_OBJECT_OID" ]]; then
-      psql "$ADMIN_URL" -X -v ON_ERROR_STOP=1 \
-        -c "SELECT lo_unlink($LARGE_OBJECT_OID);" >/dev/null 2>&1 || cleanup_status=1
-    fi
-    server_exists="$(psql "$ADMIN_URL" -X -v ON_ERROR_STOP=1 -q -A -t \
-      -c "SELECT EXISTS (SELECT 1 FROM pg_foreign_server WHERE srvname = '$SERVER_NAME');" 2>/dev/null)"
-    if [[ "$server_exists" == "t" ]]; then
-      psql "$ADMIN_URL" -X -v ON_ERROR_STOP=1 \
-        -c "DROP USER MAPPING IF EXISTS FOR \"$MAPPED_ROLE\" SERVER \"$SERVER_NAME\";" >/dev/null 2>&1 || cleanup_status=1
-      psql "$ADMIN_URL" -X -v ON_ERROR_STOP=1 \
-        -c "DROP SERVER IF EXISTS \"$SERVER_NAME\";" >/dev/null 2>&1 || cleanup_status=1
-    fi
-    psql "$ADMIN_URL" -X -v ON_ERROR_STOP=1 \
-      -c "DROP EXTENSION IF EXISTS postgres_fdw;" >/dev/null 2>&1 || cleanup_status=1
-    psql "$ADMIN_URL" -X -v ON_ERROR_STOP=1 \
-      -c "DROP ROLE IF EXISTS \"$PROBE_ROLE\", \"$MONITOR_ROLE\", \"$MAPPED_ROLE\";" >/dev/null 2>&1 || cleanup_status=1
-  fi
-
+  # The cluster is wholly disposable. If any assertion fails, removing this
+  # container is the final cleanup boundary for every remaining SQL object.
   if [[ "$CONTAINER_STARTED" == true ]]; then
     docker rm -f "$CONTAINER_NAME" >/dev/null 2>&1 || cleanup_status=1
   fi
   rm -rf "$TEMP_DIR" || cleanup_status=1
 
   if [[ "$original_status" -eq 0 && "$cleanup_status" -ne 0 ]]; then
-    echo "ERROR: QA372 could not remove every disposable catalog object, role, slot, large object, or container." >&2
+    echo "ERROR: QA372 could not remove its disposable PostgreSQL container or temporary files." >&2
     original_status=1
   fi
   exit "$original_status"
@@ -281,4 +258,14 @@ LARGE_OBJECT_OID=""
 assert_state "$PROBE_URL" "empty" "final empty baseline after removing all catalog probes"
 assert_state "$MONITOR_URL" "empty" "final pg_monitor empty baseline"
 
-echo "QA372 passed: non-superuser and pg_monitor probes saw current-database subscriptions, logical slots, large-object metadata, and public user-mapping rows without exposing mapping options or subccription connection strings; physical slots remained database-neutral; all disposable objects and roles were removed."
+psql "$ADMIN_URL" -X -v ON_ERROR_STOP=1 -c \
+  "DROP EXTENSION postgres_fdw; DROP ROLE \"$PROBE_ROLE\", \"$MONITOR_ROLE\", \"$MAPPED_ROLE\";" >/dev/null
+remaining_roles="$(query_scalar "$ADMIN_URL" \
+  "SELECT count(*) FROM pg_catalog.pg_roles WHERE rolname IN ('$PROBE_ROLE', '$MONITOR_ROLE', '$MAPPED_ROLE');")"
+if [[ "$remaining_roles" != "0" ]]; then
+  echo "ERROR: QA372 disposable probe roles remained after cleanup." >&2
+  exit 1
+fi
+assert_state "$ADMIN_URL" "empty" "final superuser baseline after dropping extensions and probe roles"
+
+echo "QA372 passed: non-superuser and pg_monitor probes saw current-database subscriptions, logical slots, large-object metadata, and public user-mapping rows without exposing mapping options or subscription connection strings; physical slots remained database-neutral; disposable objects and roles were removed before the test container was destroyed."
