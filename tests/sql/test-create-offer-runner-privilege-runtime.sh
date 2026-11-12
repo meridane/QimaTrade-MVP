@@ -209,4 +209,89 @@ if [[ "$after_no_createrole_snapshot" != "$before_no_createrole_snapshot" ]]; th
   exit 1
 fi
 
+
+
+# QA374: exercise the alternate ADMIN OPTION path independently of SET ROLE.
+# Existing client roles are created before the runner and the runner receives
+# ADMIN OPTION while SET is explicitly false. The read-only guard must accept
+# that capability; the fixture must then grant SET access before runtime use.
+admin_psql -c "DROP DATABASE qima_test WITH (FORCE);"
+admin_psql -c "DROP ROLE qa373_runner, qa373_not_owner, qa373_no_role_admin, qa373_no_createrole;"
+admin_psql -c "DROP ROLE authenticated, anon;"
+
+admin_psql <<'SQL'
+CREATE ROLE qa374_admin_option_runner LOGIN PASSWORD 'qa374-admin-option-only'
+  CREATEROLE NOSUPERUSER NOCREATEDB NOREPLICATION NOBYPASSRLS;
+CREATE DATABASE qima_test OWNER qa374_admin_option_runner;
+CREATE ROLE authenticated NOLOGIN;
+CREATE ROLE anon NOLOGIN;
+GRANT authenticated TO qa374_admin_option_runner
+  WITH ADMIN TRUE, INHERIT FALSE, SET FALSE;
+GRANT anon TO qa374_admin_option_runner
+  WITH ADMIN TRUE, INHERIT FALSE, SET FALSE;
+SQL
+
+admin_only_state="$(admin_psql -c "
+  SELECT string_agg(
+    target.rolname || ':' ||
+    pg_has_role('qa374_admin_option_runner', target.oid, 'SET')::text || ':' ||
+    membership.admin_option::text || ':' ||
+    membership.set_option::text,
+    '|' ORDER BY target.rolname
+  )
+  FROM pg_roles target
+  JOIN pg_auth_members membership ON membership.roleid = target.oid
+  WHERE target.rolname IN ('anon', 'authenticated')
+    AND membership.member = 'qa374_admin_option_runner'::regrole;
+")"
+if [[ "$admin_only_state" != "anon:false:true:false|authenticated:false:true:false" ]]; then
+  echo "ERROR: QA374 did not establish ADMIN OPTION without SET access: '$admin_only_state'." >&2
+  exit 1
+fi
+
+ADMIN_OPTION_RUNNER_URL="postgresql://qa374_admin_option_runner:qa374-admin-option-only@localhost:5432/qima_test"
+set +e
+docker exec --env "DATABASE_URL=$ADMIN_OPTION_RUNNER_URL" --workdir /workspace "$CONTAINER_NAME" \
+  bash /workspace/tests/sql/run-create-offer-integration.sh \
+  >"$TEMP_DIR/admin-option-runner.log" 2>&1
+admin_option_status=$?
+set -e
+if [[ "$admin_option_status" -ne 0 ]]; then
+  echo "ERROR: QA374 ADMIN OPTION-only runner failed with exit $admin_option_status." >&2
+  tail -n 120 "$TEMP_DIR/admin-option-runner.log" >&2
+  exit 1
+fi
+if ! grep -Fq "Observed one granted and one waiting same-tenant advisory lock" "$TEMP_DIR/admin-option-runner.log"; then
+  echo "ERROR: QA374 ADMIN OPTION-only runner did not complete the concurrency observation." >&2
+  tail -n 120 "$TEMP_DIR/admin-option-runner.log" >&2
+  exit 1
+fi
+
+admin_option_after_state="$(db_psql -c "
+  SELECT
+    pg_has_role('qa374_admin_option_runner', 'authenticated', 'SET')::text || '|' ||
+    pg_has_role('qa374_admin_option_runner', 'anon', 'SET')::text || '|' ||
+    pg_has_role('authenticated', 'qa374_admin_option_runner', 'MEMBER')::text || '|' ||
+    pg_has_role('anon', 'qa374_admin_option_runner', 'MEMBER')::text;
+")"
+if [[ "$admin_option_after_state" != "true|true|false|false" ]]; then
+  echo "ERROR: QA374 fixture did not establish the intended one-way SET ROLE membership: '$admin_option_after_state'." >&2
+  exit 1
+fi
+
+admin_option_set_state="$(db_psql -c "
+  SELECT string_agg(target.rolname || ':' || membership.set_option::text,
+                   '|' ORDER BY target.rolname)
+  FROM pg_roles target
+  JOIN pg_auth_members membership ON membership.roleid = target.oid
+  WHERE target.rolname IN ('anon', 'authenticated')
+    AND membership.member = 'qa374_admin_option_runner'::regrole;
+")"
+if [[ "$admin_option_set_state" != "anon:true|authenticated:true" ]]; then
+  echo "ERROR: QA374 fixture did not enable SET on both client-role memberships: '$admin_option_set_state'." >&2
+  exit 1
+fi
+
+echo "QA374 passed: pre-existing authenticated/anon memberships with ADMIN OPTION but SET FALSE were accepted; the fixture established one-way SET ROLE access and the complete non-superuser runner plus concurrency tests succeeded."
+
 echo "QA373 passed: a non-superuser database owner with CREATEROLE completed the full fixture, pgcrypto installation, migration, SECURITY DEFINER, SET ROLE, and concurrency runner without CREATEDB or pg_monitor; non-owner and no-CREATEROLE roles were rejected before any fixture change."

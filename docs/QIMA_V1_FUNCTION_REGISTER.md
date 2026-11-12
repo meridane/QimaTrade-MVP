@@ -8553,3 +8553,9 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 - The Vercel status on this documentation-only HEAD is build-rate-limit; no Preview is claimed for 91af8b8. The code HEAD 40f0801 had a successful Preview, recorded above.
 - No application code, SQL migration, or runtime behavior changed after the code HEAD 40f0801. The final commits after that code HEAD only update the QA373 appendix and canonical register.
 
+### QA374 — ADMIN OPTION-only CREATE_OFFER runner membership path — 13 November 2026
+
+- The runner guard already accepts either SET ROLE membership or ADMIN OPTION on existing `authenticated`/`anon` roles. QA374 adds a positive runtime case for the latter branch: pre-existing client roles have ADMIN TRUE, INHERIT FALSE, SET FALSE before the non-superuser database-owner runner starts.
+- The existing fixture GRANT path must convert those memberships into one-way SET ROLE access before the full CREATE_OFFER integration/concurrency flow runs. The test asserts both the pre-run and post-run membership states.
+- All resources remain inside disposable PostgreSQL 16 and 17.6 containers; no Production data, migrations, secrets, or persistent configuration are accessed.
+- Initial CI and CodeQL evidence: pending.

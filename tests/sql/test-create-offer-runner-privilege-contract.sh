@@ -8,6 +8,7 @@ RUNTIME="$ROOT/tests/sql/test-create-offer-runner-privilege-runtime.sh"
 WORKFLOW="$ROOT/.github/workflows/ci.yml"
 REGISTER="$ROOT/docs/QIMA_V1_FUNCTION_REGISTER.md"
 APPENDIX="$ROOT/docs/QIMA_V1_FUNCTION_REGISTER_QA373_APPEND.md"
+APPENDIX_QA374="$ROOT/docs/QIMA_V1_FUNCTION_REGISTER_QA374_APPEND.md"
 
 fail() {
   echo "ERROR: $*" >&2
@@ -66,6 +67,10 @@ for required in \
   "qa373_not_owner" \
   "qa373_no_role_admin" \
   "qa373_no_createrole" \
+  "qa374_admin_option_runner" \
+  "WITH ADMIN TRUE, INHERIT FALSE, SET FALSE" \
+  "anon:false:true:false|authenticated:false:true:false" \
+  "QA374 passed" \
   "catalog_snapshot" \
   "docker exec -i" \
   "docker rm -f" \
@@ -99,4 +104,13 @@ grep -Fq "QA373 code-validation evidence" "$APPENDIX" ||
 grep -Fq "QA373 CodeQL evidence" "$APPENDIX" ||
   fail "QA373 appendix must reserve CodeQL evidence"
 
-echo "QA373 static contract PASS: the runner fails closed on unsupported roles before fixture DDL, while a disposable database-owner/CREATEROLE runtime tests the complete non-superuser path."
+grep -Fq "### QA374 — ADMIN OPTION-only runner membership path" "$APPENDIX_QA374" ||
+  fail "QA374 appendix is missing its scope"
+grep -Fq "QA374 code-validation evidence" "$APPENDIX_QA374" ||
+  fail "QA374 appendix must reserve code-validation evidence"
+grep -Fq "QA374 CodeQL evidence" "$APPENDIX_QA374" ||
+  fail "QA374 appendix must reserve CodeQL evidence"
+grep -Fq "### QA374 — ADMIN OPTION-only CREATE_OFFER runner membership path" "$REGISTER" ||
+  fail "canonical register is missing QA374"
+
+echo "QA373/QA374 static contract PASS: the runner fails closed on unsupported roles and covers both SET membership and the ADMIN OPTION-only path."
