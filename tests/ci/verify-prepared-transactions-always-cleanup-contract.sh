@@ -61,10 +61,13 @@ HARNESS_CLEANUP_STEP="$TEMP_DIR/harness-cleanup-step.yml"
 ASSERT_JOB="$TEMP_DIR/assert-job.yml"
 VERIFY_JOB="$TEMP_DIR/verify-job.yml"
 VERIFY_STEP="$TEMP_DIR/verify-step.yml"
+ASSERTION_TEST_STEP="$TEMP_DIR/assertion-test-step.yml"
 
 extract_job "verify" "$VERIFY_JOB"
 extract_step "$VERIFY_JOB" "Verify prepared-transaction always-cleanup workflow wiring" "$VERIFY_STEP"
 require_line "$VERIFY_STEP" "        run: bash tests/ci/verify-prepared-transactions-always-cleanup-contract.sh"
+extract_step "$VERIFY_JOB" "Verify prepared-transaction cleanup assertions reject malformed outputs" "$ASSERTION_TEST_STEP"
+require_line "$ASSERTION_TEST_STEP" "        run: bash tests/ci/test-prepared-transactions-cleanup-assertions.sh"
 
 extract_job "postgres-integration" "$POSTGRES_JOB"
 extract_step "$POSTGRES_JOB" "Enable prepared transactions for the disposable PostgreSQL regression" "$SETUP_STEP"
@@ -102,6 +105,8 @@ require_line "$HARNESS_JOB" "    timeout-minutes: 5"
 require_line "$HARNESS_JOB" '      setup_outcome: ${{ steps.simulated_setup.outcome }}'
 require_line "$HARNESS_JOB" '      cleanup_outcome: ${{ steps.always_cleanup.outcome }}'
 require_line "$HARNESS_JOB" '      cleanup_ran: ${{ steps.always_cleanup.outputs.cleanup_ran }}'
+require_line "$HARNESS_JOB" '      cleanup_exit_code: ${{ steps.always_cleanup.outputs.cleanup_exit_code }}'
+require_line "$HARNESS_JOB" '      cleanup_failure_observed: ${{ steps.always_cleanup.outputs.cleanup_failure_observed }}'
 require_line "$HARNESS_SETUP_STEP" "        id: simulated_setup"
 require_line "$HARNESS_SETUP_STEP" "          printf 'baseline=0\\nrestore_required=true\\n' >> \"\$GITHUB_OUTPUT\""
 require_line "$HARNESS_SETUP_STEP" "          exit 47"
@@ -120,10 +125,9 @@ require_line "$ASSERT_JOB" "    needs: prepared_transactions_always_cleanup_cont
 require_line "$ASSERT_JOB" '          SETUP_OUTCOME: ${{ needs.prepared_transactions_always_cleanup_contract.outputs.setup_outcome }}'
 require_line "$ASSERT_JOB" '          CLEANUP_OUTCOME: ${{ needs.prepared_transactions_always_cleanup_contract.outputs.cleanup_outcome }}'
 require_line "$ASSERT_JOB" '          CLEANUP_RAN: ${{ needs.prepared_transactions_always_cleanup_contract.outputs.cleanup_ran }}'
-require_line "$ASSERT_JOB" "        run: |"
-require_line "$ASSERT_JOB" '          [[ "$SETUP_OUTCOME" == "failure" ]]'
-require_line "$ASSERT_JOB" '          [[ "$CLEANUP_OUTCOME" == "success" ]]'
-require_line "$ASSERT_JOB" '          [[ "$CLEANUP_RAN" == "true" ]]'
+require_line "$ASSERT_JOB" '          CLEANUP_EXIT_CODE: ${{ needs.prepared_transactions_always_cleanup_contract.outputs.cleanup_exit_code }}'
+require_line "$ASSERT_JOB" '          CLEANUP_FAILURE_OBSERVED: ${{ needs.prepared_transactions_always_cleanup_contract.outputs.cleanup_failure_observed }}'
+require_line "$ASSERT_JOB" "        run: bash tests/ci/assert-prepared-transactions-cleanup-contract.sh success"
 
 echo "Prepared-transaction workflow contract passed: the real PostgreSQL job has a blocking always() restoration step with both setup outputs forwarded; the isolated GitHub-runner harness intentionally fails setup, executes the real restore script under inert mocks, and a separate blocking job asserts the failed setup and successful cleanup outcomes."
 
@@ -157,10 +161,7 @@ require_line "$FAILURE_ASSERT_JOB" '          CLEANUP_OUTCOME: ${{ needs.prepare
 require_line "$FAILURE_ASSERT_JOB" '          CLEANUP_RAN: ${{ needs.prepared_transactions_always_cleanup_failure_contract.outputs.cleanup_ran }}'
 require_line "$FAILURE_ASSERT_JOB" '          CLEANUP_EXIT_CODE: ${{ needs.prepared_transactions_always_cleanup_failure_contract.outputs.cleanup_exit_code }}'
 require_line "$FAILURE_ASSERT_JOB" '          CLEANUP_FAILURE_OBSERVED: ${{ needs.prepared_transactions_always_cleanup_failure_contract.outputs.cleanup_failure_observed }}'
-require_line "$FAILURE_ASSERT_JOB" '          [[ "$CLEANUP_OUTCOME" == "failure" ]]'
-require_line "$FAILURE_ASSERT_JOB" '          [[ "$CLEANUP_EXIT_CODE" == "52" ]]'
-require_line "$FAILURE_ASSERT_JOB" '          [[ "$CLEANUP_FAILURE_OBSERVED" == "true" ]]'
-require_line "$FAILURE_ASSERT_JOB" '          [[ -z "$CLEANUP_RAN" ]]'
+require_line "$FAILURE_ASSERT_JOB" "        run: bash tests/ci/assert-prepared-transactions-cleanup-contract.sh failure"
 
 
 SUCCESS_HARNESS_JOB="$TEMP_DIR/success-harness-job.yml"
