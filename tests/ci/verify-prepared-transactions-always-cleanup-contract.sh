@@ -62,6 +62,8 @@ ASSERT_JOB="$TEMP_DIR/assert-job.yml"
 VERIFY_JOB="$TEMP_DIR/verify-job.yml"
 VERIFY_STEP="$TEMP_DIR/verify-step.yml"
 ASSERTION_TEST_STEP="$TEMP_DIR/assertion-test-step.yml"
+ASSERT_CHECKOUT_STEP="$TEMP_DIR/assert-checkout-step.yml"
+FAILURE_ASSERT_CHECKOUT_STEP="$TEMP_DIR/failure-assert-checkout-step.yml"
 
 extract_job "verify" "$VERIFY_JOB"
 extract_step "$VERIFY_JOB" "Verify prepared-transaction always-cleanup workflow wiring" "$VERIFY_STEP"
@@ -119,6 +121,8 @@ require_line "$HARNESS_CLEANUP_STEP" "        run: bash tests/ci/test-prepared-t
 forbid_line "$HARNESS_CLEANUP_STEP" "        continue-on-error: true"
 
 extract_job "prepared_transactions_always_cleanup_assert" "$ASSERT_JOB"
+extract_step "$ASSERT_JOB" "Checkout repository" "$ASSERT_CHECKOUT_STEP"
+require_line "$ASSERT_CHECKOUT_STEP" "        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1"
 forbid_line "$ASSERT_JOB" "    continue-on-error: true"
 require_line "$ASSERT_JOB" "    if: always()"
 require_line "$ASSERT_JOB" "    needs: prepared_transactions_always_cleanup_contract"
@@ -154,6 +158,8 @@ require_line "$FAILURE_HARNESS_CLEANUP_STEP" "        run: bash tests/ci/test-pr
 forbid_line "$FAILURE_HARNESS_CLEANUP_STEP" "        continue-on-error: true"
 
 extract_job "prepared_transactions_always_cleanup_failure_assert" "$FAILURE_ASSERT_JOB"
+extract_step "$FAILURE_ASSERT_JOB" "Checkout repository" "$FAILURE_ASSERT_CHECKOUT_STEP"
+require_line "$FAILURE_ASSERT_CHECKOUT_STEP" "        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1"
 forbid_line "$FAILURE_ASSERT_JOB" "    continue-on-error: true"
 require_line "$FAILURE_ASSERT_JOB" "    if: always()"
 require_line "$FAILURE_ASSERT_JOB" "    needs: prepared_transactions_always_cleanup_failure_contract"
