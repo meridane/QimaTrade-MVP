@@ -8585,4 +8585,13 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 - Added a negative runtime case with a non-owner CREATEROLE role that has ADMIN OPTION on both pre-existing client-role memberships but SET FALSE. The database remains owned by the successful QA374 runner.
 - The non-owner's initial state is asserted as `true|anon:false:true:false|authenticated:false:true:false`; the first field confirms that the role is not the database owner.
 - The real runner must exit 4 with the existing owner/privilege diagnostic. A before/after snapshot includes the qima_test owner, qa373/qa374 role counts, client memberships, public catalog inventory, extension count, offers, and action executions.
-- The snapshot must remain unchanged, demonstrating that ADMIN OPTION alone does not bypass the database-owner requirement. Runtime CI evidence: pending.
+- The snapshot must remain unchanged, demonstrating that ADMIN OPTION alone does not bypass the database-owner requirement. Runtime CI evidence: QIMA CI #1364 (run 43314718836) completed SUCCESS. PostgreSQL 16 and 17.6 both emitted the explicit QA375 passed marker; the non-owner with CREATEROLE and ADMIN OPTION but no SET ROLE was rejected with exit 4 before fixture changes, and the before/after catalog/data snapshots matched. Verify passed the QA373/QA374/QA375 static contract, dependency audit, TypeScript, Next.js production build, Chromium, and 347 Playwright tests (10.0 seconds). CodeQL #1313 (run 43314718852) completed SUCCESS. Vercel Preview commit status was SUCCESS for this HEAD; no Production deployment was performed. QA375 is closed as a synthetic runtime characterization only and does not establish the privilege configuration of any Production runner.
+
+
+### QA376 — ADMIN OPTION must cover every existing client role
+
+- Added a negative runtime case for a non-superuser database owner with CREATEROLE and ADMIN OPTION on `anon` only, while `authenticated` exists but has no membership or ADMIN OPTION. The role also has SET false for both targets.
+- The starting state is asserted explicitly as `true|true|false|false|true|false|false|true`: owner, CREATEROLE, non-superuser, anon SET false/admin true, authenticated SET false/admin false, and no authenticated membership row.
+- The real runner must reject the role with exit 4 and the existing fail-closed privilege diagnostic before fixture DDL/DML. A read-only catalog/data snapshot is compared before and after rejection.
+- The runtime remains isolated to disposable PostgreSQL 16/17.6 containers; no Production data, secrets, migrations, or persistent settings are accessed.
+- Initial QA376 CI evidence: pending.
