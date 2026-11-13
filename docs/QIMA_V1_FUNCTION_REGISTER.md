@@ -8885,3 +8885,24 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 - La revue du blob publié a détecté avant validation CI que la première version du nouveau contrat statique conservait un antislash devant l'expansion BASH_SOURCE. Le calcul du chemin ROOT aurait donc été littéral au lieu de résoudre le répertoire du dépôt.
 - Le contrat utilise maintenant dirname "$0", adapté à son invocation explicite via bash depuis la racine du dépôt. Le scénario SQL et la règle métier n'ont pas changé.
 - La première exécution CI du commit initial est conservée comme preuve de l'état initial; QA385 ne sera considéré validé qu'après le nouveau HEAD corrigé et ses contrôles Verify/PostgreSQL 16/17.6.
+
+
+## QA385 — validation complète et clôture (13 novembre 2026)
+
+- L'état de la PR #26 a été relu : OPEN, DRAFT, mergeable et non fusionnée; HEAD `5d12a3cd76a9394ba96a2e8bc7cdc4bccb44abe0`.
+- QIMA CI [#1395](https://github.com/meridane/QimaTrade-MVP/actions/runs/43434312922) a terminé **SUCCESS** sur ce HEAD corrigé.
+- Verify a émis explicitement `QA385 PASS`; npm audit au seuil high, TypeScript, build Next.js et **347/347 Playwright** ont réussi.
+- Les logs PostgreSQL 16 et PostgreSQL 17.6 contiennent chacun le marqueur runtime `QA385 PASS: zero quantity is rejected as INVALID_QUANTITY before idempotency, execution, offer or action-event persistence`; les deux jobs ont terminé **SUCCESS**.
+- Les deux jobs ont également émis `QA381 passed`. Les tests d'intégration, RLS, ACL, wrapper-owner et nettoyage ont terminé avec succès. Les harnesses d'échec préparé et le job volontairement skipped conservent leurs résultats attendus, vérifiés par des assertions dédiées.
+- CodeQL [#1344](https://github.com/meridane/QimaTrade-MVP/actions/runs/43434312884) et le check Vercel du HEAD ont terminé **SUCCESS**.
+- QA385 est **CLOSED**. Les preuves sont limitées aux tests statiques et bases PostgreSQL jetables de CI; aucune conclusion sur la sécurité de Production n'en est déduite.
+
+## QA386 — quantité négative finie
+
+- Le contrat SQL existant exige une quantité strictement positive et renvoie `INVALID_QUANTITY` pour toute quantité `<= 0`. QA384 couvre `-Infinity`; QA385 couvre zéro. L'absence d'un scénario runtime dédié à une valeur négative finie `-1` a été identifiée dans `tests/sql/create-offer-runtime.sql`.
+- Ajout d'un scénario PostgreSQL jetable avec `p_quantity = -1::numeric`, paramètres métier autrement valides et identité authentifiée de fixture.
+- Le test exige exactement `INVALID_QUANTITY` et l'absence de variation des nombres de lignes dans `idempotency_keys`, `action_executions`, `offers` et `action_events`, ainsi que l'absence de la clé et de l'offre de fixture.
+- Ajout de `tests/sql/test-create-offer-negative-quantity-contract.sh` et intégration dans Verify; les jobs PostgreSQL 16 et 17.6 exécutent le même runtime fixture.
+- Validation QA386 sur le nouveau HEAD : **PENDING** jusqu'au marqueur Verify et aux deux exécutions runtime PostgreSQL.
+- Aucun code applicatif, migration, donnée Supabase Production, secret, réglage PostgreSQL persistant ou règle de protection n'a été modifié. Aucune fusion ni déploiement Production.
+- Les décisions MKT-1.1, MKT-1.2 et MKT-1.3 restent non approuvées; aucune règle métier nouvelle n'a été introduite.

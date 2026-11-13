@@ -14287,3 +14287,113 @@ $qa385_zero_quantity$;
 COMMIT;
 
 SELECT 'QA385 zero quantity is rejected before all CREATE_OFFER persisted side effects' AS result;
+
+-- QA386: finite negative quantity is the finite boundary immediately outside the
+-- strictly-positive quantity domain. Preserve the existing INVALID_QUANTITY
+-- contract and prove that rejection happens before any persisted side effect.
+-- This scenario runs only in the disposable PostgreSQL integration database.
+BEGIN;
+SET LOCAL request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+SET LOCAL ROLE authenticated;
+
+DO $qa386_negative_quantity$
+DECLARE
+  v_key text := 'fixture-qa386-negative-quantity';
+  v_offer_name text := 'QA386 Negative Quantity Offer';
+  v_error text;
+  v_before record;
+  v_after record;
+BEGIN
+  IF auth.uid() IS DISTINCT FROM '20000000-0000-4000-8000-000000000001'::uuid THEN
+    RAISE EXCEPTION 'QA386 requires authenticated provider A';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM public.idempotency_keys
+    WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+      AND key = v_key
+  ) OR EXISTS (
+    SELECT 1 FROM public.action_executions
+    WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+      AND idempotency_key = v_key
+  ) OR EXISTS (
+    SELECT 1 FROM public.offers
+    WHERE name = v_offer_name
+  ) THEN
+    RAISE EXCEPTION 'QA386 fixture data already exists';
+  END IF;
+
+  SELECT
+    (SELECT count(*) FROM public.idempotency_keys) AS idempotency_count,
+    (SELECT count(*) FROM public.action_executions) AS execution_count,
+    (SELECT count(*) FROM public.offers) AS offer_count,
+    (SELECT count(*) FROM public.action_events) AS event_count
+  INTO v_before;
+
+  v_error := NULL;
+  BEGIN
+    PERFORM public.execute_create_offer_v1(
+      p_tenant_id => '10000000-0000-4000-8000-000000000001',
+      p_idempotency_key => v_key,
+      p_input => '{"case":"qa386_negative_quantity"}'::jsonb,
+      p_name => v_offer_name,
+      p_demand_id => '50000000-0000-4000-8000-000000000001',
+      p_product_master_id => '40000000-0000-4000-8000-000000000001',
+      p_provider_actor_id => '30000000-0000-4000-8000-000000000001',
+      p_quantity => -1::numeric,
+      p_price => 12::numeric,
+      p_currency => 'USD'
+    );
+    RAISE EXCEPTION 'QA386 expected finite negative quantity to be rejected';
+  EXCEPTION WHEN OTHERS THEN
+    GET STACKED DIAGNOSTICS v_error = MESSAGE_TEXT;
+  END;
+
+  IF v_error IS DISTINCT FROM 'INVALID_QUANTITY' THEN
+    RAISE EXCEPTION 'QA386 finite negative quantity expected INVALID_QUANTITY, received %',
+      coalesce(v_error, '<no error>');
+  END IF;
+
+  SELECT
+    (SELECT count(*) FROM public.idempotency_keys) AS idempotency_count,
+    (SELECT count(*) FROM public.action_executions) AS execution_count,
+    (SELECT count(*) FROM public.offers) AS offer_count,
+    (SELECT count(*) FROM public.action_events) AS event_count
+  INTO v_after;
+
+  IF ROW(
+    v_after.idempotency_count,
+    v_after.execution_count,
+    v_after.offer_count,
+    v_after.event_count
+  ) IS DISTINCT FROM ROW(
+    v_before.idempotency_count,
+    v_before.execution_count,
+    v_before.offer_count,
+    v_before.event_count
+  ) THEN
+    RAISE EXCEPTION 'QA386 negative-quantity rejection changed persisted row counts';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM public.idempotency_keys
+    WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+      AND key = v_key
+  ) OR EXISTS (
+    SELECT 1 FROM public.action_executions
+    WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+      AND idempotency_key = v_key
+  ) OR EXISTS (
+    SELECT 1 FROM public.offers
+    WHERE name = v_offer_name
+  ) THEN
+    RAISE EXCEPTION 'QA386 negative-quantity rejection left a keyed row or offer';
+  END IF;
+
+  RAISE NOTICE 'QA386 PASS: finite negative quantity is rejected as INVALID_QUANTITY before idempotency, execution, offer or action-event persistence';
+END
+$qa386_negative_quantity$;
+
+COMMIT;
+
+SELECT 'QA386 finite negative quantity is rejected before all CREATE_OFFER persisted side effects' AS result;

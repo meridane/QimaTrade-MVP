@@ -4,7 +4,7 @@ Date: 2026-11-13 (KST)
 PR: [#26](https://github.com/meridane/QimaTrade-MVP/pull/26)
 Branch: fix/create-offer-status-contract
 Working branch: work/qa385-zero-quantity-boundary-20261113-2225
-Status: IMPLEMENTED — CI VALIDATION PENDING
+Status: CLOSED — CI #1395 SUCCESS
 
 ## Initial state verified
 
@@ -33,7 +33,7 @@ Protect the existing quantity boundary without changing application behavior or 
 ## Validation
 
 - Source-level construction was reviewed against the current migration guard and shared disposable runtime fixture.
-- The new Verify and PostgreSQL runtime checks have not yet executed on the new HEAD. Do not claim QA385 PASS until Verify emits its marker and both PostgreSQL jobs complete successfully.
+- QIMA CI #1395 completed SUCCESS on HEAD `5d12a3cd76a9394ba96a2e8bc7cdc4bccb44abe0`. Verify emitted `QA385 PASS`; PostgreSQL 16 and PostgreSQL 17.6 runtime logs each emitted the explicit `QA385 PASS` marker. Both integration jobs completed SUCCESS.
 
 ## Safety and decision boundaries
 
@@ -48,3 +48,14 @@ Protect the existing quantity boundary without changing application behavior or 
 
 - La revue du premier commit a détecté que l'échappement du littéral BASH_SOURCE conservait un antislash dans le script généré. La résolution ROOT a été corrigée vers dirname "$0" avant de considérer un résultat CI comme valide.
 - Cette correction ne modifie ni le SQL testé ni la garde de quantité. La validation QA385 reste en attente sur le HEAD corrigé.
+
+
+## CI #1395 — clôture QA385 sur PostgreSQL 16 et 17.6 (13 novembre 2026)
+
+- QIMA CI [#1395](https://github.com/meridane/QimaTrade-MVP/actions/runs/43434312922) a terminé **SUCCESS** sur le HEAD corrigé `5d12a3cd76a9394ba96a2e8bc7cdc4bccb44abe0`.
+- Verify a émis le marqueur explicite `QA385 PASS`; npm audit au seuil high, TypeScript, build Next.js et **347/347 Playwright** ont réussi.
+- Le job PostgreSQL 16 a terminé **SUCCESS**. Son journal contient `QA385 PASS: zero quantity is rejected as INVALID_QUANTITY before idempotency, execution, offer or action-event persistence`.
+- Le job PostgreSQL 17.6 a terminé **SUCCESS** et contient le même marqueur runtime.
+- Les deux jobs ont également terminé les tests CREATE_OFFER, la caractérisation QA381, les tests RLS/ACL et le nettoyage. Les harnesses de setup/nettoyage volontairement en échec ont conservé leurs conclusions individuelles attendues; les jobs d'assertion dédiés ont réussi. Le job volontairement skipped est resté skipped et son assertion a réussi.
+- CodeQL [#1344](https://github.com/meridane/QimaTrade-MVP/actions/runs/43434312884) et le check Vercel du HEAD ont terminé **SUCCESS**.
+- QA385 est **CLOSED**. Ces preuves concernent les environnements PostgreSQL jetables de CI; elles ne constituent pas une validation de Production ni une conclusion de vulnérabilité.
