@@ -8788,3 +8788,22 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 - CodeQL [#1336](https://github.com/meridane/QimaTrade-MVP/actions/runs/43408787889) : **SUCCESS**. Statut Vercel Preview sur ce HEAD : **SUCCESS**.
 - Les jobs PostgreSQL 16 et 17.6 étaient encore dans l'étape `Characterize full CREATE_OFFER runner write privileges`. Aucun nouveau marqueur QA381 n'était disponible pour le HEAD QA382 au dernier contrôle; le workflow global reste donc en cours. Ce n'est ni un échec ni une nouvelle réussite runtime.
 - La clôture QA381 reste fondée sur CI #1386, qui a émis le marqueur explicite sur les deux versions. CI #1387 constitue une revalidation supplémentaire sur le HEAD QA382.
+
+
+## CI #1388 — QA381 clôturé et QA382 validé (13 novembre 2026)
+
+- QIMA CI [#1388](https://github.com/meridane/QimaTrade-MVP/actions/runs/43409348348) : **SUCCESS** sur HEAD `9d6218f8f8fc9778cbcbd059fcf5e7f0f775ee0c`.
+- PostgreSQL 16 et PostgreSQL 17.6 ont chacun émis le marqueur explicite **QA381 passed**. Les quatre valeurs de `createrole_self_grant`, les memberships/grantors, les privilèges effectifs, SELECT, SET ROLE et le nettoyage ont été validés.
+- Verify a émis **QA382 PASS** pour les 16 mappings de hash et terminé npm audit (seuil high configuré), TypeScript, build Next.js et **347/347 Playwright**.
+- CodeQL [#1337](https://github.com/meridane/QimaTrade-MVP/actions/runs/43409348473) : **SUCCESS**.
+- Les harnesses prepared-transaction qui provoquent volontairement des échecs ont conservé leurs résultats failure attendus; les assertions bloquantes correspondantes ont réussi. Le job volontairement skipped est resté skipped et son assertion a réussi.
+- QA382 demeure un contrôle statique de couverture du hash. Aucune politique de canonicalisation numérique n'est choisie.
+
+## QA383 — contrat de portée tenant/key de CREATE_OFFER
+
+- Ajout du contrôle statique `tests/sql/test-create-offer-tenant-idempotency-scope-contract.sh`.
+- Le contrôle protège la signature de `execute_create_offer_v1`, le verrou advisory calculé à partir de `p_tenant_id` et `p_idempotency_key`, l'ordre lock/lookup, le `FOR UPDATE` filtré sur tenant et key, les inserts d'idempotence/exécution, l'UPDATE final et l'ordre des 15 arguments de `create_offer_v1`.
+- Le scénario runtime existant de même clé sur deux tenants reste la preuve comportementale : deux exécutions/offres distinctes, hash métier identique, replay isolé et rejet d'un payload modifié sans altérer l'autre tenant.
+- Le workflow Verify exécute le nouveau contrat. Validation QA383 sur le nouveau HEAD : **PENDING** jusqu'au marqueur explicite dans CI.
+- MKT-1.1, MKT-1.2 et MKT-1.3 restent non approuvés; QA383 ne déduit aucune règle métier supplémentaire.
+- Aucun code métier, migration, donnée Supabase Production, secret, configuration persistante, déploiement, fusion ou règle de protection n'a été modifié.

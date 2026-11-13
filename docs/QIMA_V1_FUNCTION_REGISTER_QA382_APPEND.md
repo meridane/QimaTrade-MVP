@@ -3,7 +3,7 @@
 Date: 2026-11-13 (KST)  
 PR: [#26](https://github.com/meridane/QimaTrade-MVP/pull/26)  
 Branch: `fix/create-offer-status-contract`  
-Status: **STATIC REGRESSION PASS — FULL CI PENDING**
+Status: **STATIC REGRESSION PASS — FULL CI #1388 SUCCESS**
 
 ## Initial state verified
 
@@ -68,3 +68,15 @@ QA382 does not implement or infer any of those decisions. It preserves the curre
 - CodeQL [#1336](https://github.com/meridane/QimaTrade-MVP/actions/runs/43408787889) : **SUCCESS**. Statut Vercel Preview sur ce HEAD : **SUCCESS**.
 - Les jobs PostgreSQL 16 et 17.6 étaient encore dans l'étape `Characterize full CREATE_OFFER runner write privileges`. Aucun nouveau marqueur QA381 n'était disponible pour le HEAD QA382 au dernier contrôle; le workflow global reste donc en cours. Ce n'est ni un échec ni une nouvelle réussite runtime.
 - La clôture QA381 reste fondée sur CI #1386, qui a émis le marqueur explicite sur les deux versions. CI #1387 constitue une revalidation supplémentaire sur le HEAD QA382.
+
+
+## Final validation — CI #1388 (13 novembre 2026)
+
+- QIMA CI [#1388](https://github.com/meridane/QimaTrade-MVP/actions/runs/43409348348) completed with conclusion **SUCCESS** on HEAD `9d6218f8f8fc9778cbcbd059fcf5e7f0f775ee0c`.
+- Verify completed **SUCCESS** and emitted the explicit QA382 marker: all 16 effective business inputs are mapped exactly once, tenant/idempotency scope remains separate from the business payload hash, and the existing disposable replay assertions remain wired.
+- The PostgreSQL 16 integration job and PostgreSQL 17.6 compatibility job both completed **SUCCESS**. Their logs each emitted the explicit **QA381 passed** marker, including all four `createrole_self_grant` settings, catalog/grantor checks, effective privileges, direct SELECT, SET ROLE and cleanup.
+- The Verify job completed npm audit at the configured high threshold, TypeScript, Next.js build, Chromium installation and **347/347 Playwright tests** successfully.
+- CodeQL [#1337](https://github.com/meridane/QimaTrade-MVP/actions/runs/43409348473) completed **SUCCESS**.
+- The prepared-transaction harness jobs that deliberately simulate setup/cleanup failures retained their expected job-level `failure` outcomes; the separate blocking assertion jobs completed **SUCCESS**. The dedicated expected-skipped job remained **SKIPPED** and its assertion completed **SUCCESS**.
+- QA382 is a static regression guard. CI #1388 validates the guard and reruns the existing PostgreSQL suite; it does not choose or implement a numeric canonicalization policy.
+
