@@ -5,7 +5,7 @@ PR: [#26](https://github.com/meridane/QimaTrade-MVP/pull/26)
 Branch: fix/create-offer-status-contract
 Working branch: work/qa392-zero-price-mismatched-replay-20261114-0526
 Parent HEAD: 04295f3f52ee4c85796a85d68e2ca5cba74ae081
-Status: IMPLEMENTED — CI VALIDATION PENDING
+Status: CLOSED — QIMA CI #1405 SUCCESS
 
 ## Initial state verified
 
@@ -36,7 +36,7 @@ QA391 proves that the existing SQL contract accepts a zero price and exactly rep
 ## Validation
 
 - Source-level review confirms the test uses only the existing disposable authenticated fixture and does not modify the migration or application code.
-- QA392 remains PENDING until Verify emits QA392 PASS and both full PostgreSQL 16 and PostgreSQL 17.6 jobs complete SUCCESS with the runtime marker.
+- At the implementation checkpoint QA392 was pending; final validation and closure are recorded below.
 - The CI workflow ignores docs/** changes; the code and workflow commit triggers the PR validation.
 
 ## Safety and decision boundaries
@@ -47,3 +47,12 @@ QA391 proves that the existing SQL contract accepts a zero price and exactly rep
 - MKT-1.1 demand/tenant ownership, MKT-1.2 independent-draft idempotency semantics and MKT-1.3 numeric canonicalization remain unapproved.
 - No Production deployment, PR merge, force update or branch-protection change was performed.
 - The canonical docs/QIMA_V1_FUNCTION_REGISTER.md could not be safely read through the connected GitHub file/blob endpoints: the connector returned an empty content field for its large blob and rejected raw/blob retrieval as oversized. It was not overwritten. This QA392 append-only record and the QA391 closure appendix are committed; canonical-register synchronization remains a follow-up requiring a chunk-capable retrieval/edit path.
+
+
+## Final validation and closure — 14 November 2026
+
+- PR #26 remained OPEN, DRAFT, mergeable and unmerged at HEAD f0cb89b639f278d88cb23a373dda0f5874ca3296.
+- QIMA CI [#1405](https://github.com/meridane/QimaTrade-MVP/actions/runs/43502149788) completed SUCCESS. Verify job 132150431865 emitted QA392 PASS; npm audit at the high threshold, TypeScript, Next.js build and 347/347 Playwright tests passed.
+- PostgreSQL 16 job 132150431935 and PostgreSQL 17.6 job 132150431934 each emitted QA392 PASS and QA381 passed; both full jobs completed SUCCESS after catalog, ACL, RLS, runner-privilege and cleanup checks.
+- QIMA CodeQL [#1353](https://github.com/meridane/QimaTrade-MVP/actions/runs/43502149723) completed SUCCESS. The Vercel status check on the same HEAD completed SUCCESS.
+- QA392 is CLOSED. This disposable CI regression characterizes the existing request-hash mismatch contract; it is not a Production validation or proof of a vulnerability.

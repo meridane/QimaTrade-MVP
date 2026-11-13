@@ -9002,3 +9002,24 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 - Added tests/sql/test-create-offer-zero-price-contract.sh and integrated it into Verify. PostgreSQL 16 and 17.6 execute the shared runtime fixture.
 - QA391 is IMPLEMENTED; CI validation is pending. No acceptance behavior or migration is changed; the test only characterizes the existing non-negative price contract.
 - No Supabase Production data, migration, secret, persistent PostgreSQL setting, branch-protection rule, PR merge or Production deployment was modified. MKT-1.1, MKT-1.2 and MKT-1.3 remain unapproved.
+
+
+## QA392 — validation complète et clôture (14 novembre 2026)
+
+- PR #26 HEAD vérifié : f0cb89b639f278d88cb23a373dda0f5874ca3296; PR OPEN, DRAFT, mergeable et non fusionnée.
+- QIMA CI [#1405](https://github.com/meridane/QimaTrade-MVP/actions/runs/43502149788) a terminé SUCCESS. Verify (job 132150431865) a émis QA392 PASS; npm audit au seuil high, TypeScript, build Next.js et 347/347 Playwright ont réussi.
+- PostgreSQL 16 (job 132150431935) et PostgreSQL 17.6 (job 132150431934) ont chacun émis QA392 PASS et QA381 passed; les deux jobs complets ont terminé SUCCESS après les contrôles catalogues, ACL, RLS, privilèges du runner et nettoyage.
+- QIMA CodeQL [#1353](https://github.com/meridane/QimaTrade-MVP/actions/runs/43502149723) et le check Vercel du HEAD ont terminé SUCCESS.
+- QA392 est CLOSED. Cette régression sur des bases PostgreSQL jetables caractérise le rejet de réutilisation d'une clé avec prix modifié; elle ne constitue ni une validation Production ni une preuve de vulnérabilité.
+- Aucune donnée Supabase Production, migration, secret, configuration PostgreSQL persistante, règle de protection, fusion ou déploiement Production n'a été modifié.
+
+## QA393 — rejet d'un replay avec quantité modifiée
+
+- Le hash métier de la migration existante inclut quantity = p_quantity; le garde existant renvoie IDEMPOTENCY_KEY_REUSE lorsque le même tenant/clé est réutilisé avec une quantité différente.
+- Ajout d'un scénario PostgreSQL jetable : premier appel valide avec quantité 1 et prix 12 USD, puis replay sous le même tenant/clé avec quantité 2 et tous les autres paramètres effectifs inchangés.
+- Le test exige exactement IDEMPOTENCY_KEY_REUSE et vérifie que les nombres de lignes restent inchangés dans idempotency_keys, action_executions, offers et action_events après le replay rejeté.
+- Le test relit aussi le hash et le résultat d'idempotence originaux, l'exécution COMPLETED, l'offre originale quantité 1/prix 12 et son unique événement ACTION_SUCCEEDED.
+- Ajout de tests/sql/test-create-offer-quantity-mismatch-replay-contract.sh et intégration dans Verify; les jobs PostgreSQL 16 et 17.6 exécutent le runtime SQL partagé.
+- QA393 est IMPLEMENTED; validation CI en attente. Aucun code applicatif ni migration n'a été modifié.
+- MKT-1.1 demande/tenant, MKT-1.2 brouillons/idempotence et MKT-1.3 canonicalisation numérique restent non approuvés. Aucun test synthétique n'est interprété comme preuve d'une vulnérabilité Production.
+- Aucune donnée Supabase Production, migration, secret, configuration PostgreSQL persistante, règle de protection, fusion ou déploiement Production n'a été modifié.

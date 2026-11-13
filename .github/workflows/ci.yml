@@ -73,6 +73,8 @@ jobs:
         run: bash tests/sql/test-create-offer-zero-price-contract.sh
       - name: Verify CREATE_OFFER zero-price changed-parameter replay preserves original state
         run: bash tests/sql/test-create-offer-zero-price-mismatch-replay-contract.sh
+      - name: Verify CREATE_OFFER changed-quantity replay preserves original state
+        run: bash tests/sql/test-create-offer-quantity-mismatch-replay-contract.sh
       - name: Verify numeric replay fixture keys and PostgreSQL runner isolation
         run: bash tests/sql/test-create-offer-fixture-isolation-contract.sh
       - name: Verify CREATE_OFFER bootstrap preflight covers extension-aware catalog objects
