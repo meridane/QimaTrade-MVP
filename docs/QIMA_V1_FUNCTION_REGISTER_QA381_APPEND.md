@@ -52,3 +52,14 @@ CI #1377 completed with the Verify job successful (including npm audit at its co
 ## QA381 validation evidence
 
 Pending retest. No QA381 runtime pass is claimed until both pinned PostgreSQL versions emit the explicit QA381 passed marker and the complete CI Verify job succeeds.
+
+
+## Second runtime attempt — explicit PUBLIC ACL isolation and failure diagnostics
+
+QIMA CI [#1378](https://github.com/meridane/QimaTrade-MVP/actions/runs/43357796040) completed the QA374–QA380 scenarios on both PostgreSQL 16 and 17.6, then failed at the first QA381 direct-SELECT probe: a SELECT as `qa381_create_role_runner` succeeded for `qa381_default_target`, although the recorded effective membership tuple was SET=false / USAGE=false. This is a disposable test setup/ACL discrepancy. It is not evidence of a Production privilege leak and does not confirm a vulnerability.
+
+The runtime fixture now explicitly revokes all privileges on the temporary QA381 schema and table from PUBLIC before granting USAGE/SELECT to the four target roles. It asserts with `aclexplode` that no PUBLIC schema or table ACL remains. If a direct-SELECT expectation still fails, the test prints the actual session/current user, role attributes, effective schema/table privileges, object owners and ACLs, and the creator's exact membership row for the target role. The expected SELECT/SET ROLE matrix is unchanged.
+
+CI #1378 Verify passed the QA373–QA381 static contract, `npm audit --audit-level=high`, TypeScript, Next.js build, and 347/347 Playwright tests. Both PostgreSQL runtime jobs failed at the QA381 direct-SELECT probe. CodeQL #1327 and the Vercel Preview check succeeded for the previous code HEAD. QA381 remains pending until the revised runtime emits its explicit marker on PostgreSQL 16 and 17.6 and the complete Verify job succeeds.
+
+Safety: this correction is limited to disposable QA schema/table ACLs, diagnostics and documentation. No Production database, Supabase credential, migration, persistent PostgreSQL setting, remote publisher, or branch-protection configuration is accessed or modified.
