@@ -8699,3 +8699,12 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 - Expected boundary: the implicit bootstrap row remains ADMIN TRUE / INHERIT FALSE / SET FALSE. A non-empty GUC adds a distinct creator-issued membership row for the requested INHERIT/SET options; it does not confer ADMIN OPTION on unrelated existing roles.
 - Validation status at code publication: pending on PostgreSQL 16 and 17.6; no runtime success is claimed until both explicit QA381 markers and the full Verify job pass.
 - Safety: QA381 creates only disposable QA381-prefixed roles and a temporary schema in the existing ephemeral containers, then removes and verifies them. No Production database, Supabase credential, migration, persistent PostgreSQL setting, remote publisher, or branch protection is accessed or modified.
+
+
+### QA381 correction — separate effective membership from direct object ACL behavior
+
+- Initial CI [#1377](https://github.com/meridane/QimaTrade-MVP/actions/runs/43352042983) ran the QA381 catalog setup on PostgreSQL 16 and 17.6, then failed at the first effective-state assertion for qa381_default_target: pg_has_role(..., 'SET') and pg_has_role(..., 'USAGE') were both false, while the third has_table_privilege field was true.
+- This is recorded as a test-oracle mismatch, not as evidence of a Production privilege leak or a confirmed vulnerability. The has_table_privilege result is removed from the membership-state tuple. The test now keeps pg_has_role(..., 'SET') and pg_has_role(..., 'USAGE') as the effective membership oracle and independently executes SELECT as the non-superuser creator for each GUC setting.
+- The first CI stopped before the direct-SELECT probes, so their outcomes are not yet known. QA381 remains pending until the corrected runtime emits its explicit marker on both pinned PostgreSQL 16 and 17.6, and Verify completes successfully.
+- CI #1377 Verify succeeded, including npm audit at its configured high-severity blocking threshold, TypeScript, Next.js build, and 347/347 Playwright tests. The two PostgreSQL jobs failed at the QA381 assertion. No zero-findings claim is made for npm audit severities below its configured threshold.
+- Safety: this correction changes only disposable test assertions and documentation. No Production database, Supabase credential, migration, persistent PostgreSQL setting, remote publisher, or branch-protection configuration is accessed or modified.

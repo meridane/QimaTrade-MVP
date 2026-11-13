@@ -41,6 +41,14 @@ References:
 
 All operations are restricted to the existing disposable PostgreSQL 16/17.6 test containers. The test creates only QA381-prefixed roles and one QA381 schema, then explicitly removes them and verifies cleanup. The container EXIT trap remains the final cleanup boundary. No Production database, Supabase credential, migration, persistent PostgreSQL setting, remote publisher, or branch-protection configuration is accessed or modified.
 
+## First runtime attempt and test-oracle correction
+
+QIMA CI [#1377](https://github.com/meridane/QimaTrade-MVP/actions/runs/43352042983) executed the QA381 catalog setup on both PostgreSQL 16 and 17.6, then stopped at the first effective-state assertion. For qa381_default_target, the tuple was false|false|true: effective SET and USAGE were false, while the third field from has_table_privilege('qa381_create_role_runner', ...) was true.
+
+That helper result did not match the test's intended membership-only tuple. It is treated as a test-oracle mismatch, not as evidence of a Production privilege leak or a confirmed vulnerability. The test now reports only pg_has_role(..., 'SET') and pg_has_role(..., 'USAGE') in the effective-membership tuple. Direct object access remains independently tested by actually executing SELECT as qa381_create_role_runner for each GUC setting; that runtime assertion is the behavioral oracle for table ACL inheritance.
+
+CI #1377 completed with the Verify job successful (including npm audit at its configured high-severity threshold, TypeScript, Next.js build, and 347/347 Playwright tests), but both PostgreSQL jobs failed at the QA381 assertion before the direct-SELECT probes ran. The corrected test must pass on both pinned versions before QA381 is closed.
+
 ## QA381 validation evidence
 
-Pending. No QA381 runtime pass is claimed until both pinned PostgreSQL versions emit the explicit `QA381 passed` marker and the complete CI Verify job succeeds.
+Pending retest. No QA381 runtime pass is claimed until both pinned PostgreSQL versions emit the explicit QA381 passed marker and the complete CI Verify job succeeds.

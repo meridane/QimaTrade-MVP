@@ -982,17 +982,16 @@ qa381_assert_catalog_state() {
   fi
 }
 
+# Keep membership semantics separate from object ACL checks. The first
+# runtime attempt returned has_table_privilege=true while pg_has_role(...,
+# 'USAGE') was false. The direct SELECT probe below is the behavioral oracle
+# for inherited table access; this tuple reports only effective membership.
 qa381_effective_state() {
   local target_role="$1"
   db_psql -c "
     SELECT
       pg_has_role('qa381_create_role_runner', '$target_role', 'SET')::text || '|' ||
-      pg_has_role('qa381_create_role_runner', '$target_role', 'USAGE')::text || '|' ||
-      has_table_privilege(
-        'qa381_create_role_runner',
-        'qa381_probe.inherit_probe',
-        'SELECT'
-      )::text;
+      pg_has_role('qa381_create_role_runner', '$target_role', 'USAGE')::text;
   "
 }
 
@@ -1066,10 +1065,10 @@ qa381_assert_catalog_state "qa381_set_target" "2|1|1|0|0|2|1"
 qa381_assert_catalog_state "qa381_inherit_target" "2|1|0|1|0|2|1"
 qa381_assert_catalog_state "qa381_both_target" "2|1|0|0|1|2|1"
 
-qa381_assert_effective_state "qa381_default_target" "false|false|false"
-qa381_assert_effective_state "qa381_set_target" "true|false|false"
-qa381_assert_effective_state "qa381_inherit_target" "false|true|true"
-qa381_assert_effective_state "qa381_both_target" "true|true|true"
+qa381_assert_effective_state "qa381_default_target" "false|false"
+qa381_assert_effective_state "qa381_set_target" "true|false"
+qa381_assert_effective_state "qa381_inherit_target" "false|true"
+qa381_assert_effective_state "qa381_both_target" "true|true"
 
 qa381_expect_direct_select "qa381_default_target" "false"
 qa381_expect_direct_select "qa381_set_target" "false"

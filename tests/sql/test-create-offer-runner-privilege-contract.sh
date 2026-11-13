@@ -234,4 +234,21 @@ grep -Fq "### QA381 — CREATEROLE self-grant GUC semantics" "$REGISTER" ||
 grep -Fq "QA381 validation evidence" "$APPENDIX_QA381" ||
   fail "QA381 appendix must reserve runtime validation evidence"
 
+done
+
+grep -Fq "qa381_effective_state()" "$RUNTIME" ||
+  fail "QA381 must expose an effective membership-state probe"
+qa381_effective_function="$(sed -n '/^qa381_effective_state()/,/^}/p' "$RUNTIME")"
+grep -Fq "'SET'" <<< "$qa381_effective_function" ||
+  fail "QA381 effective membership probe must inspect SET"
+grep -Fq "'USAGE'" <<< "$qa381_effective_function" ||
+  fail "QA381 effective membership probe must inspect INHERIT/USAGE"
+if grep -Fq "has_table_privilege" <<< "$qa381_effective_function"; then
+  fail "QA381 must keep object ACL behavior out of the membership-state tuple"
+fi
+grep -Fq "qa381_expect_direct_select()" "$RUNTIME" ||
+  fail "QA381 must execute direct SELECT as the non-superuser creator"
+grep -Fq 'SELECT count(*) FROM qa381_probe.inherit_probe;' "$RUNTIME" ||
+  fail "QA381 direct SELECT behavior must be exercised by SQL, not inferred from the catalog helper"
+
 echo "QA373/QA374/QA375/QA376/QA377/QA378/QA379/QA380/QA381 static contract PASS: runner privilege boundaries, indirect membership, non-transitive ADMIN, and CREATEROLE self-grant GUC semantics are covered."
