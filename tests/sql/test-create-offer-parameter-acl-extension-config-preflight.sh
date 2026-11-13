@@ -58,10 +58,26 @@ for required in \
   "DROP EXTENSION qa371_config_probe" \
   "public-relation guard" \
   "trap cleanup EXIT" \
-  "docker rm -f"; do
+  "docker rm -f" \
+  "host_ready=false" \
+  "Internal pg_isready does not prove Docker's published host port accepts SQL." \
+  "host-side SQL connection" \
+  "docker inspect --format '{{.State.Running}}'" \
+  "docker inspect --format 'status={{.State.Status}} exit={{.State.ExitCode}} oom={{.State.OOMKilled}}'" \
+  "docker logs --tail 80"; do
   grep -Fq -- "$required" "$EXTENSION_RUNTIME" ||
     fail "QA371 extension configuration runtime is missing: $required"
 done
+
+host_ready_line="$(grep -nF 'host_ready=false' "$EXTENSION_RUNTIME" | head -n 1 | cut -d: -f1)"
+server_version_line="$(grep -nF 'SERVER_VERSION_NUM=' "$EXTENSION_RUNTIME" | head -n 1 | cut -d: -f1)"
+[[ -n "$host_ready_line" && -n "$server_version_line" && "$host_ready_line" -lt "$server_version_line" ]] ||
+  fail "QA371 must prove the published host port accepts SQL before the first version query"
+
+diagnostic_line="$(grep -nF 'docker logs --tail 80 "$CONTAINER_NAME"' "$EXTENSION_RUNTIME" | head -n 1 | cut -d: -f1)"
+container_remove_line="$(grep -nF 'docker rm -f "$CONTAINER_NAME"' "$EXTENSION_RUNTIME" | head -n 1 | cut -d: -f1)"
+[[ -n "$diagnostic_line" && -n "$container_remove_line" && "$diagnostic_line" -lt "$container_remove_line" ]] ||
+  fail "QA371 must preserve disposable container state/logs before removing a failed container"
 
 if grep -Fq "ALTER SYSTEM" "$SETTINGS_RUNTIME" "$EXTENSION_RUNTIME"; then
   fail "QA371 must not modify persistent PostgreSQL server configuration"

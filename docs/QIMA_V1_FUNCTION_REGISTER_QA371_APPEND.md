@@ -117,3 +117,20 @@ MKT-1.2 (independent idempotency) and MKT-1.3 (numeric normalization) remain pen
 - CodeQL #1287: **SUCCESS** — https://github.com/meridane/QimaTrade-MVP/actions/runs/43269438136.
 - Vercel: **RATE LIMITED**; no Preview success is claimed.
 
+
+
+## CI #1385 follow-up — PostgreSQL 17.6 stopped before QA381
+
+QIMA CI [#1385](https://github.com/meridane/QimaTrade-MVP/actions/runs/43397392179) completed the Verify job successfully, including the QA373–QA381 static contract, npm audit at the configured high-severity threshold, TypeScript, Next.js build, and 347/347 Playwright tests. The PostgreSQL 16 integration job also completed successfully and emitted the explicit QA381 passed marker after all four createrole_self_grant settings, direct SELECT/SET ROLE checks, and cleanup.
+
+The PostgreSQL 17.6 job did **not** reach QA381. It failed earlier in the separate step Characterize extension configuration tables on PostgreSQL 17.6 (test-create-offer-extension-config-runtime.sh). After the script observed internal pg_isready, its first host-side psql request to the Docker-published loopback port returned server closed the connection unexpectedly. The subsequent PostgreSQL 17.6 QA381 step was skipped. This is not a QA381 runtime failure, and it is not a QA381 pass on PostgreSQL 17.6.
+
+The previous QA371 script waited for PostgreSQL readiness from inside the container but did not separately wait for the published host port to accept SQL. Its EXIT cleanup removed the nested container without preserving its state or logs, so CI #1385 does not establish whether this was a host-port forwarding race or a stopped/crashed nested server. No more specific cause is asserted.
+
+The next revision adds a bounded host-side SELECT 1 readiness loop, checks whether the disposable container remains running during retries, and captures docker inspect state plus the last 80 container log lines on any failure before removing the container. The static contract requires the readiness probe to precede the first host-side version query and requires diagnostics to precede container removal.
+
+CodeQL [#1334](https://github.com/meridane/QimaTrade-MVP/actions/runs/43397392175) completed SUCCESS and the Vercel status for HEAD 85a3bb8964a2557e2a8235377e5371c605807a74 was SUCCESS. CI #1385 itself concluded FAILURE solely because the PostgreSQL 17.6 job stopped at the earlier QA371 extension-config step; the PostgreSQL 16 job and Verify job succeeded.
+
+QA371's PostgreSQL 17.6 extension-config runtime and QA381's PostgreSQL 17.6 runtime remain pending a new full CI run.
+
+Safety: this change affects only the disposable QA371 nested PostgreSQL container's connection-readiness check and failure diagnostics. It does not change PostgreSQL server settings, Production data, Supabase credentials, migrations, application code, remote publishing, or branch protection.

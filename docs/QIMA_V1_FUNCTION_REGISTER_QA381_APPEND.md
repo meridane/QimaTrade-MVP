@@ -121,3 +121,13 @@ QA381 remains pending until the corrected cleanup completes, both pinned Postgre
 
 Safety: the REVOKE targets only the CONNECT grant created by this disposable QA381 setup inside the ephemeral CI database. No Production database, Supabase credential, migration, persistent PostgreSQL configuration, application behavior, or branch-protection rule is modified.
 
+
+
+## Seventh validation update — CI #1385 separated QA381 from the earlier PostgreSQL 17.6 failure
+
+QIMA CI [#1385](https://github.com/meridane/QimaTrade-MVP/actions/runs/43397392179) provides the first complete QA381 runtime pass on PostgreSQL 16: the explicit QA381 passed marker was emitted after catalog membership rows, effective SET/USAGE, all four isolated direct SELECT probes, all four SET ROLE probes, schema cleanup, CONNECT revocation, and temporary-role cleanup.
+
+PostgreSQL 17.6 did **not** execute QA381 in CI #1385. Its job stopped earlier in the separate QA371 extension-configuration runtime step because the first host-side psql connection to the nested Docker-published port reported that the server closed the connection unexpectedly. The QA381 step was skipped as a consequence. Therefore QA381 is **PASS on PostgreSQL 16 only; PostgreSQL 17.6 remains unverified**. Do not describe the CI #1385 PostgreSQL 17.6 result as a QA381 failure or pass.
+
+The next run adds a bounded host-port readiness probe and preserves the nested container state/logs on failure in the QA371 extension runtime. QA381 will be considered complete only after PostgreSQL 17.6 reaches and emits its own explicit marker and the complete workflow succeeds.
+
