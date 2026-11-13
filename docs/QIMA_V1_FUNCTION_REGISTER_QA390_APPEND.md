@@ -5,7 +5,7 @@ PR: [#26](https://github.com/meridane/QimaTrade-MVP/pull/26)
 Branch: fix/create-offer-status-contract
 Working branch: work/qa390-null-numeric-boundaries-20261114-0316
 Parent HEAD: 8a2c73a2defa41d8aef8f342f97f1b260e616037
-Status: IMPLEMENTED — CI VALIDATION PENDING
+Status: CLOSED — QIMA CI #1403 SUCCESS
 
 ## Initial state verified
 
@@ -37,7 +37,7 @@ The current migration explicitly rejects SQL NULL for p_quantity and p_price wit
 ## Validation
 
 - The generated SQL block, static shell contract and workflow insertion were checked for exact fixture names, guard strings, markers and single-occurrence wiring.
-- QA390 remains PENDING until Verify emits QA390 PASS and both PostgreSQL 16 and PostgreSQL 17.6 full integration jobs complete SUCCESS with the runtime marker.
+- QA390 is CLOSED after QIMA CI [#1403](https://github.com/meridane/QimaTrade-MVP/actions/runs/43481871260) completed SUCCESS on HEAD f46b603934d82056d69597708598b6eae8d8d74a. Verify job 132080127263 emitted QA390 PASS; PostgreSQL 16 job 132080127314 and PostgreSQL 17.6 job 132080126694 each emitted the runtime QA390 PASS marker and completed SUCCESS. Both full jobs also emitted QA381 passed and all later catalog, ACL, RLS, runner-privilege and cleanup steps succeeded.
 - This test characterizes existing SQL NULL rejection only; it does not introduce new acceptance or canonicalization behavior.
 
 ## Safety and decision boundaries
@@ -47,3 +47,14 @@ The current migration explicitly rejects SQL NULL for p_quantity and p_price wit
 - No numeric canonicalization or new business rule was introduced.
 - MKT-1.1 demand/tenant ownership, MKT-1.2 independent-draft idempotency semantics and MKT-1.3 numeric canonicalization remain unapproved.
 - No Production deployment, PR merge, force update or branch-protection change was performed.
+
+
+## Final validation and closure — 14 November 2026
+
+- PR #26 remained OPEN, draft and unmerged at HEAD f46b603934d82056d69597708598b6eae8d8d74a.
+- QIMA CI [#1403](https://github.com/meridane/QimaTrade-MVP/actions/runs/43481871260) completed SUCCESS.
+- Verify job 132080127263 emitted QA390 PASS; npm audit at the high threshold, TypeScript, Next.js build and 347/347 Playwright tests passed.
+- PostgreSQL 16 job 132080127314 and PostgreSQL 17.6 job 132080126694 each emitted QA390 PASS and QA381 passed; all subsequent catalog, ACL, RLS, runner-privilege and cleanup steps completed SUCCESS.
+- QIMA CodeQL [#1351](https://github.com/meridane/QimaTrade-MVP/actions/runs/43481871281) completed SUCCESS. The Vercel status check for HEAD completed SUCCESS.
+- QA390 is CLOSED. These are disposable CI regression tests, not a Production validation or proof of a vulnerability.
+- No application code, migration, Supabase Production data, secret, persistent PostgreSQL setting, branch-protection rule, PR merge or Production deployment was changed.

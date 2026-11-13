@@ -8988,9 +8988,17 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 
 ## QA390 — SQL NULL numeric boundary regression
 
-- The existing migration explicitly rejects p_quantity IS NULL with INVALID_QUANTITY and p_price IS NULL with INVALID_PRICE. Prior numeric boundary cases covered NaN, positive/negative Infinity, zero and finite negative values, but did not isolate both SQL NULL arguments with four-table before/after assertions.
-- Added one disposable PostgreSQL DO block with independent NULL quantity and NULL price cases. Each requires its exact domain error and unchanged row counts in idempotency_keys, action_executions, offers and action_events, plus absence of its key, execution and offer.
-- Added tests/sql/test-create-offer-null-numeric-contract.sh and integrated it into Verify. PostgreSQL 16 and 17.6 execute the shared runtime SQL.
-- QA390 is IMPLEMENTED; CI validation is pending. No result is inferred before GitHub Actions completes.
-- No application code or migration was modified. MKT-1.1, MKT-1.2 and MKT-1.3 remain unapproved.
-- No Supabase Production data, secret, persistent database setting, branch protection, PR merge or Production deployment was changed.
+- The existing migration rejects SQL NULL for p_quantity with INVALID_QUANTITY and p_price with INVALID_PRICE. Earlier runtime coverage did not isolate both required numeric arguments with four-table before/after assertions.
+- Added independent disposable PostgreSQL cases for NULL quantity and NULL price. Each requires its exact domain error, unchanged row counts in idempotency_keys, action_executions, offers and action_events, and absence of its idempotency key, execution and offer.
+- Added tests/sql/test-create-offer-null-numeric-contract.sh and integrated it into Verify; the shared runtime SQL is executed on PostgreSQL 16 and 17.6.
+- Validation QA390: **CLOSED** on HEAD f46b603934d82056d69597708598b6eae8d8d74a. QIMA CI [#1403](https://github.com/meridane/QimaTrade-MVP/actions/runs/43481871260) completed SUCCESS. Verify job 132080127263 emitted QA390 PASS; PostgreSQL 16 job 132080127314 and PostgreSQL 17.6 job 132080126694 each emitted QA390 PASS and QA381 passed, and both full jobs completed SUCCESS. npm audit at the high threshold, TypeScript, build Next.js and 347/347 Playwright passed. CodeQL [#1351](https://github.com/meridane/QimaTrade-MVP/actions/runs/43481871281) and the Vercel status check also completed SUCCESS.
+- QA390 characterizes existing SQL NULL rejection only. No application code or migration was changed, and no Production conclusion is inferred from disposable CI tests.
+
+## QA391 — zero-price acceptance and exact idempotent replay
+
+- The existing CREATE_OFFER migration rejects prices strictly below zero (p_price < 0) and therefore permits zero at this wrapper boundary. The runtime fixture had no isolated zero-price success case with persisted-result and replay assertions.
+- Added a disposable PostgreSQL scenario with quantity 1 and price 0. It requires the existing public result contract (status: succeeded, objectType: Offer), exactly one persisted offer whose price is zero, one COMPLETED action execution, one COMPLETED idempotency row and one ACTION_SUCCEEDED event.
+- The scenario then repeats the identical request with the same tenant-scoped key and requires the exact original JSON result and unchanged counts across idempotency_keys, action_executions, offers and action_events.
+- Added tests/sql/test-create-offer-zero-price-contract.sh and integrated it into Verify. PostgreSQL 16 and 17.6 execute the shared runtime fixture.
+- QA391 is IMPLEMENTED; CI validation is pending. No acceptance behavior or migration is changed; the test only characterizes the existing non-negative price contract.
+- No Supabase Production data, migration, secret, persistent PostgreSQL setting, branch-protection rule, PR merge or Production deployment was modified. MKT-1.1, MKT-1.2 and MKT-1.3 remain unapproved.

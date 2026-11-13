@@ -14830,3 +14830,182 @@ END
 $qa390_null_numeric_values$;
 COMMIT;
 SELECT 'QA390 NULL quantity and NULL price are rejected before all CREATE_OFFER persisted side effects' AS result;
+
+
+-- QA391: the existing SQL contract allows a zero price (it rejects only
+-- p_price < 0). Preserve that inclusive lower boundary and prove an exact
+-- idempotent replay returns the persisted success without duplicate rows.
+-- This scenario runs only in the disposable PostgreSQL integration database.
+BEGIN;
+SET LOCAL request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+SET LOCAL ROLE authenticated;
+DO $qa391_zero_price_success$
+DECLARE
+  v_key text := 'fixture-qa391-zero-price';
+  v_offer_name text := 'QA391 Zero Price Offer';
+  v_first_result jsonb;
+  v_replay_result jsonb;
+  v_execution_id uuid;
+  v_offer_id uuid;
+  v_before record;
+  v_after_first record;
+  v_after_replay record;
+  v_count integer;
+BEGIN
+  IF auth.uid() IS DISTINCT FROM '20000000-0000-4000-8000-000000000001'::uuid THEN
+    RAISE EXCEPTION 'QA391 requires authenticated provider A';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM public.idempotency_keys
+    WHERE tenant_id = '10000000-0000-4000-8000-000000000001' AND key = v_key
+  ) OR EXISTS (
+    SELECT 1 FROM public.action_executions
+    WHERE tenant_id = '10000000-0000-4000-8000-000000000001' AND idempotency_key = v_key
+  ) OR EXISTS (
+    SELECT 1 FROM public.offers WHERE name = v_offer_name
+  ) THEN
+    RAISE EXCEPTION 'QA391 fixture data already exists';
+  END IF;
+
+  SELECT
+    (SELECT count(*) FROM public.idempotency_keys) AS idempotency_count,
+    (SELECT count(*) FROM public.action_executions) AS execution_count,
+    (SELECT count(*) FROM public.offers) AS offer_count,
+    (SELECT count(*) FROM public.action_events) AS event_count
+  INTO v_before;
+
+  v_first_result := public.execute_create_offer_v1(
+    p_tenant_id => '10000000-0000-4000-8000-000000000001',
+    p_idempotency_key => v_key,
+    p_input => '{"case":"qa391_zero_price"}'::jsonb,
+    p_name => v_offer_name,
+    p_demand_id => '50000000-0000-4000-8000-000000000001',
+    p_product_master_id => '40000000-0000-4000-8000-000000000001',
+    p_provider_actor_id => '30000000-0000-4000-8000-000000000001',
+    p_quantity => 1::numeric,
+    p_price => 0::numeric,
+    p_currency => 'USD'
+  );
+
+  IF jsonb_typeof(v_first_result) IS DISTINCT FROM 'object'
+     OR v_first_result->>'status' IS DISTINCT FROM 'succeeded'
+     OR v_first_result->>'objectType' IS DISTINCT FROM 'Offer'
+     OR nullif(v_first_result->>'executionId', '') IS NULL
+     OR nullif(v_first_result->>'objectId', '') IS NULL THEN
+    RAISE EXCEPTION 'QA391 zero-price request did not return a complete success result: %',
+      coalesce(v_first_result::text, '<SQL NULL>');
+  END IF;
+
+  v_execution_id := (v_first_result->>'executionId')::uuid;
+  v_offer_id := (v_first_result->>'objectId')::uuid;
+
+  SELECT
+    (SELECT count(*) FROM public.idempotency_keys) AS idempotency_count,
+    (SELECT count(*) FROM public.action_executions) AS execution_count,
+    (SELECT count(*) FROM public.offers) AS offer_count,
+    (SELECT count(*) FROM public.action_events) AS event_count
+  INTO v_after_first;
+
+  IF ROW(
+    v_after_first.idempotency_count,
+    v_after_first.execution_count,
+    v_after_first.offer_count,
+    v_after_first.event_count
+  ) IS DISTINCT FROM ROW(
+    v_before.idempotency_count + 1,
+    v_before.execution_count + 1,
+    v_before.offer_count + 1,
+    v_before.event_count + 1
+  ) THEN
+    RAISE EXCEPTION 'QA391 successful zero-price request did not persist exactly one execution, idempotency row, offer and event';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = v_key
+    AND status = 'COMPLETED'
+    AND execution_id = v_execution_id
+    AND result = v_first_result;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA391 expected exactly one completed idempotency row, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND id = v_execution_id
+    AND idempotency_key = v_key
+    AND status = 'COMPLETED'
+    AND object_id = v_offer_id
+    AND result = v_first_result;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA391 expected exactly one completed action execution, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE id = v_offer_id
+    AND name = v_offer_name
+    AND quantity = 1::numeric
+    AND price = 0::numeric
+    AND currency = 'USD';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA391 expected exactly one persisted offer with zero price, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_events
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND execution_id = v_execution_id
+    AND event_type = 'ACTION_SUCCEEDED'
+    AND object_id = v_offer_id
+    AND payload = v_first_result;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA391 expected exactly one matching ACTION_SUCCEEDED event, found %', v_count;
+  END IF;
+
+  v_replay_result := public.execute_create_offer_v1(
+    p_tenant_id => '10000000-0000-4000-8000-000000000001',
+    p_idempotency_key => v_key,
+    p_input => '{"case":"qa391_zero_price"}'::jsonb,
+    p_name => v_offer_name,
+    p_demand_id => '50000000-0000-4000-8000-000000000001',
+    p_product_master_id => '40000000-0000-4000-8000-000000000001',
+    p_provider_actor_id => '30000000-0000-4000-8000-000000000001',
+    p_quantity => 1::numeric,
+    p_price => 0::numeric,
+    p_currency => 'USD'
+  );
+
+  IF v_replay_result IS DISTINCT FROM v_first_result THEN
+    RAISE EXCEPTION 'QA391 exact zero-price replay did not return the original persisted result';
+  END IF;
+
+  SELECT
+    (SELECT count(*) FROM public.idempotency_keys) AS idempotency_count,
+    (SELECT count(*) FROM public.action_executions) AS execution_count,
+    (SELECT count(*) FROM public.offers) AS offer_count,
+    (SELECT count(*) FROM public.action_events) AS event_count
+  INTO v_after_replay;
+
+  IF ROW(
+    v_after_replay.idempotency_count,
+    v_after_replay.execution_count,
+    v_after_replay.offer_count,
+    v_after_replay.event_count
+  ) IS DISTINCT FROM ROW(
+    v_after_first.idempotency_count,
+    v_after_first.execution_count,
+    v_after_first.offer_count,
+    v_after_first.event_count
+  ) THEN
+    RAISE EXCEPTION 'QA391 exact replay created duplicate persisted rows';
+  END IF;
+
+  RAISE NOTICE 'QA391 PASS: zero price is accepted by the existing non-negative SQL contract, persisted as zero, and exactly replayed without duplicate rows';
+END
+$qa391_zero_price_success$;
+COMMIT;
+SELECT 'QA391 zero-price success and exact replay preserve one persisted result' AS result;

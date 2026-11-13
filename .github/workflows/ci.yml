@@ -69,6 +69,8 @@ jobs:
         run: bash tests/sql/test-create-offer-nan-quantity-contract.sh
       - name: Verify CREATE_OFFER NULL numeric boundary rejection coverage
         run: bash tests/sql/test-create-offer-null-numeric-contract.sh
+      - name: Verify CREATE_OFFER zero-price acceptance and exact replay contract
+        run: bash tests/sql/test-create-offer-zero-price-contract.sh
       - name: Verify numeric replay fixture keys and PostgreSQL runner isolation
         run: bash tests/sql/test-create-offer-fixture-isolation-contract.sh
       - name: Verify CREATE_OFFER bootstrap preflight covers extension-aware catalog objects
