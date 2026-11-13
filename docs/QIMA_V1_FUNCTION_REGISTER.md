@@ -8878,3 +8878,10 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 - Validation QA385 sur le nouveau HEAD : PENDING jusqu'au marqueur Verify et aux deux exécutions runtime PostgreSQL.
 - Aucun test n'impose une politique sur le prix zéro. MKT-1.3 canonicalisation, MKT-1.1 demande/tenant et MKT-1.2 brouillons/idempotence restent des décisions métier non approuvées.
 - Sécurité : aucun code applicatif, migration, donnée Supabase Production, secret, réglage PostgreSQL persistant, règle de protection, fusion ou déploiement Production n'a été modifié.
+
+
+## QA385 — correction pré-validation du contrat shell (13 novembre 2026)
+
+- La revue du blob publié a détecté avant validation CI que la première version du nouveau contrat statique conservait un antislash devant l'expansion BASH_SOURCE. Le calcul du chemin ROOT aurait donc été littéral au lieu de résoudre le répertoire du dépôt.
+- Le contrat utilise maintenant dirname "$0", adapté à son invocation explicite via bash depuis la racine du dépôt. Le scénario SQL et la règle métier n'ont pas changé.
+- La première exécution CI du commit initial est conservée comme preuve de l'état initial; QA385 ne sera considéré validé qu'après le nouveau HEAD corrigé et ses contrôles Verify/PostgreSQL 16/17.6.

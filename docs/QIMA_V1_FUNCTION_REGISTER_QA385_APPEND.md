@@ -42,3 +42,9 @@ Protect the existing quantity boundary without changing application behavior or 
 - No price-zero acceptance test was added; that would freeze a separate commercial rule unnecessarily.
 - MKT-1.1 demand/tenant ownership, MKT-1.2 independent-draft idempotency semantics and MKT-1.3 numeric canonicalization remain unapproved.
 - No Production deployment, PR merge, force update or branch-protection change was performed.
+
+
+## Correction pré-validation du contrat shell
+
+- La revue du premier commit a détecté que l'échappement du littéral BASH_SOURCE conservait un antislash dans le script généré. La résolution ROOT a été corrigée vers dirname "$0" avant de considérer un résultat CI comme valide.
+- Cette correction ne modifie ni le SQL testé ni la garde de quantité. La validation QA385 reste en attente sur le HEAD corrigé.
