@@ -4,7 +4,7 @@ Date: 2026-11-13 (KST)
 PR: [#26](https://github.com/meridane/QimaTrade-MVP/pull/26)  
 Branch: `fix/create-offer-status-contract`  
 Working branch: `work/qa384-numeric-domain-guard-20261113-2125`  
-Status: **IMPLEMENTED — CI VALIDATION PENDING**
+Status: **STATIC CONTRACT PASS — RUNTIME VALIDATION IN PROGRESS**
 
 ## Initial state verified
 
@@ -50,3 +50,13 @@ The existing runtime fixture covered NaN quantity, positive-Infinity quantity/pr
 - No migration file, application code, Supabase Production data, schema, RLS policy, grant, secret or persistent PostgreSQL setting was changed.
 - No Supabase Production access or write was performed.
 - No Production deployment, PR merge, force update or branch-protection change was performed.
+
+
+## CI #1391 — validation intermédiaire (13 novembre 2026)
+
+- QIMA CI [#1391](https://github.com/meridane/QimaTrade-MVP/actions/runs/43425671182) is **IN PROGRESS** on HEAD `c3370c7abd5443cca271c30bac0d95ba752288e5`.
+- Verify completed the new `Verify CREATE_OFFER finite numeric-domain rejection coverage` step with **SUCCESS**. The preceding numeric/hash/tenant contracts also succeeded; npm audit at the configured high threshold and TypeScript completed successfully. The Next.js build was still running; Chromium installation and Playwright had not started at the last step check.
+- PostgreSQL 16 and PostgreSQL 17.6 jobs were both in progress inside the shared CREATE_OFFER integration runner. The new QA384 runtime notice had not yet been observed; do not claim runtime PASS.
+- Vercel Preview Comments for this HEAD completed **SUCCESS**. CodeQL [#1340](https://github.com/meridane/QimaTrade-MVP/actions/runs/43425671102) was **IN PROGRESS**.
+- The intentionally failing prepared-transaction harness jobs retained their expected job-level failure outcomes; their blocking assertions passed. The expected-skipped harness remained skipped and its assertion passed.
+- This is an interim result only. QA384 remains open until Verify and both PostgreSQL jobs complete successfully on the final HEAD.

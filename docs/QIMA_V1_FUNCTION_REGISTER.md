@@ -8835,3 +8835,13 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 - The new static contract is added to Verify. Validation on the new HEAD is **PENDING** until Verify emits QA384 PASS and both PostgreSQL jobs emit the runtime QA384 PASS notice.
 - MKT-1.3 numeric canonicalization remains **DECISION REQUIRED — NOT APPROVED**. QA384 tests only the existing finite/sign input domain and does not select precision, scale, JSONB normalization or hash-version semantics.
 - Safety: no migration, application behavior, Supabase Production data, secret, persistent PostgreSQL configuration, deployment, PR merge or branch-protection rule is modified.
+
+
+## CI #1391 — QA384 validation intermédiaire (13 novembre 2026)
+
+- QIMA CI [#1391](https://github.com/meridane/QimaTrade-MVP/actions/runs/43425671182) is **IN PROGRESS** on HEAD `c3370c7abd5443cca271c30bac0d95ba752288e5`.
+- Verify executed `tests/sql/test-create-offer-numeric-domain-contract.sh` and the step completed **SUCCESS**. The existing QA382/QA383 contracts, npm audit at the configured high threshold and TypeScript also completed successfully; the Next.js build was still in progress and browser tests were pending.
+- PostgreSQL 16 and PostgreSQL 17.6 jobs were in progress in the shared integration runner. The QA384 runtime matrix (negative-Infinity quantity, NaN price and negative-Infinity price) had not yet emitted its explicit notice at the last check.
+- Vercel Preview Comments completed **SUCCESS** for this HEAD. CodeQL [#1340](https://github.com/meridane/QimaTrade-MVP/actions/runs/43425671102) was **IN PROGRESS**.
+- Expected-failure prepared-transaction harnesses and their separate blocking assertions retained their documented expected outcomes; the expected-skipped job remained skipped with its assertion successful.
+- QA384 remains pending runtime validation on both pinned PostgreSQL versions. MKT-1.3 canonicalization remains a separate unapproved business decision.
