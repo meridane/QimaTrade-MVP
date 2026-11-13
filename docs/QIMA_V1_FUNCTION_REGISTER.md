@@ -8708,3 +8708,13 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 - The first CI stopped before the direct-SELECT probes, so their outcomes are not yet known. QA381 remains pending until the corrected runtime emits its explicit marker on both pinned PostgreSQL 16 and 17.6, and Verify completes successfully.
 - CI #1377 Verify succeeded, including npm audit at its configured high-severity blocking threshold, TypeScript, Next.js build, and 347/347 Playwright tests. The two PostgreSQL jobs failed at the QA381 assertion. No zero-findings claim is made for npm audit severities below its configured threshold.
 - Safety: this correction changes only disposable test assertions and documentation. No Production database, Supabase credential, migration, persistent PostgreSQL setting, remote publisher, or branch-protection configuration is accessed or modified.
+
+
+### QA381 second runtime correction — explicit PUBLIC ACL isolation and diagnostics
+
+- QIMA CI [#1378](https://github.com/meridane/QimaTrade-MVP/actions/runs/43357796040) completed QA374–QA380 on PostgreSQL 16 and 17.6, then failed at the first QA381 direct-SELECT probe: SELECT as qa381_create_role_runner succeeded for qa381_default_target although the effective membership tuple reported SET=false and USAGE=false.
+- This is recorded as a disposable test setup/ACL discrepancy, not as evidence of a Production privilege leak or a confirmed vulnerability.
+- The revised test explicitly revokes all privileges on the temporary QA381 schema and table from PUBLIC before targeted grants, and checks with aclexplode that no PUBLIC ACL remains. If SELECT still succeeds unexpectedly, it reports session/current user, role attributes, effective schema/table privileges, object owners/ACLs, and the exact creator membership row.
+- CI #1378 Verify passed the static QA373–QA381 contract, npm audit at its configured high-severity threshold, TypeScript, Next.js build, and 347/347 Playwright tests. Both PostgreSQL jobs failed at the direct-SELECT probe. CodeQL #1327 and the previous HEAD's Vercel Preview check succeeded.
+- QA381 remains pending until the corrected direct SELECT/SET ROLE matrix, cleanup, and explicit QA381 marker pass on both PostgreSQL 16 and 17.6.
+- Safety: only disposable test ACLs and documentation are changed; no Production database, Supabase credential, migration, persistent PostgreSQL setting, remote publisher, or branch protection is accessed or modified.
