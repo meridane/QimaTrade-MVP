@@ -8614,3 +8614,14 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 - CodeQL #1317: SUCCESS. Vercel Preview status for code commit 27b7c0d: SUCCESS; Preview only, no Production deployment.
 - Interpretation: this is a synthetic runtime characterization only and does not establish that any Production runner currently uses the tested membership configuration.
 - Safety: all objects remain in disposable PostgreSQL 16/17.6 containers; no Production database, secret, persistent setting, or remote publisher is used.
+
+
+### QA378 — reverse mixed SET and ADMIN OPTION membership path
+
+- Scope: characterize the reverse mixed membership configuration for the non-superuser CREATE_OFFER runner.
+- Initial state: the disposable database owner has CREATEROLE; anon has ADMIN OPTION without SET, while authenticated has SET without ADMIN OPTION. Exact observed state: true|false|true|false|true|false|true|false|true.
+- Expected behavior: the read-only runner guard accepts the combination independently for each target role. The fixture skips a redundant authenticated grant and establishes SET access for anon using its existing ADMIN OPTION.
+- Runtime assertions: complete runner and concurrency success, final one-way SET state true|true|false|false, and grantor aggregate anon:true:2|authenticated:true:1.
+- Safety: all objects remain in disposable PostgreSQL 16/17.6 containers; no Production database, secret, persistent setting, or remote publisher is used.
+- Validation status at code publication: pending; no runtime success is claimed until both PostgreSQL jobs emit QA378 passed.
+- CodeQL and final CI evidence: pending.

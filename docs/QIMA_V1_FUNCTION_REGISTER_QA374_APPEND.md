@@ -169,3 +169,39 @@ The final membership state is true|true|false|false: the runner can SET ROLE to 
 ### Safety
 
 All roles, database objects, fixtures, extensions, and migrations are confined to disposable PostgreSQL containers. The EXIT trap removes the container and temporary files. No Supabase Production data, credentials, migration, persistent PostgreSQL setting, remote connection, or branch-protection configuration is accessed or modified.
+
+
+## QA378 — reverse mixed SET and ADMIN OPTION membership path
+
+### Scope
+
+Exercise the reverse positive mixed-capability branch of the full CREATE_OFFER runner privilege contract. QA377 covered anon SET-only plus authenticated ADMIN OPTION-only; QA378 swaps those capabilities to prove the guard and fixture handle each target role independently in both directions.
+
+### Runtime setup
+
+- Recreate only the temporary qima_test database inside the disposable PostgreSQL 16 or 17.6 container.
+- Create qa378_reverse_mixed_runner as LOGIN, CREATEROLE, NOSUPERUSER, NOCREATEDB, NOREPLICATION, NOBYPASSRLS and make it the qima_test owner.
+- Grant anon with ADMIN TRUE, INHERIT FALSE, SET FALSE.
+- Grant authenticated with ADMIN FALSE, INHERIT FALSE, SET TRUE.
+- Assert the exact initial state true|false|true|false|true|false|true|false|true.
+- Invoke the real run-create-offer-integration.sh using the loopback-only qima_test URL.
+
+### Expected result
+
+The read-only runner guard accepts the reverse mixed capability set. The fixture skips a redundant authenticated grant because SET is already available and uses ADMIN OPTION to establish the missing SET access for anon. The complete fixture, migrations, SECURITY DEFINER checks, and same-tenant advisory-lock concurrency observation must succeed.
+
+The final state must show SET access to both client roles, no reverse membership, and the grantor aggregate anon:true:2|authenticated:true:1.
+
+### Safety and interpretation
+
+All roles, the database, fixtures, extensions, and migrations remain in the disposable Docker PostgreSQL container. The EXIT trap removes the container and temporary files. No Production database, credentials, migration, persistent PostgreSQL setting, or remote connection is used.
+
+This is a synthetic runtime characterization only; it does not establish that any Production runner currently uses this privilege configuration.
+
+### QA378 code-validation evidence
+
+Pending CI validation on PostgreSQL 16 and 17.6. No runtime pass is claimed until both jobs emit the explicit QA378 passed marker.
+
+### QA378 CodeQL evidence
+
+Pending.

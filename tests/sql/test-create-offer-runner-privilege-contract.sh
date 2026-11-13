@@ -91,6 +91,14 @@ for required in \
   "true|false|true|true|false|true|false|true|false" \
   "anon:true:1|authenticated:true:2" \
   "QA377 passed" \
+  "qa378_reverse_mixed_runner" \
+  "CREATE DATABASE qima_test OWNER qa378_reverse_mixed_runner" \
+  "true|false|true|false|true|false|true|false|true" \
+  "anon:true:2|authenticated:true:1" \
+  "QA378 passed" \
+  "reverse_mixed_initial_state" \
+  "reverse_mixed_after_state" \
+  "reverse_mixed_grantor_state" \
   "mixed_initial_state" \
   "mixed_after_state" \
   "mixed_grantor_state" \
@@ -149,12 +157,16 @@ grep -Fq "## QA376 — ADMIN OPTION must cover every existing client role" "$APP
   fail "QA374 appendix is missing QA376 partial-membership coverage"
 grep -Fq "## QA377 — mixed SET and ADMIN OPTION membership path" "$APPENDIX_QA374" ||
   fail "QA374 appendix is missing QA377 mixed-membership coverage"
+grep -Fq "## QA378 — reverse mixed SET and ADMIN OPTION membership path" "$APPENDIX_QA374" ||
+  fail "QA374 appendix is missing QA378 reverse mixed-membership coverage"
 grep -Fq "### QA376 — ADMIN OPTION must cover every existing client role" "$REGISTER" ||
   fail "canonical register is missing QA376 partial-membership coverage"
 grep -Fq "### QA377 — mixed SET and ADMIN OPTION membership path" "$REGISTER" ||
   fail "canonical register is missing QA377 mixed-membership coverage"
+grep -Fq "### QA378 — reverse mixed SET and ADMIN OPTION membership path" "$REGISTER" ||
+  fail "canonical register is missing QA378 reverse mixed-membership coverage"
 if grep -Fq "GRANT authenticated TO qa376_partial_admin_runner" "$RUNTIME"; then
   fail "QA376 must not grant the missing authenticated ADMIN OPTION membership"
 fi
 
-echo "QA373/QA374/QA375/QA376/QA377 static contract PASS: the runner fails closed on unsupported roles, covers ADMIN OPTION-only membership, rejects non-owners and partial administration, and accepts the mixed SET/ADMIN OPTION path."
+echo "QA373/QA374/QA375/QA376/QA377/QA378 static contract PASS: the runner fails closed on unsupported roles, rejects non-owners and partial administration, and accepts both mixed SET/ADMIN OPTION membership directions."

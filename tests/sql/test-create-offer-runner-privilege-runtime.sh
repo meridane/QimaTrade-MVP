@@ -498,3 +498,100 @@ if [[ "$mixed_grantor_state" != "anon:true:1|authenticated:true:2" ]]; then
 fi
 
 echo "QA377 passed: a database owner with SET-only membership for anon and ADMIN OPTION-only membership for authenticated was accepted; the fixture established the missing SET path, preserved one-way memberships, and completed the full runner/concurrency checks."
+
+
+# QA378: reverse the mixed membership path. anon has ADMIN OPTION only;
+# authenticated already has SET without ADMIN OPTION. The guard must accept
+# the per-role combination and the fixture must establish only anon SET.
+admin_psql <<'SQL'
+DROP DATABASE qima_test WITH (FORCE);
+CREATE ROLE qa378_reverse_mixed_runner LOGIN PASSWORD 'qa378-reverse-only'
+  CREATEROLE NOSUPERUSER NOCREATEDB NOREPLICATION NOBYPASSRLS;
+CREATE DATABASE qima_test OWNER qa378_reverse_mixed_runner;
+GRANT anon TO qa378_reverse_mixed_runner
+  WITH ADMIN TRUE, INHERIT FALSE, SET FALSE;
+GRANT authenticated TO qa378_reverse_mixed_runner
+  WITH ADMIN FALSE, INHERIT FALSE, SET TRUE;
+SQL
+
+reverse_mixed_initial_state="$(db_psql -c "
+  SELECT
+    (db.datdba = runner.oid)::text || '|' ||
+    runner.rolsuper::text || '|' ||
+    runner.rolcreaterole::text || '|' ||
+    pg_has_role(runner.oid, 'anon'::regrole, 'SET')::text || '|' ||
+    COALESCE(anon_members.admin_option, false)::text || '|' ||
+    COALESCE(anon_members.set_option, false)::text || '|' ||
+    pg_has_role(runner.oid, 'authenticated'::regrole, 'SET')::text || '|' ||
+    COALESCE(authenticated_members.admin_option, false)::text || '|' ||
+    COALESCE(authenticated_members.set_option, false)::text
+  FROM pg_database db
+  JOIN pg_roles runner ON runner.rolname = 'qa378_reverse_mixed_runner'
+  LEFT JOIN pg_auth_members anon_members
+    ON anon_members.roleid = 'anon'::regrole
+   AND anon_members.member = runner.oid
+  LEFT JOIN pg_auth_members authenticated_members
+    ON authenticated_members.roleid = 'authenticated'::regrole
+   AND authenticated_members.member = runner.oid
+  WHERE db.datname = 'qima_test';
+")"
+if [[ "$reverse_mixed_initial_state" != "true|false|true|false|true|false|true|false|true" ]]; then
+  echo "ERROR: QA378 did not establish the reverse mixed SET/ADMIN OPTION starting state: '$reverse_mixed_initial_state'." >&2
+  exit 1
+fi
+
+REVERSE_MIXED_RUNNER_URL="postgresql://qa378_reverse_mixed_runner:qa378-reverse-only@localhost:5432/qima_test"
+set +e
+docker exec --env "DATABASE_URL=$REVERSE_MIXED_RUNNER_URL" --workdir /workspace "$CONTAINER_NAME" \
+  bash /workspace/tests/sql/run-create-offer-integration.sh \
+  >"$TEMP_DIR/reverse-mixed-membership-runner.log" 2>&1
+reverse_mixed_runner_status=$?
+set -e
+if [[ "$reverse_mixed_runner_status" -ne 0 ]]; then
+  echo "ERROR: QA378 reverse mixed SET/ADMIN OPTION runner failed with exit $reverse_mixed_runner_status." >&2
+  tail -n 120 "$TEMP_DIR/reverse-mixed-membership-runner.log" >&2
+  exit 1
+fi
+if ! grep -Fq "Observed one granted and one waiting same-tenant advisory lock" "$TEMP_DIR/reverse-mixed-membership-runner.log"; then
+  echo "ERROR: QA378 reverse mixed-membership runner did not complete the concurrency observation." >&2
+  tail -n 120 "$TEMP_DIR/reverse-mixed-membership-runner.log" >&2
+  exit 1
+fi
+
+reverse_mixed_after_state="$(db_psql -c "
+  SELECT
+    pg_has_role('qa378_reverse_mixed_runner', 'anon', 'SET')::text || '|' ||
+    pg_has_role('qa378_reverse_mixed_runner', 'authenticated', 'SET')::text || '|' ||
+    pg_has_role('anon', 'qa378_reverse_mixed_runner', 'MEMBER')::text || '|' ||
+    pg_has_role('authenticated', 'qa378_reverse_mixed_runner', 'MEMBER')::text;
+")"
+if [[ "$reverse_mixed_after_state" != "true|true|false|false" ]]; then
+  echo "ERROR: QA378 fixture did not preserve one-way SET ROLE access for both client roles: '$reverse_mixed_after_state'." >&2
+  exit 1
+fi
+
+reverse_mixed_grantor_state="$(db_psql -c "
+  SELECT string_agg(
+    membership_state.role_name || ':' ||
+    membership_state.has_set::text || ':' ||
+    membership_state.grantor_count::text,
+    '|' ORDER BY membership_state.role_name
+  )
+  FROM (
+    SELECT
+      target.rolname AS role_name,
+      bool_or(membership.set_option) AS has_set,
+      count(DISTINCT membership.grantor) AS grantor_count
+    FROM pg_roles target
+    JOIN pg_auth_members membership ON membership.roleid = target.oid
+    WHERE target.rolname IN ('anon', 'authenticated')
+      AND membership.member = 'qa378_reverse_mixed_runner'::regrole
+    GROUP BY target.oid, target.rolname
+  ) AS membership_state;
+")"
+if [[ "$reverse_mixed_grantor_state" != "anon:true:2|authenticated:true:1" ]]; then
+  echo "ERROR: QA378 expected the authenticated SET-only grant and anon ADMIN-to-SET grant to remain distinguishable, got '$reverse_mixed_grantor_state'." >&2
+  exit 1
+fi
+
+echo "QA378 passed: a database owner with ADMIN OPTION-only membership for anon and SET-only membership for authenticated was accepted; the fixture established the missing anon SET path, preserved one-way memberships, and completed the full runner/concurrency checks."
