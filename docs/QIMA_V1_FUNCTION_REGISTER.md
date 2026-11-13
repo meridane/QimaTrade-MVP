@@ -8669,3 +8669,14 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 - Vercel Preview checks completed successfully for the code HEAD. Preview only; no Production deployment.
 - QA379 is closed: the transitive SET-enabled path and the SET FALSE negative boundary were both characterized on the two pinned disposable PostgreSQL versions.
 - Safety: no Production database, Supabase credential, migration, persistent PostgreSQL setting, remote publisher, or branch-protection configuration was accessed or modified.
+
+
+### QA380 — ADMIN OPTION does not propagate through a membership chain
+
+- Scope: characterize that ADMIN OPTION on an intermediate bridge role is not ADMIN OPTION on roles held by that bridge.
+- Setup: a disposable database owner with CREATEROLE has ADMIN OPTION only on qa380_admin_bridge. The bridge has ADMIN OPTION on anon and authenticated, but every membership edge has SET FALSE and INHERIT FALSE.
+- Expected guard result: the runner has indirect MEMBER status but no SET path and no direct ADMIN OPTION on either client role, so the read-only preflight rejects it with exit code 4 before fixture DDL/DML.
+- Regression assertions: the initial catalog state explicitly records the direct bridge ADMIN OPTION, absence of direct client-role ADMIN OPTION, indirect membership, and absence of SET paths. Database, ownership, role, and membership snapshots must remain unchanged after rejection.
+- Documentation basis: [PostgreSQL 16 GRANT](https://www.postgresql.org/docs/16/sql-grant.html) describes ADMIN as authority over membership in the specific role; [Role Membership](https://www.postgresql.org/docs/16/role-membership.html) separately defines the SET-enabled transitive path.
+- Validation status at code publication: pending on PostgreSQL 16 and 17.6; no runtime success is claimed until both explicit markers are observed.
+- Safety: all operations are isolated to disposable PostgreSQL containers. No Production database, credential, migration, persistent setting, or branch protection is touched.

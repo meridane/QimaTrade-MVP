@@ -782,3 +782,122 @@ if [[ "$after_indirect_negative_snapshot" != "$before_indirect_negative_snapshot
 fi
 
 echo "QA379 indirect SET chain with a SET FALSE edge was rejected before fixture changes; the empty database, ownership, roles, and membership snapshots remained unchanged."
+
+
+# QA380: ADMIN OPTION on a bridge role is not ADMIN OPTION on its member roles.
+# The runner can administer the bridge, and the bridge can administer anon and
+# authenticated, but the runner cannot SET ROLE through any edge and has no
+# direct ADMIN OPTION on either client role. The runner guard must fail closed.
+admin_psql -c "DROP DATABASE qima_test WITH (FORCE);"
+admin_psql <<'SQL'
+CREATE ROLE qa380_admin_bridge NOLOGIN NOINHERIT;
+CREATE ROLE qa380_admin_runner LOGIN PASSWORD 'qa380-admin-only'
+  CREATEROLE NOINHERIT NOSUPERUSER NOCREATEDB NOREPLICATION NOBYPASSRLS;
+CREATE DATABASE qima_test OWNER qa380_admin_runner;
+GRANT anon TO qa380_admin_bridge
+  WITH ADMIN TRUE, INHERIT FALSE, SET FALSE;
+GRANT authenticated TO qa380_admin_bridge
+  WITH ADMIN TRUE, INHERIT FALSE, SET FALSE;
+GRANT qa380_admin_bridge TO qa380_admin_runner
+  WITH ADMIN TRUE, INHERIT FALSE, SET FALSE;
+SQL
+
+qa380_initial_state="$(db_psql -c "
+  SELECT
+    (db.datdba = runner.oid)::text || '|' ||
+    runner.rolsuper::text || '|' ||
+    runner.rolcreaterole::text || '|' ||
+    pg_has_role(runner.oid, bridge.oid, 'MEMBER')::text || '|' ||
+    pg_has_role(runner.oid, bridge.oid, 'SET')::text || '|' ||
+    pg_has_role(runner.oid, anon_role.oid, 'MEMBER')::text || '|' ||
+    pg_has_role(runner.oid, anon_role.oid, 'SET')::text || '|' ||
+    pg_has_role(runner.oid, authenticated_role.oid, 'MEMBER')::text || '|' ||
+    pg_has_role(runner.oid, authenticated_role.oid, 'SET')::text || '|' ||
+    EXISTS (
+      SELECT 1 FROM pg_auth_members
+      WHERE roleid = bridge.oid AND member = runner.oid AND admin_option
+    )::text || '|' ||
+    EXISTS (
+      SELECT 1 FROM pg_auth_members
+      WHERE roleid = anon_role.oid AND member = runner.oid AND admin_option
+    )::text || '|' ||
+    EXISTS (
+      SELECT 1 FROM pg_auth_members
+      WHERE roleid = authenticated_role.oid AND member = runner.oid AND admin_option
+    )::text || '|' ||
+    COALESCE((
+      SELECT admin_option::text || ':' || inherit_option::text || ':' || set_option::text
+      FROM pg_auth_members
+      WHERE roleid = bridge.oid AND member = runner.oid
+    ), 'missing') || '|' ||
+    COALESCE((
+      SELECT admin_option::text || ':' || inherit_option::text || ':' || set_option::text
+      FROM pg_auth_members
+      WHERE roleid = anon_role.oid AND member = bridge.oid
+    ), 'missing') || '|' ||
+    COALESCE((
+      SELECT admin_option::text || ':' || inherit_option::text || ':' || set_option::text
+      FROM pg_auth_members
+      WHERE roleid = authenticated_role.oid AND member = bridge.oid
+    ), 'missing')
+  FROM pg_database db
+  JOIN pg_roles runner ON runner.rolname = 'qa380_admin_runner'
+  JOIN pg_roles bridge ON bridge.rolname = 'qa380_admin_bridge'
+  JOIN pg_roles anon_role ON anon_role.rolname = 'anon'
+  JOIN pg_roles authenticated_role ON authenticated_role.rolname = 'authenticated'
+  WHERE db.datname = 'qima_test';
+")"
+if [[ "$qa380_initial_state" != "true|false|true|true|false|true|false|true|false|true|false|false|true:false:false|true:false:false|true:false:false" ]]; then
+  echo "ERROR: QA380 did not establish ADMIN OPTION only on the bridge and its client-role memberships: '$qa380_initial_state'." >&2
+  exit 1
+fi
+
+run_expected_rejection_qa380() {
+  local url="postgresql://qa380_admin_runner:qa380-admin-only@localhost:5432/qima_test"
+  local log_file="$TEMP_DIR/qa380-admin-option-nontransitive.log"
+  local status
+  set +e
+  docker exec --env "DATABASE_URL=$url" --workdir /workspace "$CONTAINER_NAME" \
+    bash /workspace/tests/sql/run-create-offer-integration.sh >"$log_file" 2>&1
+  status=$?
+  set -e
+  if [[ "$status" -ne 4 ]]; then
+    echo "ERROR: QA380 expected the bridge-admin runner to be rejected with exit 4, received $status." >&2
+    cat "$log_file" >&2
+    exit 1
+  fi
+  if ! grep -Fq "must be a superuser or own qima_test with CREATEROLE" "$log_file"; then
+    echo "ERROR: QA380 bridge-admin runner was rejected for an unexpected reason." >&2
+    cat "$log_file" >&2
+    exit 1
+  fi
+}
+
+qa380_snapshot() {
+  db_psql -c "
+    SELECT
+      (SELECT count(*) FROM pg_class WHERE relnamespace = 'public'::regnamespace)::text || '|' ||
+      (SELECT count(*) FROM pg_proc WHERE pronamespace = 'public'::regnamespace)::text || '|' ||
+      (SELECT count(*) FROM pg_extension)::text || '|' ||
+      (SELECT pg_get_userbyid(datdba) FROM pg_database WHERE datname = 'qima_test')::text || '|' ||
+      (SELECT count(*) FROM pg_roles WHERE rolname LIKE 'qa380_%')::text || '|' ||
+      (SELECT count(*)
+       FROM pg_auth_members
+       WHERE member IN (SELECT oid FROM pg_roles WHERE rolname LIKE 'qa380_%')
+          OR roleid IN (SELECT oid FROM pg_roles WHERE rolname LIKE 'qa380_%'))::text || '|' ||
+      (SELECT count(*)
+       FROM pg_auth_members
+       WHERE member = 'qa380_admin_runner'::regrole
+         AND roleid IN ('anon'::regrole, 'authenticated'::regrole))::text;
+  "
+}
+
+before_qa380_admin_snapshot="$(qa380_snapshot)"
+run_expected_rejection_qa380
+after_qa380_admin_snapshot="$(qa380_snapshot)"
+if [[ "$after_qa380_admin_snapshot" != "$before_qa380_admin_snapshot" ]]; then
+  echo "ERROR: QA380 rejected a transitive ADMIN OPTION path only after changing the empty database, ownership, roles, or memberships." >&2
+  exit 1
+fi
+
+echo "QA380 passed: ADMIN OPTION on the bridge was not treated as ADMIN OPTION on anon or authenticated; the runner exited 4 before fixture changes and all snapshots remained unchanged."

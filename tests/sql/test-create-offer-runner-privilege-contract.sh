@@ -10,6 +10,7 @@ REGISTER="$ROOT/docs/QIMA_V1_FUNCTION_REGISTER.md"
 APPENDIX="$ROOT/docs/QIMA_V1_FUNCTION_REGISTER_QA373_APPEND.md"
 APPENDIX_QA374="$ROOT/docs/QIMA_V1_FUNCTION_REGISTER_QA374_APPEND.md"
 APPENDIX_QA379="$ROOT/docs/QIMA_V1_FUNCTION_REGISTER_QA379_APPEND.md"
+APPENDIX_QA380="$ROOT/docs/QIMA_V1_FUNCTION_REGISTER_QA380_APPEND.md"
 
 fail() {
   echo "ERROR: $*" >&2
@@ -194,4 +195,27 @@ if grep -Fq "GRANT authenticated TO qa376_partial_admin_runner" "$RUNTIME"; then
   fail "QA376 must not grant the missing authenticated ADMIN OPTION membership"
 fi
 
-echo "QA373/QA374/QA375/QA376/QA377/QA378/QA379 static contract PASS: the runner fails closed on unsupported roles, rejects non-owners and partial administration, accepts both mixed SET/ADMIN OPTION directions, and recognizes only complete transitive SET-enabled membership chains."
+
+for required in \
+  "qa380_admin_bridge" \
+  "qa380_admin_runner" \
+  "true|false|true|true|false|true|false|true|false|true|false|false|true:false:false|true:false:false|true:false:false" \
+  "before_qa380_admin_snapshot" \
+  "after_qa380_admin_snapshot" \
+  "QA380 passed" \
+  "ADMIN OPTION on the bridge was not treated as ADMIN OPTION on anon or authenticated"; do
+  grep -Fq -- "$required" "$RUNTIME" ||
+    fail "QA380 runtime characterization is missing: $required"
+done
+if grep -Fq "GRANT anon TO qa380_admin_runner" "$RUNTIME"; then
+  fail "QA380 must not create a direct anon membership for the runner"
+fi
+if grep -Fq "GRANT authenticated TO qa380_admin_runner" "$RUNTIME"; then
+  fail "QA380 must not create a direct authenticated membership for the runner"
+fi
+grep -Fq "# QA380 — ADMIN OPTION is not transitive across membership" "$APPENDIX_QA380" ||
+  fail "QA380 appendix is missing non-transitive ADMIN OPTION coverage"
+grep -Fq "### QA380 — ADMIN OPTION does not propagate through a membership chain" "$REGISTER" ||
+  fail "canonical register is missing QA380 non-transitive ADMIN OPTION coverage"
+
+echo "QA373/QA374/QA375/QA376/QA377/QA378/QA379/QA380 static contract PASS: the runner fails closed on unsupported roles, rejects non-owners and partial administration, accepts both mixed SET/ADMIN OPTION directions, and recognizes only complete transitive SET-enabled membership chains."
