@@ -8943,6 +8943,25 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 - Ajout d'une matrice PostgreSQL jetable avec deux clés indépendantes : quantité positive infinie/prix fini, puis quantité finie/prix positif infini.
 - Chaque cas exige le code d'erreur exact et compare les nombres de lignes avant/après dans idempotency_keys, action_executions, offers et action_events; la clé, l'exécution et l'offre de fixture doivent rester absentes.
 - Ajout de tests/sql/test-create-offer-positive-infinity-contract.sh et intégration dans Verify. Les jobs PostgreSQL 16 et 17.6 exécutent le runtime SQL partagé.
-- Validation QA388 sur le nouveau HEAD : **PENDING** jusqu'au marqueur Verify et aux deux marqueurs runtime PostgreSQL.
+- Validation QA388 : **CLOSED** après Verify, PostgreSQL 16 et PostgreSQL 17.6 SUCCESS sur HEAD 685490710046873b69563d066277f742aeb9c36f (QIMA CI #43461032639).
 - Aucun code applicatif ou migration n'a été modifié. Les décisions MKT-1.1, MKT-1.2 et MKT-1.3 restent non approuvées; aucune règle métier n'est inventée.
+- Aucune donnée Supabase Production, migration, secret, configuration PostgreSQL persistante, règle de protection, fusion ou déploiement Production n'a été modifié.
+
+
+## QA388 — validation complète et clôture (14 novembre 2026)
+
+- PR #26 HEAD vérifié : 685490710046873b69563d066277f742aeb9c36f; PR OPEN, draft et non fusionnée.
+- QIMA CI [#43461032639](https://github.com/meridane/QimaTrade-MVP/actions/runs/43461032639) terminé SUCCESS. Verify a émis QA388 PASS; npm audit au seuil high, TypeScript, build Next.js et 347/347 Playwright ont réussi.
+- PostgreSQL 16 (job 132007673054) et PostgreSQL 17.6 (job 132007672929) ont chacun émis QA388 PASS et QA381 passed; les deux jobs ont terminé SUCCESS.
+- QIMA CodeQL [#43461032644](https://github.com/meridane/QimaTrade-MVP/actions/runs/43461032644) et le check Vercel Preview du HEAD ont terminé SUCCESS.
+- QA388 est CLOSED. Il s'agit de tests de régression sur des bases PostgreSQL jetables de CI, sans conclusion de vulnérabilité ni validation Production.
+
+## QA389 — couverture NaN pour la quantité
+
+- La migration rejette déjà p_quantity = 'NaN'::numeric via la garde textuelle existante et retourne INVALID_QUANTITY. QA384 couvrait NaN pour le prix, mais pas pour la quantité.
+- Ajout d'un scénario PostgreSQL jetable utilisant une quantité NaN et un prix fini valide; le test exige exactement INVALID_QUANTITY.
+- Le scénario compare les nombres de lignes avant/après dans idempotency_keys, action_executions, offers et action_events, et vérifie l'absence de la clé, de l'exécution et de l'offre de fixture.
+- Ajout de tests/sql/test-create-offer-nan-quantity-contract.sh et intégration dans le job Verify. Les jobs PostgreSQL 16 et 17.6 utilisent le runner SQL partagé.
+- Validation QA389 sur le nouveau HEAD : **PENDING** jusqu'au marqueur Verify et au succès des deux jobs runtime PostgreSQL.
+- Aucun code applicatif ni migration n'a été modifié. Les décisions MKT-1.1, MKT-1.2 et MKT-1.3 restent non approuvées.
 - Aucune donnée Supabase Production, migration, secret, configuration PostgreSQL persistante, règle de protection, fusion ou déploiement Production n'a été modifié.

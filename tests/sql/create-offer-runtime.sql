@@ -14627,3 +14627,113 @@ $qa388_positive_infinity$;
 COMMIT;
 
 SELECT 'QA388 positive Infinity quantity and price are rejected before all CREATE_OFFER persisted side effects' AS result;
+
+-- QA389: PostgreSQL numeric NaN must be rejected for quantity before any
+-- idempotency or action persistence. QA384 already characterizes NaN price;
+-- this isolated case closes the corresponding quantity-side boundary.
+-- This scenario runs only in the disposable PostgreSQL integration database.
+BEGIN;
+SET LOCAL request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+SET LOCAL ROLE authenticated;
+
+DO $qa389_nan_quantity$
+DECLARE
+  v_key text := 'fixture-qa389-nan-quantity';
+  v_offer_name text := 'QA389 NaN Quantity Offer';
+  v_error text;
+  v_before record;
+  v_after record;
+BEGIN
+  IF auth.uid() IS DISTINCT FROM '20000000-0000-4000-8000-000000000001'::uuid THEN
+    RAISE EXCEPTION 'QA389 requires authenticated provider A';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM public.idempotency_keys
+    WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+      AND key = v_key
+  ) OR EXISTS (
+    SELECT 1 FROM public.action_executions
+    WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+      AND idempotency_key = v_key
+  ) OR EXISTS (
+    SELECT 1 FROM public.offers
+    WHERE name = v_offer_name
+  ) THEN
+    RAISE EXCEPTION 'QA389 fixture data already exists';
+  END IF;
+
+  SELECT
+    (SELECT count(*) FROM public.idempotency_keys) AS idempotency_count,
+    (SELECT count(*) FROM public.action_executions) AS execution_count,
+    (SELECT count(*) FROM public.offers) AS offer_count,
+    (SELECT count(*) FROM public.action_events) AS event_count
+  INTO v_before;
+
+  v_error := NULL;
+  BEGIN
+    PERFORM public.execute_create_offer_v1(
+      p_tenant_id => '10000000-0000-4000-8000-000000000001',
+      p_idempotency_key => v_key,
+      p_input => '{"case":"qa389_nan_quantity"}'::jsonb,
+      p_name => v_offer_name,
+      p_demand_id => '50000000-0000-4000-8000-000000000001',
+      p_product_master_id => '40000000-0000-4000-8000-000000000001',
+      p_provider_actor_id => '30000000-0000-4000-8000-000000000001',
+      p_quantity => 'NaN'::numeric,
+      p_price => 12::numeric,
+      p_currency => 'USD'
+    );
+    RAISE EXCEPTION 'QA389 expected NaN quantity to be rejected';
+  EXCEPTION WHEN OTHERS THEN
+    GET STACKED DIAGNOSTICS v_error = MESSAGE_TEXT;
+  END;
+
+  IF v_error IS DISTINCT FROM 'INVALID_QUANTITY' THEN
+    RAISE EXCEPTION 'QA389 NaN quantity expected INVALID_QUANTITY, received %',
+      coalesce(v_error, '<no error>');
+  END IF;
+
+  SELECT
+    (SELECT count(*) FROM public.idempotency_keys) AS idempotency_count,
+    (SELECT count(*) FROM public.action_executions) AS execution_count,
+    (SELECT count(*) FROM public.offers) AS offer_count,
+    (SELECT count(*) FROM public.action_events) AS event_count
+  INTO v_after;
+
+  IF ROW(
+    v_after.idempotency_count,
+    v_after.execution_count,
+    v_after.offer_count,
+    v_after.event_count
+  ) IS DISTINCT FROM ROW(
+    v_before.idempotency_count,
+    v_before.execution_count,
+    v_before.offer_count,
+    v_before.event_count
+  ) THEN
+    RAISE EXCEPTION 'QA389 NaN-quantity rejection changed persisted row counts';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM public.idempotency_keys
+    WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+      AND key = v_key
+  ) OR EXISTS (
+    SELECT 1 FROM public.action_executions
+    WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+      AND idempotency_key = v_key
+  ) OR EXISTS (
+    SELECT 1 FROM public.offers
+    WHERE name = v_offer_name
+  ) THEN
+    RAISE EXCEPTION 'QA389 NaN-quantity rejection left a keyed row or offer';
+  END IF;
+
+  RAISE NOTICE 'QA389 PASS: NaN quantity is rejected as INVALID_QUANTITY before idempotency, execution, offer or action-event persistence';
+END
+$qa389_nan_quantity$;
+
+COMMIT;
+
+SELECT 'QA389 NaN quantity is rejected before all CREATE_OFFER persisted side effects' AS result;
