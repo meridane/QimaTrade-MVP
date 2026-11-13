@@ -133,6 +133,39 @@ for required in \
     fail "QA373 runtime characterization is missing: $required"
 done
 
+
+for required in \
+  "CREATE SCHEMA qa381_probe_default" \
+  "CREATE SCHEMA qa381_probe_set" \
+  "CREATE SCHEMA qa381_probe_inherit" \
+  "CREATE SCHEMA qa381_probe_both" \
+  "GRANT SELECT ON TABLE qa381_probe_default.inherit_probe TO qa381_default_target" \
+  "GRANT SELECT ON TABLE qa381_probe_set.inherit_probe TO qa381_set_target" \
+  "GRANT SELECT ON TABLE qa381_probe_inherit.inherit_probe TO qa381_inherit_target" \
+  "GRANT SELECT ON TABLE qa381_probe_both.inherit_probe TO qa381_both_target" \
+  "4|true|true" \
+  "nspname LIKE 'qa381_probe_%'" \
+  "DROP SCHEMA qa381_probe_default CASCADE" \
+  "DROP SCHEMA qa381_probe_set CASCADE" \
+  "DROP SCHEMA qa381_probe_inherit CASCADE" \
+  "DROP SCHEMA qa381_probe_both CASCADE"; do
+  grep -Fq -- "$required" "$RUNTIME" ||
+    fail "QA381 per-target ACL isolation is missing: $required"
+done
+
+grep -Fq 'qa381_expect_direct_select "qa381_default_target" "qa381_probe_default" "inherit_probe" "false"' "$RUNTIME" ||
+  fail "QA381 default target must probe only its own object"
+grep -Fq 'qa381_expect_direct_select "qa381_set_target" "qa381_probe_set" "inherit_probe" "false"' "$RUNTIME" ||
+  fail "QA381 SET-only target must probe only its own object"
+grep -Fq 'qa381_expect_direct_select "qa381_inherit_target" "qa381_probe_inherit" "inherit_probe" "true"' "$RUNTIME" ||
+  fail "QA381 INHERIT target must probe only its own object"
+grep -Fq 'qa381_expect_direct_select "qa381_both_target" "qa381_probe_both" "inherit_probe" "true"' "$RUNTIME" ||
+  fail "QA381 combined target must probe only its own object"
+grep -Fq "### QA381 fifth runtime correction — isolate per-target ACL probes" "$REGISTER" ||
+  fail "canonical register is missing QA381 per-target ACL isolation evidence"
+grep -Fq "## Fifth runtime correction — isolate per-target object ACLs" "$APPENDIX_QA381" ||
+  fail "QA381 appendix is missing per-target ACL isolation evidence"
+
 if grep -Fq "ALTER SYSTEM" "$RUNTIME"; then
   fail "QA373 must not alter persistent PostgreSQL configuration"
 fi
@@ -246,12 +279,12 @@ if grep -Fq "has_table_privilege" <<< "$qa381_effective_function"; then
 fi
 grep -Fq "qa381_expect_direct_select()" "$RUNTIME" ||
   fail "QA381 must execute direct SELECT as the non-superuser creator"
-grep -Fq 'SELECT count(*) FROM qa381_probe.inherit_probe;' "$RUNTIME" ||
+grep -Fq 'SELECT count(*) FROM $qualified_table;' "$RUNTIME" ||
   fail "QA381 direct SELECT behavior must be exercised by SQL, not inferred from the catalog helper"
 
 for required in \
-  "REVOKE ALL ON SCHEMA qa381_probe FROM PUBLIC" \
-  "REVOKE ALL ON TABLE qa381_probe.inherit_probe FROM PUBLIC" \
+  "REVOKE ALL ON SCHEMA qa381_probe_default FROM PUBLIC" \
+  "REVOKE ALL ON TABLE qa381_probe_default.inherit_probe FROM PUBLIC" \
   "qa381_public_acl_state" \
   "aclexplode" \
   "qa381_direct_select_diagnostic()" \
