@@ -938,11 +938,36 @@ qa381_create_target "set,inherit" "qa381_both_target"
 db_psql -c "
   CREATE SCHEMA qa381_probe;
   CREATE TABLE qa381_probe.inherit_probe (id integer);
+  REVOKE ALL ON SCHEMA qa381_probe FROM PUBLIC;
+  REVOKE ALL ON TABLE qa381_probe.inherit_probe FROM PUBLIC;
   GRANT USAGE ON SCHEMA qa381_probe
     TO qa381_default_target, qa381_set_target, qa381_inherit_target, qa381_both_target;
   GRANT SELECT ON qa381_probe.inherit_probe
     TO qa381_default_target, qa381_set_target, qa381_inherit_target, qa381_both_target;
 "
+
+qa381_public_acl_state="$(db_psql -c "
+  SELECT
+    NOT EXISTS (
+      SELECT 1
+      FROM aclexplode(COALESCE(n.nspacl, acldefault('n', n.nspowner))) acl
+      WHERE acl.grantee = 0
+        AND acl.privilege_type IN ('USAGE', 'CREATE')
+    )::text || '|' ||
+    NOT EXISTS (
+      SELECT 1
+      FROM aclexplode(COALESCE(c.relacl, acldefault('r', c.relowner))) acl
+      WHERE acl.grantee = 0
+    )::text
+  FROM pg_namespace n
+  JOIN pg_class c ON c.relnamespace = n.oid
+  WHERE n.nspname = 'qa381_probe'
+    AND c.relname = 'inherit_probe';
+")"
+if [[ "$qa381_public_acl_state" != "true|true" ]]; then
+  echo "ERROR: QA381 schema/table still expose a PUBLIC ACL: '$qa381_public_acl_state'." >&2
+  exit 1
+fi
 
 qa381_catalog_state() {
   local target_role="$1"
@@ -1006,6 +1031,44 @@ qa381_assert_effective_state() {
   fi
 }
 
+qa381_direct_select_diagnostic() {
+  local target_role="$1"
+  echo "QA381 direct-SELECT diagnostic: authenticated runner identity and effective privileges:" >&2
+  qa381_runner_psql -c "
+    SELECT
+      session_user::text || '|' ||
+      current_user::text || '|' ||
+      (SELECT rolsuper::text FROM pg_roles WHERE rolname = current_user) || '|' ||
+      (SELECT rolinherit::text FROM pg_roles WHERE rolname = current_user) || '|' ||
+      has_schema_privilege(current_user, 'qa381_probe', 'USAGE')::text || '|' ||
+      has_table_privilege(current_user, 'qa381_probe.inherit_probe', 'SELECT')::text || '|' ||
+      pg_has_role(current_user, '$target_role', 'USAGE')::text || '|' ||
+      pg_has_role(current_user, '$target_role', 'SET')::text;
+  " >&2 || true
+  echo "QA381 direct-SELECT diagnostic: schema/table owners and ACLs:" >&2
+  db_psql -c "
+    SELECT
+      pg_get_userbyid(n.nspowner)::text || '|' ||
+      COALESCE(n.nspacl::text, 'NULL') || '|' ||
+      pg_get_userbyid(c.relowner)::text || '|' ||
+      COALESCE(c.relacl::text, 'NULL')
+    FROM pg_namespace n
+    JOIN pg_class c ON c.relnamespace = n.oid
+    WHERE n.nspname = 'qa381_probe'
+      AND c.relname = 'inherit_probe';
+    SELECT
+      pg_get_userbyid(m.grantor)::text || '|' ||
+      m.roleid::regrole::text || '|' ||
+      m.member::regrole::text || '|' ||
+      m.admin_option::text || '|' ||
+      m.inherit_option::text || '|' ||
+      m.set_option::text
+    FROM pg_auth_members m
+    WHERE m.member = 'qa381_create_role_runner'::regrole
+      AND m.roleid = '$target_role'::regrole;
+  " >&2 || true
+}
+
 qa381_expect_direct_select() {
   local target_role="$1"
   local expected="$2"
@@ -1021,12 +1084,19 @@ qa381_expect_direct_select() {
     if [[ "$status" -ne 0 || "$output" != "0" ]]; then
       echo "ERROR: QA381 expected inherited SELECT through $target_role, got status=$status output='$output'." >&2
       cat "$log_file" >&2
+      qa381_direct_select_diagnostic "$target_role"
       exit 1
     fi
   else
-    if [[ "$status" -eq 0 ]] || ! grep -Fq "permission denied" "$log_file"; then
-      echo "ERROR: QA381 expected direct SELECT to be denied without INHERIT through $target_role." >&2
+    if [[ "$status" -eq 0 ]]; then
+      echo "ERROR: QA381 direct SELECT unexpectedly succeeded without INHERIT through $target_role (status=$status, output='$output')." >&2
+      qa381_direct_select_diagnostic "$target_role"
+      exit 1
+    fi
+    if ! grep -Fq "permission denied" "$log_file"; then
+      echo "ERROR: QA381 direct SELECT failed for an unexpected reason through $target_role." >&2
       cat "$log_file" >&2
+      qa381_direct_select_diagnostic "$target_role"
       exit 1
     fi
   fi
