@@ -234,8 +234,6 @@ grep -Fq "### QA381 — CREATEROLE self-grant GUC semantics" "$REGISTER" ||
 grep -Fq "QA381 validation evidence" "$APPENDIX_QA381" ||
   fail "QA381 appendix must reserve runtime validation evidence"
 
-done
-
 grep -Fq "qa381_effective_state()" "$RUNTIME" ||
   fail "QA381 must expose an effective membership-state probe"
 qa381_effective_function="$(sed -n '/^qa381_effective_state()/,/^}/p' "$RUNTIME")"
