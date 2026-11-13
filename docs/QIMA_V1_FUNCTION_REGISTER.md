@@ -8718,3 +8718,13 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 - CI #1378 Verify passed the static QA373–QA381 contract, npm audit at its configured high-severity threshold, TypeScript, Next.js build, and 347/347 Playwright tests. Both PostgreSQL jobs failed at the direct-SELECT probe. CodeQL #1327 and the previous HEAD's Vercel Preview check succeeded.
 - QA381 remains pending until the corrected direct SELECT/SET ROLE matrix, cleanup, and explicit QA381 marker pass on both PostgreSQL 16 and 17.6.
 - Safety: only disposable test ACLs and documentation are changed; no Production database, Supabase credential, migration, persistent PostgreSQL setting, remote publisher, or branch protection is accessed or modified.
+
+
+### QA381 third runtime correction — parenthesize PUBLIC ACL predicates before casting
+
+- QIMA CI [#1379](https://github.com/meridane/QimaTrade-MVP/actions/runs/43370734121) passed Verify (static QA373–QA381 contract, npm audit at the configured high-severity threshold, TypeScript, Next.js build, and 347/347 Playwright tests) but both PostgreSQL jobs failed after QA380 while evaluating the QA381 PUBLIC-ACL query.
+- Exact SQL error on PostgreSQL 16 and 17.6: `argument of NOT must be type boolean, not type text`. The direct SELECT/SET ROLE probes had not run; no QA381 runtime pass is claimed and no unexpected object-access result was observed.
+- Root cause: `NOT EXISTS (subquery)::text` allowed the cast to bind before NOT. The query now uses `(NOT EXISTS (subquery))::text` for both schema and table ACL predicates. The static contract requires exactly two parenthesized NOT EXISTS expressions and two text casts after those boolean expressions.
+- CodeQL [#1328](https://github.com/meridane/QimaTrade-MVP/actions/runs/43370733935): **SUCCESS**. Vercel status for the previous HEAD: **SUCCESS**.
+- QA381 remains pending until both pinned PostgreSQL 16 and 17.6 jobs complete the SELECT/SET ROLE matrix, cleanup, and explicit QA381 marker after this correction.
+- Safety: only the disposable QA381 test query, static contract and documentation are changed. No Production database, Supabase credential, migration, persistent PostgreSQL setting, remote publisher, or branch-protection configuration is accessed or modified.

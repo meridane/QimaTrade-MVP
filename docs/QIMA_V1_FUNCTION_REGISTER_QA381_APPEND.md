@@ -63,3 +63,14 @@ The runtime fixture now explicitly revokes all privileges on the temporary QA381
 CI #1378 Verify passed the QA373–QA381 static contract, `npm audit --audit-level=high`, TypeScript, Next.js build, and 347/347 Playwright tests. Both PostgreSQL runtime jobs failed at the QA381 direct-SELECT probe. CodeQL #1327 and the Vercel Preview check succeeded for the previous code HEAD. QA381 remains pending until the revised runtime emits its explicit marker on PostgreSQL 16 and 17.6 and the complete Verify job succeeds.
 
 Safety: this correction is limited to disposable QA schema/table ACLs, diagnostics and documentation. No Production database, Supabase credential, migration, persistent PostgreSQL setting, remote publisher, or branch-protection configuration is accessed or modified.
+
+
+## Third runtime attempt — parenthesize NOT EXISTS before text casts
+
+QIMA CI [#1379](https://github.com/meridane/QimaTrade-MVP/actions/runs/43370734121) completed the QA374–QA380 scenarios on both PostgreSQL 16 and 17.6, then stopped while evaluating the QA381 PUBLIC-ACL isolation query. Both servers returned the SQL error `argument of NOT must be type boolean, not type text`. The failure occurred before the direct SELECT/SET ROLE matrix, so it does not establish any unexpected object access and is not evidence of a Production privilege leak or a confirmed vulnerability.
+
+Root cause: the query wrote `NOT EXISTS (subquery)::text`. PostgreSQL applied the cast to the EXISTS result before the unary NOT, leaving NOT with text rather than boolean. The query now explicitly groups each predicate as `(NOT EXISTS (subquery))::text` before concatenating the two boolean results. The static contract additionally requires exactly two parenthesized predicates and two post-predicate text casts, preventing this precedence regression.
+
+CI #1379 Verify succeeded: the QA373–QA381 static contract, npm audit at its configured high-severity threshold, TypeScript, Next.js build, and 347/347 Playwright tests all passed. Both PostgreSQL jobs failed at the PUBLIC-ACL SQL expression after QA380. CodeQL #1328 and the Vercel status check succeeded for this HEAD. QA381 remains pending until both PostgreSQL 16 and 17.6 complete the direct SELECT/SET ROLE matrix, cleanup, and explicit QA381 marker on the corrected query.
+
+Safety: this correction changes only the disposable QA381 test query, its static regression assertion, and documentation. No Production database, Supabase credential, migration, persistent PostgreSQL setting, remote publisher, or branch-protection configuration is accessed or modified.

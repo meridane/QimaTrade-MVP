@@ -263,4 +263,10 @@ for required in \
     fail "QA381 direct-SELECT ACL isolation/diagnostics are missing: $required"
 done
 
+qa381_public_acl_check="$(sed -n '/^qa381_public_acl_state=/,/^qa381_catalog_state()/p' "$RUNTIME")"
+[[ "$(grep -Fc '(NOT EXISTS (' <<< "$qa381_public_acl_check")" -eq 2 ]] ||
+  fail "QA381 PUBLIC ACL checks must parenthesize both NOT EXISTS boolean expressions"
+[[ "$(grep -Fc '))::text' <<< "$qa381_public_acl_check")" -eq 2 ]] ||
+  fail "QA381 PUBLIC ACL checks must cast both boolean results only after NOT EXISTS"
+
 echo "QA373/QA374/QA375/QA376/QA377/QA378/QA379/QA380/QA381 static contract PASS: runner privilege boundaries, indirect membership, non-transitive ADMIN, and CREATEROLE self-grant GUC semantics are covered."

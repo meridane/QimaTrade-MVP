@@ -948,17 +948,17 @@ db_psql -c "
 
 qa381_public_acl_state="$(db_psql -c "
   SELECT
-    NOT EXISTS (
+    (NOT EXISTS (
       SELECT 1
       FROM aclexplode(COALESCE(n.nspacl, acldefault('n', n.nspowner))) acl
       WHERE acl.grantee = 0
         AND acl.privilege_type IN ('USAGE', 'CREATE')
-    )::text || '|' ||
-    NOT EXISTS (
+    ))::text || '|' ||
+    (NOT EXISTS (
       SELECT 1
       FROM aclexplode(COALESCE(c.relacl, acldefault('r', c.relowner))) acl
       WHERE acl.grantee = 0
-    )::text
+    ))::text
   FROM pg_namespace n
   JOIN pg_class c ON c.relnamespace = n.oid
   WHERE n.nspname = 'qa381_probe'
