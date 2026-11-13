@@ -8637,9 +8637,9 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 - Positive assertions: pg_has_role reports SET capability for the bridge and both client roles; direct runner-to-anon and runner-to-authenticated membership rows remain absent. The real runner must complete, explicit SET ROLE anon/authenticated commands must succeed, and no reverse memberships may be created.
 - Negative setup: qa379_blocked_runner is a non-superuser database owner with CREATEROLE and NOINHERIT. The bridge-to-client edges have SET TRUE, but the runner-to-bridge edge has SET FALSE. The runner must exit 4 before fixture DDL/DML; empty-database, ownership, role, and membership snapshots must remain identical.
 - Safety: all role, database, fixture, and migration operations remain inside disposable PostgreSQL 16/17.6 containers. No Production database, credential, persistent PostgreSQL setting, or remote publisher is used.
-- Validation status at code publication: pending. No QA379 runtime success is claimed until both PostgreSQL 16 and 17.6 emit the explicit positive and negative markers.
+- Validation status at code publication: pending; see the final QA379 validation section below for the subsequently completed PostgreSQL 16 and 17.6 runs.
 - PostgreSQL semantics reference: PostgreSQL 16 SET ROLE and role-membership documentation state that an indirect SET ROLE path requires SET TRUE on every membership edge.
-- CodeQL and final CI evidence: pending.
+- Final CI and CodeQL evidence: recorded in the final QA379 validation section below.
 
 
 ### QA379 initial CI correction — 13 November 2026
@@ -8658,3 +8658,14 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 - CodeQL [#1321](https://github.com/meridane/QimaTrade-MVP/actions/runs/43337660127): **SUCCESS** on code HEAD `d5cf33e0b258b6f2cb3cb2a4144ae1377754fb37`.
 - Interpretation: QA379 is runtime-characterized successfully on the two pinned disposable PostgreSQL versions, but its overall CI gate remains open until the corrected static contract and complete Verify pass.
 - Safety: the correction changes only a test assertion and documentation. No Production database, Supabase secret, migration, persistent PostgreSQL setting, or branch-protection configuration is touched.
+
+
+### QA379 final validation — 13 November 2026
+
+- QIMA CI [#1373](https://github.com/meridane/QimaTrade-MVP/actions/runs/43345563566): **SUCCESS** on HEAD `215c25e1f865d71d8a14d6e9f95330d9ac41e6d3`. PostgreSQL 16 and PostgreSQL 17.6 both completed successfully and emitted the explicit QA379 positive and negative markers. The positive scenario completed the full runner, both explicit SET ROLE commands, the no-direct-membership assertions, and concurrency checks. The negative SET FALSE edge was rejected before fixture changes and preserved the database, ownership, role, and membership snapshots.
+- Verify passed the corrected QA373–QA379 static contract, `npm audit --audit-level=high`, TypeScript, Next.js production build, Chromium installation, and all 347 Playwright tests. The audit result is reported only at its configured high-severity blocking threshold; this entry does not claim zero findings at lower severities.
+- The job-level failures in the prepared-transaction failure harnesses are intentional test stimuli; their separate blocking assertion jobs succeeded. The expected skipped cleanup harness remained skipped. The overall CI workflow completed successfully.
+- CodeQL [#1322](https://github.com/meridane/QimaTrade-MVP/actions/runs/43345563717): **SUCCESS** on the final code HEAD.
+- Vercel Preview checks completed successfully for the code HEAD. Preview only; no Production deployment.
+- QA379 is closed: the transitive SET-enabled path and the SET FALSE negative boundary were both characterized on the two pinned disposable PostgreSQL versions.
+- Safety: no Production database, Supabase credential, migration, persistent PostgreSQL setting, remote publisher, or branch-protection configuration was accessed or modified.

@@ -36,10 +36,13 @@ All roles, memberships, databases, fixtures, migrations, and temporary files are
 
 ## QA379 code-validation evidence
 
-- QIMA CI [#1372](https://github.com/meridane/QimaTrade-MVP/actions/runs/43337660012): the PostgreSQL 16 integration job and PostgreSQL 17.6 compatibility job both completed successfully. Both logs emitted the explicit positive marker `QA379 indirect SET chain passed` and the negative marker `QA379 indirect SET chain with a SET FALSE edge was rejected before fixture changes`.
-- The same workflow's Verify job failed only in the static contract because the assertion expected a level-two heading while this standalone appendix correctly uses a level-one title. The dependency-audit enforcement step then failed because the audit was skipped after the static failure; npm audit itself did not run, and no dependency-vulnerability conclusion is implied. TypeScript, Next.js build, and Playwright were also not run in that Verify job.
-- The static contract has been corrected to match the standalone appendix's exact level-one title. A fresh complete PR validation is required before QA379 is fully closed.
+- QIMA CI [#1372](https://github.com/meridane/QimaTrade-MVP/actions/runs/43337660012): PostgreSQL 16 and PostgreSQL 17.6 runtime jobs succeeded, but Verify failed because the static contract expected a level-two heading while this standalone appendix correctly uses a level-one title. The audit-enforcement step then failed because the audit was skipped; npm audit, TypeScript, Next.js build, and Playwright did not run in that Verify job. No dependency-vulnerability conclusion is implied.
+- The static contract was corrected in commit [215c25e](https://github.com/meridane/QimaTrade-MVP/commit/215c25e1f865d71d8a14d6e9f95330d9ac41e6d3) to check the exact level-one appendix title.
+- QIMA CI [#1373](https://github.com/meridane/QimaTrade-MVP/actions/runs/43345563566): **SUCCESS**. PostgreSQL 16 and 17.6 emitted both explicit QA379 markers. Verify passed the static contract, high-threshold npm audit, TypeScript, Next.js build, Chromium installation, and 347 Playwright tests.
+- CodeQL [#1322](https://github.com/meridane/QimaTrade-MVP/actions/runs/43345563717): **SUCCESS** on the final code HEAD.
+- Vercel Preview checks: **SUCCESS**. Preview only; no Production deployment.
 
 ## QA379 CodeQL evidence
 
-- CodeQL [#1321](https://github.com/meridane/QimaTrade-MVP/actions/runs/43337660127): **SUCCESS** on code HEAD `d5cf33e0b258b6f2cb3cb2a4144ae1377754fb37`.
+- CodeQL [#1321](https://github.com/meridane/QimaTrade-MVP/actions/runs/43337660127): **SUCCESS** on the preceding code HEAD.
+- CodeQL [#1322](https://github.com/meridane/QimaTrade-MVP/actions/runs/43345563717): **SUCCESS** on the corrected code HEAD.
