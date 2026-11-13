@@ -8962,18 +8962,16 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 - Ajout d'un scénario PostgreSQL jetable utilisant une quantité NaN et un prix fini valide; le test exige exactement INVALID_QUANTITY.
 - Le scénario compare les nombres de lignes avant/après dans idempotency_keys, action_executions, offers et action_events, et vérifie l'absence de la clé, de l'exécution et de l'offre de fixture.
 - Ajout de tests/sql/test-create-offer-nan-quantity-contract.sh et intégration dans le job Verify. Les jobs PostgreSQL 16 et 17.6 utilisent le runner SQL partagé.
-- Validation QA389 : le contrat statique Verify est **PASS** sur HEAD 52e7d34e1ef53c3de989fc16f1bc5be86cc95408 (QIMA CI #43477926780); PostgreSQL 16 et 17.6 restent **IN PROGRESS**, donc QA389 demeure PENDING.
+- Validation QA389 : Verify est **SUCCESS** sur le code HEAD 52e7d34e1ef53c3de989fc16f1bc5be86cc95408 (QA389 PASS, npm audit, TypeScript, build et 347/347 Playwright); les étapes runtime CREATE_OFFER PostgreSQL 16 et 17.6 sont **SUCCESS**, mais les caractérisations suivantes restent **IN PROGRESS**. QA389 demeure PENDING jusqu'au succès des deux jobs complets.
 - Aucun code applicatif ni migration n'a été modifié. Les décisions MKT-1.1, MKT-1.2 et MKT-1.3 restent non approuvées.
 - Aucune donnée Supabase Production, migration, secret, configuration PostgreSQL persistante, règle de protection, fusion ou déploiement Production n'a été modifié.
 
 
-## QA389 — résultats intermédiaires CI (14 novembre 2026)
+## QA389 — validation CI intermédiaire (14 novembre 2026)
 
-- PR #26 HEAD de code : 52e7d34e1ef53c3de989fc16f1bc5be86cc95408; PR toujours OPEN, draft et non fusionnée.
-- QIMA CI [#43477926780](https://github.com/meridane/QimaTrade-MVP/actions/runs/43477926780) est IN_PROGRESS.
-- Le contrat statique QA389 dans Verify est terminé SUCCESS; les contrats précédents QA382–QA388 sont également SUCCESS.
-- Le job PostgreSQL 16 (132066564285) est IN_PROGRESS dans l'étape d'intégration CREATE_OFFER partagée.
-- Le job PostgreSQL 17.6 (132066563701) est IN_PROGRESS dans l'étape d'intégration CREATE_OFFER partagée.
-- Le job TypeScript/audit/build/browser (132066564397) est IN_PROGRESS; npm audit et les étapes statiques précédentes sont SUCCESS.
-- QIMA CodeQL [#43477926783](https://github.com/meridane/QimaTrade-MVP/actions/runs/43477926783) est IN_PROGRESS. Le check Vercel Preview Comments est SUCCESS.
-- QA389 reste PENDING jusqu'aux marqueurs runtime et à la réussite des deux jobs PostgreSQL. Aucun résultat runtime n'est anticipé.
+- QIMA CI [#43477926780](https://github.com/meridane/QimaTrade-MVP/actions/runs/43477926780) reste IN_PROGRESS sur le code HEAD 52e7d34e1ef53c3de989fc16f1bc5be86cc95408.
+- Le job Verify (132066564397) a terminé SUCCESS. Son journal contient QA389 PASS; les contrats QA382–QA388 ont également réussi. npm audit au seuil high, TypeScript, build Next.js et 347/347 Playwright ont réussi.
+- Le job PostgreSQL 16 (132066564285) a terminé l'étape d'intégration/runtime CREATE_OFFER SUCCESS; les étapes ultérieures de caractérisation catalogues et privilèges restent en cours.
+- Le job PostgreSQL 17.6 (132066563701) a terminé l'étape d'intégration/runtime CREATE_OFFER SUCCESS; les étapes ultérieures de caractérisation catalogues et privilèges restent en cours.
+- QIMA CodeQL [#43477926783](https://github.com/meridane/QimaTrade-MVP/actions/runs/43477926783) a terminé SUCCESS. Le check Vercel Preview Comments du code HEAD a également terminé SUCCESS.
+- QA389 reste PENDING jusqu'à la réussite des deux jobs PostgreSQL complets. Aucun marqueur final n'est extrapolé des seules étapes intermédiaires.

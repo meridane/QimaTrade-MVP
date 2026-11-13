@@ -4,7 +4,7 @@ Date: 2026-11-14 (KST)
 PR: [#26](https://github.com/meridane/QimaTrade-MVP/pull/26)
 Branch: fix/create-offer-status-contract
 Working branch: work/qa389-nan-quantity-boundary-20261114-0254
-Status: IMPLEMENTED — VERIFY STATIC PASS; POSTGRESQL RUNTIME IN PROGRESS
+Status: IMPLEMENTED — VERIFY SUCCESS; POSTGRESQL JOBS IN PROGRESS
 
 ## Initial state verified
 
@@ -55,6 +55,17 @@ The existing migration rejects PostgreSQL numeric NaN for p_quantity through its
 - PostgreSQL 16 job 132066564285 is IN_PROGRESS at the shared CREATE_OFFER runtime/integration step.
 - PostgreSQL 17.6 job 132066563701 is IN_PROGRESS at the shared CREATE_OFFER runtime/integration step.
 - Typecheck/audit/build/browser job 132066564397 is IN_PROGRESS; the audit and preceding static checks have completed successfully.
-- QIMA CodeQL [#43477926783](https://github.com/meridane/QimaTrade-MVP/actions/runs/43477926783) is IN_PROGRESS.
+- QIMA CodeQL [#43477926783](https://github.com/meridane/QimaTrade-MVP/actions/runs/43477926783) completed SUCCESS.
 - The Vercel Preview Comments status check on this HEAD is SUCCESS; this is not a Production deployment.
 - QA389 remains PENDING until the runtime marker and successful completion of both PostgreSQL jobs are confirmed.
+
+
+## Validation update — 14 November 2026
+
+- The Verify job 132066564397 completed SUCCESS on code HEAD 52e7d34e1ef53c3de989fc16f1bc5be86cc95408. Its log emitted QA389 PASS; QA382 through QA388 static contracts also passed.
+- The same Verify job completed npm audit at the configured high threshold, TypeScript, Next.js production build and 347/347 Playwright tests successfully.
+- PostgreSQL 16 job 132066564285 completed the shared CREATE_OFFER runtime/integration step SUCCESS, which executes tests/sql/create-offer-runtime.sql including QA389. Its later database/privilege characterization steps remain in progress.
+- PostgreSQL 17.6 job 132066563701 completed the shared CREATE_OFFER runtime/integration step SUCCESS, including the same runtime file. Its later catalog/privilege characterization steps remain in progress.
+- QIMA CodeQL [#43477926783](https://github.com/meridane/QimaTrade-MVP/actions/runs/43477926783) completed SUCCESS.
+- QIMA CI [#43477926780](https://github.com/meridane/QimaTrade-MVP/actions/runs/43477926780) remains IN_PROGRESS because the PostgreSQL jobs have not yet completed. QA389 remains PENDING until both full jobs complete SUCCESS and their final logs are available for confirmation.
+- The Vercel Preview Comments status check on code HEAD 52e7d34e1ef53c3de989fc16f1bc5be86cc95408 is SUCCESS.
