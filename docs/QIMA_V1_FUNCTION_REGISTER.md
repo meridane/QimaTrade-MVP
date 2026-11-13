@@ -1,6 +1,6 @@
 # QIMA Trade — Registre des fonctionnalités V1 et audit de départ
 
-Dernière vérification : 13 novembre 2026 (KST)
+Dernière vérification : 14 novembre 2026 (KST)
 Dépôt : meridane/QimaTrade-MVP — branche fix/create-offer-status-contract (PR #26, brouillon)
 Projet Supabase : `QIMA` (`yyulzlnrfcbaxovzjbnh`)
 
@@ -8924,6 +8924,25 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 - Ajout d'un scénario PostgreSQL jetable avec p_quantity = 1::numeric, p_price = -1::numeric, identité authentifiée de fixture et autres références métier valides.
 - Le test exige exactement INVALID_PRICE, compare les nombres de lignes avant/après dans idempotency_keys, action_executions, offers et action_events, et vérifie l'absence de la clé et de l'offre de fixture.
 - Ajout de tests/sql/test-create-offer-negative-price-contract.sh et intégration dans Verify; les jobs PostgreSQL 16 et 17.6 exécutent le runtime partagé.
-- Validation QA387 sur le nouveau HEAD : **PENDING** jusqu'au marqueur Verify et aux deux marqueurs runtime PostgreSQL.
+- Validation QA387 : **CLOSED** après le succès de Verify, PostgreSQL 16 et PostgreSQL 17.6 sur HEAD d60c7f4c520b3fd98bacb4ed45269641b686bec1 (QIMA CI #1397).
 - Aucun code applicatif ni migration n'a été modifié. Aucun test d'acceptation du prix zéro ou comportement de canonicalisation numérique n'a été introduit.
 - MKT-1.1 demande/tenant, MKT-1.2 brouillons/idempotence et MKT-1.3 canonicalisation numérique restent non approuvés. Aucune donnée Supabase Production, secret, configuration PostgreSQL persistante, règle de protection, fusion ou déploiement Production n'a été modifié.
+
+
+## QA387 — validation complète et clôture (14 novembre 2026)
+
+- PR #26 relue : OPEN et non fusionnée; HEAD d60c7f4c520b3fd98bacb4ed45269641b686bec1. La description de la PR conserve son statut de brouillon; aucune review humaine n'est enregistrée.
+- QIMA CI [#1397](https://github.com/meridane/QimaTrade-MVP/actions/runs/43451163902) a terminé SUCCESS. Verify a émis QA387 PASS; npm audit au seuil high, TypeScript, build Next.js et 347/347 Playwright ont réussi.
+- PostgreSQL 16 (job 131973387950) et PostgreSQL 17.6 (job 131973388219) ont chacun émis QA387 PASS et QA381 passed; les deux jobs ont terminé SUCCESS.
+- CodeQL [#1346](https://github.com/meridane/QimaTrade-MVP/actions/runs/43451163974) et le check Vercel du HEAD ont terminé SUCCESS.
+- QA387 est CLOSED. Les résultats concernent les tests statiques et bases PostgreSQL jetables de CI, sans conclusion de vulnérabilité ou de validation Production.
+
+## QA388 — couverture des effets de bord pour Infinity positif
+
+- Le SQL existant rejette déjà p_quantity = Infinity avec INVALID_QUANTITY et p_price = Infinity avec INVALID_PRICE. Le runtime historique vérifiait les erreurs, mais ne fournissait pas de contrôle isolé des quatre tables de persistance pour ces deux cas.
+- Ajout d'une matrice PostgreSQL jetable avec deux clés indépendantes : quantité positive infinie/prix fini, puis quantité finie/prix positif infini.
+- Chaque cas exige le code d'erreur exact et compare les nombres de lignes avant/après dans idempotency_keys, action_executions, offers et action_events; la clé, l'exécution et l'offre de fixture doivent rester absentes.
+- Ajout de tests/sql/test-create-offer-positive-infinity-contract.sh et intégration dans Verify. Les jobs PostgreSQL 16 et 17.6 exécutent le runtime SQL partagé.
+- Validation QA388 sur le nouveau HEAD : **PENDING** jusqu'au marqueur Verify et aux deux marqueurs runtime PostgreSQL.
+- Aucun code applicatif ou migration n'a été modifié. Les décisions MKT-1.1, MKT-1.2 et MKT-1.3 restent non approuvées; aucune règle métier n'est inventée.
+- Aucune donnée Supabase Production, migration, secret, configuration PostgreSQL persistante, règle de protection, fusion ou déploiement Production n'a été modifié.
