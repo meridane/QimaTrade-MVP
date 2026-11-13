@@ -113,7 +113,7 @@ for required in \
   "indirect_positive_after_state" \
   "indirect_negative_initial_state" \
   "indirect_empty_database_snapshot" \
-  "SET ROLE anon; RESET ROLE; SET ROLE authenticated; RESET ROLE;" \\
+  "SET ROLE anon; RESET ROLE; SET ROLE authenticated; RESET ROLE;" \
   "mixed_initial_state" \
   "mixed_after_state" \
   "mixed_grantor_state" \

@@ -254,3 +254,11 @@ Pending CI validation on PostgreSQL 16 and 17.6. No runtime pass is claimed unti
 ## QA379 CodeQL evidence
 
 Pending.
+
+
+### QA379 initial CI correction — 13 November 2026
+
+- QIMA CI [#1371](https://github.com/meridane/QimaTrade-MVP/actions/runs/43337401098): Verify failed in the QA373–QA379 static-contract step because the new Bash array item for the explicit SET ROLE command had two trailing backslashes. The first escaped the second, so the following array item was parsed as a separate shell command.
+- Verify stopped before dependency installation/audit, TypeScript, Next.js build, and Playwright. These controls were not run in #1371; no dependency-vulnerability conclusion is implied.
+- The PostgreSQL 16 and 17.6 jobs were independent and continued running the integration and runtime characterization. Their QA379 results remain pending until their explicit markers are observed.
+- The static-contract continuation was corrected on the work branch to one trailing backslash. A fresh PR validation is pending.
