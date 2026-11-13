@@ -8605,9 +8605,12 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 ### QA377 — mixed SET and ADMIN OPTION membership path
 
 - Scope: characterize a positive mixed membership configuration for the non-superuser CREATE_OFFER runner.
-- Initial state: the disposable database owner has CREATEROLE; anon is SET-capable without ADMIN OPTION, while authenticated has ADMIN OPTION but SET is false.
+- Initial state: the disposable database owner has CREATEROLE; anon is SET-capable without ADMIN OPTION, while authenticated has ADMIN OPTION but SET is false. Exact observed state: true|false|true|true|false|true|false|true|false.
 - Expected behavior: the read-only runner guard accepts the combination independently for each target role. The fixture skips a redundant anon grant and establishes SET access for authenticated using its existing ADMIN OPTION.
-- Runtime assertions: exact initial capability state, complete runner and concurrency success, final one-way SET access, and aggregate grantor state anon:true:1|authenticated:true:2.
-- Safety: all objects remain in the disposable PostgreSQL 16/17.6 test container; no Production database, secret, persistent setting, or remote publisher is used.
-- Validation status at code publication: pending; no runtime success is claimed until both PostgreSQL jobs emit QA377 passed.
-- CodeQL and final CI evidence: pending.
+- Runtime assertions: both PostgreSQL versions complete the full runner and concurrency observation; final membership state is true|true|false|false; grantor aggregate is anon:true:1|authenticated:true:2.
+- PostgreSQL 16 and 17.6 both emitted the explicit QA377 passed marker in CI #1368; PostgreSQL 17.6 reported server_version_num=170006.
+- CI #1367 overall failed only because the first static-contract edit had blank lines inside a Bash continued array. Both PostgreSQL runtime jobs succeeded and emitted QA377 passed. Verify stopped before npm audit, TypeScript, build, and Playwright; dependency-audit enforcement failed because no audit result existed, not because a vulnerability was found.
+- The static-contract formatting was corrected in commit 27b7c0d. QIMA CI #1368 then completed with SUCCESS: static contract, PostgreSQL 16, PostgreSQL 17.6, npm audit at the high threshold, TypeScript, Next.js production build, Chromium, and 347 Playwright tests all passed.
+- CodeQL #1317: SUCCESS. Vercel Preview status for code commit 27b7c0d: SUCCESS; Preview only, no Production deployment.
+- Interpretation: this is a synthetic runtime characterization only and does not establish that any Production runner currently uses the tested membership configuration.
+- Safety: all objects remain in disposable PostgreSQL 16/17.6 containers; no Production database, secret, persistent setting, or remote publisher is used.

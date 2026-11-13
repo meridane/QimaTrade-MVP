@@ -136,34 +136,36 @@ The scenario uses only roles and an initialized database inside the disposable P
 
 ### Scope
 
-Exercise the positive mixed-capability branch of the full CREATE_OFFER runner privilege contract. The runner must evaluate SET and ADMIN OPTION independently for each existing client role rather than requiring both roles to use the same membership mechanism.
+Exercise the positive mixed-capability branch of the full CREATE_OFFER runner privilege contract. The runner evaluates SET and ADMIN OPTION independently for each existing client role; both roles do not need to use the same membership mechanism.
 
 ### Runtime setup
 
-- Use a disposable PostgreSQL 16 or 17.6 container and recreate only its temporary qima_test database.
-- Create qa377_mixed_membership_runner as LOGIN, CREATEROLE, NOSUPERUSER, NOCREATEDB, NOREPLICATION, NOBYPASSRLS and make it the qima_test owner.
-- Keep anon and authenticated as existing NOLOGIN roles.
-- Grant anon with ADMIN FALSE, INHERIT FALSE, SET TRUE.
-- Grant authenticated with ADMIN TRUE, INHERIT FALSE, SET FALSE.
-- Assert the exact initial state true|false|true|true|false|true|false|true|false: database owner, non-superuser, CREATEROLE, anon SET-only, authenticated ADMIN-only.
-- Invoke the real run-create-offer-integration.sh using the loopback-only qima_test URL.
+- Disposable PostgreSQL 16 and 17.6 containers; only the temporary qima_test database is recreated.
+- qa377_mixed_membership_runner is LOGIN, CREATEROLE, NOSUPERUSER, NOCREATEDB, NOREPLICATION, NOBYPASSRLS and owns qima_test.
+- anon starts with ADMIN FALSE, INHERIT FALSE, SET TRUE.
+- authenticated starts with ADMIN TRUE, INHERIT FALSE, SET FALSE.
+- The exact initial state is true|false|true|true|false|true|false|true|false: database owner, non-superuser, CREATEROLE, anon SET-only, authenticated ADMIN-only.
+- The real run-create-offer-integration.sh is invoked using the loopback-only qima_test URL.
 
-### Expected result
+### Expected and observed result
 
-The read-only runner guard accepts the mixed capability set. The fixture does not need to grant anon again because SET is already available; it uses ADMIN OPTION to establish the missing SET access for authenticated. The complete fixture, migrations, SECURITY DEFINER checks, and same-tenant advisory-lock concurrency observation must succeed.
+The read-only runner guard accepts the mixed capability set. The fixture skips a redundant anon grant because SET is already available and uses ADMIN OPTION to establish the missing SET access for authenticated.
 
-The final state must show SET access to both client roles, no reverse membership from either client role to the runner, and distinct grantors for the original and fixture-created authenticated memberships. The expected aggregate is anon:true:1|authenticated:true:2.
+Both PostgreSQL versions completed the full fixture, migrations, SECURITY DEFINER checks, and same-tenant advisory-lock concurrency observation.
 
-### Safety and interpretation
+The final membership state is true|true|false|false: the runner can SET ROLE to both client roles, and neither client role is a member of the runner. The grantor aggregate is anon:true:1|authenticated:true:2, preserving the original anon SET grant and the separate authenticated ADMIN-to-SET grant.
 
-All roles, the database, fixtures, extensions, and migrations are confined to the disposable Docker PostgreSQL container. The existing EXIT trap removes the container and temporary files. No Production database, credentials, migration, persistent PostgreSQL setting, or remote connection is used.
+### QA377 validation history — 13 November 2026
 
-This is a synthetic runtime characterization of a mixed membership configuration. It does not establish that any Production runner currently uses this configuration.
+- QIMA CI [#1367](https://github.com/meridane/QimaTrade-MVP/actions/runs/43333210739): overall **FAILURE** in Verify because the first QA377 static-contract edit introduced blank lines between Bash array continuation elements. The exact failure was a Bash syntax error at line 89 near the required CREATE DATABASE token. Both PostgreSQL runtime jobs nevertheless completed successfully and emitted the explicit QA377 passed marker.
+- CI #1367 did not reach npm audit, TypeScript, Next.js build, or Playwright after the static-contract failure. The later dependency-audit enforcement step failed because no audit result had been produced; this was not an npm vulnerability finding.
+- Correction commit [27b7c0d](https://github.com/meridane/QimaTrade-MVP/commit/27b7c0d704c3b1580f59aa0a8e63656859079e5f) removed the blank separators so the continued Bash array remains one valid command.
+- QIMA CI [#1368](https://github.com/meridane/QimaTrade-MVP/actions/runs/43333309720): **SUCCESS**. PostgreSQL 16 and PostgreSQL 17.6 both emitted QA377 passed; the Verify job passed the static contract, npm audit at the high threshold, TypeScript, Next.js production build (6.5 seconds), Chromium setup, and 347 Playwright tests (8.4 seconds).
+- PostgreSQL 17.6 reported server_version_num=170006. PostgreSQL 16 completed the same QA377 runtime marker and full job successfully.
+- CodeQL [#1317](https://github.com/meridane/QimaTrade-MVP/actions/runs/43333309683): **SUCCESS**.
+- Vercel Preview commit status for code commit 27b7c0d: **SUCCESS** ([Preview](https://vercel.com/bmk1/qimatrade-mvp/13RPVaMPLTtz8ybFSXimsmJhsQMG)). This is Preview only; no Production deployment was requested or performed.
+- QA377 is a synthetic runtime characterization only. It does not establish that any Production runner currently uses this privilege configuration.
 
-### QA377 code-validation evidence
+### Safety
 
-Pending CI validation on PostgreSQL 16 and 17.6. No runtime pass is claimed until both jobs emit the explicit QA377 passed marker.
-
-### QA377 CodeQL evidence
-
-Pending.
+All roles, database objects, fixtures, extensions, and migrations are confined to disposable PostgreSQL containers. The EXIT trap removes the container and temporary files. No Supabase Production data, credentials, migration, persistent PostgreSQL setting, remote connection, or branch-protection configuration is accessed or modified.
