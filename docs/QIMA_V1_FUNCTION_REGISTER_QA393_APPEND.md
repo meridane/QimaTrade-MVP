@@ -5,7 +5,7 @@ PR: [#26](https://github.com/meridane/QimaTrade-MVP/pull/26)
 Branch: fix/create-offer-status-contract
 Working branch: work/qa393-quantity-mismatch-replay-20261114-0643
 Parent HEAD: f0cb89b639f278d88cb23a373dda0f5874ca3296
-Status: IMPLEMENTED — CI VALIDATION PENDING
+Status: CLOSED — CI SUCCESS
 
 ## Initial state verified
 
@@ -37,7 +37,9 @@ QA392 characterizes rejection when a completed zero-price request is replayed wi
 ## Validation
 
 - Source-level review confirms the new case uses only the existing disposable authenticated fixture and does not modify the migration or application code.
-- QA393 remains PENDING until Verify emits QA393 PASS and both full PostgreSQL 16 and PostgreSQL 17.6 jobs complete SUCCESS with the runtime marker.
+- QIMA CI [#1406](https://github.com/meridane/QimaTrade-MVP/actions/runs/43513682317) completed SUCCESS. Verify job 132190034671 emitted QA393 PASS; npm audit at the high threshold, TypeScript, Next.js build and 347/347 Playwright passed.
+- PostgreSQL 16 job 132190034394 and PostgreSQL 17.6 job 132190035262 each emitted QA393 PASS and QA381 passed; both full jobs completed SUCCESS after catalog, ACL, RLS, runner-privilege and cleanup checks.
+- QIMA CodeQL [#1354](https://github.com/meridane/QimaTrade-MVP/actions/runs/43513682166) and the Vercel status check completed SUCCESS.
 - The CI workflow ignores docs/** changes; the code and workflow commit triggers the PR validation.
 
 ## Safety and decision boundaries
