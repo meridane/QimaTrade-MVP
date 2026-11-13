@@ -936,36 +936,65 @@ qa381_create_target "inherit" "qa381_inherit_target"
 qa381_create_target "set,inherit" "qa381_both_target"
 
 db_psql -c "
-  CREATE SCHEMA qa381_probe;
-  CREATE TABLE qa381_probe.inherit_probe (id integer);
-  REVOKE ALL ON SCHEMA qa381_probe FROM PUBLIC;
-  REVOKE ALL ON TABLE qa381_probe.inherit_probe FROM PUBLIC;
-  GRANT USAGE ON SCHEMA qa381_probe
-    TO qa381_default_target, qa381_set_target, qa381_inherit_target, qa381_both_target;
-  GRANT SELECT ON qa381_probe.inherit_probe
-    TO qa381_default_target, qa381_set_target, qa381_inherit_target, qa381_both_target;
+  CREATE SCHEMA qa381_probe_default;
+  CREATE SCHEMA qa381_probe_set;
+  CREATE SCHEMA qa381_probe_inherit;
+  CREATE SCHEMA qa381_probe_both;
+  CREATE TABLE qa381_probe_default.inherit_probe (id integer);
+  CREATE TABLE qa381_probe_set.inherit_probe (id integer);
+  CREATE TABLE qa381_probe_inherit.inherit_probe (id integer);
+  CREATE TABLE qa381_probe_both.inherit_probe (id integer);
+  REVOKE ALL ON SCHEMA qa381_probe_default FROM PUBLIC;
+  REVOKE ALL ON SCHEMA qa381_probe_set FROM PUBLIC;
+  REVOKE ALL ON SCHEMA qa381_probe_inherit FROM PUBLIC;
+  REVOKE ALL ON SCHEMA qa381_probe_both FROM PUBLIC;
+  REVOKE ALL ON TABLE qa381_probe_default.inherit_probe FROM PUBLIC;
+  REVOKE ALL ON TABLE qa381_probe_set.inherit_probe FROM PUBLIC;
+  REVOKE ALL ON TABLE qa381_probe_inherit.inherit_probe FROM PUBLIC;
+  REVOKE ALL ON TABLE qa381_probe_both.inherit_probe FROM PUBLIC;
+  GRANT USAGE ON SCHEMA qa381_probe_default TO qa381_default_target;
+  GRANT USAGE ON SCHEMA qa381_probe_set TO qa381_set_target;
+  GRANT USAGE ON SCHEMA qa381_probe_inherit TO qa381_inherit_target;
+  GRANT USAGE ON SCHEMA qa381_probe_both TO qa381_both_target;
+  GRANT SELECT ON TABLE qa381_probe_default.inherit_probe TO qa381_default_target;
+  GRANT SELECT ON TABLE qa381_probe_set.inherit_probe TO qa381_set_target;
+  GRANT SELECT ON TABLE qa381_probe_inherit.inherit_probe TO qa381_inherit_target;
+  GRANT SELECT ON TABLE qa381_probe_both.inherit_probe TO qa381_both_target;
 "
 
 qa381_public_acl_state="$(db_psql -c "
   SELECT
+    (SELECT count(*)::text
+     FROM pg_namespace n
+     JOIN pg_class c ON c.relnamespace = n.oid
+     WHERE n.nspname LIKE 'qa381_probe_%'
+       AND c.relname = 'inherit_probe') || '|' ||
     (NOT EXISTS (
       SELECT 1
-      FROM aclexplode(COALESCE(n.nspacl, acldefault('n', n.nspowner))) acl
-      WHERE acl.grantee = 0
-        AND acl.privilege_type IN ('USAGE', 'CREATE')
+      FROM pg_namespace n
+      WHERE n.nspname LIKE 'qa381_probe_%'
+        AND EXISTS (
+          SELECT 1
+          FROM aclexplode(COALESCE(n.nspacl, acldefault('n', n.nspowner))) acl
+          WHERE acl.grantee = 0
+            AND acl.privilege_type IN ('USAGE', 'CREATE')
+        )
     ))::text || '|' ||
     (NOT EXISTS (
       SELECT 1
-      FROM aclexplode(COALESCE(c.relacl, acldefault('r', c.relowner))) acl
-      WHERE acl.grantee = 0
-    ))::text
-  FROM pg_namespace n
-  JOIN pg_class c ON c.relnamespace = n.oid
-  WHERE n.nspname = 'qa381_probe'
-    AND c.relname = 'inherit_probe';
+      FROM pg_namespace n
+      JOIN pg_class c ON c.relnamespace = n.oid
+      WHERE n.nspname LIKE 'qa381_probe_%'
+        AND c.relname = 'inherit_probe'
+        AND EXISTS (
+          SELECT 1
+          FROM aclexplode(COALESCE(c.relacl, acldefault('r', c.relowner))) acl
+          WHERE acl.grantee = 0
+        )
+    ))::text;
 ")"
-if [[ "$qa381_public_acl_state" != "true|true" ]]; then
-  echo "ERROR: QA381 schema/table still expose a PUBLIC ACL: '$qa381_public_acl_state'." >&2
+if [[ "$qa381_public_acl_state" != "4|true|true" ]]; then
+  echo "ERROR: QA381 expected four isolated schema/table pairs with no PUBLIC ACLs, got '$qa381_public_acl_state'." >&2
   exit 1
 fi
 
@@ -1033,6 +1062,9 @@ qa381_assert_effective_state() {
 
 qa381_direct_select_diagnostic() {
   local target_role="$1"
+  local schema_name="$2"
+  local table_name="$3"
+  local qualified_table="$schema_name.$table_name"
   echo "QA381 direct-SELECT diagnostic: authenticated runner identity and effective privileges:" >&2
   qa381_runner_psql -c "
     SELECT
@@ -1040,9 +1072,9 @@ qa381_direct_select_diagnostic() {
       current_user::text || '|' ||
       (SELECT rolsuper::text FROM pg_roles WHERE rolname = current_user) || '|' ||
       (SELECT rolinherit::text FROM pg_roles WHERE rolname = current_user) || '|' ||
-      has_schema_privilege(current_user, 'qa381_probe', 'USAGE')::text || '|' ||
-      has_table_privilege(current_user, 'qa381_probe.inherit_probe', 'SELECT')::text || '|' ||
-      has_any_column_privilege(current_user, 'qa381_probe.inherit_probe', 'SELECT')::text || '|' ||
+      has_schema_privilege(current_user, '$schema_name', 'USAGE')::text || '|' ||
+      has_table_privilege(current_user, '$qualified_table', 'SELECT')::text || '|' ||
+      has_any_column_privilege(current_user, '$qualified_table', 'SELECT')::text || '|' ||
       pg_has_role(current_user, '$target_role', 'USAGE')::text || '|' ||
       pg_has_role(current_user, '$target_role', 'SET')::text;
   " >&2 || true
@@ -1057,8 +1089,8 @@ qa381_direct_select_diagnostic() {
       pg_has_role('qa381_create_role_runner', c.relowner, 'USAGE')::text || '|' ||
       pg_has_role('qa381_create_role_runner', 'pg_database_owner', 'USAGE')::text
     FROM pg_database d
-    JOIN pg_namespace n ON n.nspname = 'qa381_probe'
-    JOIN pg_class c ON c.relnamespace = n.oid AND c.relname = 'inherit_probe'
+    JOIN pg_namespace n ON n.nspname = '$schema_name'
+    JOIN pg_class c ON c.relnamespace = n.oid AND c.relname = '$table_name'
     WHERE d.datname = current_database();
   " >&2 || true
   echo "QA381 direct-SELECT diagnostic: all direct memberships and effective member-role paths:" >&2
@@ -1093,7 +1125,7 @@ qa381_direct_select_diagnostic() {
       ',' ORDER BY a.attnum
     ), 'none')
     FROM pg_attribute a
-    WHERE a.attrelid = 'qa381_probe.inherit_probe'::regclass
+    WHERE a.attrelid = '$qualified_table'::regclass
       AND a.attnum > 0
       AND NOT a.attisdropped;
   " >&2 || true
@@ -1106,8 +1138,8 @@ qa381_direct_select_diagnostic() {
       COALESCE(c.relacl::text, 'NULL')
     FROM pg_namespace n
     JOIN pg_class c ON c.relnamespace = n.oid
-    WHERE n.nspname = 'qa381_probe'
-      AND c.relname = 'inherit_probe';
+    WHERE n.nspname = '$schema_name'
+      AND c.relname = '$table_name';
     SELECT
       pg_get_userbyid(m.grantor)::text || '|' ||
       m.roleid::regrole::text || '|' ||
@@ -1123,32 +1155,35 @@ qa381_direct_select_diagnostic() {
 
 qa381_expect_direct_select() {
   local target_role="$1"
-  local expected="$2"
+  local schema_name="$2"
+  local table_name="$3"
+  local expected="$4"
+  local qualified_table="$schema_name.$table_name"
   local log_file="$TEMP_DIR/qa381-$target_role-direct-select.log"
   local output
   local status
-  if output="$(qa381_runner_psql -c "SELECT count(*) FROM qa381_probe.inherit_probe;" 2>"$log_file")"; then
+  if output="$(qa381_runner_psql -c "SELECT count(*) FROM $qualified_table;" 2>"$log_file")"; then
     status=0
   else
     status=$?
   fi
   if [[ "$expected" == "true" ]]; then
     if [[ "$status" -ne 0 || "$output" != "0" ]]; then
-      echo "ERROR: QA381 expected inherited SELECT through $target_role, got status=$status output='$output'." >&2
+      echo "ERROR: QA381 expected inherited SELECT through $target_role on $qualified_table, got status=$status output='$output'." >&2
       cat "$log_file" >&2
-      qa381_direct_select_diagnostic "$target_role"
+      qa381_direct_select_diagnostic "$target_role" "$schema_name" "$table_name"
       exit 1
     fi
   else
     if [[ "$status" -eq 0 ]]; then
-      echo "ERROR: QA381 direct SELECT unexpectedly succeeded without INHERIT through $target_role (status=$status, output='$output')." >&2
-      qa381_direct_select_diagnostic "$target_role"
+      echo "ERROR: QA381 direct SELECT unexpectedly succeeded without INHERIT through $target_role on $qualified_table (status=$status, output='$output')." >&2
+      qa381_direct_select_diagnostic "$target_role" "$schema_name" "$table_name"
       exit 1
     fi
     if ! grep -Fq "permission denied" "$log_file"; then
-      echo "ERROR: QA381 direct SELECT failed for an unexpected reason through $target_role." >&2
+      echo "ERROR: QA381 direct SELECT failed for an unexpected reason through $target_role on $qualified_table." >&2
       cat "$log_file" >&2
-      qa381_direct_select_diagnostic "$target_role"
+      qa381_direct_select_diagnostic "$target_role" "$schema_name" "$table_name"
       exit 1
     fi
   fi
@@ -1156,11 +1191,14 @@ qa381_expect_direct_select() {
 
 qa381_expect_set_role() {
   local target_role="$1"
-  local expected="$2"
+  local schema_name="$2"
+  local table_name="$3"
+  local expected="$4"
+  local qualified_table="$schema_name.$table_name"
   local log_file="$TEMP_DIR/qa381-$target_role-set-role.log"
   local output
   local status
-  if output="$(qa381_runner_psql -c "SET ROLE $target_role; SELECT current_user; SELECT count(*) FROM qa381_probe.inherit_probe; RESET ROLE;" 2>"$log_file")"; then
+  if output="$(qa381_runner_psql -c "SET ROLE $target_role; SELECT current_user; SELECT count(*) FROM $qualified_table; RESET ROLE;" 2>"$log_file")"; then
     status=0
   else
     status=$?
@@ -1169,7 +1207,7 @@ qa381_expect_set_role() {
     local expected_output
     expected_output="$target_role"$'\n''0'
     if [[ "$status" -ne 0 || "$output" != "$expected_output" ]]; then
-      echo "ERROR: QA381 expected SET ROLE and target privileges for $target_role, got status=$status output='$output'." >&2
+      echo "ERROR: QA381 expected SET ROLE and target privileges for $target_role on $qualified_table, got status=$status output='$output'." >&2
       cat "$log_file" >&2
       exit 1
     fi
@@ -1192,17 +1230,22 @@ qa381_assert_effective_state "qa381_set_target" "true|false"
 qa381_assert_effective_state "qa381_inherit_target" "false|true"
 qa381_assert_effective_state "qa381_both_target" "true|true"
 
-qa381_expect_direct_select "qa381_default_target" "false"
-qa381_expect_direct_select "qa381_set_target" "false"
-qa381_expect_direct_select "qa381_inherit_target" "true"
-qa381_expect_direct_select "qa381_both_target" "true"
+qa381_expect_direct_select "qa381_default_target" "qa381_probe_default" "inherit_probe" "false"
+qa381_expect_direct_select "qa381_set_target" "qa381_probe_set" "inherit_probe" "false"
+qa381_expect_direct_select "qa381_inherit_target" "qa381_probe_inherit" "inherit_probe" "true"
+qa381_expect_direct_select "qa381_both_target" "qa381_probe_both" "inherit_probe" "true"
 
-qa381_expect_set_role "qa381_default_target" "false"
-qa381_expect_set_role "qa381_set_target" "true"
-qa381_expect_set_role "qa381_inherit_target" "false"
-qa381_expect_set_role "qa381_both_target" "true"
+qa381_expect_set_role "qa381_default_target" "qa381_probe_default" "inherit_probe" "false"
+qa381_expect_set_role "qa381_set_target" "qa381_probe_set" "inherit_probe" "true"
+qa381_expect_set_role "qa381_inherit_target" "qa381_probe_inherit" "inherit_probe" "false"
+qa381_expect_set_role "qa381_both_target" "qa381_probe_both" "inherit_probe" "true"
 
-db_psql -c "DROP SCHEMA qa381_probe CASCADE;"
+db_psql -c "
+  DROP SCHEMA qa381_probe_default CASCADE;
+  DROP SCHEMA qa381_probe_set CASCADE;
+  DROP SCHEMA qa381_probe_inherit CASCADE;
+  DROP SCHEMA qa381_probe_both CASCADE;
+"
 admin_psql -c "
   DROP ROLE qa381_default_target, qa381_set_target, qa381_inherit_target, qa381_both_target;
   DROP ROLE qa381_create_role_runner;
@@ -1210,7 +1253,7 @@ admin_psql -c "
 qa381_cleanup_state="$(db_psql -c "
   SELECT
     (SELECT count(*) FROM pg_roles WHERE rolname LIKE 'qa381_%')::text || '|' ||
-    (SELECT count(*) FROM pg_namespace WHERE nspname = 'qa381_probe')::text;
+    (SELECT count(*) FROM pg_namespace WHERE nspname LIKE 'qa381_probe_%')::text;
 ")"
 if [[ "$qa381_cleanup_state" != "0|0" ]]; then
   echo "ERROR: QA381 left temporary roles or schema behind: '$qa381_cleanup_state'." >&2
