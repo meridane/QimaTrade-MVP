@@ -148,10 +148,16 @@ for required in \
   "DROP SCHEMA qa381_probe_default CASCADE" \
   "DROP SCHEMA qa381_probe_set CASCADE" \
   "DROP SCHEMA qa381_probe_inherit CASCADE" \
-  "DROP SCHEMA qa381_probe_both CASCADE"; do
+  "DROP SCHEMA qa381_probe_both CASCADE" \
+  "REVOKE CONNECT ON DATABASE qima_test FROM qa381_create_role_runner"; do
   grep -Fq -- "$required" "$RUNTIME" ||
     fail "QA381 per-target ACL isolation is missing: $required"
 done
+
+qa381_revoke_connect_line="$(grep -nF 'REVOKE CONNECT ON DATABASE qima_test FROM qa381_create_role_runner' "$RUNTIME" | tail -n 1 | cut -d: -f1)"
+qa381_drop_runner_line="$(grep -nF 'DROP ROLE qa381_create_role_runner' "$RUNTIME" | tail -n 1 | cut -d: -f1)"
+[[ -n "$qa381_revoke_connect_line" && -n "$qa381_drop_runner_line" && "$qa381_revoke_connect_line" -lt "$qa381_drop_runner_line" ]] ||
+  fail "QA381 must revoke the runner's database CONNECT grant before dropping the role"
 
 grep -Fq 'qa381_expect_direct_select "qa381_default_target" "qa381_probe_default" "inherit_probe" "false"' "$RUNTIME" ||
   fail "QA381 default target must probe only its own object"

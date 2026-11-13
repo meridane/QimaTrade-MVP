@@ -101,3 +101,23 @@ Safety: this correction changes only disposable QA381 schemas/tables, assertions
 
 
 Validation follow-up: CI [#1382](https://github.com/meridane/QimaTrade-MVP/actions/runs/43386905186) was triggered for code HEAD `a2b061f4879d090d3e64537019c260a6407035fe`. At the latest check, the Verify job had passed the QA373–QA381 static contract, npm audit at the configured high-severity threshold, TypeScript, and the Next.js production build; Playwright was still running. The PostgreSQL 16 and 17.6 jobs were still in progress and had not yet reached the QA381 runtime step. CodeQL [#1331](https://github.com/meridane/QimaTrade-MVP/actions/runs/43386905174) was in progress and the Vercel status was pending. This is an interim status, not a QA381 pass. CodeQL #1331 has since completed successfully. The documentation-only status update at code HEAD `a2b061f4879d090d3e64537019c260a6407035fe` also queued PR CI #1383 on final HEAD `84dbe8081a098616c98d8f00a540f7b8e2615a2c`: `paths-ignore: docs/**` does not suppress a `pull_request` run while the aggregate PR diff still contains non-documentation files. At the latest check, CI #1383 was pending, CodeQL #1332 was in progress, and Vercel was pending. CI #1382 had passed Verify (static contract, npm audit at the configured high threshold, TypeScript, Next.js build, and browser tests) while PostgreSQL 16 and 17.6 were still executing the QA381 runtime step. This records interim validation only; QA381 is not yet a pass.
+
+## Sixth runtime correction — revoke the runner's database CONNECT grant before role cleanup
+
+QIMA CI [#1384](https://github.com/meridane/QimaTrade-MVP/actions/runs/43387224015) completed the QA381 four-setting membership/catalog checks, all four isolated direct-SELECT probes, all four SET ROLE probes, and removal of the four temporary probe schemas on both PostgreSQL 16 and 17.6. Both jobs then failed while dropping `qa381_create_role_runner`:
+
+```text
+ERROR: role "qa381_create_role_runner" cannot be dropped because some objects depend on it
+DETAIL: privileges for database qima_test
+```
+
+The runner had been explicitly granted CONNECT on the disposable `qima_test` database during setup. Dropping its probe schemas did not remove that database-level ACL dependency. This is a test-cleanup failure after the behavioral matrix, not a CREATE_OFFER failure and not evidence of a Production privilege issue. The explicit `QA381 passed` marker was not emitted because cleanup is part of the acceptance criteria.
+
+The runtime now revokes only that test-created grant with `REVOKE CONNECT ON DATABASE qima_test FROM qa381_create_role_runner`, then inspects `pg_database.datacl` via `aclexplode` to assert that no explicit CONNECT ACL remains for the temporary runner before dropping the four target roles and creator role. The static contract requires both the REVOKE statement and its position before `DROP ROLE qa381_create_role_runner`. The four-setting catalog, SELECT, and SET ROLE expectations are unchanged.
+
+CI #1384 Verify completed successfully: QA373–QA381 static contract, `npm audit --audit-level=high`, TypeScript, Next.js production build, and 347/347 Playwright tests. PostgreSQL 16 and 17.6 reached the final QA381 role cleanup and failed only on the remaining database CONNECT dependency described above. CodeQL [#1333](https://github.com/meridane/QimaTrade-MVP/actions/runs/43387223992) completed SUCCESS. The combined Vercel status was `build-rate-limit`; no Preview success is claimed for this HEAD.
+
+QA381 remains pending until the corrected cleanup completes, both pinned PostgreSQL jobs emit the explicit `QA381 passed` marker, and the new full CI run succeeds.
+
+Safety: the REVOKE targets only the CONNECT grant created by this disposable QA381 setup inside the ephemeral CI database. No Production database, Supabase credential, migration, persistent PostgreSQL configuration, application behavior, or branch-protection rule is modified.
+

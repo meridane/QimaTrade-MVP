@@ -1246,6 +1246,21 @@ db_psql -c "
   DROP SCHEMA qa381_probe_inherit CASCADE;
   DROP SCHEMA qa381_probe_both CASCADE;
 "
+admin_psql -c "REVOKE CONNECT ON DATABASE qima_test FROM qa381_create_role_runner;"
+qa381_database_acl_state="$(admin_psql -c "
+  SELECT EXISTS (
+    SELECT 1
+    FROM pg_database d
+    CROSS JOIN LATERAL aclexplode(COALESCE(d.datacl, acldefault('d', d.datdba))) acl
+    WHERE d.datname = 'qima_test'
+      AND acl.grantee = 'qa381_create_role_runner'::regrole
+      AND acl.privilege_type = 'CONNECT'
+  )::text;
+")"
+if [[ "$qa381_database_acl_state" != "false" ]]; then
+  echo "ERROR: QA381 retained an explicit database CONNECT grant for its temporary runner: '$qa381_database_acl_state'." >&2
+  exit 1
+fi
 admin_psql -c "
   DROP ROLE qa381_default_target, qa381_set_target, qa381_inherit_target, qa381_both_target;
   DROP ROLE qa381_create_role_runner;
