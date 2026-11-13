@@ -8845,3 +8845,14 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 - Vercel Preview Comments completed **SUCCESS** for this HEAD. CodeQL [#1340](https://github.com/meridane/QimaTrade-MVP/actions/runs/43425671102) was **IN PROGRESS**.
 - Expected-failure prepared-transaction harnesses and their separate blocking assertions retained their documented expected outcomes; the expected-skipped job remained skipped with its assertion successful.
 - QA384 remains pending runtime validation on both pinned PostgreSQL versions. MKT-1.3 canonicalization remains a separate unapproved business decision.
+
+
+## CI #1391 — QA384 validation des tests ciblés (13 novembre 2026)
+
+- QIMA CI [#1391](https://github.com/meridane/QimaTrade-MVP/actions/runs/43425671182) reste **IN PROGRESS** sur le HEAD de code `c3370c7abd5443cca271c30bac0d95ba752288e5`.
+- Verify a terminé **SUCCESS**. Le journal contient le marqueur explicite `QA384 PASS` du contrat statique. npm audit au seuil high configuré, TypeScript, build Next.js, installation Chromium et **347/347 Playwright** ont également réussi.
+- L'étape `Run isolated CREATE_OFFER integration and concurrency tests` sur PostgreSQL 16 et l'étape `Run CREATE_OFFER integration and concurrency tests on PostgreSQL 17` sur PostgreSQL 17.6 ont chacune terminé **SUCCESS**. Ces étapes exécutent `tests/sql/create-offer-runtime.sql` via le runner partagé : le bloc QA384 (quantité -Infinity, prix NaN et prix -Infinity, avec assertions d'absence de lignes persistées) s'est donc terminé sans erreur sur les deux versions.
+- Les jobs PostgreSQL poursuivaient ensuite la caractérisation des privilèges du runner QA381 et d'autres régressions indépendantes; la conclusion globale de CI #1391 n'était pas encore disponible.
+- CodeQL [#1340](https://github.com/meridane/QimaTrade-MVP/actions/runs/43425671102) : **SUCCESS** sur le HEAD de code. CodeQL [#1341](https://github.com/meridane/QimaTrade-MVP/actions/runs/43425914970) : **SUCCESS** sur le HEAD documentaire `85d8099cc743f19064f0c2759381bcbec3509279`.
+- Vercel Preview Comments sur le HEAD documentaire : **SUCCESS**. QIMA CI [#1392](https://github.com/meridane/QimaTrade-MVP/actions/runs/43425915175) était **PENDING** au dernier contrôle pour ce HEAD documentaire.
+- QA384 est **PASS pour ses contrôles ciblés** (Verify, runtime PostgreSQL 16 et 17.6). Le workflow global reste en cours en raison des étapes indépendantes ultérieures.

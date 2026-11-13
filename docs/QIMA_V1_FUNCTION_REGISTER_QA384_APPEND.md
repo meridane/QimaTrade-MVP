@@ -4,7 +4,7 @@ Date: 2026-11-13 (KST)
 PR: [#26](https://github.com/meridane/QimaTrade-MVP/pull/26)  
 Branch: `fix/create-offer-status-contract`  
 Working branch: `work/qa384-numeric-domain-guard-20261113-2125`  
-Status: **STATIC CONTRACT PASS — RUNTIME VALIDATION IN PROGRESS**
+Status: **TEST-SPECIFIC PASS — VERIFY + PG16/PG17 RUNTIME STEP PASS; FULL CI IN PROGRESS**
 
 ## Initial state verified
 
@@ -60,3 +60,14 @@ The existing runtime fixture covered NaN quantity, positive-Infinity quantity/pr
 - Vercel Preview Comments for this HEAD completed **SUCCESS**. CodeQL [#1340](https://github.com/meridane/QimaTrade-MVP/actions/runs/43425671102) was **IN PROGRESS**.
 - The intentionally failing prepared-transaction harness jobs retained their expected job-level failure outcomes; their blocking assertions passed. The expected-skipped harness remained skipped and its assertion passed.
 - This is an interim result only. QA384 remains open until Verify and both PostgreSQL jobs complete successfully on the final HEAD.
+
+
+## CI #1391 — QA384 test-specific validation (13 novembre 2026)
+
+- QIMA CI [#1391](https://github.com/meridane/QimaTrade-MVP/actions/runs/43425671182) remains **IN PROGRESS** on code HEAD `c3370c7abd5443cca271c30bac0d95ba752288e5`.
+- Verify completed **SUCCESS**. Its log contains the explicit `QA384 PASS` marker from `tests/sql/test-create-offer-numeric-domain-contract.sh`; npm audit at the configured high threshold, TypeScript, Next.js build, Chromium installation and **347/347 Playwright tests** also completed successfully.
+- PostgreSQL 16 `Run isolated CREATE_OFFER integration and concurrency tests` and PostgreSQL 17.6 `Run CREATE_OFFER integration and concurrency tests on PostgreSQL 17` both completed **SUCCESS**. Each step executes `tests/sql/create-offer-runtime.sql` through the shared integration runner, so the three QA384 negative-Infinity/NaN cases and their no-persisted-side-effect assertions completed without error on both versions.
+- The PostgreSQL jobs were still running later QA381 privilege characterization and subsequent independent regressions; therefore the overall CI #1391 conclusion was not yet available. Do not describe the full workflow as complete.
+- CodeQL [#1340](https://github.com/meridane/QimaTrade-MVP/actions/runs/43425671102) completed **SUCCESS** on the code HEAD. CodeQL [#1341](https://github.com/meridane/QimaTrade-MVP/actions/runs/43425914970) completed **SUCCESS** on the documentation HEAD `85d8099cc743f19064f0c2759381bcbec3509279`.
+- Vercel Preview Comments for documentation HEAD `85d8099cc743f19064f0c2759381bcbec3509279` completed **SUCCESS**. QIMA CI [#1392](https://github.com/meridane/QimaTrade-MVP/actions/runs/43425915175) was **PENDING** for that documentation-only HEAD at the last check.
+- QA384 test-specific validation is **PASS** on Verify, PostgreSQL 16 and PostgreSQL 17.6. The overall CI remains in progress because later independent jobs have not finished.
