@@ -249,4 +249,18 @@ grep -Fq "qa381_expect_direct_select()" "$RUNTIME" ||
 grep -Fq 'SELECT count(*) FROM qa381_probe.inherit_probe;' "$RUNTIME" ||
   fail "QA381 direct SELECT behavior must be exercised by SQL, not inferred from the catalog helper"
 
+for required in \
+  "REVOKE ALL ON SCHEMA qa381_probe FROM PUBLIC" \
+  "REVOKE ALL ON TABLE qa381_probe.inherit_probe FROM PUBLIC" \
+  "qa381_public_acl_state" \
+  "aclexplode" \
+  "qa381_direct_select_diagnostic()" \
+  "session_user" \
+  "has_schema_privilege" \
+  "has_table_privilege" \
+  "permission denied"; do
+  grep -Fq -- "$required" "$RUNTIME" ||
+    fail "QA381 direct-SELECT ACL isolation/diagnostics are missing: $required"
+done
+
 echo "QA373/QA374/QA375/QA376/QA377/QA378/QA379/QA380/QA381 static contract PASS: runner privilege boundaries, indirect membership, non-transitive ADMIN, and CREATEROLE self-grant GUC semantics are covered."
