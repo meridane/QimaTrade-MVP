@@ -8817,3 +8817,21 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 - Les jobs PostgreSQL 16 et 17.6 sont encore dans leurs tests d'intégration/concurrence; aucun nouveau marqueur QA381 n'est disponible sur ce HEAD au dernier contrôle.
 - CodeQL [#1338](https://github.com/meridane/QimaTrade-MVP/actions/runs/43418623406) : **SUCCESS**. Le statut Vercel Preview sur ce HEAD : **SUCCESS**.
 - QA383 est un contrôle statique; son étape Verify a réussi. La conclusion globale de CI et les résultats PostgreSQL du HEAD restent en attente.
+
+
+## CI #1390 — QA383 validation finale (13 novembre 2026)
+
+- QIMA CI [#1390](https://github.com/meridane/QimaTrade-MVP/actions/runs/43418890927) completed **SUCCESS** on HEAD `365def07e18753c0053fb4f718e7bb7e98255226`.
+- Verify emitted explicit **QA382 PASS** and **QA383 PASS** markers; npm audit at the configured high threshold, TypeScript, Next.js build and **347/347 Playwright** completed successfully.
+- PostgreSQL 16 and PostgreSQL 17.6 integration jobs both completed **SUCCESS** and each emitted the explicit **QA381 passed** marker. The shared integration runner completed, including the existing same-key/two-tenant runtime scenario.
+- CodeQL [#1339](https://github.com/meridane/QimaTrade-MVP/actions/runs/43418890929) and the Vercel Preview status check completed **SUCCESS**. Expected-failure prepared-transaction harnesses retained their intentional failure outcomes; their blocking assertions passed, and the expected-skipped job remained skipped with its assertion passing.
+- QA383 remains a static source-contract guard paired with the existing disposable PostgreSQL runtime characterization. No business authorization or independent-draft policy was inferred.
+
+## QA384 — CREATE_OFFER finite numeric-domain regression
+
+- The existing `execute_create_offer_v1` migration source rejects NULL, NaN, positive/negative Infinity and non-positive quantity / negative price. This task preserves those existing checks; it does not edit or apply a migration.
+- Existing runtime coverage included NaN quantity, positive-Infinity quantity/price and negative price. QA384 adds disposable PostgreSQL cases for negative-Infinity quantity, NaN price and negative-Infinity price, each requiring the existing validation error and no persisted idempotency, execution or offer rows.
+- Added `tests/sql/test-create-offer-numeric-domain-contract.sh` to guard the exact finite/sign expressions, the three missing runtime cases, their no-side-effect checks, the runtime marker and Verify/PostgreSQL 16/17.6 wiring.
+- The new static contract is added to Verify. Validation on the new HEAD is **PENDING** until Verify emits QA384 PASS and both PostgreSQL jobs emit the runtime QA384 PASS notice.
+- MKT-1.3 numeric canonicalization remains **DECISION REQUIRED — NOT APPROVED**. QA384 tests only the existing finite/sign input domain and does not select precision, scale, JSONB normalization or hash-version semantics.
+- Safety: no migration, application behavior, Supabase Production data, secret, persistent PostgreSQL configuration, deployment, PR merge or branch-protection rule is modified.

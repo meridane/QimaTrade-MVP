@@ -4,7 +4,7 @@ Date: 2026-11-13 (KST)
 PR: [#26](https://github.com/meridane/QimaTrade-MVP/pull/26)  
 Branch: `fix/create-offer-status-contract`  
 Working branch: `work/qa383-tenant-idempotency-scope-contract-20261113-2033`  
-Status: **STATIC CONTRACT PASS — FULL CI IN PROGRESS**
+Status: **STATIC CONTRACT PASS — FULL CI #1390 SUCCESS**
 
 ## Initial state verified
 
@@ -74,3 +74,13 @@ QA383 protects the existing server RPC's tenant/key isolation mechanics only. It
 - Les jobs PostgreSQL 16 et 17.6 sont encore dans les tests d'intégration/concurrence; aucun nouveau marqueur QA381 n'est disponible pour ce HEAD au dernier contrôle.
 - CodeQL [#1338](https://github.com/meridane/QimaTrade-MVP/actions/runs/43418623406) : **SUCCESS**. Vercel Preview : **SUCCESS**.
 - La validation complète de CI #1389 reste en attente; QA383 n'est pas présenté comme une validation runtime.
+
+
+## Final validation — CI #1390 (13 novembre 2026)
+
+- QIMA CI [#1390](https://github.com/meridane/QimaTrade-MVP/actions/runs/43418890927) completed **SUCCESS** on HEAD `365def07e18753c0053fb4f718e7bb7e98255226`.
+- Verify emitted the explicit **QA382 PASS** and **QA383 PASS** markers. npm audit at the configured high threshold, TypeScript, Next.js build and **347/347 Playwright tests** completed successfully.
+- The PostgreSQL 16 integration job and PostgreSQL 17.6 compatibility job both completed **SUCCESS**. Both logs emitted the explicit **QA381 passed** marker after the four-setting membership/privilege matrix and complete cleanup. The shared integration runner also completed, including the existing same-key/two-tenant runtime characterization.
+- CodeQL [#1339](https://github.com/meridane/QimaTrade-MVP/actions/runs/43418890929) completed **SUCCESS**. The Vercel Preview status check for this HEAD completed **SUCCESS**.
+- The prepared-transaction harness jobs that deliberately inject setup/cleanup failures retained their expected job-level `failure` outcomes; the separate blocking assertions completed **SUCCESS**. The dedicated expected-skipped job remained **SKIPPED**, with its assertion successful.
+- QA383 is a static source-contract guard paired with the existing disposable PostgreSQL runtime scenario. CI #1390 completed both layers successfully; no tenant-authorization or independent-draft business policy was inferred.

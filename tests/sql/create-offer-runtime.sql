@@ -1382,6 +1382,79 @@ SELECT 'QA191 SECURITY DEFINER relation lookups and writes bypassed all temporar
 
 RESET ROLE;
 
+-- QA384: complete the existing finite numeric-domain matrix without changing
+-- the current request-hash/canonicalization policy. These rejected calls run
+-- only against the disposable PostgreSQL fixture.
+SET ROLE authenticated;
+
+DO $qa384_numeric_domain$
+DECLARE
+  v_case record;
+  v_error text;
+  v_count integer;
+BEGIN
+  FOR v_case IN
+    SELECT *
+    FROM (VALUES
+      ('negative-infinity-quantity', '-Infinity'::numeric, 12::numeric, 'INVALID_QUANTITY'::text, 'QA384 Negative Infinity Quantity Offer'::text),
+      ('nan-price', 1::numeric, 'NaN'::numeric, 'INVALID_PRICE'::text, 'QA384 NaN Price Offer'::text),
+      ('negative-infinity-price', 1::numeric, '-Infinity'::numeric, 'INVALID_PRICE'::text, 'QA384 Negative Infinity Price Offer'::text)
+    ) AS cases(case_key, quantity_value, price_value, expected_error, offer_name)
+  LOOP
+    v_error := NULL;
+    BEGIN
+      PERFORM public.execute_create_offer_v1(
+        '10000000-0000-4000-8000-000000000001',
+        'fixture-qa384-' || v_case.case_key,
+        jsonb_build_object('case', 'qa384_numeric_domain', 'value', v_case.case_key),
+        v_case.offer_name,
+        '50000000-0000-4000-8000-000000000001',
+        '40000000-0000-4000-8000-000000000001',
+        '30000000-0000-4000-8000-000000000001',
+        v_case.quantity_value,
+        v_case.price_value,
+        'USD'
+      );
+      RAISE EXCEPTION 'QA384 expected % to be rejected', v_case.case_key;
+    EXCEPTION WHEN OTHERS THEN
+      GET STACKED DIAGNOSTICS v_error = MESSAGE_TEXT;
+    END;
+
+    IF v_error IS DISTINCT FROM v_case.expected_error THEN
+      RAISE EXCEPTION 'QA384 % expected %, received %',
+        v_case.case_key, v_case.expected_error, coalesce(v_error, '<no error>');
+    END IF;
+
+    SELECT count(*) INTO v_count
+    FROM public.idempotency_keys
+    WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+      AND key = ('fixture-qa384-' || v_case.case_key);
+    IF v_count <> 0 THEN
+      RAISE EXCEPTION 'QA384 % left an idempotency row', v_case.case_key;
+    END IF;
+
+    SELECT count(*) INTO v_count
+    FROM public.action_executions
+    WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+      AND idempotency_key = ('fixture-qa384-' || v_case.case_key);
+    IF v_count <> 0 THEN
+      RAISE EXCEPTION 'QA384 % left an action execution row', v_case.case_key;
+    END IF;
+
+    SELECT count(*) INTO v_count
+    FROM public.offers
+    WHERE name = v_case.offer_name;
+    IF v_count <> 0 THEN
+      RAISE EXCEPTION 'QA384 % left an offer row', v_case.case_key;
+    END IF;
+  END LOOP;
+
+  RAISE NOTICE 'QA384 PASS: CREATE_OFFER rejects negative Infinity quantity, NaN price, and negative Infinity price without persisted side effects';
+END
+$qa384_numeric_domain$;
+
+RESET ROLE;
+
 -- The same authenticated principal belongs to both tenants for this isolated
 -- scope test. Keeping actor and every request parameter identical ensures that
 -- only p_tenant_id differs; this does not test demand ownership.
