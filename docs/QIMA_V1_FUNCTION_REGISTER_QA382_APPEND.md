@@ -3,7 +3,7 @@
 Date: 2026-11-13 (KST)  
 PR: [#26](https://github.com/meridane/QimaTrade-MVP/pull/26)  
 Branch: `fix/create-offer-status-contract`  
-Status: **STATIC REGRESSION ADDED — CI VALIDATION PENDING**
+Status: **STATIC REGRESSION PASS — FULL CI PENDING**
 
 ## Initial state verified
 
@@ -58,3 +58,13 @@ QA382 does not implement or infer any of those decisions. It preserves the curre
 - No Supabase Production access or write was performed.
 - No Production deployment, PR merge, force update or branch-protection change was performed.
 - The existing MKT-1.1/MKT-1.2/MKT-1.3 business and product decisions remain open; no policy is inferred.
+
+
+## CI #1387 — validation intermédiaire QA382 (13 novembre 2026)
+
+- QIMA CI [#1387](https://github.com/meridane/QimaTrade-MVP/actions/runs/43408788151) : **EN COURS** au dernier contrôle.
+- Verify : **SUCCESS**. Le nouveau contrôle `Verify CREATE_OFFER request-hash field coverage` a terminé **SUCCESS** et émis explicitement : `QA382 PASS: the effective CREATE_OFFER request hash maps all 16 business inputs exactly once, keeps tenant/idempotency scope separate, and retains the existing disposable replay assertions.`
+- npm audit au seuil high configuré, TypeScript, build Next.js, installation Chromium et Playwright : **SUCCESS**, avec **347/347** tests navigateur.
+- CodeQL [#1336](https://github.com/meridane/QimaTrade-MVP/actions/runs/43408787889) : **SUCCESS**. Statut Vercel Preview sur ce HEAD : **SUCCESS**.
+- Les jobs PostgreSQL 16 et 17.6 étaient encore dans l'étape `Characterize full CREATE_OFFER runner write privileges`. Aucun nouveau marqueur QA381 n'était disponible pour le HEAD QA382 au dernier contrôle; le workflow global reste donc en cours. Ce n'est ni un échec ni une nouvelle réussite runtime.
+- La clôture QA381 reste fondée sur CI #1386, qui a émis le marqueur explicite sur les deux versions. CI #1387 constitue une revalidation supplémentaire sur le HEAD QA382.
