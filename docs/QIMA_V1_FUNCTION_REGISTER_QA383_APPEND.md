@@ -4,7 +4,7 @@ Date: 2026-11-13 (KST)
 PR: [#26](https://github.com/meridane/QimaTrade-MVP/pull/26)  
 Branch: `fix/create-offer-status-contract`  
 Working branch: `work/qa383-tenant-idempotency-scope-contract-20261113-2033`  
-Status: **STATIC CONTRACT ADDED — CI VALIDATION PENDING**
+Status: **STATIC CONTRACT PASS — FULL CI IN PROGRESS**
 
 ## Initial state verified
 
@@ -64,3 +64,13 @@ QA383 protects the existing server RPC's tenant/key isolation mechanics only. It
 - No application code, SQL function, migration, schema, RLS policy, grant, secret, Production data or persistent PostgreSQL configuration changed.
 - No Supabase Production access or write was performed.
 - No Production deployment, PR merge, force update or branch-protection change was performed.
+
+
+## CI #1389 — validation intermédiaire (13 novembre 2026)
+
+- QIMA CI [#1389](https://github.com/meridane/QimaTrade-MVP/actions/runs/43418623371) est **IN PROGRESS** sur HEAD `5b72f9fd22367c9059f01a71dbf4f3278cb4672e`.
+- Le step `Verify CREATE_OFFER tenant-scoped idempotency lock and lookup contract` a terminé **SUCCESS**. Les contrats QA382, QA371/QA372, TypeScript, npm audit (seuil high configuré) et build Next.js ont également terminé **SUCCESS**.
+- L'installation de Chromium est encore en cours; Playwright est en attente.
+- Les jobs PostgreSQL 16 et 17.6 sont encore dans les tests d'intégration/concurrence; aucun nouveau marqueur QA381 n'est disponible pour ce HEAD au dernier contrôle.
+- CodeQL [#1338](https://github.com/meridane/QimaTrade-MVP/actions/runs/43418623406) : **SUCCESS**. Vercel Preview : **SUCCESS**.
+- La validation complète de CI #1389 reste en attente; QA383 n'est pas présenté comme une validation runtime.

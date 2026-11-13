@@ -8804,6 +8804,16 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 - Ajout du contrôle statique `tests/sql/test-create-offer-tenant-idempotency-scope-contract.sh`.
 - Le contrôle protège la signature de `execute_create_offer_v1`, le verrou advisory calculé à partir de `p_tenant_id` et `p_idempotency_key`, l'ordre lock/lookup, le `FOR UPDATE` filtré sur tenant et key, les inserts d'idempotence/exécution, l'UPDATE final et l'ordre des 15 arguments de `create_offer_v1`.
 - Le scénario runtime existant de même clé sur deux tenants reste la preuve comportementale : deux exécutions/offres distinctes, hash métier identique, replay isolé et rejet d'un payload modifié sans altérer l'autre tenant.
-- Le workflow Verify exécute le nouveau contrat. Validation QA383 sur le nouveau HEAD : **PENDING** jusqu'au marqueur explicite dans CI.
+- Le workflow Verify exécute le nouveau contrat. Le contrôle statique QA383 a terminé **SUCCESS** dans Verify de CI #1389; la validation complète de ce HEAD reste **IN PROGRESS**.
 - MKT-1.1, MKT-1.2 et MKT-1.3 restent non approuvés; QA383 ne déduit aucune règle métier supplémentaire.
 - Aucun code métier, migration, donnée Supabase Production, secret, configuration persistante, déploiement, fusion ou règle de protection n'a été modifié.
+
+
+### CI #1389 — validation intermédiaire QA383 (13 novembre 2026)
+
+- QIMA CI [#1389](https://github.com/meridane/QimaTrade-MVP/actions/runs/43418623371) est **IN PROGRESS** sur HEAD `5b72f9fd22367c9059f01a71dbf4f3278cb4672e`.
+- Verify a exécuté `Verify CREATE_OFFER tenant-scoped idempotency lock and lookup contract` avec conclusion **SUCCESS**. Les contrôles QA382, QA371/QA372, TypeScript, npm audit au seuil high configuré et build Next.js ont également terminé **SUCCESS**.
+- L'installation de Chromium est encore en cours; Playwright n'a pas encore commencé.
+- Les jobs PostgreSQL 16 et 17.6 sont encore dans leurs tests d'intégration/concurrence; aucun nouveau marqueur QA381 n'est disponible sur ce HEAD au dernier contrôle.
+- CodeQL [#1338](https://github.com/meridane/QimaTrade-MVP/actions/runs/43418623406) : **SUCCESS**. Le statut Vercel Preview sur ce HEAD : **SUCCESS**.
+- QA383 est un contrôle statique; son étape Verify a réussi. La conclusion globale de CI et les résultats PostgreSQL du HEAD restent en attente.
