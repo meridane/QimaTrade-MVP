@@ -14737,3 +14737,96 @@ $qa389_nan_quantity$;
 COMMIT;
 
 SELECT 'QA389 NaN quantity is rejected before all CREATE_OFFER persisted side effects' AS result;
+
+-- QA390: SQL NULL values for the required numeric arguments must be rejected
+-- before idempotency or action persistence. The migration already defines the
+-- exact INVALID_QUANTITY / INVALID_PRICE errors; this test characterizes both.
+-- This scenario runs only in the disposable PostgreSQL integration database.
+BEGIN;
+SET LOCAL request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+SET LOCAL ROLE authenticated;
+DO $qa390_null_numeric_values$
+DECLARE
+  v_case record;
+  v_key text;
+  v_error text;
+  v_before record;
+  v_after record;
+BEGIN
+  IF auth.uid() IS DISTINCT FROM '20000000-0000-4000-8000-000000000001'::uuid THEN
+    RAISE EXCEPTION 'QA390 requires authenticated provider A';
+  END IF;
+  FOR v_case IN
+    SELECT * FROM (VALUES
+      ('null-quantity', NULL::numeric, 12::numeric, 'INVALID_QUANTITY'::text, 'QA390 NULL Quantity Offer'::text),
+      ('null-price', 1::numeric, NULL::numeric, 'INVALID_PRICE'::text, 'QA390 NULL Price Offer'::text)
+    ) AS cases(case_key, quantity_value, price_value, expected_error, offer_name)
+  LOOP
+    v_key := 'fixture-qa390-' || v_case.case_key;
+    IF EXISTS (
+      SELECT 1 FROM public.idempotency_keys
+      WHERE tenant_id = '10000000-0000-4000-8000-000000000001' AND key = v_key
+    ) OR EXISTS (
+      SELECT 1 FROM public.action_executions
+      WHERE tenant_id = '10000000-0000-4000-8000-000000000001' AND idempotency_key = v_key
+    ) OR EXISTS (
+      SELECT 1 FROM public.offers WHERE name = v_case.offer_name
+    ) THEN
+      RAISE EXCEPTION 'QA390 fixture data already exists for %', v_case.case_key;
+    END IF;
+    SELECT
+      (SELECT count(*) FROM public.idempotency_keys) AS idempotency_count,
+      (SELECT count(*) FROM public.action_executions) AS execution_count,
+      (SELECT count(*) FROM public.offers) AS offer_count,
+      (SELECT count(*) FROM public.action_events) AS event_count
+    INTO v_before;
+    v_error := NULL;
+    BEGIN
+      PERFORM public.execute_create_offer_v1(
+        p_tenant_id => '10000000-0000-4000-8000-000000000001',
+        p_idempotency_key => v_key,
+        p_input => jsonb_build_object('case', 'qa390_' || v_case.case_key),
+        p_name => v_case.offer_name,
+        p_demand_id => '50000000-0000-4000-8000-000000000001',
+        p_product_master_id => '40000000-0000-4000-8000-000000000001',
+        p_provider_actor_id => '30000000-0000-4000-8000-000000000001',
+        p_quantity => v_case.quantity_value,
+        p_price => v_case.price_value,
+        p_currency => 'USD'
+      );
+      RAISE EXCEPTION 'QA390 expected % for % to be rejected', v_case.expected_error, v_case.case_key;
+    EXCEPTION WHEN OTHERS THEN
+      GET STACKED DIAGNOSTICS v_error = MESSAGE_TEXT;
+    END;
+    IF v_error IS DISTINCT FROM v_case.expected_error THEN
+      RAISE EXCEPTION 'QA390 % expected %, received %',
+        v_case.case_key, v_case.expected_error, coalesce(v_error, '<no error>');
+    END IF;
+    SELECT
+      (SELECT count(*) FROM public.idempotency_keys) AS idempotency_count,
+      (SELECT count(*) FROM public.action_executions) AS execution_count,
+      (SELECT count(*) FROM public.offers) AS offer_count,
+      (SELECT count(*) FROM public.action_events) AS event_count
+    INTO v_after;
+    IF ROW(v_after.idempotency_count,v_after.execution_count,v_after.offer_count,v_after.event_count)
+       IS DISTINCT FROM
+       ROW(v_before.idempotency_count,v_before.execution_count,v_before.offer_count,v_before.event_count) THEN
+      RAISE EXCEPTION 'QA390 % changed persisted row counts', v_case.case_key;
+    END IF;
+    IF EXISTS (
+      SELECT 1 FROM public.idempotency_keys
+      WHERE tenant_id = '10000000-0000-4000-8000-000000000001' AND key = v_key
+    ) OR EXISTS (
+      SELECT 1 FROM public.action_executions
+      WHERE tenant_id = '10000000-0000-4000-8000-000000000001' AND idempotency_key = v_key
+    ) OR EXISTS (
+      SELECT 1 FROM public.offers WHERE name = v_case.offer_name
+    ) THEN
+      RAISE EXCEPTION 'QA390 % left a keyed row or offer', v_case.case_key;
+    END IF;
+  END LOOP;
+  RAISE NOTICE 'QA390 PASS: NULL quantity and NULL price are rejected with exact domain errors before idempotency, execution, offer or action-event persistence';
+END
+$qa390_null_numeric_values$;
+COMMIT;
+SELECT 'QA390 NULL quantity and NULL price are rejected before all CREATE_OFFER persisted side effects' AS result;

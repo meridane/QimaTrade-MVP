@@ -8962,7 +8962,7 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 - Ajout d'un scénario PostgreSQL jetable utilisant une quantité NaN et un prix fini valide; le test exige exactement INVALID_QUANTITY.
 - Le scénario compare les nombres de lignes avant/après dans idempotency_keys, action_executions, offers et action_events, et vérifie l'absence de la clé, de l'exécution et de l'offre de fixture.
 - Ajout de tests/sql/test-create-offer-nan-quantity-contract.sh et intégration dans le job Verify. Les jobs PostgreSQL 16 et 17.6 utilisent le runner SQL partagé.
-- Validation QA389 : Verify est **SUCCESS** sur le code HEAD 52e7d34e1ef53c3de989fc16f1bc5be86cc95408 (QA389 PASS, npm audit, TypeScript, build et 347/347 Playwright); les étapes runtime CREATE_OFFER PostgreSQL 16 et 17.6 sont **SUCCESS**, mais les caractérisations suivantes restent **IN PROGRESS**. QA389 demeure PENDING jusqu'au succès des deux jobs complets.
+- Validation QA389 à l'étape intermédiaire : Verify a réussi sur le code HEAD 52e7d34e1ef53c3de989fc16f1bc5be86cc95408 (QA389 PASS, npm audit, TypeScript, build et 347/347 Playwright); les étapes runtime CREATE_OFFER PostgreSQL 16 et 17.6 avaient également réussi. À ce checkpoint, les caractérisations suivantes restaient en cours; la clôture définitive est consignée dans la section QA389 ci-dessous.
 - Aucun code applicatif ni migration n'a été modifié. Les décisions MKT-1.1, MKT-1.2 et MKT-1.3 restent non approuvées.
 - Aucune donnée Supabase Production, migration, secret, configuration PostgreSQL persistante, règle de protection, fusion ou déploiement Production n'a été modifié.
 
@@ -8974,4 +8974,23 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 - Le job PostgreSQL 16 (132066564285) a terminé l'étape d'intégration/runtime CREATE_OFFER SUCCESS; les étapes ultérieures de caractérisation catalogues et privilèges restent en cours.
 - Le job PostgreSQL 17.6 (132066563701) a terminé l'étape d'intégration/runtime CREATE_OFFER SUCCESS; les étapes ultérieures de caractérisation catalogues et privilèges restent en cours.
 - QIMA CodeQL [#43477926783](https://github.com/meridane/QimaTrade-MVP/actions/runs/43477926783) a terminé SUCCESS. Le check Vercel Preview Comments du code HEAD a également terminé SUCCESS.
-- QA389 reste PENDING jusqu'à la réussite des deux jobs PostgreSQL complets. Aucun marqueur final n'est extrapolé des seules étapes intermédiaires.
+- À ce checkpoint intermédiaire, QA389 restait PENDING; la clôture définitive est consignée dans la section QA389 — clôture complète ci-dessous.
+
+## QA389 — clôture complète (14 novembre 2026)
+
+- PR #26 HEAD vérifié : 8a2c73a2defa41d8aef8f342f97f1b260e616037; PR toujours OPEN, draft et non fusionnée.
+- QIMA CI [#1402](https://github.com/meridane/QimaTrade-MVP/actions/runs/43478281064) a terminé SUCCESS sur ce HEAD.
+- Verify (job 132069915022) a terminé SUCCESS; le contrat statique QA389, npm audit au seuil high, TypeScript, build Next.js et 347/347 Playwright ont réussi.
+- PostgreSQL 16 (job 132069914605) et PostgreSQL 17.6 (job 132069915008) ont tous deux terminé SUCCESS. Leurs journaux contiennent chacun QA389 PASS puis QA381 passed; les étapes suivantes de catalogues, ACL, RLS et privilèges ont également réussi.
+- QIMA CodeQL [#1350](https://github.com/meridane/QimaTrade-MVP/actions/runs/43478281072) a terminé SUCCESS. Le check Vercel du HEAD a terminé SUCCESS : [Preview](https://vercel.com/bmk1/qimatrade-mvp/nHgXMn586NxMwVfccZSS25w4rfvh).
+- QA389 est CLOSED. Ces résultats concernent les bases PostgreSQL jetables de CI; ils ne constituent ni une validation Production ni la preuve d'une vulnérabilité.
+- Aucun code applicatif, migration, donnée Supabase Production, secret, paramètre PostgreSQL persistant, règle de protection, fusion ou déploiement Production n'a été modifié.
+
+## QA390 — SQL NULL numeric boundary regression
+
+- The existing migration explicitly rejects p_quantity IS NULL with INVALID_QUANTITY and p_price IS NULL with INVALID_PRICE. Prior numeric boundary cases covered NaN, positive/negative Infinity, zero and finite negative values, but did not isolate both SQL NULL arguments with four-table before/after assertions.
+- Added one disposable PostgreSQL DO block with independent NULL quantity and NULL price cases. Each requires its exact domain error and unchanged row counts in idempotency_keys, action_executions, offers and action_events, plus absence of its key, execution and offer.
+- Added tests/sql/test-create-offer-null-numeric-contract.sh and integrated it into Verify. PostgreSQL 16 and 17.6 execute the shared runtime SQL.
+- QA390 is IMPLEMENTED; CI validation is pending. No result is inferred before GitHub Actions completes.
+- No application code or migration was modified. MKT-1.1, MKT-1.2 and MKT-1.3 remain unapproved.
+- No Supabase Production data, secret, persistent database setting, branch protection, PR merge or Production deployment was changed.

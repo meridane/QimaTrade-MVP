@@ -4,7 +4,7 @@ Date: 2026-11-14 (KST)
 PR: [#26](https://github.com/meridane/QimaTrade-MVP/pull/26)
 Branch: fix/create-offer-status-contract
 Working branch: work/qa389-nan-quantity-boundary-20261114-0254
-Status: IMPLEMENTED — VERIFY SUCCESS; POSTGRESQL JOBS IN PROGRESS
+Status: CLOSED — Verify, PostgreSQL 16 and PostgreSQL 17.6 full jobs SUCCESS
 
 ## Initial state verified
 
@@ -69,3 +69,13 @@ The existing migration rejects PostgreSQL numeric NaN for p_quantity through its
 - QIMA CodeQL [#43477926783](https://github.com/meridane/QimaTrade-MVP/actions/runs/43477926783) completed SUCCESS.
 - QIMA CI [#43477926780](https://github.com/meridane/QimaTrade-MVP/actions/runs/43477926780) remains IN_PROGRESS because the PostgreSQL jobs have not yet completed. QA389 remains PENDING until both full jobs complete SUCCESS and their final logs are available for confirmation.
 - The Vercel Preview Comments status check on code HEAD 52e7d34e1ef53c3de989fc16f1bc5be86cc95408 is SUCCESS.
+
+## Final validation and closure — 14 November 2026
+
+- PR #26 HEAD: 8a2c73a2defa41d8aef8f342f97f1b260e616037; OPEN, draft and unmerged.
+- QIMA CI [#1402](https://github.com/meridane/QimaTrade-MVP/actions/runs/43478281064) completed SUCCESS.
+- Verify job 132069915022 completed SUCCESS and emitted QA389 PASS; npm audit at the high threshold, TypeScript, Next.js build and 347/347 Playwright tests passed.
+- PostgreSQL 16 job 132069914605 and PostgreSQL 17.6 job 132069915008 both completed SUCCESS. Each log contains the QA389 PASS runtime marker and the later QA381 passed marker; all remaining catalog, ACL, RLS and runner-privilege steps also succeeded.
+- QIMA CodeQL [#1350](https://github.com/meridane/QimaTrade-MVP/actions/runs/43478281072) completed SUCCESS. The Vercel status check on this HEAD completed SUCCESS.
+- QA389 is CLOSED. These are disposable CI regression tests, not a Production validation or proof of a vulnerability.
+- No application code, migration, Supabase Production data, secret, persistent PostgreSQL setting, branch-protection rule, PR merge or Production deployment was changed.
