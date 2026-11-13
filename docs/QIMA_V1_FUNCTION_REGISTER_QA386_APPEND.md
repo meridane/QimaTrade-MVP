@@ -4,7 +4,7 @@ Date: 2026-11-13 (KST)
 PR: [#26](https://github.com/meridane/QimaTrade-MVP/pull/26)
 Branch: fix/create-offer-status-contract
 Working branch: work/qa386-negative-quantity-boundary-20261113-2342
-Status: IMPLEMENTED — CI VALIDATION PENDING
+Status: CLOSED — CI #1396 SUCCESS
 
 ## Initial state verified
 
@@ -34,7 +34,7 @@ Add an isolated finite-negative quantity case to the existing CREATE_OFFER posit
 ## Validation
 
 - Source construction was checked against the existing migration guard, QA385 disposable fixture, workflow job names and runner wiring.
-- The new Verify and PostgreSQL runtime checks have not yet executed on the new HEAD. Do not claim QA386 PASS until Verify emits its marker and both PostgreSQL jobs complete successfully.
+- QIMA CI #1396 completed SUCCESS on HEAD c831990b34ef7aae67d83e990fc76317e2aeb028. Verify emitted QA386 PASS; PostgreSQL 16 and PostgreSQL 17.6 runtime logs each emitted the explicit QA386 PASS marker, and both jobs completed SUCCESS. npm audit at the configured high threshold, TypeScript, Next.js build and 347/347 Playwright passed. CodeQL #1345 and the Vercel status check also completed SUCCESS.
 
 ## Safety and decision boundaries
 
@@ -43,3 +43,13 @@ Add an isolated finite-negative quantity case to the existing CREATE_OFFER posit
 - No price-zero acceptance test or numeric canonicalization behavior was introduced.
 - MKT-1.1 demand/tenant ownership, MKT-1.2 independent-draft idempotency semantics and MKT-1.3 numeric canonicalization remain unapproved.
 - No Production deployment, PR merge, force update or branch-protection change was performed.
+
+
+## CI #1396 — clôture QA386 sur les deux versions PostgreSQL (14 novembre 2026)
+
+- Le workflow QIMA CI [#1396](https://github.com/meridane/QimaTrade-MVP/actions/runs/43445633156) a terminé **SUCCESS** sur HEAD c831990b34ef7aae67d83e990fc76317e2aeb028.
+- Verify a émis explicitement QA386 PASS, après QA382–QA385 PASS. npm audit au seuil high, TypeScript, build Next.js et 347/347 Playwright ont réussi.
+- PostgreSQL 16 a terminé SUCCESS avec le marqueur runtime QA386 PASS: finite negative quantity is rejected as INVALID_QUANTITY before idempotency, execution, offer or action-event persistence.
+- PostgreSQL 17.6 a terminé SUCCESS avec le même marqueur. Les deux environnements ont également émis QA381 passed et les marqueurs QA384/QA385.
+- CodeQL [#1345](https://github.com/meridane/QimaTrade-MVP/actions/runs/43445633054) et le check Vercel du HEAD ont terminé SUCCESS.
+- QA386 est CLOSED. Résultats limités à la CI et aux bases temporaires; aucune conclusion sur Production n'en est déduite.

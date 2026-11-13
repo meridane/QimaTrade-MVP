@@ -8903,6 +8903,27 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 - Ajout d'un scénario PostgreSQL jetable avec `p_quantity = -1::numeric`, paramètres métier autrement valides et identité authentifiée de fixture.
 - Le test exige exactement `INVALID_QUANTITY` et l'absence de variation des nombres de lignes dans `idempotency_keys`, `action_executions`, `offers` et `action_events`, ainsi que l'absence de la clé et de l'offre de fixture.
 - Ajout de `tests/sql/test-create-offer-negative-quantity-contract.sh` et intégration dans Verify; les jobs PostgreSQL 16 et 17.6 exécutent le même runtime fixture.
-- Validation QA386 sur le nouveau HEAD : **PENDING** jusqu'au marqueur Verify et aux deux exécutions runtime PostgreSQL.
+- Validation QA386 : **CLOSED** après le succès de Verify, PostgreSQL 16 et PostgreSQL 17.6 sur HEAD c831990b34ef7aae67d83e990fc76317e2aeb028 (QIMA CI #1396).
 - Aucun code applicatif, migration, donnée Supabase Production, secret, réglage PostgreSQL persistant ou règle de protection n'a été modifié. Aucune fusion ni déploiement Production.
 - Les décisions MKT-1.1, MKT-1.2 et MKT-1.3 restent non approuvées; aucune règle métier nouvelle n'a été introduite.
+
+
+## QA386 — validation complète et clôture (14 novembre 2026)
+
+- PR #26 relue : OPEN, DRAFT, mergeable et non fusionnée; HEAD c831990b34ef7aae67d83e990fc76317e2aeb028.
+- QIMA CI [#1396](https://github.com/meridane/QimaTrade-MVP/actions/runs/43445633156) a terminé **SUCCESS** sur ce HEAD.
+- Verify a émis explicitement QA382 PASS, QA383 PASS, QA384 PASS, QA385 PASS et QA386 PASS. npm audit au seuil high, TypeScript, build Next.js et **347/347 Playwright** ont réussi.
+- PostgreSQL 16 et PostgreSQL 17.6 ont chacun émis les marqueurs runtime QA384 PASS, QA385 PASS, QA386 PASS et QA381 passed; les deux jobs ont terminé **SUCCESS**.
+- Les harnesses de setup/nettoyage volontairement en échec ont conservé leurs résultats individuels attendus; leurs jobs d'assertion dédiés ont réussi. Le job volontairement skipped est resté skipped et son assertion a réussi.
+- CodeQL [#1345](https://github.com/meridane/QimaTrade-MVP/actions/runs/43445633054) et le check Vercel du HEAD ont terminé **SUCCESS**.
+- QA386 est **CLOSED**. Les preuves concernent les tests statiques et bases PostgreSQL jetables de CI; elles ne constituent ni une validation de Production ni une conclusion de vulnérabilité.
+
+## QA387 — frontière du prix strictement non négative
+
+- Le contrat SQL existant rejette NULL, NaN, les deux infinis et tout prix strictement inférieur à zéro avec INVALID_PRICE. QA384 couvre NaN et -Infinity; aucun scénario runtime dédié au prix fini négatif -1 n'était présent.
+- Ajout d'un scénario PostgreSQL jetable avec p_quantity = 1::numeric, p_price = -1::numeric, identité authentifiée de fixture et autres références métier valides.
+- Le test exige exactement INVALID_PRICE, compare les nombres de lignes avant/après dans idempotency_keys, action_executions, offers et action_events, et vérifie l'absence de la clé et de l'offre de fixture.
+- Ajout de tests/sql/test-create-offer-negative-price-contract.sh et intégration dans Verify; les jobs PostgreSQL 16 et 17.6 exécutent le runtime partagé.
+- Validation QA387 sur le nouveau HEAD : **PENDING** jusqu'au marqueur Verify et aux deux marqueurs runtime PostgreSQL.
+- Aucun code applicatif ni migration n'a été modifié. Aucun test d'acceptation du prix zéro ou comportement de canonicalisation numérique n'a été introduit.
+- MKT-1.1 demande/tenant, MKT-1.2 brouillons/idempotence et MKT-1.3 canonicalisation numérique restent non approuvés. Aucune donnée Supabase Production, secret, configuration PostgreSQL persistante, règle de protection, fusion ou déploiement Production n'a été modifié.
