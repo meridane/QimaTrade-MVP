@@ -8623,5 +8623,20 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 - Expected behavior: the read-only runner guard accepts the combination independently for each target role. The fixture skips a redundant authenticated grant and establishes SET access for anon using its existing ADMIN OPTION.
 - Runtime assertions: complete runner and concurrency success, final one-way SET state true|true|false|false, and grantor aggregate anon:true:2|authenticated:true:1.
 - Safety: all objects remain in disposable PostgreSQL 16/17.6 containers; no Production database, secret, persistent setting, or remote publisher is used.
-- Validation status at code publication: pending; no runtime success is claimed until both PostgreSQL jobs emit QA378 passed.
+- CI [#1370](https://github.com/meridane/QimaTrade-MVP/actions/runs/43334799527): **SUCCESS**. PostgreSQL 16 and PostgreSQL 17.6 both emitted the explicit QA378 passed marker and completed the full runner, concurrency observation, and cleanup.
+- Verify passed the QA373–QA378 static contract, dependency-audit step, TypeScript, Next.js production build, Chromium setup, and 347 Playwright tests. The ECONNRESET stack trace in the log belongs to the expected synthetic Auth transport-failure browser test, which passed; it is not an npm audit finding.
+- CodeQL [#1319](https://github.com/meridane/QimaTrade-MVP/actions/runs/43334799621): **SUCCESS**.
+- Vercel status on this HEAD: **FAILURE** with build-rate-limit; no Preview deployment is claimed.
+- Interpretation: this is a synthetic runtime characterization only and does not establish that any Production runner currently uses the tested membership configuration.
+
+
+### QA379 — indirect SET membership chain boundaries
+
+- Scope: characterize transitive SET ROLE capability through a NOLOGIN bridge role, and verify that a SET FALSE edge blocks the entire chain.
+- Positive setup: qa379_indirect_runner is a non-superuser database owner with CREATEROLE and NOINHERIT. It is granted qa379_indirect_bridge with ADMIN FALSE, INHERIT FALSE, SET TRUE; the bridge is granted anon and authenticated with ADMIN FALSE, INHERIT FALSE, SET TRUE.
+- Positive assertions: pg_has_role reports SET capability for the bridge and both client roles; direct runner-to-anon and runner-to-authenticated membership rows remain absent. The real runner must complete, explicit SET ROLE anon/authenticated commands must succeed, and no reverse memberships may be created.
+- Negative setup: qa379_blocked_runner is a non-superuser database owner with CREATEROLE and NOINHERIT. The bridge-to-client edges have SET TRUE, but the runner-to-bridge edge has SET FALSE. The runner must exit 4 before fixture DDL/DML; empty-database, ownership, role, and membership snapshots must remain identical.
+- Safety: all role, database, fixture, and migration operations remain inside disposable PostgreSQL 16/17.6 containers. No Production database, credential, persistent PostgreSQL setting, or remote publisher is used.
+- Validation status at code publication: pending. No QA379 runtime success is claimed until both PostgreSQL 16 and 17.6 emit the explicit positive and negative markers.
+- PostgreSQL semantics reference: PostgreSQL 16 SET ROLE and role-membership documentation state that an indirect SET ROLE path requires SET TRUE on every membership edge.
 - CodeQL and final CI evidence: pending.

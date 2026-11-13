@@ -9,6 +9,7 @@ WORKFLOW="$ROOT/.github/workflows/ci.yml"
 REGISTER="$ROOT/docs/QIMA_V1_FUNCTION_REGISTER.md"
 APPENDIX="$ROOT/docs/QIMA_V1_FUNCTION_REGISTER_QA373_APPEND.md"
 APPENDIX_QA374="$ROOT/docs/QIMA_V1_FUNCTION_REGISTER_QA374_APPEND.md"
+APPENDIX_QA379="$ROOT/docs/QIMA_V1_FUNCTION_REGISTER_QA379_APPEND.md"
 
 fail() {
   echo "ERROR: $*" >&2
@@ -99,6 +100,20 @@ for required in \
   "reverse_mixed_initial_state" \
   "reverse_mixed_after_state" \
   "reverse_mixed_grantor_state" \
+  "qa379_indirect_bridge" \
+  "qa379_indirect_runner" \
+  "qa379_blocked_bridge" \
+  "qa379_blocked_runner" \
+  "true|false|true|true|true|true|false|false|true:false|true:false|true:false" \
+  "true|false|true|true|false|false|false|false|false|true|true" \
+  "true|true|false|false|true|false|false" \
+  "QA379 indirect SET chain passed" \
+  "QA379 indirect SET chain with a SET FALSE edge was rejected" \
+  "indirect_positive_initial_state" \
+  "indirect_positive_after_state" \
+  "indirect_negative_initial_state" \
+  "indirect_empty_database_snapshot" \
+  "SET ROLE anon; RESET ROLE; SET ROLE authenticated; RESET ROLE;" \\
   "mixed_initial_state" \
   "mixed_after_state" \
   "mixed_grantor_state" \
@@ -165,8 +180,18 @@ grep -Fq "### QA377 — mixed SET and ADMIN OPTION membership path" "$REGISTER" 
   fail "canonical register is missing QA377 mixed-membership coverage"
 grep -Fq "### QA378 — reverse mixed SET and ADMIN OPTION membership path" "$REGISTER" ||
   fail "canonical register is missing QA378 reverse mixed-membership coverage"
+grep -Fq "## QA379 — indirect SET membership chain boundaries" "$APPENDIX_QA379" ||
+  fail "QA379 appendix is missing indirect SET-chain coverage"
+grep -Fq "### QA379 — indirect SET membership chain boundaries" "$REGISTER" ||
+  fail "canonical register is missing QA379 indirect SET-chain coverage"
+if grep -Fq "GRANT anon TO qa379_indirect_runner" "$RUNTIME"; then
+  fail "QA379 positive path must remain indirect rather than creating a direct anon membership"
+fi
+if grep -Fq "GRANT authenticated TO qa379_indirect_runner" "$RUNTIME"; then
+  fail "QA379 positive path must remain indirect rather than creating a direct authenticated membership"
+fi
 if grep -Fq "GRANT authenticated TO qa376_partial_admin_runner" "$RUNTIME"; then
   fail "QA376 must not grant the missing authenticated ADMIN OPTION membership"
 fi
 
-echo "QA373/QA374/QA375/QA376/QA377/QA378 static contract PASS: the runner fails closed on unsupported roles, rejects non-owners and partial administration, and accepts both mixed SET/ADMIN OPTION membership directions."
+echo "QA373/QA374/QA375/QA376/QA377/QA378/QA379 static contract PASS: the runner fails closed on unsupported roles, rejects non-owners and partial administration, accepts both mixed SET/ADMIN OPTION directions, and recognizes only complete transitive SET-enabled membership chains."

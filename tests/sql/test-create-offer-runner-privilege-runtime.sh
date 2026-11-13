@@ -595,3 +595,190 @@ if [[ "$reverse_mixed_grantor_state" != "anon:true:2|authenticated:true:1" ]]; t
 fi
 
 echo "QA378 passed: a database owner with ADMIN OPTION-only membership for anon and SET-only membership for authenticated was accepted; the fixture established the missing anon SET path, preserved one-way memberships, and completed the full runner/concurrency checks."
+
+
+# QA379: SET ROLE may follow an indirect membership chain only when every
+# membership edge in the path has SET TRUE. The positive case exercises the
+# real runner through a NOLOGIN bridge role; the negative case changes only the
+# runner-to-bridge SET option and must be rejected before fixture changes.
+admin_psql -c "DROP DATABASE qima_test WITH (FORCE);"
+admin_psql <<'SQL'
+CREATE ROLE qa379_indirect_bridge NOLOGIN NOINHERIT;
+CREATE ROLE qa379_indirect_runner LOGIN PASSWORD 'qa379-indirect-only'
+  CREATEROLE NOINHERIT NOSUPERUSER NOCREATEDB NOREPLICATION NOBYPASSRLS;
+CREATE DATABASE qima_test OWNER qa379_indirect_runner;
+GRANT anon TO qa379_indirect_bridge
+  WITH ADMIN FALSE, INHERIT FALSE, SET TRUE;
+GRANT authenticated TO qa379_indirect_bridge
+  WITH ADMIN FALSE, INHERIT FALSE, SET TRUE;
+GRANT qa379_indirect_bridge TO qa379_indirect_runner
+  WITH ADMIN FALSE, INHERIT FALSE, SET TRUE;
+SQL
+
+indirect_positive_initial_state="$(db_psql -c "
+  SELECT
+    (db.datdba = runner.oid)::text || '|' ||
+    runner.rolsuper::text || '|' ||
+    runner.rolcreaterole::text || '|' ||
+    pg_has_role(runner.oid, 'qa379_indirect_bridge'::regrole, 'SET')::text || '|' ||
+    pg_has_role(runner.oid, 'anon'::regrole, 'SET')::text || '|' ||
+    pg_has_role(runner.oid, 'authenticated'::regrole, 'SET')::text || '|' ||
+    EXISTS (
+      SELECT 1 FROM pg_auth_members
+      WHERE roleid = 'anon'::regrole AND member = runner.oid
+    )::text || '|' ||
+    EXISTS (
+      SELECT 1 FROM pg_auth_members
+      WHERE roleid = 'authenticated'::regrole AND member = runner.oid
+    )::text || '|' ||
+    COALESCE((
+      SELECT set_option::text || ':' || inherit_option::text
+      FROM pg_auth_members
+      WHERE roleid = 'qa379_indirect_bridge'::regrole
+        AND member = runner.oid
+    ), 'missing') || '|' ||
+    COALESCE((
+      SELECT set_option::text || ':' || inherit_option::text
+      FROM pg_auth_members
+      WHERE roleid = 'anon'::regrole
+        AND member = 'qa379_indirect_bridge'::regrole
+    ), 'missing') || '|' ||
+    COALESCE((
+      SELECT set_option::text || ':' || inherit_option::text
+      FROM pg_auth_members
+      WHERE roleid = 'authenticated'::regrole
+        AND member = 'qa379_indirect_bridge'::regrole
+    ), 'missing')
+  FROM pg_database db
+  JOIN pg_roles runner ON runner.rolname = 'qa379_indirect_runner'
+  WHERE db.datname = 'qima_test';
+")"
+if [[ "$indirect_positive_initial_state" != "true|false|true|true|true|true|false|false|true:false|true:false|true:false" ]]; then
+  echo "ERROR: QA379 did not establish a fully SET-enabled indirect membership chain: '$indirect_positive_initial_state'." >&2
+  exit 1
+fi
+
+INDIRECT_RUNNER_URL="postgresql://qa379_indirect_runner:qa379-indirect-only@localhost:5432/qima_test"
+set +e
+docker exec --env "DATABASE_URL=$INDIRECT_RUNNER_URL" --workdir /workspace "$CONTAINER_NAME" \
+  bash /workspace/tests/sql/run-create-offer-integration.sh \
+  >"$TEMP_DIR/indirect-membership-runner.log" 2>&1
+indirect_runner_status=$?
+set -e
+if [[ "$indirect_runner_status" -ne 0 ]]; then
+  echo "ERROR: QA379 indirect SET-chain runner failed with exit $indirect_runner_status." >&2
+  tail -n 120 "$TEMP_DIR/indirect-membership-runner.log" >&2
+  exit 1
+fi
+if ! grep -Fq "Observed one granted and one waiting same-tenant advisory lock" "$TEMP_DIR/indirect-membership-runner.log"; then
+  echo "ERROR: QA379 indirect SET-chain runner did not complete the concurrency observation." >&2
+  tail -n 120 "$TEMP_DIR/indirect-membership-runner.log" >&2
+  exit 1
+fi
+
+# Prove both SET ROLE commands work in an actual runner-authenticated session,
+# not only through pg_has_role catalog inspection.
+docker exec --env "DATABASE_URL=$INDIRECT_RUNNER_URL" "$CONTAINER_NAME" \
+  psql "$INDIRECT_RUNNER_URL" -X -v ON_ERROR_STOP=1 -q \
+  -c 'SET ROLE anon; RESET ROLE; SET ROLE authenticated; RESET ROLE;' >/dev/null
+
+indirect_positive_after_state="$(db_psql -c "
+  SELECT
+    pg_has_role('qa379_indirect_runner', 'anon', 'SET')::text || '|' ||
+    pg_has_role('qa379_indirect_runner', 'authenticated', 'SET')::text || '|' ||
+    EXISTS (
+      SELECT 1 FROM pg_auth_members
+      WHERE roleid = 'anon'::regrole
+        AND member = 'qa379_indirect_runner'::regrole
+    )::text || '|' ||
+    EXISTS (
+      SELECT 1 FROM pg_auth_members
+      WHERE roleid = 'authenticated'::regrole
+        AND member = 'qa379_indirect_runner'::regrole
+    )::text || '|' ||
+    EXISTS (
+      SELECT 1 FROM pg_auth_members
+      WHERE roleid = 'qa379_indirect_bridge'::regrole
+        AND member = 'qa379_indirect_runner'::regrole
+        AND set_option AND NOT inherit_option
+    )::text || '|' ||
+    pg_has_role('anon', 'qa379_indirect_runner', 'MEMBER')::text || '|' ||
+    pg_has_role('authenticated', 'qa379_indirect_runner', 'MEMBER')::text;
+")"
+if [[ "$indirect_positive_after_state" != "true|true|false|false|true|false|false" ]]; then
+  echo "ERROR: QA379 indirect SET chain did not preserve transitive access without reverse or direct memberships: '$indirect_positive_after_state'." >&2
+  exit 1
+fi
+
+echo "QA379 indirect SET chain passed: the full runner used a two-edge SET-enabled membership path for anon and authenticated, both explicit SET ROLE commands succeeded, no direct target membership or reverse membership was created, and concurrency checks completed."
+
+
+# QA379 negative: the bridge can SET ROLE to both client roles, but the
+# runner-to-bridge edge has SET FALSE. The transitive path must therefore not
+# satisfy the runner guard. The fresh qima_test database must remain unchanged.
+admin_psql -c "DROP DATABASE qima_test WITH (FORCE);"
+admin_psql <<'SQL'
+CREATE ROLE qa379_blocked_bridge NOLOGIN NOINHERIT;
+CREATE ROLE qa379_blocked_runner LOGIN PASSWORD 'qa379-blocked-only'
+  CREATEROLE NOINHERIT NOSUPERUSER NOCREATEDB NOREPLICATION NOBYPASSRLS;
+CREATE DATABASE qima_test OWNER qa379_blocked_runner;
+GRANT anon TO qa379_blocked_bridge
+  WITH ADMIN FALSE, INHERIT FALSE, SET TRUE;
+GRANT authenticated TO qa379_blocked_bridge
+  WITH ADMIN FALSE, INHERIT FALSE, SET TRUE;
+GRANT qa379_blocked_bridge TO qa379_blocked_runner
+  WITH ADMIN FALSE, INHERIT FALSE, SET FALSE;
+SQL
+
+indirect_negative_initial_state="$(db_psql -c "
+  SELECT
+    (db.datdba = runner.oid)::text || '|' ||
+    runner.rolsuper::text || '|' ||
+    runner.rolcreaterole::text || '|' ||
+    pg_has_role(runner.oid, 'qa379_blocked_bridge'::regrole, 'MEMBER')::text || '|' ||
+    pg_has_role(runner.oid, 'qa379_blocked_bridge'::regrole, 'SET')::text || '|' ||
+    pg_has_role(runner.oid, 'anon'::regrole, 'SET')::text || '|' ||
+    pg_has_role(runner.oid, 'authenticated'::regrole, 'SET')::text || '|' ||
+    EXISTS (
+      SELECT 1 FROM pg_auth_members
+      WHERE roleid = 'anon'::regrole AND member = runner.oid
+    )::text || '|' ||
+    EXISTS (
+      SELECT 1 FROM pg_auth_members
+      WHERE roleid = 'authenticated'::regrole AND member = runner.oid
+    )::text || '|' ||
+    pg_has_role('qa379_blocked_bridge', 'anon', 'SET')::text || '|' ||
+    pg_has_role('qa379_blocked_bridge', 'authenticated', 'SET')::text
+  FROM pg_database db
+  JOIN pg_roles runner ON runner.rolname = 'qa379_blocked_runner'
+  WHERE db.datname = 'qima_test';
+")"
+if [[ "$indirect_negative_initial_state" != "true|false|true|true|false|false|false|false|false|true|true" ]]; then
+  echo "ERROR: QA379 did not establish a blocked indirect SET chain with one SET FALSE edge: '$indirect_negative_initial_state'." >&2
+  exit 1
+fi
+
+indirect_empty_database_snapshot() {
+  db_psql -c "
+    SELECT
+      (SELECT count(*) FROM pg_class WHERE relnamespace = 'public'::regnamespace)::text || '|' ||
+      (SELECT count(*) FROM pg_proc WHERE pronamespace = 'public'::regnamespace)::text || '|' ||
+      (SELECT count(*) FROM pg_extension)::text || '|' ||
+      (SELECT pg_get_userbyid(datdba) FROM pg_database WHERE datname = 'qima_test')::text || '|' ||
+      (SELECT count(*) FROM pg_roles WHERE rolname LIKE 'qa379_%')::text || '|' ||
+      (SELECT count(*)
+       FROM pg_auth_members
+       WHERE member IN (SELECT oid FROM pg_roles WHERE rolname LIKE 'qa379_%')
+          OR roleid IN (SELECT oid FROM pg_roles WHERE rolname LIKE 'qa379_%'))::text;
+  "
+}
+
+before_indirect_negative_snapshot="$(indirect_empty_database_snapshot)"
+run_expected_rejection "qa379_blocked_runner" "qa379-blocked-only"
+after_indirect_negative_snapshot="$(indirect_empty_database_snapshot)"
+if [[ "$after_indirect_negative_snapshot" != "$before_indirect_negative_snapshot" ]]; then
+  echo "ERROR: QA379 rejected an indirect SET chain with a SET FALSE edge only after changing the empty database or role catalog." >&2
+  exit 1
+fi
+
+echo "QA379 indirect SET chain with a SET FALSE edge was rejected before fixture changes; the empty database, ownership, roles, and membership snapshots remained unchanged."
