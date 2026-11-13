@@ -36,8 +36,10 @@ All roles, memberships, databases, fixtures, migrations, and temporary files are
 
 ## QA379 code-validation evidence
 
-Pending CI validation on PostgreSQL 16 and 17.6. No runtime pass is claimed until both jobs emit the explicit QA379 positive and negative markers.
+- QIMA CI [#1372](https://github.com/meridane/QimaTrade-MVP/actions/runs/43337660012): the PostgreSQL 16 integration job and PostgreSQL 17.6 compatibility job both completed successfully. Both logs emitted the explicit positive marker `QA379 indirect SET chain passed` and the negative marker `QA379 indirect SET chain with a SET FALSE edge was rejected before fixture changes`.
+- The same workflow's Verify job failed only in the static contract because the assertion expected a level-two heading while this standalone appendix correctly uses a level-one title. The dependency-audit enforcement step then failed because the audit was skipped after the static failure; npm audit itself did not run, and no dependency-vulnerability conclusion is implied. TypeScript, Next.js build, and Playwright were also not run in that Verify job.
+- The static contract has been corrected to match the standalone appendix's exact level-one title. A fresh complete PR validation is required before QA379 is fully closed.
 
 ## QA379 CodeQL evidence
 
-Pending.
+- CodeQL [#1321](https://github.com/meridane/QimaTrade-MVP/actions/runs/43337660127): **SUCCESS** on code HEAD `d5cf33e0b258b6f2cb3cb2a4144ae1377754fb37`.

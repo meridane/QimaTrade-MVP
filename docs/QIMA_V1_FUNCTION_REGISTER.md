@@ -8648,3 +8648,13 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 - Verify stopped before dependency installation/audit, TypeScript, Next.js build, and Playwright. These controls were not run in #1371; no dependency-vulnerability conclusion is implied.
 - The PostgreSQL 16 and 17.6 jobs were independent and continued running the integration and runtime characterization. Their QA379 results remain pending until their explicit markers are observed.
 - The static-contract continuation was corrected on the work branch to one trailing backslash. A fresh PR validation is pending.
+
+
+### QA379 final runtime evidence and static-contract correction — 13 November 2026
+
+- QIMA CI [#1372](https://github.com/meridane/QimaTrade-MVP/actions/runs/43337660012): PostgreSQL 16 and PostgreSQL 17.6 integration jobs both completed successfully. Each emitted the explicit positive marker `QA379 indirect SET chain passed` and negative marker `QA379 indirect SET chain with a SET FALSE edge was rejected before fixture changes`. The positive path completed the real runner, both explicit SET ROLE commands, the no-direct-membership assertions, and the concurrency checks. The negative path returned the expected refusal before fixture changes and preserved the empty-database, ownership, role, and membership snapshots.
+- QIMA CI #1372 Verify failed because the static contract expected a level-two heading in the standalone QA379 appendix, whose title is correctly a level-one heading. The subsequent audit-enforcement step failed because the audit was skipped after the static-contract failure. npm audit itself did not run; TypeScript, Next.js build, and Playwright were also not run in Verify. No dependency-vulnerability finding is claimed.
+- The static assertion was corrected to match the exact standalone appendix title. A fresh full PR CI run is required to validate the corrected contract and complete Verify.
+- CodeQL [#1321](https://github.com/meridane/QimaTrade-MVP/actions/runs/43337660127): **SUCCESS** on code HEAD `d5cf33e0b258b6f2cb3cb2a4144ae1377754fb37`.
+- Interpretation: QA379 is runtime-characterized successfully on the two pinned disposable PostgreSQL versions, but its overall CI gate remains open until the corrected static contract and complete Verify pass.
+- Safety: the correction changes only a test assertion and documentation. No Production database, Supabase secret, migration, persistent PostgreSQL setting, or branch-protection configuration is touched.

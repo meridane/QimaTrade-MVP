@@ -180,7 +180,7 @@ grep -Fq "### QA377 — mixed SET and ADMIN OPTION membership path" "$REGISTER" 
   fail "canonical register is missing QA377 mixed-membership coverage"
 grep -Fq "### QA378 — reverse mixed SET and ADMIN OPTION membership path" "$REGISTER" ||
   fail "canonical register is missing QA378 reverse mixed-membership coverage"
-grep -Fq "## QA379 — indirect SET membership chain boundaries" "$APPENDIX_QA379" ||
+grep -Fq "# QA379 — indirect SET membership chain boundaries" "$APPENDIX_QA379" ||
   fail "QA379 appendix is missing indirect SET-chain coverage"
 grep -Fq "### QA379 — indirect SET membership chain boundaries" "$REGISTER" ||
   fail "canonical register is missing QA379 indirect SET-chain coverage"
