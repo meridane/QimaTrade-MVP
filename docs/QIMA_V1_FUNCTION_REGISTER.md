@@ -9045,3 +9045,12 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 - QA394 est IMPLEMENTED; validation CI en attente. Aucun code applicatif ni migration n'a été modifié.
 - MKT-1.1 demande/tenant, MKT-1.2 brouillons/idempotence et MKT-1.3 canonicalisation numérique restent non approuvés. Aucun test synthétique n'est interprété comme preuve d'une vulnérabilité Production.
 - Aucune donnée Supabase Production, migration, secret, configuration PostgreSQL persistante, règle de protection, fusion ou déploiement Production n'a été modifié.
+
+
+## QA394 — correction du contrat statique après CI #1407 (14 novembre 2026)
+
+- QIMA CI [#1407](https://github.com/meridane/QimaTrade-MVP/actions/runs/43519394194) a échoué dans Verify sur le nouveau script QA394 : celui-ci attendait à tort une virgule après le dernier argument nommé p_currency, alors que l'appel SQL valide ne comporte pas de virgule finale.
+- Il s'agit d'un défaut d'assertion du script de test; aucun échec du runtime SQL ni du code applicatif n'a été observé dans Verify. Le job Verify s'est arrêté avant npm audit; l'étape d'application de l'audit a ensuite échoué parce que l'audit était skipped. Aucun résultat d'audit ni vulnérabilité n'est déduit de cette exécution.
+- Correction du script tests/sql/test-create-offer-currency-mismatch-replay-contract.sh : les assertions reconnaissent désormais les arguments finaux p_currency => USD/EUR sans virgule. Le SQL runtime et la migration restent inchangés.
+- Les jobs PostgreSQL 16 et 17.6 de CI #1407 étaient encore en cours à ce checkpoint. QA394 reste IMPLEMENTED / PENDING jusqu'à la réussite d'un nouveau Verify et des deux jobs PostgreSQL complets.
+- Aucun code applicatif, migration, donnée Supabase Production, secret, paramètre PostgreSQL persistant, règle de protection, fusion ou déploiement Production n'a été modifié.

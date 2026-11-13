@@ -40,8 +40,8 @@ for required in \
   "v_key text := 'fixture-qa394-currency-mismatch';" \
   "p_quantity => 1::numeric," \
   "p_price => 12::numeric," \
-  "p_currency => 'USD'," \
-  "p_currency => 'EUR'," \
+  "p_currency => 'USD'" \
+  "p_currency => 'EUR'" \
   "IF v_error IS DISTINCT FROM 'IDEMPOTENCY_KEY_REUSE' THEN" \
   "request_hash = v_original_hash" \
   "result = v_first_result" \
@@ -64,9 +64,9 @@ done
   fail "QA394 must keep quantity identical in both calls"
 [[ "$(grep -Fc "p_price => 12::numeric," <<< "$BLOCK" || true)" -eq 2 ]] ||
   fail "QA394 must keep price identical in both calls"
-[[ "$(grep -Fc "p_currency => 'USD'," <<< "$BLOCK" || true)" -eq 1 ]] ||
+[[ "$(grep -Fc "p_currency => 'USD'" <<< "$BLOCK" || true)" -eq 1 ]] ||
   fail "QA394 must have exactly one original USD call"
-[[ "$(grep -Fc "p_currency => 'EUR'," <<< "$BLOCK" || true)" -eq 1 ]] ||
+[[ "$(grep -Fc "p_currency => 'EUR'" <<< "$BLOCK" || true)" -eq 1 ]] ||
   fail "QA394 must have exactly one changed EUR replay"
 [[ "$(grep -Fc 'DO $qa394_currency_mismatch_replay$' "$RUNTIME" || true)" -eq 1 ]] ||
   fail "QA394 runtime block must appear exactly once"

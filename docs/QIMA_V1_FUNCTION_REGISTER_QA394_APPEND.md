@@ -37,7 +37,9 @@ The existing CREATE_OFFER request hash includes currency and the current accepte
 ## Validation
 
 - Source-level review confirms the new case uses only the existing disposable authenticated fixture and does not modify the migration or application code.
-- QA394 remains PENDING until Verify emits QA394 PASS and both full PostgreSQL 16 and PostgreSQL 17.6 jobs complete SUCCESS with the runtime marker.
+- Initial QIMA CI [#1407](https://github.com/meridane/QimaTrade-MVP/actions/runs/43519394194) failed in Verify at the QA394 static contract because the script incorrectly expected a trailing comma after the final named argument p_currency. The runtime SQL call correctly has no trailing comma; this was a test-harness assertion defect, not an application or migration failure.
+- The downstream npm-audit enforcement step also failed because the earlier Verify assertion stopped the job before npm audit ran; no audit result was produced and no vulnerability is inferred from that skipped check.
+- Corrected the QA394 static script to match the final p_currency arguments without commas. Runtime SQL and migration are unchanged. PostgreSQL 16 and 17.6 jobs from CI #1407 were still running at this checkpoint; QA394 remains PENDING until a fresh CI run completes Verify and both full PostgreSQL jobs successfully with the runtime marker.
 - The CI workflow ignores docs/** changes; the code and workflow commit triggers the PR validation.
 
 ## Safety and decision boundaries
