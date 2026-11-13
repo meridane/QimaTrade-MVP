@@ -258,6 +258,18 @@ for required in \
   "session_user" \
   "has_schema_privilege" \
   "has_table_privilege" \
+  "QA381 direct-SELECT diagnostic: database, schema, and table owner membership paths" \
+  "pg_has_role('qa381_create_role_runner', d.datdba, 'USAGE')" \
+  "pg_has_role('qa381_create_role_runner', n.nspowner, 'USAGE')" \
+  "pg_has_role('qa381_create_role_runner', c.relowner, 'USAGE')" \
+  "pg_database_owner" \
+  "all direct memberships and effective member-role paths" \
+  "FROM pg_auth_members m" \
+  "pg_has_role('qa381_create_role_runner', r.oid, 'MEMBER')" \
+  "column-level ACLs and effective SELECT" \
+  "has_any_column_privilege" \
+  "has_column_privilege" \
+  "pg_attribute" \
   "permission denied"; do
   grep -Fq -- "$required" "$RUNTIME" ||
     fail "QA381 direct-SELECT ACL isolation/diagnostics are missing: $required"
@@ -270,3 +282,8 @@ qa381_public_acl_check="$(sed -n '/^qa381_public_acl_state=/,/^qa381_catalog_sta
   fail "QA381 PUBLIC ACL checks must cast both boolean results only after NOT EXISTS"
 
 echo "QA373/QA374/QA375/QA376/QA377/QA378/QA379/QA380/QA381 static contract PASS: runner privilege boundaries, indirect membership, non-transitive ADMIN, and CREATEROLE self-grant GUC semantics are covered."
+
+grep -Fq "## Fourth runtime diagnostic — trace owner and column-level privilege paths" "$APPENDIX_QA381" ||
+  fail "QA381 appendix is missing owner/column-level diagnostics evidence"
+grep -Fq "### QA381 fourth runtime diagnostic — trace owner and column-level privilege paths" "$REGISTER" ||
+  fail "canonical register is missing QA381 owner/column-level diagnostics evidence"

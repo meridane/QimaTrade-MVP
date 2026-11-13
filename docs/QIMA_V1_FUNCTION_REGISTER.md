@@ -8728,3 +8728,13 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 - CodeQL [#1328](https://github.com/meridane/QimaTrade-MVP/actions/runs/43370733935): **SUCCESS**. Vercel status for the previous HEAD: **SUCCESS**.
 - QA381 remains pending until both pinned PostgreSQL 16 and 17.6 jobs complete the SELECT/SET ROLE matrix, cleanup, and explicit QA381 marker after this correction.
 - Safety: only the disposable QA381 test query, static contract and documentation are changed. No Production database, Supabase credential, migration, persistent PostgreSQL setting, remote publisher, or branch-protection configuration is accessed or modified.
+
+
+### QA381 fourth runtime diagnostic — trace owner and column-level privilege paths
+
+- QIMA CI [#1380](https://github.com/meridane/QimaTrade-MVP/actions/runs/43374675580) completed QA374–QA380 on PostgreSQL 16 and 17.6, then failed at the QA381 direct-SELECT probe for `qa381_default_target`: the runner's SELECT returned successfully even though the direct membership row was ADMIN TRUE / INHERIT FALSE / SET FALSE and effective membership USAGE/SET were both false. The PUBLIC ACL isolation assertion had passed.
+- The diagnostic output showed `postgres` as schema and table owner and only `postgres` plus the target role in the schema/table ACLs. The current diagnostic did not enumerate every runner membership, its USAGE relationship to database/schema/table owners and `pg_database_owner`, or column-level ACLs.
+- The next diagnostic-only revision adds those owner-path and column-ACL observations, including `has_any_column_privilege` and `has_column_privilege`. It does not change the expected behavior or grants. The unexplained result is treated as a disposable test-setup discrepancy, not as evidence of a Production privilege leak or a confirmed vulnerability.
+- CI #1380 Verify succeeded (QA373–QA381 static contract, npm audit at its configured high-severity threshold, TypeScript, Next.js build, and 347/347 Playwright tests); PostgreSQL 16 and 17.6 failed at the QA381 direct-SELECT probe. CodeQL [#1329](https://github.com/meridane/QimaTrade-MVP/actions/runs/43374675588) and the Vercel status check succeeded for this HEAD.
+- QA381 remains pending until the expanded diagnostic identifies the access path and the full SELECT/SET ROLE matrix, cleanup, and explicit QA381 marker pass on both pinned PostgreSQL versions.
+- Safety: diagnostics and documentation only; no Production database, Supabase credential, migration, persistent PostgreSQL setting, remote publisher, or branch protection is accessed or modified.

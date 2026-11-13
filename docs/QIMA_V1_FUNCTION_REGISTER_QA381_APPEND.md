@@ -74,3 +74,16 @@ Root cause: the query wrote `NOT EXISTS (subquery)::text`. PostgreSQL applied th
 CI #1379 Verify succeeded: the QA373–QA381 static contract, npm audit at its configured high-severity threshold, TypeScript, Next.js build, and 347/347 Playwright tests all passed. Both PostgreSQL jobs failed at the PUBLIC-ACL SQL expression after QA380. CodeQL #1328 and the Vercel status check succeeded for this HEAD. QA381 remains pending until both PostgreSQL 16 and 17.6 complete the direct SELECT/SET ROLE matrix, cleanup, and explicit QA381 marker on the corrected query.
 
 Safety: this correction changes only the disposable QA381 test query, its static regression assertion, and documentation. No Production database, Supabase credential, migration, persistent PostgreSQL setting, remote publisher, or branch-protection configuration is accessed or modified.
+
+
+## Fourth runtime diagnostic — trace owner and column-level privilege paths
+
+QIMA CI [#1380](https://github.com/meridane/QimaTrade-MVP/actions/runs/43374675580) completed the QA374–QA380 runtime scenarios on PostgreSQL 16 and 17.6, then failed at the first QA381 direct-SELECT probe for `qa381_default_target`. Both servers reported that a SELECT as `qa381_create_role_runner` returned successfully even though the target membership row was ADMIN TRUE / INHERIT FALSE / SET FALSE and `pg_has_role(..., 'USAGE')` plus `pg_has_role(..., 'SET')` were false. The PUBLIC ACL revocation check had passed.
+
+The captured ACL output showed the schema and table owned by `postgres`, with grants to the four QA381 target roles and no PUBLIC ACL entry. The existing failure diagnostic did not yet enumerate every direct/effective membership of the runner, its USAGE relationship to the database/schema/table owners and `pg_database_owner`, or column-level ACLs. The next diagnostic-only revision adds those observations, including `has_any_column_privilege` and per-column `has_column_privilege`, without weakening the expected SELECT/SET ROLE matrix or changing any grant.
+
+This remains an unexplained behavior in the disposable test setup. It is not evidence of a Production privilege leak and does not confirm a vulnerability. QA381 remains pending until the expanded diagnostic identifies the access path and the complete four-setting matrix plus cleanup passes on PostgreSQL 16 and 17.6.
+
+CI #1380 Verify succeeded, including the QA373–QA381 static contract, `npm audit --audit-level=high`, TypeScript, Next.js build, and 347/347 Playwright tests. Both PostgreSQL runtime jobs failed at the QA381 direct-SELECT probe. CodeQL [#1329](https://github.com/meridane/QimaTrade-MVP/actions/runs/43374675588) and the Vercel status check succeeded for the previous HEAD. No zero-findings claim is made for npm audit severities below its configured threshold.
+
+Safety: this revision adds diagnostics only to the disposable PostgreSQL QA381 fixture and documents the observed failure. No Production database, Supabase credential, migration, persistent PostgreSQL setting, remote publisher, or branch-protection configuration is accessed or modified.

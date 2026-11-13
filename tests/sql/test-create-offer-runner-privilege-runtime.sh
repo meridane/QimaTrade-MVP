@@ -1042,8 +1042,60 @@ qa381_direct_select_diagnostic() {
       (SELECT rolinherit::text FROM pg_roles WHERE rolname = current_user) || '|' ||
       has_schema_privilege(current_user, 'qa381_probe', 'USAGE')::text || '|' ||
       has_table_privilege(current_user, 'qa381_probe.inherit_probe', 'SELECT')::text || '|' ||
+      has_any_column_privilege(current_user, 'qa381_probe.inherit_probe', 'SELECT')::text || '|' ||
       pg_has_role(current_user, '$target_role', 'USAGE')::text || '|' ||
       pg_has_role(current_user, '$target_role', 'SET')::text;
+  " >&2 || true
+  echo "QA381 direct-SELECT diagnostic: database, schema, and table owner membership paths:" >&2
+  db_psql -c "
+    SELECT
+      pg_get_userbyid(d.datdba)::text || '|' ||
+      pg_has_role('qa381_create_role_runner', d.datdba, 'USAGE')::text || '|' ||
+      pg_get_userbyid(n.nspowner)::text || '|' ||
+      pg_has_role('qa381_create_role_runner', n.nspowner, 'USAGE')::text || '|' ||
+      pg_get_userbyid(c.relowner)::text || '|' ||
+      pg_has_role('qa381_create_role_runner', c.relowner, 'USAGE')::text || '|' ||
+      pg_has_role('qa381_create_role_runner', 'pg_database_owner', 'USAGE')::text
+    FROM pg_database d
+    JOIN pg_namespace n ON n.nspname = 'qa381_probe'
+    JOIN pg_class c ON c.relnamespace = n.oid AND c.relname = 'inherit_probe'
+    WHERE d.datname = current_database();
+  " >&2 || true
+  echo "QA381 direct-SELECT diagnostic: all direct memberships and effective member-role paths:" >&2
+  db_psql -c "
+    SELECT COALESCE(string_agg(
+      pg_get_userbyid(m.roleid)::text || ':' ||
+      m.admin_option::text || ':' ||
+      m.inherit_option::text || ':' ||
+      m.set_option::text,
+      ',' ORDER BY pg_get_userbyid(m.roleid)
+    ), 'none')
+    FROM pg_auth_members m
+    WHERE m.member = 'qa381_create_role_runner'::regrole;
+    SELECT COALESCE(string_agg(
+      r.rolname || ':' ||
+      pg_has_role('qa381_create_role_runner', r.oid, 'USAGE')::text || ':' ||
+      pg_has_role('qa381_create_role_runner', r.oid, 'SET')::text,
+      ',' ORDER BY r.rolname
+    ), 'none')
+    FROM pg_roles r
+    WHERE r.oid <> 'qa381_create_role_runner'::regrole
+      AND pg_has_role('qa381_create_role_runner', r.oid, 'MEMBER');
+  " >&2 || true
+  echo "QA381 direct-SELECT diagnostic: column-level ACLs and effective SELECT:" >&2
+  db_psql -c "
+    SELECT COALESCE(string_agg(
+      a.attname || ':' ||
+      COALESCE(a.attacl::text, 'NULL') || ':' ||
+      has_column_privilege(
+        'qa381_create_role_runner', a.attrelid, a.attname, 'SELECT'
+      )::text,
+      ',' ORDER BY a.attnum
+    ), 'none')
+    FROM pg_attribute a
+    WHERE a.attrelid = 'qa381_probe.inherit_probe'::regclass
+      AND a.attnum > 0
+      AND NOT a.attisdropped;
   " >&2 || true
   echo "QA381 direct-SELECT diagnostic: schema/table owners and ACLs:" >&2
   db_psql -c "
