@@ -31,4 +31,8 @@ All roles, memberships, database objects, fixtures, and temporary files remain i
 
 ## QA380 validation evidence
 
-Pending. No QA380 runtime pass is claimed until PostgreSQL 16 and 17.6 emit the explicit QA380 marker and the full CI workflow succeeds.
+- QIMA CI [#1375](https://github.com/meridane/QimaTrade-MVP/actions/runs/43346649535): **SUCCESS**. PostgreSQL 16 and PostgreSQL 17.6 both emitted the explicit `QA380 passed` marker. In each environment, the runner exited 4 before fixture changes and the database, ownership, role, and membership snapshots remained unchanged.
+- Verify passed the QA373–QA380 static contract, high-threshold npm audit, TypeScript, Next.js build, Chromium installation, and 347/347 Playwright tests.
+- CodeQL [#1324](https://github.com/meridane/QimaTrade-MVP/actions/runs/43346649404): **SUCCESS**.
+- Vercel Preview: **FAILURE** with `build-rate-limit`; no Preview deployment is claimed for this HEAD. No Production deployment occurred.
+- Interpretation: this is an isolated characterization of PostgreSQL membership semantics, not evidence of a Production role configuration or vulnerability.

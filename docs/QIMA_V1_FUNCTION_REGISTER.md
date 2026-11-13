@@ -8678,5 +8678,16 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 - Expected guard result: the runner has indirect MEMBER status but no SET path and no direct ADMIN OPTION on either client role, so the read-only preflight rejects it with exit code 4 before fixture DDL/DML.
 - Regression assertions: the initial catalog state explicitly records the direct bridge ADMIN OPTION, absence of direct client-role ADMIN OPTION, indirect membership, and absence of SET paths. Database, ownership, role, and membership snapshots must remain unchanged after rejection.
 - Documentation basis: [PostgreSQL 16 GRANT](https://www.postgresql.org/docs/16/sql-grant.html) describes ADMIN as authority over membership in the specific role; [Role Membership](https://www.postgresql.org/docs/16/role-membership.html) separately defines the SET-enabled transitive path.
-- Validation status at code publication: pending on PostgreSQL 16 and 17.6; no runtime success is claimed until both explicit markers are observed.
+- Validation status: QIMA CI #1375 completed successfully on PostgreSQL 16 and 17.6; both emitted the explicit QA380 marker. See final validation evidence below.
 - Safety: all operations are isolated to disposable PostgreSQL containers. No Production database, credential, migration, persistent setting, or branch protection is touched.
+
+
+### QA380 final validation — 13 November 2026
+
+- QIMA CI [#1375](https://github.com/meridane/QimaTrade-MVP/actions/runs/43346649535): **SUCCESS** on code HEAD `e4746079cd907bddfe171e841a3921730a1a58c3`. PostgreSQL 16 and PostgreSQL 17.6 both emitted `QA380 passed`: ADMIN OPTION held only on the bridge was not treated as ADMIN OPTION on `anon` or `authenticated`; the runner exited 4 before fixture changes and the database/ownership/role/membership snapshots remained unchanged.
+- Verify passed the QA373–QA380 static contract, `npm audit --audit-level=high`, TypeScript, Next.js production build, Chromium installation, and 347/347 Playwright tests. The audit result is recorded only at its configured high-severity blocking threshold; no zero-findings claim is made for lower severities.
+- The prepared-transaction failure harnesses retained their expected job-level failure outcomes; their separate blocking assertion jobs succeeded. The expected skipped cleanup harness remained skipped. The overall CI workflow completed successfully.
+- CodeQL [#1324](https://github.com/meridane/QimaTrade-MVP/actions/runs/43346649404): **SUCCESS**.
+- Vercel Preview: **FAILURE** with `build-rate-limit` (retry in 24 hours). No Preview deployment is claimed for this HEAD; no Production deployment occurred.
+- QA380 is closed as a disposable-runtime characterization of the non-transitive ADMIN OPTION boundary. It does not establish that any Production runner currently has this configuration or prove a Production vulnerability.
+- Safety: no Production database, Supabase credential, migration, persistent PostgreSQL setting, remote publisher, or branch-protection configuration was accessed or modified.
