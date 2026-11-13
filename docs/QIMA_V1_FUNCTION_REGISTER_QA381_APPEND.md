@@ -131,3 +131,16 @@ PostgreSQL 17.6 did **not** execute QA381 in CI #1385. Its job stopped earlier i
 
 The next run adds a bounded host-port readiness probe and preserves the nested container state/logs on failure in the QA371 extension runtime. QA381 will be considered complete only after PostgreSQL 17.6 reaches and emits its own explicit marker and the complete workflow succeeds.
 
+
+
+## Final validation — CI #1386 (13 November 2026)
+
+- PR #26 code HEAD: `074f2d30be683a3bdfe1ec57f766a7015ea68450`; PR remains OPEN, DRAFT, mergeable and unmerged.
+- QIMA CI [#1386](https://github.com/meridane/QimaTrade-MVP/actions/runs/43406823843): **SUCCESS**.
+- PostgreSQL 16 job [131823068367](https://github.com/meridane/QimaTrade-MVP/actions/runs/43406823843): **SUCCESS** and emitted the explicit marker at 2026-11-13 10:14:01 UTC: `QA381 passed`. All four `createrole_self_grant` settings, catalog rows, effective SET/USAGE, isolated direct SELECT, SET ROLE and cleanup checks passed.
+- PostgreSQL 17.6 job [131823068643](https://github.com/meridane/QimaTrade-MVP/actions/runs/43406823843): **SUCCESS** and emitted its own explicit marker at 2026-11-13 10:14:06 UTC. The earlier QA371 host-port readiness step also passed, so QA381 was actually executed rather than skipped.
+- Verify: QA373–QA381 static contracts, npm audit at the configured high-severity threshold, TypeScript, Next.js production build, Chromium installation and **347/347 Playwright tests** all succeeded.
+- CodeQL [#1335](https://github.com/meridane/QimaTrade-MVP/actions/runs/43406825403): **SUCCESS**. Combined Vercel status for this HEAD: **SUCCESS** (Preview check only; no Production deployment).
+- The prepared-transaction harness jobs retained their expected individual failure outcomes; their separate assertion jobs succeeded. The expected skipped harness remained skipped and its assertion succeeded. The overall CI workflow concluded SUCCESS.
+- QA381 is **CLOSED** as a disposable PostgreSQL 16/17.6 characterization. It does not establish that Production uses these role/GUC settings and does not confirm a Production vulnerability.
+- Safety: all QA381 operations were confined to disposable CI PostgreSQL containers. No Production database, Supabase credential, migration, persistent PostgreSQL setting, remote publisher or branch-protection configuration was modified.

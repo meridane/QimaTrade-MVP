@@ -1,6 +1,6 @@
 # QIMA Trade — Registre des fonctionnalités V1 et audit de départ
 
-Dernière vérification : 2 novembre 2026 (KST)
+Dernière vérification : 13 novembre 2026 (KST)
 Dépôt : meridane/QimaTrade-MVP — branche fix/create-offer-status-contract (PR #26, brouillon)
 Projet Supabase : `QIMA` (`yyulzlnrfcbaxovzjbnh`)
 
@@ -8759,3 +8759,22 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 - QA381 remains pending until the new PostgreSQL 16 and 17.6 runs complete cleanup and emit the explicit marker.
 - Safety: only the disposable QA381 database ACL and temporary roles are affected. No Production data, Supabase credential, migration, persistent PostgreSQL setting, application code, or branch-protection configuration is changed.
 
+
+
+## QA381 — validation runtime finale (13 novembre 2026)
+
+- QIMA CI [#1386](https://github.com/meridane/QimaTrade-MVP/actions/runs/43406823843): **SUCCESS** sur le HEAD de code `074f2d30be683a3bdfe1ec57f766a7015ea68450`.
+- PostgreSQL 16 et PostgreSQL 17.6 ont chacun émis le marqueur explicite `QA381 passed` après les quatre réglages `createrole_self_grant`, les lignes de catalogue, les droits effectifs SET/USAGE, les quatre SELECT isolés, les quatre SET ROLE et le nettoyage complet.
+- QA371 host-port readiness a également réussi sur les deux versions. Verify a réussi le contrat statique QA373–QA381, npm audit au seuil high configuré, TypeScript, build Next.js et 347/347 Playwright.
+- CodeQL [#1335](https://github.com/meridane/QimaTrade-MVP/actions/runs/43406825403): **SUCCESS**. Vercel Preview status: **SUCCESS**.
+- QA381 est **CLOSED** comme caractérisation des conteneurs PostgreSQL jetables. Aucun résultat ne prouve une vulnérabilité en Production.
+- Sécurité: aucune donnée/migration Supabase Production, configuration PostgreSQL persistante, secret, règle de protection, fusion ou déploiement Production n'a été touché.
+
+## QA382 — garde statique de couverture du request hash CREATE_OFFER
+
+- Ajout de `tests/sql/test-create-offer-request-hash-contract.sh`, qui exige un seul bloc de hash et les 16 mappings effectifs exactement une fois, y compris `coalesce(p_attributes, '{}'::jsonb)`.
+- Le contrat maintient `p_tenant_id` et `p_idempotency_key` dans le scope de l'opération, hors du hash du payload métier, en cohérence avec le test runtime existant qui caractérise le même hash de requête pour deux tenants différents.
+- Le script vérifie que les tests SQL existants conservent les références aux 16 paramètres, le rejet `IDEMPOTENCY_KEY_REUSE` et le scénario de même clé sur deux tenants.
+- Le workflow Verify exécute ce nouveau contrôle. Validation CI sur le nouveau HEAD: **PENDING**; QA382 n'est pas déclaré PASS avant exécution réussie.
+- Les décisions MKT-1.1 (autorisation demand/tenant), MKT-1.2 (idempotency indépendante des drafts) et MKT-1.3 (canonicalisation numérique) restent explicitement non approuvées. QA382 ne les modifie pas.
+- Aucun code métier, migration, donnée Supabase Production, secret, configuration persistante, déploiement, fusion ou règle de protection n'a été modifié.

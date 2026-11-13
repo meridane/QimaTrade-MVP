@@ -134,3 +134,13 @@ CodeQL [#1334](https://github.com/meridane/QimaTrade-MVP/actions/runs/4339739217
 QA371's PostgreSQL 17.6 extension-config runtime and QA381's PostgreSQL 17.6 runtime remain pending a new full CI run.
 
 Safety: this change affects only the disposable QA371 nested PostgreSQL container's connection-readiness check and failure diagnostics. It does not change PostgreSQL server settings, Production data, Supabase credentials, migrations, application code, remote publishing, or branch protection.
+
+
+## Final validation of host-port readiness correction — CI #1386 (13 November 2026)
+
+- QIMA CI [#1386](https://github.com/meridane/QimaTrade-MVP/actions/runs/43406823843): **SUCCESS**.
+- PostgreSQL 16 and 17.6 integration jobs both completed the QA371 extension-configuration runtime. The bounded host-side `SELECT 1` probe succeeded before the first host-side version query on both versions.
+- Both jobs then completed the full CREATE_OFFER runner characterization, including the explicit QA381 marker. PostgreSQL 17.6 no longer stopped before QA381 as it did in CI #1385.
+- The container-state/log diagnostic remains failure-only and executes before disposable container removal; no failure diagnostic was needed on this successful run.
+- Verify passed the QA371 static contract, npm audit at the configured high-severity threshold, TypeScript, Next.js build and 347/347 Playwright tests. CodeQL [#1335](https://github.com/meridane/QimaTrade-MVP/actions/runs/43406825403): **SUCCESS**.
+- This validates the host-port readiness correction in disposable CI only; it does not establish a PostgreSQL defect or production issue.
