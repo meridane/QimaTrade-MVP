@@ -4,7 +4,7 @@ Date: 2026-11-13 (KST)
 PR: [#26](https://github.com/meridane/QimaTrade-MVP/pull/26)  
 Branch: `fix/create-offer-status-contract`  
 Working branch: `work/qa384-numeric-domain-guard-20261113-2125`  
-Status: **TEST-SPECIFIC PASS — VERIFY + PG16/PG17 RUNTIME STEP PASS; FULL CI IN PROGRESS**
+Status: **CLOSED — FULL QIMA CI #1393 SUCCESS ON HEAD 1093c19ed032a95e6d7b0b00f11268a31956e035**
 
 ## Initial state verified
 
@@ -71,3 +71,13 @@ The existing runtime fixture covered NaN quantity, positive-Infinity quantity/pr
 - CodeQL [#1340](https://github.com/meridane/QimaTrade-MVP/actions/runs/43425671102) completed **SUCCESS** on the code HEAD. CodeQL [#1341](https://github.com/meridane/QimaTrade-MVP/actions/runs/43425914970) completed **SUCCESS** on the documentation HEAD `85d8099cc743f19064f0c2759381bcbec3509279`.
 - Vercel Preview Comments for documentation HEAD `85d8099cc743f19064f0c2759381bcbec3509279` completed **SUCCESS**. QIMA CI [#1392](https://github.com/meridane/QimaTrade-MVP/actions/runs/43425915175) was **PENDING** for that documentation-only HEAD at the last check.
 - QA384 test-specific validation is **PASS** on Verify, PostgreSQL 16 and PostgreSQL 17.6. The overall CI remains in progress because later independent jobs have not finished.
+
+
+## CI #1393 — clôture complète QA384 (13 novembre 2026)
+
+- QIMA CI #1393 (https://github.com/meridane/QimaTrade-MVP/actions/runs/43426249283) completed SUCCESS on PR HEAD 1093c19ed032a95e6d7b0b00f11268a31956e035.
+- Verify emitted explicit QA382 PASS, QA383 PASS and QA384 PASS markers. npm audit at the configured high threshold, TypeScript, Next.js build and 347/347 Playwright passed.
+- PostgreSQL 16 integration job completed SUCCESS and its log contains both QA384 PASS and QA381 passed. PostgreSQL 17.6 compatibility job completed SUCCESS with the same explicit markers. The QA384 runtime matrix and its no-persisted-side-effect assertions therefore executed successfully on both pinned versions.
+- CodeQL #1342 (https://github.com/meridane/QimaTrade-MVP/actions/runs/43426249550) completed SUCCESS. The Vercel status check for this HEAD completed SUCCESS.
+- Two prepared-transaction harness jobs retained their intentionally expected failure conclusions; their separate assertion jobs completed SUCCESS. The expected-skipped harness remained skipped and its assertion passed.
+- QA384 is CLOSED. This is test evidence from disposable PostgreSQL environments, not a claim that a production vulnerability was confirmed or that Production was validated.

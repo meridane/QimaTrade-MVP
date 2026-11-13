@@ -8832,7 +8832,7 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 - The existing `execute_create_offer_v1` migration source rejects NULL, NaN, positive/negative Infinity and non-positive quantity / negative price. This task preserves those existing checks; it does not edit or apply a migration.
 - Existing runtime coverage included NaN quantity, positive-Infinity quantity/price and negative price. QA384 adds disposable PostgreSQL cases for negative-Infinity quantity, NaN price and negative-Infinity price, each requiring the existing validation error and no persisted idempotency, execution or offer rows.
 - Added `tests/sql/test-create-offer-numeric-domain-contract.sh` to guard the exact finite/sign expressions, the three missing runtime cases, their no-side-effect checks, the runtime marker and Verify/PostgreSQL 16/17.6 wiring.
-- The new static contract is added to Verify. Validation on the new HEAD is **PENDING** until Verify emits QA384 PASS and both PostgreSQL jobs emit the runtime QA384 PASS notice.
+- Historical status at initial entry: validation was pending. This was superseded by the full CI #1393 validation recorded below, which emitted QA384 PASS on PostgreSQL 16 and 17.6.
 - MKT-1.3 numeric canonicalization remains **DECISION REQUIRED — NOT APPROVED**. QA384 tests only the existing finite/sign input domain and does not select precision, scale, JSONB normalization or hash-version semantics.
 - Safety: no migration, application behavior, Supabase Production data, secret, persistent PostgreSQL configuration, deployment, PR merge or branch-protection rule is modified.
 
@@ -8844,7 +8844,7 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 - PostgreSQL 16 and PostgreSQL 17.6 jobs were in progress in the shared integration runner. The QA384 runtime matrix (negative-Infinity quantity, NaN price and negative-Infinity price) had not yet emitted its explicit notice at the last check.
 - Vercel Preview Comments completed **SUCCESS** for this HEAD. CodeQL [#1340](https://github.com/meridane/QimaTrade-MVP/actions/runs/43425671102) was **IN PROGRESS**.
 - Expected-failure prepared-transaction harnesses and their separate blocking assertions retained their documented expected outcomes; the expected-skipped job remained skipped with its assertion successful.
-- QA384 remains pending runtime validation on both pinned PostgreSQL versions. MKT-1.3 canonicalization remains a separate unapproved business decision.
+- At the time of CI #1391, the full workflow was still running. The final full-CI result is recorded in CI #1393 below; MKT-1.3 canonicalization remains a separate unapproved business decision.
 
 
 ## CI #1391 — QA384 validation des tests ciblés (13 novembre 2026)
@@ -8856,3 +8856,25 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 - CodeQL [#1340](https://github.com/meridane/QimaTrade-MVP/actions/runs/43425671102) : **SUCCESS** sur le HEAD de code. CodeQL [#1341](https://github.com/meridane/QimaTrade-MVP/actions/runs/43425914970) : **SUCCESS** sur le HEAD documentaire `85d8099cc743f19064f0c2759381bcbec3509279`.
 - Vercel Preview Comments sur le HEAD documentaire : **SUCCESS**. QIMA CI [#1392](https://github.com/meridane/QimaTrade-MVP/actions/runs/43425915175) était **PENDING** au dernier contrôle pour ce HEAD documentaire.
 - QA384 est **PASS pour ses contrôles ciblés** (Verify, runtime PostgreSQL 16 et 17.6). Le workflow global reste en cours en raison des étapes indépendantes ultérieures.
+
+
+## CI #1393 — QA384 clôture complète sur le HEAD courant (13 novembre 2026)
+
+- PR #26 reste OPEN, DRAFT, mergeable et non fusionnée. Base main (0d35c13db81019867fe9929420b0a6916285fbf6), HEAD 1093c19ed032a95e6d7b0b00f11268a31956e035; 1 684 commits, 162 fichiers modifiés, aucune review ni thread de review enregistré.
+- QIMA CI #1393 (https://github.com/meridane/QimaTrade-MVP/actions/runs/43426249283) a terminé SUCCESS sur ce HEAD.
+- Verify a émis explicitement QA382 PASS, QA383 PASS et QA384 PASS. npm audit au seuil high configuré, TypeScript, build Next.js et 347/347 Playwright ont réussi.
+- Le job PostgreSQL 16 a terminé SUCCESS et son log contient QA384 PASS ainsi que QA381 passed. Le job PostgreSQL 17.6 a terminé SUCCESS avec les mêmes marqueurs explicites. Le scénario QA384 vérifie les trois valeurs manquantes (-Infinity quantity, NaN price et -Infinity price) et l'absence d'écritures persistées.
+- Les contrôles complémentaires de compatibilité PostgreSQL 17.6, second lancement du runner, catalogues/bootstrap, privilèges du runner, wrapper-owner/membership, sept ACL EXECUTE, RLS legacy et nettoyage ont terminé SUCCESS.
+- Les deux jobs de harness préparés pour provoquer un échec de setup/nettoyage ont conservé leur conclusion failure attendue; leurs jobs d'assertion dédiés ont terminé SUCCESS. Le job volontairement skipped est resté skipped et son assertion a réussi.
+- CodeQL #1342 (https://github.com/meridane/QimaTrade-MVP/actions/runs/43426249550) : SUCCESS. Le check Vercel du HEAD : SUCCESS.
+- QA384 est CLOSED. La réussite concerne les tests et environnements PostgreSQL jetables; elle ne constitue pas une preuve de vulnérabilité ni une validation de Production.
+
+## QA385 — frontière quantité strictement positive
+
+- Le code existant de execute_create_offer_v1 exige p_quantity > 0 et retourne INVALID_QUANTITY lorsque la quantité vaut zéro. Aucun comportement métier n'est changé.
+- Ajout d'un scénario PostgreSQL jetable avec p_quantity = 0, les autres paramètres valides, une clé unique et une identité authentifiée de fixture.
+- Le scénario exige exactement INVALID_QUANTITY et compare avant/après les nombres de lignes dans idempotency_keys, action_executions, offers et action_events; il vérifie également l'absence de la clé et de l'offre de fixture.
+- Ajout de tests/sql/test-create-offer-zero-quantity-contract.sh et de son étape Verify. Les jobs PostgreSQL 16 et 17.6 exécutent le même runtime fixture.
+- Validation QA385 sur le nouveau HEAD : PENDING jusqu'au marqueur Verify et aux deux exécutions runtime PostgreSQL.
+- Aucun test n'impose une politique sur le prix zéro. MKT-1.3 canonicalisation, MKT-1.1 demande/tenant et MKT-1.2 brouillons/idempotence restent des décisions métier non approuvées.
+- Sécurité : aucun code applicatif, migration, donnée Supabase Production, secret, réglage PostgreSQL persistant, règle de protection, fusion ou déploiement Production n'a été modifié.
