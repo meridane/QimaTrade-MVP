@@ -4,7 +4,7 @@ Date: 2026-11-14 (KST)
 PR: [#26](https://github.com/meridane/QimaTrade-MVP/pull/26)
 Branch: fix/create-offer-status-contract
 Working branch: work/qa387-finite-negative-price-boundary-20261114-0013
-Status: IMPLEMENTED — CI VALIDATION PENDING
+Status: CLOSED — QIMA CI #1397 SUCCESS
 
 ## Initial state verified
 
@@ -34,7 +34,7 @@ Add an isolated finite-negative price case to the existing CREATE_OFFER non-nega
 ## Validation
 
 - Source construction was checked against the existing migration guard, QA386 disposable fixture, workflow job names and runner wiring.
-- The new Verify and PostgreSQL runtime checks have not yet executed on the new HEAD. Do not claim QA387 PASS until Verify emits its marker and both PostgreSQL jobs complete successfully.
+- QIMA CI #1397 completed SUCCESS on HEAD d60c7f4c520b3fd98bacb4ed45269641b686bec1. Verify emitted QA387 PASS; PostgreSQL 16 and PostgreSQL 17.6 runtime logs each emitted the explicit QA387 PASS marker and both integration jobs completed SUCCESS. The same jobs emitted QA381 passed. npm audit, TypeScript, Next.js build and 347/347 Playwright passed; CodeQL #1346 and the Vercel status check also completed SUCCESS.
 
 ## Safety and decision boundaries
 
@@ -43,3 +43,13 @@ Add an isolated finite-negative price case to the existing CREATE_OFFER non-nega
 - No zero-price acceptance test or numeric canonicalization behavior was introduced.
 - MKT-1.1 demand/tenant ownership, MKT-1.2 independent-draft idempotency semantics and MKT-1.3 numeric canonicalization remain unapproved.
 - No Production deployment, PR merge, force update or branch-protection change was performed.
+
+
+## CI #1397 — clôture QA387 sur les deux versions PostgreSQL (14 novembre 2026)
+
+- QIMA CI [#1397](https://github.com/meridane/QimaTrade-MVP/actions/runs/43451163902) a terminé SUCCESS sur HEAD d60c7f4c520b3fd98bacb4ed45269641b686bec1.
+- Verify a émis explicitement QA387 PASS; npm audit au seuil high, TypeScript, build Next.js et 347/347 Playwright ont réussi.
+- Le job CREATE_OFFER PostgreSQL 16 [131973387950](https://github.com/meridane/QimaTrade-MVP/actions/runs/43451163902) et le job PostgreSQL 17.6 [131973388219](https://github.com/meridane/QimaTrade-MVP/actions/runs/43451163902) ont chacun émis le marqueur QA387 PASS et terminé SUCCESS.
+- Les deux jobs ont également émis QA381 passed. Les harnesses de nettoyage volontairement en échec et le job volontairement skipped ont conservé leurs résultats attendus; les jobs d'assertion dédiés ont réussi.
+- CodeQL [#1346](https://github.com/meridane/QimaTrade-MVP/actions/runs/43451163974) et le check Vercel du HEAD ont terminé SUCCESS.
+- QA387 est CLOSED. Ces résultats caractérisent la CI et les bases PostgreSQL jetables; ils ne constituent ni une validation de Production ni une conclusion de vulnérabilité.
