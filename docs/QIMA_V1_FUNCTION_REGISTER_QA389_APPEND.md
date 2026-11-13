@@ -4,7 +4,7 @@ Date: 2026-11-14 (KST)
 PR: [#26](https://github.com/meridane/QimaTrade-MVP/pull/26)
 Branch: fix/create-offer-status-contract
 Working branch: work/qa389-nan-quantity-boundary-20261114-0254
-Status: IMPLEMENTED — CI VALIDATION PENDING
+Status: IMPLEMENTED — VERIFY STATIC PASS; POSTGRESQL RUNTIME IN PROGRESS
 
 ## Initial state verified
 
@@ -45,3 +45,16 @@ The existing migration rejects PostgreSQL numeric NaN for p_quantity through its
 - No numeric canonicalization or new business acceptance rule was introduced.
 - MKT-1.1 demand/tenant ownership, MKT-1.2 independent-draft idempotency semantics and MKT-1.3 numeric canonicalization remain unapproved.
 - No Production deployment, PR merge, force update or branch-protection change was performed.
+
+
+## Interim CI evidence — 14 November 2026
+
+- The implementation commit is 52e7d34e1ef53c3de989fc16f1bc5be86cc95408; the PR branch and working branch were fast-forwarded to this commit.
+- QIMA CI [#43477926780](https://github.com/meridane/QimaTrade-MVP/actions/runs/43477926780) is IN_PROGRESS.
+- Verify completed the QA389 static contract step successfully. All preceding QA382–QA388 contract steps in the same Verify job also completed successfully.
+- PostgreSQL 16 job 132066564285 is IN_PROGRESS at the shared CREATE_OFFER runtime/integration step.
+- PostgreSQL 17.6 job 132066563701 is IN_PROGRESS at the shared CREATE_OFFER runtime/integration step.
+- Typecheck/audit/build/browser job 132066564397 is IN_PROGRESS; the audit and preceding static checks have completed successfully.
+- QIMA CodeQL [#43477926783](https://github.com/meridane/QimaTrade-MVP/actions/runs/43477926783) is IN_PROGRESS.
+- The Vercel Preview Comments status check on this HEAD is SUCCESS; this is not a Production deployment.
+- QA389 remains PENDING until the runtime marker and successful completion of both PostgreSQL jobs are confirmed.
