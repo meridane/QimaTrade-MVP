@@ -5,7 +5,7 @@ PR: [#26](https://github.com/meridane/QimaTrade-MVP/pull/26)
 Branch: fix/create-offer-status-contract
 Working branch: work/qa391-zero-price-accepted-boundary-20261114-0437
 Parent HEAD: f46b603934d82056d69597708598b6eae8d8d74a
-Status: IMPLEMENTED — VERIFY AND POSTGRESQL RUNTIME VALIDATION PENDING
+Status: CLOSED — QIMA CI #1404 SUCCESS
 
 ## Initial state verified
 
@@ -35,9 +35,11 @@ The existing migration's price guard rejects NULL, NaN, both infinities and valu
 
 ## Validation
 
-- Source-level review confirmed that QA391 is isolated to the disposable runtime fixture and that the migration and application code are unchanged.
-- QA391 remains PENDING until Verify emits QA391 PASS and both full PostgreSQL 16 and PostgreSQL 17.6 jobs complete SUCCESS with the runtime marker.
-- CI is triggered by the PR branch code commit. The later documentation-only updates are ignored by the workflow's docs/** path filter.
+- QIMA CI [#1404](https://github.com/meridane/QimaTrade-MVP/actions/runs/43494674726) completed SUCCESS on HEAD 04295f3f52ee4c85796a85d68e2ca5cba74ae081.
+- Verify job 132124545717 emitted QA391 PASS; npm audit at the high threshold, TypeScript, Next.js build and 347/347 Playwright tests passed.
+- PostgreSQL 16 job 132124545857 and PostgreSQL 17.6 job 132124545933 each emitted the QA391 runtime PASS marker and completed SUCCESS. Both full jobs also emitted QA381 passed and completed all catalog, ACL, RLS, runner-privilege and cleanup checks.
+- QIMA CodeQL [#1352](https://github.com/meridane/QimaTrade-MVP/actions/runs/43494674793) completed SUCCESS. The Vercel status check on the same HEAD completed SUCCESS.
+- QA391 is CLOSED. This disposable CI regression characterizes the existing non-negative price contract; it is not a Production validation or proof of a vulnerability.
 
 ## Safety and decision boundaries
 
@@ -46,3 +48,12 @@ The existing migration's price guard rejects NULL, NaN, both infinities and valu
 - No new price acceptance policy was introduced; QA391 characterizes the existing p_price < 0 contract only.
 - MKT-1.1 demand/tenant ownership, MKT-1.2 independent-draft idempotency semantics and MKT-1.3 numeric canonicalization remain unapproved.
 - No Production deployment, PR merge, force update or branch-protection change was performed.
+
+
+## Final validation and closure — 14 November 2026
+
+- PR #26 remained OPEN, DRAFT, mergeable and unmerged at HEAD 04295f3f52ee4c85796a85d68e2ca5cba74ae081.
+- QIMA CI #1404 completed SUCCESS. Verify, PostgreSQL 16 and PostgreSQL 17.6 full jobs completed SUCCESS.
+- The two PostgreSQL jobs emitted QA391 PASS and QA381 passed; all subsequent catalog, ACL, RLS, runner-privilege and cleanup steps completed successfully.
+- CodeQL #1352 and the Vercel status check completed SUCCESS.
+- QA391 is CLOSED. No application code or migration was changed for QA391.
