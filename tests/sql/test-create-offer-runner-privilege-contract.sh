@@ -11,6 +11,7 @@ APPENDIX="$ROOT/docs/QIMA_V1_FUNCTION_REGISTER_QA373_APPEND.md"
 APPENDIX_QA374="$ROOT/docs/QIMA_V1_FUNCTION_REGISTER_QA374_APPEND.md"
 APPENDIX_QA379="$ROOT/docs/QIMA_V1_FUNCTION_REGISTER_QA379_APPEND.md"
 APPENDIX_QA380="$ROOT/docs/QIMA_V1_FUNCTION_REGISTER_QA380_APPEND.md"
+APPENDIX_QA381="$ROOT/docs/QIMA_V1_FUNCTION_REGISTER_QA381_APPEND.md"
 
 fail() {
   echo "ERROR: $*" >&2
@@ -203,7 +204,15 @@ for required in \
   "before_qa380_admin_snapshot" \
   "after_qa380_admin_snapshot" \
   "QA380 passed" \
-  "ADMIN OPTION on the bridge was not treated as ADMIN OPTION on anon or authenticated"; do
+  "ADMIN OPTION on the bridge was not treated as ADMIN OPTION on anon or authenticated" \
+  "qa381_create_role_runner" \
+  "createrole_self_grant" \
+  "qa381_default_target" \
+  "qa381_set_target" \
+  "qa381_inherit_target" \
+  "qa381_both_target" \
+  "set,inherit" \
+  "QA381 passed"; do
   grep -Fq -- "$required" "$RUNTIME" ||
     fail "QA380 runtime characterization is missing: $required"
 done
@@ -218,4 +227,11 @@ grep -Fq "# QA380 — ADMIN OPTION is not transitive across membership" "$APPEND
 grep -Fq "### QA380 — ADMIN OPTION does not propagate through a membership chain" "$REGISTER" ||
   fail "canonical register is missing QA380 non-transitive ADMIN OPTION coverage"
 
-echo "QA373/QA374/QA375/QA376/QA377/QA378/QA379/QA380 static contract PASS: the runner fails closed on unsupported roles, rejects non-owners and partial administration, accepts both mixed SET/ADMIN OPTION directions, and recognizes only complete transitive SET-enabled membership chains."
+grep -Fq "# QA381 — CREATEROLE self-grant GUC semantics" "$APPENDIX_QA381" ||
+  fail "QA381 appendix is missing createrole_self_grant characterization"
+grep -Fq "### QA381 — CREATEROLE self-grant GUC semantics" "$REGISTER" ||
+  fail "canonical register is missing QA381 createrole_self_grant characterization"
+grep -Fq "QA381 validation evidence" "$APPENDIX_QA381" ||
+  fail "QA381 appendix must reserve runtime validation evidence"
+
+echo "QA373/QA374/QA375/QA376/QA377/QA378/QA379/QA380/QA381 static contract PASS: runner privilege boundaries, indirect membership, non-transitive ADMIN, and CREATEROLE self-grant GUC semantics are covered."

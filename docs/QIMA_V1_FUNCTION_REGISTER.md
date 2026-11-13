@@ -8691,3 +8691,11 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 - Vercel Preview: **FAILURE** with `build-rate-limit` (retry in 24 hours). No Preview deployment is claimed for this HEAD; no Production deployment occurred.
 - QA380 is closed as a disposable-runtime characterization of the non-transitive ADMIN OPTION boundary. It does not establish that any Production runner currently has this configuration or prove a Production vulnerability.
 - Safety: no Production database, Supabase credential, migration, persistent PostgreSQL setting, remote publisher, or branch-protection configuration was accessed or modified.
+
+### QA381 — CREATEROLE self-grant GUC semantics
+
+- Scope: characterize the PostgreSQL 16+ `createrole_self_grant` session parameter for a non-superuser role creator, separating the implicit bootstrap ADMIN membership from optional creator-issued INHERIT and SET memberships.
+- Runtime matrix: create disposable roles with the GUC set to empty, `set`, `inherit`, and `set,inherit`; inspect all `pg_auth_members` rows and grantors; verify `pg_has_role(..., 'SET')`, `pg_has_role(..., 'USAGE')`, direct SELECT inheritance, and explicit SET ROLE behavior.
+- Expected boundary: the implicit bootstrap row remains ADMIN TRUE / INHERIT FALSE / SET FALSE. A non-empty GUC adds a distinct creator-issued membership row for the requested INHERIT/SET options; it does not confer ADMIN OPTION on unrelated existing roles.
+- Validation status at code publication: pending on PostgreSQL 16 and 17.6; no runtime success is claimed until both explicit QA381 markers and the full Verify job pass.
+- Safety: QA381 creates only disposable QA381-prefixed roles and a temporary schema in the existing ephemeral containers, then removes and verifies them. No Production database, Supabase credential, migration, persistent PostgreSQL setting, remote publisher, or branch protection is accessed or modified.

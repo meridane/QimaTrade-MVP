@@ -901,3 +901,199 @@ if [[ "$after_qa380_admin_snapshot" != "$before_qa380_admin_snapshot" ]]; then
 fi
 
 echo "QA380 passed: ADMIN OPTION on the bridge was not treated as ADMIN OPTION on anon or authenticated; the runner exited 4 before fixture changes and all snapshots remained unchanged."
+
+
+# QA381: CREATEROLE's implicit ADMIN grant is distinct from the optional
+# createrole_self_grant INHERIT/SET grant. Characterize empty, set, inherit,
+# and combined settings using a non-superuser role creator.
+qa381_guc_state="$(db_psql -c "SELECT setting || '|' || context FROM pg_settings WHERE name = 'createrole_self_grant';")"
+if [[ "$qa381_guc_state" != "|user" ]]; then
+  echo "ERROR: QA381 expected createrole_self_grant to have an empty default and user context, got '$qa381_guc_state'." >&2
+  exit 1
+fi
+
+admin_psql <<'SQL'
+CREATE ROLE qa381_create_role_runner LOGIN PASSWORD 'qa381-create-role-only'
+  CREATEROLE NOINHERIT NOSUPERUSER NOCREATEDB NOREPLICATION NOBYPASSRLS;
+GRANT CONNECT ON DATABASE qima_test TO qa381_create_role_runner;
+SQL
+
+qa381_runner_psql() {
+  docker exec --env PGPASSWORD=qa381-create-role-only "$CONTAINER_NAME" \
+    psql -h 127.0.0.1 -U qa381_create_role_runner -d qima_test \
+      -X -v ON_ERROR_STOP=1 -q -A -t "$@"
+}
+
+qa381_create_target() {
+  local setting="$1"
+  local target_role="$2"
+  qa381_runner_psql -c "SET createrole_self_grant = '$setting'; CREATE ROLE $target_role NOLOGIN;"
+}
+
+qa381_create_target "" "qa381_default_target"
+qa381_create_target "set" "qa381_set_target"
+qa381_create_target "inherit" "qa381_inherit_target"
+qa381_create_target "set,inherit" "qa381_both_target"
+
+db_psql -c "
+  CREATE SCHEMA qa381_probe;
+  CREATE TABLE qa381_probe.inherit_probe (id integer);
+  GRANT USAGE ON SCHEMA qa381_probe
+    TO qa381_default_target, qa381_set_target, qa381_inherit_target, qa381_both_target;
+  GRANT SELECT ON qa381_probe.inherit_probe
+    TO qa381_default_target, qa381_set_target, qa381_inherit_target, qa381_both_target;
+"
+
+qa381_catalog_state() {
+  local target_role="$1"
+  db_psql -c "
+    SELECT
+      count(*)::text || '|' ||
+      count(*) FILTER (
+        WHERE admin_option AND NOT inherit_option AND NOT set_option
+      )::text || '|' ||
+      count(*) FILTER (
+        WHERE NOT admin_option AND NOT inherit_option AND set_option
+      )::text || '|' ||
+      count(*) FILTER (
+        WHERE NOT admin_option AND inherit_option AND NOT set_option
+      )::text || '|' ||
+      count(*) FILTER (
+        WHERE NOT admin_option AND inherit_option AND set_option
+      )::text || '|' ||
+      count(DISTINCT grantor)::text || '|' ||
+      count(*) FILTER (
+        WHERE grantor = 'qa381_create_role_runner'::regrole
+      )::text
+    FROM pg_auth_members
+    WHERE roleid = '$target_role'::regrole
+      AND member = 'qa381_create_role_runner'::regrole;
+  "
+}
+
+qa381_assert_catalog_state() {
+  local target_role="$1"
+  local expected="$2"
+  local actual
+  actual="$(qa381_catalog_state "$target_role")"
+  if [[ "$actual" != "$expected" ]]; then
+    echo "ERROR: QA381 catalog memberships for $target_role were '$actual', expected '$expected'." >&2
+    exit 1
+  fi
+}
+
+qa381_effective_state() {
+  local target_role="$1"
+  db_psql -c "
+    SELECT
+      pg_has_role('qa381_create_role_runner', '$target_role', 'SET')::text || '|' ||
+      pg_has_role('qa381_create_role_runner', '$target_role', 'USAGE')::text || '|' ||
+      has_table_privilege(
+        'qa381_create_role_runner',
+        'qa381_probe.inherit_probe',
+        'SELECT'
+      )::text;
+  "
+}
+
+qa381_assert_effective_state() {
+  local target_role="$1"
+  local expected="$2"
+  local actual
+  actual="$(qa381_effective_state "$target_role")"
+  if [[ "$actual" != "$expected" ]]; then
+    echo "ERROR: QA381 effective SET/INHERIT state for $target_role was '$actual', expected '$expected'." >&2
+    exit 1
+  fi
+}
+
+qa381_expect_direct_select() {
+  local target_role="$1"
+  local expected="$2"
+  local log_file="$TEMP_DIR/qa381-$target_role-direct-select.log"
+  local output
+  local status
+  if output="$(qa381_runner_psql -c "SELECT count(*) FROM qa381_probe.inherit_probe;" 2>"$log_file")"; then
+    status=0
+  else
+    status=$?
+  fi
+  if [[ "$expected" == "true" ]]; then
+    if [[ "$status" -ne 0 || "$output" != "0" ]]; then
+      echo "ERROR: QA381 expected inherited SELECT through $target_role, got status=$status output='$output'." >&2
+      cat "$log_file" >&2
+      exit 1
+    fi
+  else
+    if [[ "$status" -eq 0 ]] || ! grep -Fq "permission denied" "$log_file"; then
+      echo "ERROR: QA381 expected direct SELECT to be denied without INHERIT through $target_role." >&2
+      cat "$log_file" >&2
+      exit 1
+    fi
+  fi
+}
+
+qa381_expect_set_role() {
+  local target_role="$1"
+  local expected="$2"
+  local log_file="$TEMP_DIR/qa381-$target_role-set-role.log"
+  local output
+  local status
+  if output="$(qa381_runner_psql -c "SET ROLE $target_role; SELECT current_user; SELECT count(*) FROM qa381_probe.inherit_probe; RESET ROLE;" 2>"$log_file")"; then
+    status=0
+  else
+    status=$?
+  fi
+  if [[ "$expected" == "true" ]]; then
+    local expected_output
+    expected_output="$target_role"$'\n''0'
+    if [[ "$status" -ne 0 || "$output" != "$expected_output" ]]; then
+      echo "ERROR: QA381 expected SET ROLE and target privileges for $target_role, got status=$status output='$output'." >&2
+      cat "$log_file" >&2
+      exit 1
+    fi
+  else
+    if [[ "$status" -eq 0 ]] || ! grep -Fq "permission denied to set role" "$log_file"; then
+      echo "ERROR: QA381 expected SET ROLE $target_role to be denied without SET." >&2
+      cat "$log_file" >&2
+      exit 1
+    fi
+  fi
+}
+
+qa381_assert_catalog_state "qa381_default_target" "1|1|0|0|0|1|0"
+qa381_assert_catalog_state "qa381_set_target" "2|1|1|0|0|2|1"
+qa381_assert_catalog_state "qa381_inherit_target" "2|1|0|1|0|2|1"
+qa381_assert_catalog_state "qa381_both_target" "2|1|0|0|1|2|1"
+
+qa381_assert_effective_state "qa381_default_target" "false|false|false"
+qa381_assert_effective_state "qa381_set_target" "true|false|false"
+qa381_assert_effective_state "qa381_inherit_target" "false|true|true"
+qa381_assert_effective_state "qa381_both_target" "true|true|true"
+
+qa381_expect_direct_select "qa381_default_target" "false"
+qa381_expect_direct_select "qa381_set_target" "false"
+qa381_expect_direct_select "qa381_inherit_target" "true"
+qa381_expect_direct_select "qa381_both_target" "true"
+
+qa381_expect_set_role "qa381_default_target" "false"
+qa381_expect_set_role "qa381_set_target" "true"
+qa381_expect_set_role "qa381_inherit_target" "false"
+qa381_expect_set_role "qa381_both_target" "true"
+
+db_psql -c "DROP SCHEMA qa381_probe CASCADE;"
+admin_psql -c "
+  DROP ROLE qa381_default_target, qa381_set_target, qa381_inherit_target, qa381_both_target;
+  DROP ROLE qa381_create_role_runner;
+"
+qa381_cleanup_state="$(db_psql -c "
+  SELECT
+    (SELECT count(*) FROM pg_roles WHERE rolname LIKE 'qa381_%')::text || '|' ||
+    (SELECT count(*) FROM pg_namespace WHERE nspname = 'qa381_probe')::text;
+")"
+if [[ "$qa381_cleanup_state" != "0|0" ]]; then
+  echo "ERROR: QA381 left temporary roles or schema behind: '$qa381_cleanup_state'." >&2
+  exit 1
+fi
+
+echo "QA381 passed: CREATEROLE's bootstrap ADMIN grant remained separate from the optional createrole_self_grant SET/INHERIT membership; catalog rows, effective privileges, direct SELECT, SET ROLE, and cleanup matched all four settings."
