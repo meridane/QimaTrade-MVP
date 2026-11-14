@@ -19134,6 +19134,7 @@ BEGIN
     p_conditions => NULL,
     p_geography => NULL,
     p_documentation_status => NULL,
+    p_lifecycle => NULL,
     -- p_offer_type intentionally omitted so PostgreSQL applies its declared default.
     p_market => 'fixture-market-stable',
     p_attributes => '{}'::jsonb,
@@ -19222,6 +19223,7 @@ BEGIN
     p_conditions => NULL,
     p_geography => NULL,
     p_documentation_status => NULL,
+    p_lifecycle => NULL,
     p_offer_type => NULL,
     p_market => 'fixture-market-stable',
     p_attributes => '{}'::jsonb,
