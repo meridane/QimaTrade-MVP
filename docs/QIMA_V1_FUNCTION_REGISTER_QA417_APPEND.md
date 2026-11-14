@@ -2,7 +2,7 @@
 
 ## QA417 — omission de p_pricing_model et replay avec NULL explicite
 
-**Statut : IMPLEMENTED — validation QIMA CI en attente sur le nouveau HEAD.**  
+**Statut : IMPLEMENTED — Verify SUCCESS ; jobs PostgreSQL complets encore en cours.**  
 **Target :** PR #26, branche `fix/create-offer-status-contract`.  
 **Branche de travail :** `work/qa417-pricing-model-default-replay-20261115-0641`.  
 **Commit de base :** `4f92de83c9eaf2f8d10a275d295a1f697c82d77a`.
