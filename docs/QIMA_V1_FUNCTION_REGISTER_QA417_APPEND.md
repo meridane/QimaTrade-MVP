@@ -20,7 +20,7 @@
 
 ## Correction de workflow découverte pendant la relecture
 
-- Le workflow contenait une deuxième clé YAML `run:` sous le step nommé pour le replay modifié de `p_offer_type`. Cette clé était destinée au contrôle statique QA416 mais n'avait pas son propre élément `- name`.
+- Le workflow contenait une deuxième clé YAML `run:` sous le step `Verify CREATE_OFFER changed-offer-type replay preserves original state` (régression QA407 sur `p_offer_type`). Cette clé était destinée au contrôle statique QA416 mais n'avait pas son propre élément `- name`.
 - Le workflow est corrigé : QA416 et QA417 ont maintenant chacun un step nommé distinct et une commande `run` unique.
 - Le contrôle statique QA416 a été renforcé pour exiger son propre nom de step ; le contrôle QA417 vérifie aussi la présence des deux steps. Cette correction évite qu'un futur doublon de clé YAML masque un test.
 - Aucun autre comportement de workflow n'est modifié.
@@ -40,3 +40,13 @@
 - Aucun déploiement Production, merge, force-push ou changement de règle de protection.
 - Ce test caractérise un contrat existant ; il ne prouve aucune vulnérabilité Production.
 - Le modèle d'autorisation demand/tenant et les décisions métier MKT-1.1, MKT-1.2 et MKT-1.3 restent soumis à approbation explicite.
+
+## Validation en cours sur le code/workflow HEAD 636acbca15a57832b97bbbe06cdcaa9c301e1850
+
+- QIMA CI [run 43644473687](https://github.com/meridane/QimaTrade-MVP/actions/runs/43644473687) is IN_PROGRESS at this update.
+- Verify job `132599046989` completed SUCCESS. The full log contains exactly one `QA416 static contract PASS` and one `QA417 static contract PASS`; npm audit high, TypeScript, Next.js production build and Playwright **347/347** succeeded.
+- PostgreSQL 16 job `132599046809` completed its CREATE_OFFER integration/concurrency runner step and separate product-master, attributes, conditions, market and geography replay steps successfully. Full runner-privilege, RLS/ACL and cleanup checks remain in progress.
+- PostgreSQL 17.6 job `132599047040` completed the same CREATE_OFFER runner and separate replay steps successfully. Full runner-privilege, RLS/ACL and cleanup checks remain in progress.
+- QA417 runtime is part of `create-offer-runtime.sql`, which the successful integration runner executes on both versions. Exact `QA417 PASS` marker counts await the complete PostgreSQL job logs; QA417 is not marked CLOSED yet.
+- CodeQL [run 43644473682](https://github.com/meridane/QimaTrade-MVP/actions/runs/43644473682) completed SUCCESS. The combined Vercel status on this code/workflow HEAD is SUCCESS.
+- This appendix-only update does not change the code/workflow files validated by the active CI run.
