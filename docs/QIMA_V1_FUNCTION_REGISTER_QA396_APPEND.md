@@ -2,7 +2,7 @@
 
 ## QA396 — changed-input idempotency replay preserves original state
 
-**Status:** PENDING full CI validation  
+**Status:** CLOSED — QIMA CI #1413 SUCCESS  
 **Target:** PR #26, branch `fix/create-offer-status-contract`  
 **Working branch:** `work/qa396-input-mismatch-replay-20261114-0939`  
 **Base commit:** `a00c867c1d65610f95ab8ac6c50028977e9181d8`
@@ -22,8 +22,10 @@
 
 - Source-level review confirms that `p_input` is already part of the existing request hash. No migration or application code is changed.
 - The runtime scenario is appended to `tests/sql/create-offer-runtime.sql`; the static contract is `tests/sql/test-create-offer-input-mismatch-replay-contract.sh`.
-- Full CI validation is pending. Do not mark QA396 CLOSED until Verify, the full PostgreSQL 16 job, and the full PostgreSQL 17.6 job succeed and both runtime logs contain the QA396 marker.
-- The canonical register could not be read through the GitHub file-content endpoint in this run: it returned the known blob SHA but an empty content payload, including for requested line ranges. The existing canonical file was deliberately left untouched rather than overwritten from an incomplete reconstruction. This append records QA396; canonical-register synchronization remains blocked on a readable full-file or chunked retrieval path.
+- QIMA CI [#1413](https://github.com/meridane/QimaTrade-MVP/actions/runs/43536122294) completed **SUCCESS**. Verify job 132265561088, PostgreSQL 16 job 132265561298, and PostgreSQL 17.6 job 132265560863 all completed successfully; both PostgreSQL logs contain the QA396 PASS marker.
+- Verify completed npm audit, TypeScript, production build and **347/347 Playwright** tests successfully. QIMA CodeQL [#1361](https://github.com/meridane/QimaTrade-MVP/actions/runs/43536122403) and the Vercel status for the validated HEAD completed **SUCCESS**.
+- The prepared-transaction harness jobs with individual failure/skipped conclusions are intentional negative-path checks; their dedicated assertion jobs completed successfully.
+- At the time of the initial QA396 run, the Contents endpoint returned an empty payload for the large canonical register. The full register was subsequently recovered by its Git blob and synchronized in the QA397 commit; the earlier retrieval limitation is historical and no longer blocks updates.
 
 ## Safety and decision boundaries
 
@@ -42,3 +44,9 @@
 - Correction : suppression de la première déclaration en doublon; le bloc conserve désormais une seule déclaration `v_replay_input` après `v_input`. Le contrat statique exige explicitement exactement une déclaration afin de prévenir une régression identique.
 - Une nouvelle CI sur le commit corrigé est requise. CI #1412 n'est pas acceptée comme validation runtime QA396.
 - Aucun code applicatif, migration, donnée Supabase Production, secret, configuration PostgreSQL persistante, règle de protection, fusion ou déploiement Production n'a été modifié. Aucun résultat synthétique n'est interprété comme preuve d'une vulnérabilité Production.
+
+
+## Final closure — 14 novembre 2026
+
+- QA396 is **CLOSED** after QIMA CI #1413 completed successfully on PostgreSQL 16 and PostgreSQL 17.6, with both QA396 runtime markers present and all remaining job-level checks successful.
+- The canonical register synchronization was restored using the complete Git blob; QA396 closure and QA397 scope are recorded there.
