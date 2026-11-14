@@ -2,7 +2,7 @@
 
 ## QA409 — changed p_product_master_id replay rejection
 
-**Status:** IMPLEMENTED — pending GitHub Actions validation on the updated PR head.  
+**Status:** CLOSED — QIMA CI [#1441](https://github.com/meridane/QimaTrade-MVP/actions/runs/43603888887) completed SUCCESS. Verify, PostgreSQL 16, PostgreSQL 17.6, both explicit runtime markers, CodeQL [#1389](https://github.com/meridane/QimaTrade-MVP/actions/runs/43603888821), and the combined Vercel status are confirmed.  
 **Target:** PR #26, branch `fix/create-offer-status-contract`  
 **Working branch:** `work/qa409-product-master-mismatch-replay-20261114-2309`  
 **Base commit:** `fcb83fa734a6a7613bed291c7804124431bd3c8f`
@@ -21,13 +21,18 @@
 
 ## Validation state
 
-- QA408 prerequisite is CLOSED: QIMA CI [#1440](https://github.com/meridane/QimaTrade-MVP/actions/runs/43598662540) completed SUCCESS. Verify, PostgreSQL 16, PostgreSQL 17.6 and the two explicit `QA408 PASS` markers passed; npm audit, TypeScript, Next.js build and **347/347** Playwright tests passed.
-- CodeQL [#1388](https://github.com/meridane/QimaTrade-MVP/actions/runs/43598662478) and the combined Vercel status for the QA408 PR head completed SUCCESS.
-- QA409 static coverage and PostgreSQL runtime validation are pending the workflow triggered by this commit. No QA409 runtime result is claimed yet.
+- QIMA CI [#1441](https://github.com/meridane/QimaTrade-MVP/actions/runs/43603888887) completed SUCCESS.
+- Verify job `132474250490` completed SUCCESS: QA409 static contract, npm audit at the high threshold, TypeScript, Next.js production build and **347/347** Playwright tests passed.
+- PostgreSQL 16 job `132474250538` completed SUCCESS. Its complete log contains exactly one explicit `QA409 PASS` marker.
+- PostgreSQL 17.6 job `132474250463` completed SUCCESS. Its complete log contains exactly one explicit `QA409 PASS` marker.
+- Both full PostgreSQL jobs passed CREATE_OFFER integration/concurrency, runner privilege characterization, catalog/replication-slot/settings/extension checks, legacy RLS checks, ACL checks and cleanup assertions.
+- The two prepared-transaction negative-contract jobs reported their intentionally expected failures; their blocking assertion jobs passed. The deliberately skipped contract job remained skipped and its assertion passed.
+- CodeQL [#1389](https://github.com/meridane/QimaTrade-MVP/actions/runs/43603888821) completed SUCCESS; the combined Vercel status for the PR head was SUCCESS.
+- The same-key replay changing only `p_product_master_id` returned `IDEMPOTENCY_KEY_REUSE` and preserved the original hash, result, completed execution, offer and success event.
 
 ## Safety and decision boundaries
 
-- Runtime validation uses only the existing disposable PostgreSQL CI service and loopback-only `DATABASE_URL`; the new SQL file performs the CREATE_OFFER function call and read-only persisted-state assertions.
+- Runtime validation uses only the existing disposable PostgreSQL CI service and loopback-only `DATABASE_URL`; the SQL file performs the CREATE_OFFER function call and read-only persisted-state assertions.
 - Both product-master IDs are pre-seeded active synthetic rows in the disposable fixture. They are not production identifiers and do not define or approve a product-master taxonomy.
 - This test characterizes only idempotency hash sensitivity to `p_product_master_id`. It does not establish or test the separate demand-to-tenant ownership contract described in PR #26; that remains blocked on a documented business ownership model and approved negative tests.
 - No Supabase Production data, schema, RLS policy, grants, secrets or persistent PostgreSQL settings are accessed or modified.
