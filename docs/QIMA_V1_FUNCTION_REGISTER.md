@@ -9343,6 +9343,9 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 - Le contrôle statique dédié vérifie la signature, le mapping du hash, le forwarding, l'omission réelle du premier appel, le NULL explicite du replay, les paramètres inchangés et les assertions read-only.
 - Le contrôle est câblé dans Verify ; le runtime est ajouté à `create-offer-runtime.sql`, exécuté par les runners PostgreSQL 16 et 17.6 existants.
 - Prérequis QA415 : CLOSED sur QIMA CI [#1449](https://github.com/meridane/QimaTrade-MVP/actions/runs/43634745260), avec un marqueur runtime par version, Verify et Playwright 347/347 réussis, CodeQL #1396 SUCCESS.
-- Aucun résultat runtime QA416 n'est revendiqué avant l'exécution CI sur le nouveau HEAD.
+- Relecture finale : le paramètre non ciblé `p_lifecycle => NULL` est maintenant explicitement identique dans les deux appels ; le commit `da3ec87ecd1e5df2c5c2d7388e2c021e22f85b53` corrige cette stabilité, seul `p_offer_type` étant omis puis fourni à NULL.
+- Prévalidation structurale sur le HEAD `da3ec87ecd1e5df2c5c2d7388e2c021e22f85b53` : défaut de signature, mapping du hash, forwarding, omission/replay, égalité des autres paramètres, assertions read-only et wiring Verify/PostgreSQL vérifiés.
+- CodeQL [#1397](https://github.com/meridane/QimaTrade-MVP/actions/runs/43636740480) : SUCCESS sur le HEAD précédent `c71bd5a7cf3a039c807024b22757e9f4a58a439b`, pas sur le correctif `da3ec87`.
+- Aucun run QIMA CI n'est encore retourné par l'API Actions pour le HEAD final ; aucun résultat runtime QA416 n'est revendiqué.
 - Appendice : [QA416](QIMA_V1_FUNCTION_REGISTER_QA416_APPEND.md).
 
