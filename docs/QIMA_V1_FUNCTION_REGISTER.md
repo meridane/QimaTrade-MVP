@@ -9177,13 +9177,15 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 
 ## QA403 — changed p_geography replay rejection
 
-**Status:** IMPLEMENTED — static Verify and PostgreSQL runtime pending.
+**Status:** IMPLEMENTED — first Verify attempt exposed and corrected a copied runtime-marker label; corrected-HEAD validation pending.
 
 - The new disposable runtime scenario creates an offer with `p_geography = 'KR'`, then retries the same tenant/key with only `p_geography` changed to `'US'`.
 - The existing migration hashes `'geography', p_geography`; the expected result is exact `IDEMPOTENCY_KEY_REUSE` before new persistence.
 - The scenario verifies the original request hash, idempotency result, completed execution, original offer geography, success event and all four persistence counts remain unchanged.
 - The existing general runtime suite already contains a simple geography mismatch assertion. QA403 adds a dedicated isolated fixture with an explicit first-call baseline and four-table state-preservation checks.
 - Static coverage is wired once into Verify; PostgreSQL 16 and PostgreSQL 17.6 use the existing isolated CREATE_OFFER integration runner.
-- No application code or migration is changed. CI results will be recorded after the new PR-head run.
+- No application code or migration is changed.
+- QIMA CI [#43574871835](https://github.com/meridane/QimaTrade-MVP/actions/runs/43574871835) failed Verify at the existing QA402 static contract because the QA403 block accidentally emitted a second `QA402 PASS` marker. QA403's own static step was skipped and npm audit was skipped after the early Verify failure; the PostgreSQL jobs were still running at the checkpoint. This was a test-harness marker-label defect, not an application failure or evidence of a Production vulnerability. The QA403 marker is corrected in the follow-up commit.
+- CodeQL [#43574871867](https://github.com/meridane/QimaTrade-MVP/actions/runs/43574871867) was in progress at the first QA403 checkpoint; the corrected HEAD will trigger a new analysis.
 - Runtime scope is disposable CI only. No Supabase Production data, schema, grants, secrets or persistent settings are accessed or modified; no Production deployment, PR merge, force-push or branch-protection change is performed.
 - MKT-1.1 demand/tenant ownership, MKT-1.2 independent-draft idempotency semantics and MKT-1.3 numeric canonicalization remain subject to business approval.

@@ -17557,7 +17557,7 @@ BEGIN
     RAISE EXCEPTION 'QA402 rejected replay changed the original success event';
   END IF;
 
-  RAISE NOTICE 'QA402 PASS: changing only p_geography with the same tenant/idempotency key raises IDEMPOTENCY_KEY_REUSE and preserves the original hash, result, execution, offer and success event';
+  RAISE NOTICE 'QA403 PASS: changing only p_geography with the same tenant/idempotency key raises IDEMPOTENCY_KEY_REUSE and preserves the original hash, result, execution, offer and success event';
 END
 $qa403_geography_mismatch_replay$;
 COMMIT;

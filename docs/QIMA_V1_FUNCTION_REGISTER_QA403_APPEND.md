@@ -2,7 +2,7 @@
 
 ## QA403 — changed p_geography replay rejection
 
-**Status:** IMPLEMENTED — static Verify and PostgreSQL runtime pending  
+**Status:** IMPLEMENTED — QA403 static contract is ready; first Verify attempt exposed and corrected a copied runtime-marker label; PostgreSQL runtime pending.  
 **Target:** PR #26, branch `fix/create-offer-status-contract`  
 **Working branch:** `work/qa403-geography-mismatch-replay-20261114-1711`  
 **Base commit:** `20eda0d2d83d1b1b845c421caa4e14acb1fa5c96`
@@ -24,7 +24,7 @@
 - The scenario is appended to `tests/sql/create-offer-runtime.sql`; its static contract is `tests/sql/test-create-offer-geography-mismatch-replay-contract.sh`.
 - The Verify workflow invokes the new static contract exactly once; both PostgreSQL jobs use the existing isolated CREATE_OFFER integration runner.
 - No application code or migration is changed.
-- CI validation will be recorded after the new PR-head run starts and completes.
+- QIMA CI [#43574871835](https://github.com/meridane/QimaTrade-MVP/actions/runs/43574871835) started on the first QA403 commit. Verify failed at the pre-existing QA402 static contract because the copied QA403 runtime block still emitted a second `QA402 PASS` marker; QA403's own static step was skipped, and npm audit was skipped after the early Verify failure. This is a test-harness labeling defect, not an application failure or evidence of a Production vulnerability. The marker is corrected in the follow-up commit; PostgreSQL jobs from that superseded run were still in progress at the checkpoint.
 - This is a regression characterization of an existing request-hash field, not a finding of a Production vulnerability.
 
 ## Safety and decision boundaries
