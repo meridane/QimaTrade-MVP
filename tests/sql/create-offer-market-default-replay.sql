@@ -41,7 +41,7 @@ BEGIN
     RAISE EXCEPTION 'QA412 fixture data already exists';
   END IF;
 
-  -- First call intentionally omits p_conditions; PostgreSQL applies the function default.
+  -- First call intentionally omits p_market; PostgreSQL applies the function default.
   v_first_result := public.execute_create_offer_v1(
     p_tenant_id => v_tenant_id,
     p_idempotency_key => v_key,
@@ -211,6 +211,6 @@ BEGIN
     RAISE EXCEPTION 'QA412 explicit-default replay changed the original success event';
   END IF;
 
-  RAISE NOTICE 'QA412 PASS: omitting p_conditions applies the declared NULL::text default and exactly replays an explicit NULL request without duplicate persisted state';
+  RAISE NOTICE 'QA412 PASS: omitting p_market applies the declared NULL::text default and exactly replays an explicit NULL request without duplicate persisted state';
 END
 $qa412_market_default_replay$;

@@ -2,7 +2,7 @@
 
 ## QA412 — omission de p_market et replay avec NULL explicite
 
-**Statut : IMPLEMENTED — validation GitHub Actions en attente sur le nouveau HEAD.**
+**Statut : IMPLEMENTED — revalidation en cours après correction du premier contrôle statique.**
 **Target :** PR #26, branche `fix/create-offer-status-contract`.
 **Branche de travail :** `work/qa412-market-default-replay-20261115-0118`.
 **Commit de base :** `da8bb94ed6deb14720bb9b3c3f61cfd3a7de9ede`.
@@ -19,6 +19,9 @@
 
 ## Validation
 
+- Première tentative QIMA CI [#1444](https://github.com/meridane/QimaTrade-MVP/actions/runs/43615154472) : le job Verify a échoué sur le contrôle statique QA412 parce que le commentaire et le NOTICE runtime mentionnaient encore `p_conditions` au lieu de `p_market`. Le message exact du contrôle était : `QA412 is missing a required default/replay/persisted-state assertion: QA412 PASS: omitting p_market ...`.
+- Correction appliquée dans le scénario runtime : commentaire et marqueur NOTICE désignent maintenant `p_market`. Le contrôle statique attend déjà ce marqueur exact.
+- Au moment de la correction, les jobs PostgreSQL 16 et 17.6 de #1444 étaient encore en cours ; aucun résultat runtime QA412 n'est revendiqué à partir de cette tentative. Une nouvelle CI est déclenchée par le commit correctif.
 - QA411 prerequisite : CLOSED. QIMA CI [#1443](https://github.com/meridane/QimaTrade-MVP/actions/runs/43611188057) SUCCESS ; les deux marqueurs runtime sont confirmés.
 - Le scénario QA412 est ajouté à Verify, PostgreSQL 16 et PostgreSQL 17.6, après l'initialisation du fixture jetable.
 - Les résultats runtime QA412, npm audit, TypeScript, build, Playwright, CodeQL et Vercel seront consignés après la CI déclenchée par ce commit.

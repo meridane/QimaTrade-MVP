@@ -9282,11 +9282,12 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 
 ## QA412 — omission de p_market et replay avec NULL explicite
 
-**Statut : IMPLEMENTED — validation GitHub Actions en attente sur le nouveau HEAD.**
+**Statut : IMPLEMENTED — revalidation en cours après correction du premier contrôle statique.**
 - La signature existante déclare `p_market text DEFAULT NULL::text` ; aucune migration n'est modifiée.
 - Le premier appel nommé omet volontairement `p_market` ; les deux appels conservent explicitement `p_conditions => NULL` et tous les autres paramètres effectifs identiques.
 - Le replay du même tenant/de la même clé fournit explicitement `p_market => NULL`.
 - Le test exige le résultat JSON initial exact, le hash inchangé, l'exécution `COMPLETED`, l'offre avec `market IS NULL`, l'événement `ACTION_SUCCEEDED` et exactement une ligne dans chacune des quatre tables de persistance.
 - Le contrôle statique vérifie le défaut déclaré, l'omission effective, NULL explicite au replay, les paramètres stables et l'intégration Verify/PostgreSQL 16/PostgreSQL 17.6.
-- Le scénario runtime est lancé après le bootstrap de la fixture PostgreSQL jetable.
+- Première tentative QIMA CI [#1444](https://github.com/meridane/QimaTrade-MVP/actions/runs/43615154472) : Verify a échoué parce que le commentaire et le NOTICE du scénario runtime indiquaient encore `p_conditions` alors que le contrôle attendait `p_market`. Le scénario et le contrôle statique ont ainsi détecté une incohérence de test/documentation, pas un défaut applicatif.
+- Le commentaire et le marqueur runtime ont été corrigés ; une nouvelle validation CI est déclenchée par ce commit. Les jobs PostgreSQL de #1444 étaient encore en cours au moment de la correction et aucun résultat final n'est revendiqué pour cette tentative.
 - Appendice : [QA412](QIMA_V1_FUNCTION_REGISTER_QA412_APPEND.md).
