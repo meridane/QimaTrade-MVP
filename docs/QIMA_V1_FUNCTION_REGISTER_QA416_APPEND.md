@@ -29,3 +29,10 @@
 - Aucun déploiement Production, merge, force-push ou changement de règle de protection.
 - Ce test caractérise l'équivalence du défaut SQL et ne prouve aucune vulnérabilité Production.
 - Le modèle d'autorisation demand/tenant et les décisions MKT-1.1, MKT-1.2 et MKT-1.3 restent soumis à une approbation métier explicite.
+
+
+## Revue finale avant validation CI
+- La relecture du scénario a détecté que le paramètre non ciblé `p_lifecycle` devait rester explicitement stable dans les deux appels. Le commit `da3ec87ecd1e5df2c5c2d7388e2c021e22f85b53` ajoute `p_lifecycle => NULL` aux deux appels ; seul `p_offer_type` diffère désormais par omission versus NULL explicite.
+- Prévalidation structurale sur le HEAD `da3ec87ecd1e5df2c5c2d7388e2c021e22f85b53` : défaut de signature, mapping du hash, forwarding, omission du premier argument, replay NULL, égalité des autres paramètres, assertions de persistance et absence de DML direct vérifiés.
+- CodeQL [#1397](https://github.com/meridane/QimaTrade-MVP/actions/runs/43636740480) a terminé SUCCESS sur le HEAD précédent `c71bd5a7cf3a039c807024b22757e9f4a58a439b` ; ce résultat n'est pas présenté comme une analyse du commit correctif `da3ec87`.
+- Au moment de cette mise à jour, aucun run QIMA CI n'est encore retourné par l'API Actions pour le HEAD final. Aucun résultat runtime QA416 n'est revendiqué ; PostgreSQL 16, PostgreSQL 17.6, Verify et Playwright restent à confirmer.
