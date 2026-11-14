@@ -16076,3 +16076,215 @@ BEGIN
   RAISE NOTICE 'QA396 PASS: changing the action input on a completed request with the same tenant/key raises IDEMPOTENCY_KEY_REUSE and preserves the original hash, result, offer, execution and event';
 END
 $qa396_input_mismatch_replay$;
+
+
+-- QA397: JSONB object key order is not a semantic input change.
+-- Replaying an equivalent object under the same tenant/key must return the original result.
+-- This scenario runs only in the disposable PostgreSQL integration database.
+BEGIN;
+SET LOCAL request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+SET LOCAL ROLE authenticated;
+
+DO $qa397_jsonb_key_order_replay$
+DECLARE
+  v_key text := 'fixture-qa397-jsonb-key-order';
+  v_offer_name text := 'QA397 Input Mismatch Offer';
+  v_input jsonb := '{"alpha":"one","beta":"two"}'::jsonb;
+  v_replay_input jsonb := '{"beta":"two","alpha":"one"}'::jsonb;
+  v_first_result jsonb;
+  v_replay_result jsonb;
+  v_original_result jsonb;
+  v_execution_id uuid;
+  v_original_execution_id uuid;
+  v_offer_id uuid;
+  v_original_hash text;
+  v_before record;
+  v_after_first record;
+  v_after_replay record;
+  v_count integer;
+BEGIN
+  IF v_input IS DISTINCT FROM v_replay_input THEN
+    RAISE EXCEPTION 'QA397 JSONB inputs must be semantically equal despite object key order';
+  END IF;
+  IF v_input::text IS DISTINCT FROM v_replay_input::text THEN
+    RAISE EXCEPTION 'QA397 JSONB canonical text must match despite object key order';
+  END IF;
+
+  IF auth.uid() IS DISTINCT FROM '20000000-0000-4000-8000-000000000001'::uuid THEN
+    RAISE EXCEPTION 'QA397 requires authenticated provider A';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM public.idempotency_keys
+    WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+      AND key = v_key
+  ) OR EXISTS (
+    SELECT 1 FROM public.action_executions
+    WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+      AND idempotency_key = v_key
+  ) OR EXISTS (
+    SELECT 1 FROM public.offers
+    WHERE name = v_offer_name
+  ) THEN
+    RAISE EXCEPTION 'QA397 fixture data already exists';
+  END IF;
+
+  SELECT
+    (SELECT count(*) FROM public.idempotency_keys) AS idempotency_count,
+    (SELECT count(*) FROM public.action_executions) AS execution_count,
+    (SELECT count(*) FROM public.offers) AS offer_count,
+    (SELECT count(*) FROM public.action_events) AS event_count
+  INTO v_before;
+
+  v_first_result := public.execute_create_offer_v1(
+    p_tenant_id => '10000000-0000-4000-8000-000000000001',
+    p_idempotency_key => v_key,
+    p_input => v_input,
+    p_name => v_offer_name,
+    p_demand_id => '50000000-0000-4000-8000-000000000001',
+    p_product_master_id => '40000000-0000-4000-8000-000000000001',
+    p_provider_actor_id => '30000000-0000-4000-8000-000000000001',
+    p_quantity => 1::numeric,
+    p_price => 12::numeric,
+    p_currency => 'USD'
+  );
+
+  IF jsonb_typeof(v_first_result) IS DISTINCT FROM 'object'
+     OR v_first_result->>'status' IS DISTINCT FROM 'succeeded'
+     OR v_first_result->>'objectType' IS DISTINCT FROM 'Offer'
+     OR nullif(v_first_result->>'executionId', '') IS NULL
+     OR nullif(v_first_result->>'objectId', '') IS NULL THEN
+    RAISE EXCEPTION 'QA397 initial request did not return a complete success result: %',
+      coalesce(v_first_result::text, '<SQL NULL>');
+  END IF;
+
+  v_execution_id := (v_first_result->>'executionId')::uuid;
+  v_offer_id := (v_first_result->>'objectId')::uuid;
+
+  SELECT
+    (SELECT count(*) FROM public.idempotency_keys) AS idempotency_count,
+    (SELECT count(*) FROM public.action_executions) AS execution_count,
+    (SELECT count(*) FROM public.offers) AS offer_count,
+    (SELECT count(*) FROM public.action_events) AS event_count
+  INTO v_after_first;
+
+  IF ROW(
+    v_after_first.idempotency_count,
+    v_after_first.execution_count,
+    v_after_first.offer_count,
+    v_after_first.event_count
+  ) IS DISTINCT FROM ROW(
+    v_before.idempotency_count + 1,
+    v_before.execution_count + 1,
+    v_before.offer_count + 1,
+    v_before.event_count + 1
+  ) THEN
+    RAISE EXCEPTION 'QA397 initial request did not persist exactly one idempotency row, execution, offer and event';
+  END IF;
+
+  SELECT request_hash, result, execution_id
+  INTO v_original_hash, v_original_result, v_original_execution_id
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = v_key
+    AND status = 'COMPLETED';
+
+  IF NOT FOUND
+     OR v_original_hash IS NULL
+     OR v_original_execution_id IS DISTINCT FROM v_execution_id
+     OR v_original_result IS DISTINCT FROM v_first_result THEN
+    RAISE EXCEPTION 'QA397 initial completed idempotency record does not match the original-input result';
+  END IF;
+
+  v_replay_result := public.execute_create_offer_v1(
+    p_tenant_id => '10000000-0000-4000-8000-000000000001',
+    p_idempotency_key => v_key,
+    p_input => v_replay_input,
+    p_name => v_offer_name,
+    p_demand_id => '50000000-0000-4000-8000-000000000001',
+    p_product_master_id => '40000000-0000-4000-8000-000000000001',
+    p_provider_actor_id => '30000000-0000-4000-8000-000000000001',
+    p_quantity => 1::numeric,
+    p_price => 12::numeric,
+    p_currency => 'USD'
+  );
+
+  IF v_replay_result IS DISTINCT FROM v_first_result THEN
+    RAISE EXCEPTION 'QA397 equivalent JSONB replay did not return the original stored result';
+  END IF;
+
+  SELECT
+    (SELECT count(*) FROM public.idempotency_keys) AS idempotency_count,
+    (SELECT count(*) FROM public.action_executions) AS execution_count,
+    (SELECT count(*) FROM public.offers) AS offer_count,
+    (SELECT count(*) FROM public.action_events) AS event_count
+  INTO v_after_replay;
+
+  IF ROW(
+    v_after_replay.idempotency_count,
+    v_after_replay.execution_count,
+    v_after_replay.offer_count,
+    v_after_replay.event_count
+  ) IS DISTINCT FROM ROW(
+    v_after_first.idempotency_count,
+    v_after_first.execution_count,
+    v_after_first.offer_count,
+    v_after_first.event_count
+  ) THEN
+    RAISE EXCEPTION 'QA397 rejected equivalent JSONB replay altered persisted row counts';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = v_key
+    AND status = 'COMPLETED'
+    AND request_hash = v_original_hash
+    AND execution_id = v_execution_id
+    AND result = v_first_result;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA397 equivalent JSONB replay changed or duplicated the original idempotency record';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND id = v_execution_id
+    AND idempotency_key = v_key
+    AND status = 'COMPLETED'
+    AND object_id = v_offer_id
+    AND input = v_input
+    AND result = v_first_result;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA397 equivalent JSONB replay changed or duplicated the original action execution';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE id = v_offer_id
+    AND name = v_offer_name
+    AND quantity = 1::numeric
+    AND price = 12::numeric
+    AND currency = 'USD';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA397 equivalent JSONB replay changed or duplicated the original offer';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_events
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND execution_id = v_execution_id
+    AND event_type = 'ACTION_SUCCEEDED'
+    AND object_type = 'Offer'
+    AND object_id = v_offer_id
+    AND payload = v_first_result;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA397 equivalent JSONB replay changed or duplicated the original success event';
+  END IF;
+
+  RAISE NOTICE 'QA397 PASS: semantically equivalent JSONB objects with different key order replay the original result without duplicate persisted rows';
+END
+$qa397_jsonb_key_order_replay$;
+
+COMMIT;
+SELECT 'QA397 equivalent JSONB key-order replay preserves the original CREATE_OFFER state' AS result;
