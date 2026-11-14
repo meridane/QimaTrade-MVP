@@ -18,8 +18,14 @@ done
 [[ "$(grep -Fc "'attributes', coalesce(p_attributes, '{}'::jsonb)" "$MIGRATION" || true)" -eq 1 ]] ||
   fail "the effective request hash must normalize and include p_attributes exactly once"
 
-BLOCK="$(sed -n '/^DO \$qa399_attributes_array_order_replay\$$/,/^\$qa399_attributes_array_order_replay\$;/p' "$RUNTIME")"
+BLOCK="$(sed -n '/^DO \$qa399_attributes_array_order_replay\$/,/^\$qa399_attributes_array_order_replay\$;/p' "$RUNTIME")"
 [[ -n "$BLOCK" ]] || fail "runtime is missing the QA399 array-order replay block"
+
+QA91_BLOCK="$(sed -n '/^DO \$qa91_integrity\$/,/^\$qa91_integrity\$;/p' "$RUNTIME")"
+grep -Fq 'v_before record;' <<< "$QA91_BLOCK" ||
+  fail "QA91 integrity regression must retain its v_before declaration"
+grep -Fq 'SELECT * INTO v_before FROM pg_temp.qa91_baseline;' <<< "$QA91_BLOCK" ||
+  fail "QA91 integrity regression must retain its baseline read"
 
 for required in \
   "v_key text := 'fixture-qa399-attributes-array-order';" \

@@ -11045,6 +11045,7 @@ RESET ROLE;
 
 DO $qa91_integrity$
 DECLARE
+  v_before record;
   v_after record;
 BEGIN
   SELECT * INTO v_before FROM pg_temp.qa91_baseline;
@@ -16504,7 +16505,6 @@ DECLARE
   v_execution_object_id uuid;
   v_offer_attributes jsonb;
   v_event_payload jsonb;
-  v_before record;
   v_after_first record;
   v_after_replay record;
 BEGIN
