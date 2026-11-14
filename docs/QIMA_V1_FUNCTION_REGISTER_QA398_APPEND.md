@@ -2,7 +2,7 @@
 
 ## QA398 — semantically equivalent JSONB attributes key order replays the original result
 
-**Status:** PENDING full CI validation  
+**Status:** CLOSED — QIMA CI #1415 completed successfully  
 **Target:** PR #26, branch `fix/create-offer-status-contract`  
 **Working branch:** `work/qa398-attributes-key-order-20261114-1152`  
 **Base commit:** `47a568615e3e2bc0bacabcac8dd413d7bfe91b78`
@@ -25,7 +25,9 @@
 - This scenario uses string-valued JSON properties only; it does not test numeric lexical canonicalization or change MKT-1.3.
 - No migration or application code is changed.
 - The runtime scenario is appended to `tests/sql/create-offer-runtime.sql`; the static contract is `tests/sql/test-create-offer-attributes-key-order-replay-contract.sh`.
-- Do not mark QA398 CLOSED until Verify, the full PostgreSQL 16 job and the full PostgreSQL 17.6 job succeed and both runtime logs contain the QA398 marker.
+- QIMA CI [#1415](https://github.com/meridane/QimaTrade-MVP/actions/runs/43548984210) completed SUCCESS. Verify, the full PostgreSQL 16 job and the full PostgreSQL 17.6 job all completed successfully; both PostgreSQL runtime logs contain `QA398 PASS`.
+- Verify completed the QA398 static contract, npm audit, TypeScript, production build and browser smoke tests successfully. CodeQL [#1363](https://github.com/meridane/QimaTrade-MVP/actions/runs/43548984218) completed SUCCESS; the Vercel commit status for the validated HEAD was SUCCESS.
+- QA398 is CLOSED. The test establishes JSONB object-key-order equivalence on disposable CI databases only; it is not evidence of a Production vulnerability.
 
 ## Safety and decision boundaries
 

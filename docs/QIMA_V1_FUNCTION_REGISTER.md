@@ -9109,11 +9109,22 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 - Aucun code applicatif, migration, donnée Supabase Production, secret, configuration PostgreSQL persistante, règle de protection, fusion ou déploiement Production n'a été modifié.
 
 
-## QA398 — replay JSONB équivalent pour p_attributes avec ordre des clés différent (PENDING CI)
 
-- Nouveau scénario : premier appel avec `p_attributes = {"alpha":"one","meta":{"x":"1","y":"2"},"beta":"two"}`, puis replay avec les mêmes paires clé/valeur et les clés racines et imbriquées réordonnées.
+## QA398 — replay JSONB équivalent pour p_attributes avec ordre des clés différent (CLOSED, 14 novembre 2026)
+
+- Premier appel avec `p_attributes = {"alpha":"one","meta":{"x":"1","y":"2"},"beta":"two"}`; replay avec les mêmes paires clé/valeur et les clés racines et imbriquées réordonnées.
 - Le test exige l'égalité JSONB et la même représentation canonique `jsonb::text`, puis le retour exact du résultat initial sans nouvelle écriture dans `idempotency_keys`, `action_executions`, `offers` ou `action_events`.
-- Il vérifie que le hash, le résultat d'idempotence, l'exécution terminée, les attributs de l'offre et l'événement de succès restent inchangés.
+- Le hash, le résultat d'idempotence, l'exécution terminée, les attributs de l'offre et l'événement de succès restent inchangés.
 - Le scénario utilise uniquement des valeurs textuelles et ne tranche pas MKT-1.3 sur la canonicalisation numérique.
-- Contrat statique ajouté à Verify; les jobs PostgreSQL 16 et 17.6 réutilisent le runner d'intégration isolé. QA398 reste PENDING jusqu'au succès complet de ces jobs et à la présence du marqueur runtime dans les deux journaux.
+- QIMA CI [#1415](https://github.com/meridane/QimaTrade-MVP/actions/runs/43548984210) a terminé SUCCESS : Verify, PostgreSQL 16 et PostgreSQL 17.6 ont tous terminé SUCCESS; les deux journaux runtime contiennent le marqueur QA398 PASS. Verify a terminé npm audit, TypeScript, build Next.js et les tests navigateur avec succès; CodeQL [#1363](https://github.com/meridane/QimaTrade-MVP/actions/runs/43548984218) a terminé SUCCESS et le statut Vercel du HEAD validé était SUCCESS. QA398 est CLOSED.
+- Aucun code applicatif, migration, donnée Supabase Production, secret, configuration PostgreSQL persistante, règle de protection, fusion ou déploiement Production n'a été modifié.
+
+
+## QA399 — ordre des éléments d'un tableau JSONB significatif pour p_attributes (PENDING CI)
+
+- Premier appel avec `p_attributes = {"items":["alpha","beta"],"meta":{"region":"kr"}}`, puis replay avec le même objet mais le tableau `items` inversé.
+- Tous les autres paramètres effectifs restent identiques. Le test exige que les valeurs JSONB et leur représentation `jsonb::text` soient distinctes, puis que le replay soit rejeté par l'erreur exacte `IDEMPOTENCY_KEY_REUSE`.
+- Le rejet doit préserver le hash, le résultat d'idempotence, l'exécution terminée, l'offre originale et l'événement de succès, sans nouvelle ligne dans les quatre tables de persistance.
+- Les éléments du tableau sont des chaînes de texte; ce scénario ne tranche pas MKT-1.3 sur la canonicalisation numérique.
+- Contrat statique ajouté à Verify; les jobs PostgreSQL 16 et 17.6 réutilisent le runner d'intégration isolé. QA399 reste PENDING jusqu'au succès complet de ces jobs et à la présence du marqueur runtime dans les deux journaux.
 - Aucun code applicatif, migration, donnée Supabase Production, secret, configuration PostgreSQL persistante, règle de protection, fusion ou déploiement Production n'a été modifié.
