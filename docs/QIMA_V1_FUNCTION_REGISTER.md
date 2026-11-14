@@ -9247,9 +9247,21 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 
 ## QA409 — changement de p_product_master_id lors d'un replay
 
-**Statut : IMPLEMENTED — validation GitHub Actions en attente sur le nouveau HEAD.**
-- Le scénario utilise deux product masters actifs synthétiques déjà présents dans le fixture PostgreSQL jetable ; il ne définit ni n'approuve une taxonomie de production.
-- Le replay avec un `p_product_master_id` différent et la même clé doit produire `IDEMPOTENCY_KEY_REUSE` et préserver le hash, le résultat, l'exécution, l'offre et l'événement initiaux.
-- Le test conserve le même `p_demand_id` et tous les autres paramètres effectifs ; il ne tranche pas la question distincte de l'autorisation demand/tenant.
-- Le contrôle statique est intégré à Verify ; le SQL runtime dédié est exécuté après le runner de fixture dans les jobs PostgreSQL 16 et 17.6.
+**Statut : CLOSED — QIMA CI [#1441](https://github.com/meridane/QimaTrade-MVP/actions/runs/43603888887) SUCCESS.** Verify, PostgreSQL 16, PostgreSQL 17.6, les deux marqueurs explicites `QA409 PASS`, CodeQL [#1389](https://github.com/meridane/QimaTrade-MVP/actions/runs/43603888821) et le statut combiné Vercel sont confirmés.
+- Verify job `132474250490` a réussi : contrôle statique QA409, npm audit au seuil high, TypeScript, build Next.js et **347/347** tests Playwright.
+- Le job PostgreSQL 16 `132474250538` a terminé SUCCESS ; son journal complet contient exactement un marqueur `QA409 PASS`.
+- Le job PostgreSQL 17.6 `132474250463` a terminé SUCCESS ; son journal complet contient exactement un marqueur `QA409 PASS`.
+- Les deux jobs complets ont également réussi l'intégration/concurrence CREATE_OFFER, la caractérisation des privilèges du runner, les contrôles catalogue/replication slots/paramètres/extensions, les tests RLS/ACL et les assertions de nettoyage.
+- Les deux jobs négatifs de simulation de nettoyage ont échoué comme prévu ; leurs jobs d'assertion ont réussi. Le job volontairement skipped et son assertion ont également produit le résultat attendu.
+- Le replay avec un `p_product_master_id` différent et la même clé est rejeté par `IDEMPOTENCY_KEY_REUSE` ; le hash, le résultat, l'exécution, l'offre et l'événement initiaux restent inchangés.
 - Appendice : [QA409](QIMA_V1_FUNCTION_REGISTER_QA409_APPEND.md).
+
+## QA410 — omission de p_attributes et replay avec la valeur par défaut explicite
+
+**Statut : IMPLEMENTED — validation GitHub Actions en attente sur le nouveau HEAD.**
+- Le premier appel omet volontairement l'argument nommé `p_attributes` ; la signature existante déclare `p_attributes jsonb DEFAULT '{}'::jsonb`.
+- Le replay avec le même tenant/la même clé fournit explicitement `p_attributes => '{}'::jsonb`, en conservant tous les autres paramètres effectifs.
+- Le replay doit retourner exactement le résultat initial et préserver le hash, l'exécution COMPLETED, l'offre avec `attributes = {}`, l'événement de succès et les quatre compteurs de persistance.
+- Le contrôle statique vérifie l'omission réelle dans le premier appel, la valeur explicite dans le replay et l'intégration de Verify/PostgreSQL 16/PostgreSQL 17.6.
+- Le scénario runtime est exécuté uniquement après le bootstrap du fixture PostgreSQL jetable.
+- Appendice : [QA410](QIMA_V1_FUNCTION_REGISTER_QA410_APPEND.md).
