@@ -2,7 +2,7 @@
 
 ## QA401 — SQL NULL versus JSONB literal null attributes replay distinction
 
-**Status:** IMPLEMENTED — CI validation pending  
+**Status:** CLOSED — QIMA CI #1425 passed on PostgreSQL 16 and PostgreSQL 17.6  
 **Target:** PR #26, branch `fix/create-offer-status-contract`  
 **Working branch:** `work/qa401-sql-null-jsonb-null-attributes-20261114-1445`  
 **Base commit:** `88fcf8c5475fd9398b1bc8a358d726c35e244e6f`
@@ -25,7 +25,11 @@
 - The disposable fixture persists SQL NULL attributes as an empty object. JSONB literal null is used only on the replay path, which must be rejected before a second offer insert.
 - The scenario is appended to `tests/sql/create-offer-runtime.sql`; its static contract is `tests/sql/test-create-offer-sql-null-jsonb-null-attributes-replay-contract.sh`.
 - No application code or migration is changed.
-- QA401 remains PENDING until Verify succeeds and both PostgreSQL runtime logs contain the explicit `QA401 PASS` marker.
+- QIMA CI [#1425](https://github.com/meridane/QimaTrade-MVP/actions/runs/43563313321) completed successfully. Verify passed the QA401 static contract, npm audit, TypeScript, Next.js production build and all 347 Playwright tests.
+- The complete PostgreSQL 16 and PostgreSQL 17.6 jobs both succeeded; each runtime log contains the explicit `QA401 PASS` marker.
+- CodeQL [#1373](https://github.com/meridane/QimaTrade-MVP/actions/runs/43563313314) completed successfully.
+- Vercel Preview remains unavailable because the provider returned `build-rate-limit`; no Preview Ready status is claimed.
+- QA401 is CLOSED. This confirms the existing SQL NULL versus JSONB literal null distinction for `p_attributes`; it does not establish a Production vulnerability.
 
 ## Safety and decision boundaries
 
@@ -42,7 +46,8 @@
 - CodeQL [#1372](https://github.com/meridane/QimaTrade-MVP/actions/runs/43558563679) completed successfully.
 - Vercel Preview was not produced because the provider returned `build-rate-limit`; no Preview Ready status is claimed.
 
-## Canonical register access limitation
+## Canonical register synchronization — resolved
 
-- The canonical `docs/QIMA_V1_FUNCTION_REGISTER.md` was requested at the PR branch. GitHub returned its blob SHA `65154dbfb4f4a7dabb2cc5e7e685209dc62be92f` but an empty content payload, including for a base64 fetch. A separate blob retrieval attempt returned HTTP 404, and the raw-file fetch rejected the response as oversized.
-- The canonical register was therefore not replaced or reconstructed from partial excerpts. QA400 closure and QA401 pending status are recorded in their dedicated appendices until a safe complete-content retrieval path is available.
+- The complete canonical register blob was retrieved successfully by SHA `65154dbfb4f4a7dabb2cc5e7e685209dc62be92f` (1,831,630 UTF-8 characters).
+- The register is updated in the QA402 commit with the definitive QA401 CI #1425 and CodeQL #1373 results, plus the new QA402 pending record.
+- The earlier empty contents payload / oversized raw response limitation is resolved by using the Git blob endpoint.

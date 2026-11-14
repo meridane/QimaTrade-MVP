@@ -9151,3 +9151,27 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 
 - Initial QIMA CI [#1422](https://github.com/meridane/QimaTrade-MVP/actions/runs/43558435927) was triggered on `acec2304082f852f13fdd97b84f0c1bd41fa9023`. Verify failed in the QA400 static contract because the script's ROOT expression retained a literal backslash before `${BASH_SOURCE[0]}`, so it resolved the repository root incorrectly and reported the runtime file missing at `/home/runner/work/tests/sql/create-offer-runtime.sql`. The audit enforcement step then received `AUDIT_OUTCOME=skipped`; no audit result or vulnerability is inferred. The two PostgreSQL jobs were still running at this checkpoint and are not treated as full validation.
 - Corrected the static script in commit `05ba445c8bcd3fe225e928650e92565c02a900e9`: the backslash was removed so Bash expands `${BASH_SOURCE[0]}` to the script path. QIMA CI [#1423](https://github.com/meridane/QimaTrade-MVP/actions/runs/43558467069) was triggered on the corrected HEAD and is PENDING; CodeQL [#1371](https://github.com/meridane/QimaTrade-MVP/actions/runs/43558467095) is IN_PROGRESS. The Vercel status is FAILURE with a `build-rate-limit` target; no Preview Ready is claimed. QA400 remains PENDING until Verify and both complete PostgreSQL jobs pass with the QA400 marker in both runtime logs.
+
+
+## QA401 — SQL NULL versus JSONB literal null attributes replay distinction
+
+**Status:** CLOSED — QIMA CI #1425 passed on PostgreSQL 16 and PostgreSQL 17.6.
+
+- The existing migration normalizes SQL `NULL::jsonb` attributes to `'{}'::jsonb` through `coalesce(p_attributes, '{}'::jsonb)`; the JSONB literal `'null'::jsonb` remains distinct.
+- A same-tenant/same-key replay changing only attributes from SQL NULL to JSONB literal null is rejected with `IDEMPOTENCY_KEY_REUSE`.
+- The original hash, result, completed execution, empty-object offer attributes and success event remain unchanged; all four persistence counts remain one.
+- QIMA CI [#1425](https://github.com/meridane/QimaTrade-MVP/actions/runs/43563313321) passed Verify, npm audit, TypeScript, Next.js build, 347 Playwright tests, and the complete PostgreSQL 16 and PostgreSQL 17.6 jobs. Both runtime logs contain `QA401 PASS`.
+- CodeQL [#1373](https://github.com/meridane/QimaTrade-MVP/actions/runs/43563313314) succeeded. Vercel Preview is unavailable due to provider `build-rate-limit`; no Preview Ready is claimed.
+- No application code, migration or Production state was changed.
+
+## QA402 — changed p_conditions replay rejection
+
+**Status:** IMPLEMENTED — CI validation pending.
+
+- The new disposable runtime scenario creates an offer with `p_conditions = 'qa402-original-conditions'`, then retries the same tenant/key with only `p_conditions` changed to `'qa402-changed-conditions'`.
+- The existing migration hashes `'conditions', p_conditions`; the expected result is exact `IDEMPOTENCY_KEY_REUSE` before new persistence.
+- The scenario verifies the original request hash, idempotency result, completed execution, original offer conditions, success event and all four persistence counts remain unchanged.
+- Static coverage is wired once into Verify; both PostgreSQL 16 and PostgreSQL 17.6 jobs use the existing isolated CREATE_OFFER integration runner.
+- QA402 remains pending until Verify and both full PostgreSQL jobs succeed with explicit `QA402 PASS` markers.
+- Runtime scope is disposable CI only. No Supabase Production data, schema, grants, secrets or persistent settings are accessed or modified; no Production deployment, PR merge, force-push or branch-protection change is performed.
+- MKT-1.1, MKT-1.2 and MKT-1.3 remain subject to business approval.
