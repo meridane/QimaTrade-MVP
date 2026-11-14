@@ -15876,7 +15876,6 @@ DO $qa396_input_mismatch_replay$
 DECLARE
   v_key text := 'fixture-qa396-input-mismatch';
   v_offer_name text := 'QA396 Input Mismatch Offer';
-  v_replay_input jsonb := '{"case":"qa396_changed_input"}'::jsonb;
   v_input jsonb := '{"case":"qa396_original_input"}'::jsonb;
   v_replay_input jsonb := '{"case":"qa396_changed_input"}'::jsonb;
   v_first_result jsonb;

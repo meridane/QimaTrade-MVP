@@ -32,3 +32,13 @@
 - No Production deployment, PR merge, force-push or branch-protection change is performed.
 - The test uses disposable PostgreSQL CI fixtures only. Synthetic regression evidence is not a finding of a Production vulnerability.
 - MKT-1.1 demand/tenant ownership, MKT-1.2 independent-draft idempotency semantics, and MKT-1.3 numeric canonicalization remain subject to business approval.
+
+
+## CI #1412 — runtime failure and corrective change (14 novembre 2026)
+
+- QIMA CI [#1412](https://github.com/meridane/QimaTrade-MVP/actions/runs/43535965618) a exécuté avec succès le contrôle statique QA396 dans Verify. npm audit et TypeScript étaient également réussis au dernier contrôle; le build et Playwright n'avaient pas encore terminé à ce point.
+- Les deux étapes runtime CREATE_OFFER ont échoué sur PostgreSQL 16 et PostgreSQL 17.6 au démarrage du bloc `DO $qa396_input_mismatch_replay$`. Le message PostgreSQL exact était `duplicate declaration at or near "v_replay_input"`.
+- La revue du SQL confirme que la transformation du scénario QA395 avait conservé une première déclaration à la place de l'ancien `v_replay_offer_name`, puis inséré une seconde déclaration après `v_input`. Il s'agit d'un défaut du nouveau harness QA396, pas d'un échec de la fonction applicative ou de la migration.
+- Correction : suppression de la première déclaration en doublon; le bloc conserve désormais une seule déclaration `v_replay_input` après `v_input`. Le contrat statique exige explicitement exactement une déclaration afin de prévenir une régression identique.
+- Une nouvelle CI sur le commit corrigé est requise. CI #1412 n'est pas acceptée comme validation runtime QA396.
+- Aucun code applicatif, migration, donnée Supabase Production, secret, configuration PostgreSQL persistante, règle de protection, fusion ou déploiement Production n'a été modifié. Aucun résultat synthétique n'est interprété comme preuve d'une vulnérabilité Production.

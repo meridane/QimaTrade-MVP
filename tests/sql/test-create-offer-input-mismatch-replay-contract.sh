@@ -67,6 +67,9 @@ for required in \
     fail "QA396 runtime block is missing required assertion: $required"
 done
 
+[[ "$(grep -Fc "v_replay_input jsonb :=" <<< "$BLOCK" || true)" -eq 1 ]] ||
+  fail "QA396 must declare the changed replay input exactly once"
+
 [[ "$(grep -Fc "p_input => v_input," <<< "$BLOCK" || true)" -eq 1 ]] ||
   fail "QA396 must contain exactly one original-input call"
 [[ "$(grep -Fc "p_input => v_replay_input," <<< "$BLOCK" || true)" -eq 1 ]] ||
