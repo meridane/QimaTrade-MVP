@@ -9270,11 +9270,23 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 
 ## QA411 — omission de p_conditions et replay avec NULL explicite
 
-**Statut : IMPLEMENTED — validation GitHub Actions en attente sur le nouveau HEAD.**
-- Le premier appel omet volontairement l'argument nommé `p_conditions` ; la signature existante déclare `p_conditions text DEFAULT NULL::text`.
-- Les deux appels conservent explicitement `p_attributes => '{}'::jsonb` et tous les autres paramètres effectifs identiques.
-- Le replay avec le même tenant/la même clé fournit explicitement `p_conditions => NULL`.
-- Le replay doit retourner exactement le résultat initial et préserver le hash, l'exécution COMPLETED, l'offre avec `conditions IS NULL`, l'événement de succès et les quatre compteurs de persistance.
-- Le contrôle statique vérifie l'omission réelle dans le premier appel, NULL explicite dans le replay, la stabilité des autres arguments et l'intégration Verify/PostgreSQL 16/PostgreSQL 17.6.
-- Le scénario runtime est exécuté uniquement après le bootstrap du fixture PostgreSQL jetable.
+**Statut : CLOSED — QIMA CI [#1443](https://github.com/meridane/QimaTrade-MVP/actions/runs/43611188057) SUCCESS ; Verify, PostgreSQL 16 et PostgreSQL 17.6 ainsi que les deux marqueurs explicites `QA411 PASS` sont confirmés. CodeQL [#1391](https://github.com/meridane/QimaTrade-MVP/actions/runs/43611188051) SUCCESS.**
+- Verify job `132496371296` : contrôle statique QA411, npm audit au seuil high, TypeScript, build Next.js et **347/347** tests Playwright réussis.
+- PostgreSQL 16 job `132496371272` : SUCCESS ; exactement un marqueur `QA411 PASS` dans le journal complet.
+- PostgreSQL 17.6 job `132496371245` : SUCCESS ; exactement un marqueur `QA411 PASS` dans le journal complet.
+- Les deux jobs ont aussi réussi les contrôles complets CREATE_OFFER/concurrence, repeat-guard, catalogue, replication slots, paramètres, ACL, extensions, privilèges du runner, RLS et nettoyage.
+- Les jobs négatifs de simulation du nettoyage ont produit les échecs attendus ; leurs assertions ont réussi. Le job volontairement skipped et son assertion ont produit le résultat attendu.
+- Vercel combiné indique `build-rate-limit` sur ce HEAD ; c'est une limitation du fournisseur, non une preuve d'échec de compilation.
+- Le premier appel omet `p_conditions`, dont le défaut existant est `NULL::text` ; le replay explicite NULL retourne exactement le résultat initial et ne duplique aucun état persistant.
 - Appendice : [QA411](QIMA_V1_FUNCTION_REGISTER_QA411_APPEND.md).
+
+## QA412 — omission de p_market et replay avec NULL explicite
+
+**Statut : IMPLEMENTED — validation GitHub Actions en attente sur le nouveau HEAD.**
+- La signature existante déclare `p_market text DEFAULT NULL::text` ; aucune migration n'est modifiée.
+- Le premier appel nommé omet volontairement `p_market` ; les deux appels conservent explicitement `p_conditions => NULL` et tous les autres paramètres effectifs identiques.
+- Le replay du même tenant/de la même clé fournit explicitement `p_market => NULL`.
+- Le test exige le résultat JSON initial exact, le hash inchangé, l'exécution `COMPLETED`, l'offre avec `market IS NULL`, l'événement `ACTION_SUCCEEDED` et exactement une ligne dans chacune des quatre tables de persistance.
+- Le contrôle statique vérifie le défaut déclaré, l'omission effective, NULL explicite au replay, les paramètres stables et l'intégration Verify/PostgreSQL 16/PostgreSQL 17.6.
+- Le scénario runtime est lancé après le bootstrap de la fixture PostgreSQL jetable.
+- Appendice : [QA412](QIMA_V1_FUNCTION_REGISTER_QA412_APPEND.md).
