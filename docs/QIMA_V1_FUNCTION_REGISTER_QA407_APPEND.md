@@ -2,7 +2,7 @@
 
 ## QA407 — changed p_offer_type replay rejection
 
-**Status:** IMPLEMENTED — pending GitHub Actions validation on the updated PR head.  
+**Status:** CLOSED — QIMA CI [#43592280751](https://github.com/meridane/QimaTrade-MVP/actions/runs/43592280751) (run #1439) completed SUCCESS; Verify, PostgreSQL 16, PostgreSQL 17.6 and CodeQL are confirmed.  
 **Target:** PR #26, branch `fix/create-offer-status-contract`  
 **Working branch:** `work/qa407-offer-type-mismatch-replay-20261114-2050`  
 **Base commit:** `656c5a530b0c9746caa70db0df94a769bc0a0a57`
@@ -23,7 +23,11 @@
 - QA406 prerequisite is CLOSED: QIMA CI [#43586652941](https://github.com/meridane/QimaTrade-MVP/actions/runs/43586652941) completed SUCCESS; Verify, npm audit, TypeScript, build and **347/347** Playwright tests passed.
 - PostgreSQL 16 and PostgreSQL 17.6 full jobs completed SUCCESS; each log contains exactly one explicit `QA406 PASS` marker.
 - CodeQL [#43586652920](https://github.com/meridane/QimaTrade-MVP/actions/runs/43586652920) completed SUCCESS.
-- QA407 validation will be recorded after the updated PR head starts GitHub Actions.
+- QIMA CI [#43592280751](https://github.com/meridane/QimaTrade-MVP/actions/runs/43592280751) completed SUCCESS. Verify passed QA407 static coverage, npm audit at the configured high threshold, TypeScript, Next.js production build and all **347/347** Playwright tests.
+- PostgreSQL 16 job `132439348894` and PostgreSQL 17.6 job `132439348526` both completed SUCCESS; each full runtime log contains exactly one explicit `QA407 PASS` marker. The full CREATE_OFFER integration/concurrency, catalog, replication-slot, database-settings, ACL, RLS, runner-privilege and cleanup checks completed.
+- CodeQL [#43592280688](https://github.com/meridane/QimaTrade-MVP/actions/runs/43592280688) completed SUCCESS. The combined Vercel status for PR HEAD `9ed22f58151251abb1077c9462c40faaef684179` is SUCCESS.
+- The two expected negative cleanup-harness jobs concluded failure by design; their dedicated assertion jobs succeeded. The intentional skipped-job contract was also verified. No unexpected failing job remained.
+- QA407 is CLOSED. This is a disposable-fixture regression characterization, not evidence of a Production vulnerability; no application code, migration or Production state was changed.
 
 ## Safety and decision boundaries
 
