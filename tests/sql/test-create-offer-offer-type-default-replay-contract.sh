@@ -121,6 +121,9 @@ verify_job="$(awk '
 [[ "$(grep -Fc 'run: bash tests/sql/test-create-offer-offer-type-default-replay-contract.sh' <<< "$verify_job" || true)" -eq 1 ]] ||
   fail "Verify must execute QA416 exactly once"
 
+[[ "$(grep -Fc '      - name: Verify CREATE_OFFER omitted p_offer_type default replays explicit NULL' <<< "$verify_job" || true)" -eq 1 ]] ||
+  fail "Verify must expose QA416 as its own named step, not as a duplicate run key"
+
 pg16_job="$(awk '
   $0 == "  postgres-integration:" { inside = 1; next }
   inside && /^  [[:alnum:]_-]+:$/ { exit }
