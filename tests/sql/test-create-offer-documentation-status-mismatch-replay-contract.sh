@@ -149,6 +149,8 @@ QA414_REPLAY_CALL="$(sed -n '/v_replay_result := public.execute_create_offer_v1(
 [[ -n "$QA414_FIRST_CALL" && -n "$QA414_REPLAY_CALL" ]] || fail "QA414 must contain the initial call and exact replay call"
 [[ "$(grep -Fc 'public.execute_create_offer_v1(' <<< "$QA414_BLOCK" || true)" -eq 2 ]] ||
   fail "QA414 must contain exactly two CREATE_OFFER calls"
+[[ "$(grep -Fc "v_offer_name text := 'QA414 Documentation Status Default Replay Offer';" <<< "$QA414_BLOCK" || true)" -eq 1 ]] ||
+  fail "QA414 fixture offer name must identify the documentation-status default case"
 if grep -Fq 'p_documentation_status =>' <<< "$QA414_FIRST_CALL"; then
   fail "the first QA414 call must omit p_documentation_status so PostgreSQL applies its declared default"
 fi
