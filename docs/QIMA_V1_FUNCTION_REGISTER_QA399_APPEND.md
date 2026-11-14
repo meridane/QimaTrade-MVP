@@ -2,7 +2,7 @@
 
 ## QA399 — JSONB array order remains significant for p_attributes idempotency
 
-**Status:** PENDING full CI validation  
+**Status:** CLOSED — QIMA CI #1421 completed successfully  
 **Target:** PR #26, branch `fix/create-offer-status-contract`  
 **Working branch:** `work/qa399-jsonb-array-order-significant-20261114-1305`  
 **Base commit:** `f95f1cbd837945de28eeccc12d7a30926dd2b221`
@@ -31,7 +31,7 @@
 - Correction: scope the edit to the exact dollar-quoted blocks. Restore `v_before record;` in QA91, remove it only from QA399, and add static assertions that QA91 retains its declaration/baseline read while QA399 contains no `v_before` reference.
 - QIMA CI [#1419](https://github.com/meridane/QimaTrade-MVP/actions/runs/43555517101) was triggered on code commit `6f2afc94cb093a0a969b0d81c9e0ba3327ea1a5f`. Verify completed SUCCESS, including the QA399 static contract, npm audit, TypeScript, production build and browser smoke tests. The PostgreSQL 16 CREATE_OFFER runtime step and the PostgreSQL 17.6 CREATE_OFFER runtime step both completed SUCCESS; however, both full PostgreSQL jobs were still IN_PROGRESS at the latest checkpoint while later cleanup, RLS and ACL regressions continued. Runtime log artifacts were not yet downloadable, so the QA399 notice marker has not been independently confirmed in both logs.
 - CodeQL [#1367](https://github.com/meridane/QimaTrade-MVP/actions/runs/43555517063) completed SUCCESS. The Vercel status for this HEAD was FAILURE with the target `build-rate-limit`; no Preview readiness is claimed. This is an external Preview build quota/plan limit, not a source-code test result, and no billing or account setting was changed.
-- Keep QA399 PENDING until both complete PostgreSQL jobs succeed and both runtime logs explicitly contain the QA399 marker.
+- QA399 is CLOSED: QIMA CI #1421 completed SUCCESS; the complete PostgreSQL 16 and 17.6 jobs both contain the explicit QA399 PASS marker, Verify completed npm audit, TypeScript, production build and 347/347 Playwright tests, and CodeQL #1369 completed SUCCESS. The Vercel check remains FAILURE with a `build-rate-limit` target; no Preview Ready is claimed and this external Preview quota does not change the QA result.
 
 ## Safety and decision boundaries
 

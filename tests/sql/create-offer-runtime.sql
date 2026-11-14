@@ -16693,3 +16693,209 @@ END
 $qa399_attributes_array_order_replay$;
 COMMIT;
 SELECT 'QA399 JSONB array-order change is significant for CREATE_OFFER idempotency' AS result;
+
+BEGIN;
+DO $qa400_null_empty_attributes_replay$
+DECLARE
+  v_tenant_id uuid := '10000000-0000-4000-8000-000000000001';
+  v_key text := 'fixture-qa400-null-empty-attributes';
+  v_input jsonb := '{"case":"qa400-null-empty-attributes"}'::jsonb;
+  v_offer_name text := 'QA400 Null Empty Attributes Offer';
+  v_attributes jsonb := NULL::jsonb;
+  v_replay_attributes jsonb := '{}'::jsonb;
+  v_first_result jsonb;
+  v_replay_result jsonb;
+  v_execution_id uuid;
+  v_offer_id uuid;
+  v_original_hash text;
+  v_replay_hash text;
+  v_idempotency_execution_id uuid;
+  v_idempotency_status text;
+  v_idempotency_result jsonb;
+  v_execution_status text;
+  v_execution_input jsonb;
+  v_execution_result jsonb;
+  v_execution_object_id uuid;
+  v_offer_attributes jsonb;
+  v_event_payload jsonb;
+  v_after_first record;
+  v_after_replay record;
+BEGIN
+  IF coalesce(v_attributes, '{}'::jsonb) IS DISTINCT FROM v_replay_attributes THEN
+    RAISE EXCEPTION 'QA400 SQL NULL and empty-object attributes must normalize to the same JSONB value';
+  END IF;
+  IF coalesce(v_attributes, '{}'::jsonb)::text IS DISTINCT FROM v_replay_attributes::text THEN
+    RAISE EXCEPTION 'QA400 SQL NULL and empty-object attributes must have the same canonical JSONB text';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM public.idempotency_keys
+    WHERE tenant_id = v_tenant_id AND key = v_key
+  ) OR EXISTS (
+    SELECT 1 FROM public.action_executions
+    WHERE tenant_id = v_tenant_id AND idempotency_key = v_key
+  ) OR EXISTS (
+    SELECT 1 FROM public.offers WHERE name = v_offer_name
+  ) THEN
+    RAISE EXCEPTION 'QA400 fixture data already exists';
+  END IF;
+
+  v_first_result := public.execute_create_offer_v1(
+    p_tenant_id => v_tenant_id,
+    p_idempotency_key => v_key,
+    p_input => v_input,
+    p_name => v_offer_name,
+    p_demand_id => '50000000-0000-4000-8000-000000000001',
+    p_product_master_id => '40000000-0000-4000-8000-000000000001',
+    p_provider_actor_id => '30000000-0000-4000-8000-000000000001',
+    p_quantity => 1::numeric,
+    p_price => 12::numeric,
+    p_currency => 'USD',
+    p_attributes => v_attributes
+  );
+
+  IF jsonb_typeof(v_first_result) IS DISTINCT FROM 'object'
+     OR v_first_result->>'status' IS DISTINCT FROM 'succeeded'
+     OR v_first_result->>'objectType' IS DISTINCT FROM 'Offer'
+     OR nullif(v_first_result->>'executionId', '') IS NULL
+     OR nullif(v_first_result->>'objectId', '') IS NULL THEN
+    RAISE EXCEPTION 'QA400 initial SQL NULL attributes request did not return a complete success result: %',
+      coalesce(v_first_result::text, '<SQL NULL>');
+  END IF;
+
+  v_execution_id := (v_first_result->>'executionId')::uuid;
+  v_offer_id := (v_first_result->>'objectId')::uuid;
+
+  SELECT request_hash, execution_id, status, result
+  INTO v_original_hash, v_idempotency_execution_id, v_idempotency_status, v_idempotency_result
+  FROM public.idempotency_keys
+  WHERE tenant_id = v_tenant_id AND key = v_key;
+  IF NOT FOUND
+     OR v_original_hash IS NULL
+     OR v_idempotency_execution_id IS DISTINCT FROM v_execution_id
+     OR v_idempotency_status IS DISTINCT FROM 'COMPLETED'
+     OR v_idempotency_result IS DISTINCT FROM v_first_result THEN
+    RAISE EXCEPTION 'QA400 initial idempotency row does not match the SQL NULL attributes request';
+  END IF;
+
+  SELECT status, input, result, object_id
+  INTO v_execution_status, v_execution_input, v_execution_result, v_execution_object_id
+  FROM public.action_executions
+  WHERE tenant_id = v_tenant_id AND idempotency_key = v_key AND id = v_execution_id;
+  IF NOT FOUND
+     OR v_execution_status IS DISTINCT FROM 'COMPLETED'
+     OR v_execution_input IS DISTINCT FROM v_input
+     OR v_execution_result IS DISTINCT FROM v_first_result
+     OR v_execution_object_id IS DISTINCT FROM v_offer_id THEN
+    RAISE EXCEPTION 'QA400 initial action execution does not match the original request';
+  END IF;
+
+  SELECT attributes INTO v_offer_attributes
+  FROM public.offers
+  WHERE id = v_offer_id AND name = v_offer_name;
+  IF NOT FOUND OR v_offer_attributes IS DISTINCT FROM '{}'::jsonb THEN
+    RAISE EXCEPTION 'QA400 SQL NULL attributes were not persisted as an empty JSONB object';
+  END IF;
+
+  SELECT payload INTO v_event_payload
+  FROM public.action_events
+  WHERE tenant_id = v_tenant_id
+    AND execution_id = v_execution_id
+    AND event_type = 'ACTION_SUCCEEDED'
+    AND object_type = 'Offer'
+    AND object_id = v_offer_id;
+  IF NOT FOUND OR v_event_payload IS DISTINCT FROM v_first_result THEN
+    RAISE EXCEPTION 'QA400 original success event does not match the persisted result';
+  END IF;
+
+  SELECT
+    (SELECT count(*)::integer FROM public.idempotency_keys WHERE tenant_id = v_tenant_id AND key = v_key) AS idempotency_count,
+    (SELECT count(*)::integer FROM public.action_executions WHERE tenant_id = v_tenant_id AND idempotency_key = v_key) AS execution_count,
+    (SELECT count(*)::integer FROM public.offers WHERE id = v_offer_id) AS offer_count,
+    (SELECT count(*)::integer FROM public.action_events WHERE tenant_id = v_tenant_id AND execution_id = v_execution_id AND event_type = 'ACTION_SUCCEEDED') AS event_count
+  INTO v_after_first;
+  IF v_after_first.idempotency_count <> 1
+     OR v_after_first.execution_count <> 1
+     OR v_after_first.offer_count <> 1
+     OR v_after_first.event_count <> 1 THEN
+    RAISE EXCEPTION 'QA400 initial request did not persist exactly one idempotency row, execution, offer and event';
+  END IF;
+
+  v_replay_result := public.execute_create_offer_v1(
+    p_tenant_id => v_tenant_id,
+    p_idempotency_key => v_key,
+    p_input => v_input,
+    p_name => v_offer_name,
+    p_demand_id => '50000000-0000-4000-8000-000000000001',
+    p_product_master_id => '40000000-0000-4000-8000-000000000001',
+    p_provider_actor_id => '30000000-0000-4000-8000-000000000001',
+    p_quantity => 1::numeric,
+    p_price => 12::numeric,
+    p_currency => 'USD',
+    p_attributes => v_replay_attributes
+  );
+
+  IF v_replay_result IS DISTINCT FROM v_first_result THEN
+    RAISE EXCEPTION 'QA400 empty-object replay did not return the exact original result';
+  END IF;
+
+  SELECT
+    (SELECT count(*)::integer FROM public.idempotency_keys WHERE tenant_id = v_tenant_id AND key = v_key) AS idempotency_count,
+    (SELECT count(*)::integer FROM public.action_executions WHERE tenant_id = v_tenant_id AND idempotency_key = v_key) AS execution_count,
+    (SELECT count(*)::integer FROM public.offers WHERE id = v_offer_id) AS offer_count,
+    (SELECT count(*)::integer FROM public.action_events WHERE tenant_id = v_tenant_id AND execution_id = v_execution_id AND event_type = 'ACTION_SUCCEEDED') AS event_count
+  INTO v_after_replay;
+  IF v_after_replay.idempotency_count IS DISTINCT FROM v_after_first.idempotency_count
+     OR v_after_replay.execution_count IS DISTINCT FROM v_after_first.execution_count
+     OR v_after_replay.offer_count IS DISTINCT FROM v_after_first.offer_count
+     OR v_after_replay.event_count IS DISTINCT FROM v_after_first.event_count THEN
+    RAISE EXCEPTION 'QA400 equivalent empty-object replay created duplicate persisted rows';
+  END IF;
+
+  SELECT request_hash, execution_id, status, result
+  INTO v_replay_hash, v_idempotency_execution_id, v_idempotency_status, v_idempotency_result
+  FROM public.idempotency_keys
+  WHERE tenant_id = v_tenant_id AND key = v_key;
+  IF NOT FOUND
+     OR v_replay_hash IS DISTINCT FROM v_original_hash
+     OR v_idempotency_execution_id IS DISTINCT FROM v_execution_id
+     OR v_idempotency_status IS DISTINCT FROM 'COMPLETED'
+     OR v_idempotency_result IS DISTINCT FROM v_first_result THEN
+    RAISE EXCEPTION 'QA400 equivalent replay changed the original idempotency record';
+  END IF;
+
+  SELECT status, input, result, object_id
+  INTO v_execution_status, v_execution_input, v_execution_result, v_execution_object_id
+  FROM public.action_executions
+  WHERE tenant_id = v_tenant_id AND idempotency_key = v_key AND id = v_execution_id;
+  IF NOT FOUND
+     OR v_execution_status IS DISTINCT FROM 'COMPLETED'
+     OR v_execution_input IS DISTINCT FROM v_input
+     OR v_execution_result IS DISTINCT FROM v_first_result
+     OR v_execution_object_id IS DISTINCT FROM v_offer_id THEN
+    RAISE EXCEPTION 'QA400 equivalent replay changed the original action execution';
+  END IF;
+
+  SELECT attributes INTO v_offer_attributes
+  FROM public.offers
+  WHERE id = v_offer_id AND name = v_offer_name;
+  IF NOT FOUND OR v_offer_attributes IS DISTINCT FROM '{}'::jsonb THEN
+    RAISE EXCEPTION 'QA400 equivalent replay changed the original offer attributes';
+  END IF;
+
+  SELECT payload INTO v_event_payload
+  FROM public.action_events
+  WHERE tenant_id = v_tenant_id
+    AND execution_id = v_execution_id
+    AND event_type = 'ACTION_SUCCEEDED'
+    AND object_type = 'Offer'
+    AND object_id = v_offer_id;
+  IF NOT FOUND OR v_event_payload IS DISTINCT FROM v_first_result THEN
+    RAISE EXCEPTION 'QA400 equivalent replay changed the original success event';
+  END IF;
+
+  RAISE NOTICE 'QA400 PASS: SQL NULL and empty-object p_attributes normalize to the same request hash, replay the original result, persist an empty JSONB object and create no duplicate rows';
+END
+$qa400_null_empty_attributes_replay$;
+COMMIT;
+SELECT 'QA400 SQL NULL and empty-object p_attributes are equivalent for CREATE_OFFER idempotency' AS result;

@@ -9120,7 +9120,7 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 - Aucun code applicatif, migration, donnée Supabase Production, secret, configuration PostgreSQL persistante, règle de protection, fusion ou déploiement Production n'a été modifié.
 
 
-## QA399 — ordre des éléments d'un tableau JSONB significatif pour p_attributes (PENDING CI)
+## QA399 — ordre des éléments d'un tableau JSONB significatif pour p_attributes (CLOSED, 14 novembre 2026)
 
 - Premier appel avec `p_attributes = {"items":["alpha","beta"],"meta":{"region":"kr"}}`, puis replay avec le même objet mais le tableau `items` inversé.
 - Tous les autres paramètres effectifs restent identiques. Le test exige que les valeurs JSONB et leur représentation `jsonb::text` soient distinctes, puis que le replay soit rejeté par l'erreur exacte `IDEMPOTENCY_KEY_REUSE`.
@@ -9132,3 +9132,19 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 - Correction ciblée publiée dans `6f2afc94cb093a0a969b0d81c9e0ba3327ea1a5f` : restaurer la déclaration et la lecture de baseline dans le bloc QA91 exact, supprimer la déclaration uniquement dans le bloc QA399 exact, puis ajouter des assertions statiques qui protègent QA91 et interdisent `v_before` dans QA399. QIMA CI [#1419](https://github.com/meridane/QimaTrade-MVP/actions/runs/43555517101) a terminé Verify SUCCESS, incluant le contrat statique QA399, npm audit, TypeScript, build Next.js et tests navigateur. Les étapes runtime CREATE_OFFER PostgreSQL 16 et PostgreSQL 17.6 ont toutes deux terminé SUCCESS; les jobs PostgreSQL complets étaient toutefois encore IN_PROGRESS pendant les étapes suivantes de nettoyage, RLS et ACL. Les artefacts de logs runtime n'étaient pas encore téléchargeables, donc le marqueur QA399 n'a pas encore été vérifié indépendamment dans les deux journaux.
 - CodeQL [#1367](https://github.com/meridane/QimaTrade-MVP/actions/runs/43555517063) a terminé SUCCESS. Le statut Vercel du HEAD était FAILURE avec une URL cible indiquant `build-rate-limit`; aucun Preview Ready n'est revendiqué. Ce blocage externe de quota/plan Preview ne constitue pas un échec de test source et aucune modification de facturation ou de compte n'a été faite. QA399 reste PENDING jusqu'au succès des deux jobs PostgreSQL complets et à la confirmation du marqueur QA399 dans les deux journaux.
 - Aucun code applicatif, migration, donnée Supabase Production, secret, configuration PostgreSQL persistante, règle de protection, fusion ou déploiement Production n'a été modifié.
+
+- QIMA CI [#1421](https://github.com/meridane/QimaTrade-MVP/actions/runs/43555796321) completed **SUCCESS**. Verify (job 132329109585) completed npm audit, TypeScript, production build and all 347 Playwright tests successfully; its QA399 static contract also passed.
+- PostgreSQL 16 (job 132329109579) and PostgreSQL 17.6 (job 132329109764) both completed **SUCCESS**. Their full job logs explicitly contain `QA399 PASS`; both also completed the full CREATE_OFFER runtime/concurrency suite, runner safety, catalog, ACL, RLS, privilege and cleanup regressions.
+- QIMA CodeQL [#1369](https://github.com/meridane/QimaTrade-MVP/actions/runs/43555796312) completed **SUCCESS**. The Vercel status for this HEAD is **FAILURE** with a target URL indicating `build-rate-limit`; no Preview Ready is claimed. This external Preview build limit does not invalidate the successful source/SQL CI results and no billing or account setting was changed.
+- QA399 is **CLOSED**: PostgreSQL 16 and 17.6 runtime markers are confirmed, and the full CI workflow passed. This disposable-database characterization is not evidence of a Production vulnerability.
+
+## QA400 — SQL NULL and empty-object p_attributes replay equivalence (PENDING CI)
+
+- First call supplies SQL `NULL::jsonb` for `p_attributes`; a replay uses `'{}'::jsonb` with the same tenant, idempotency key and every other effective business parameter unchanged.
+- The existing request hash normalizes `p_attributes` with `coalesce(p_attributes, '{}'::jsonb)`; the disposable `create_offer_v1` fixture also persists SQL NULL attributes as an empty JSONB object. The test asserts both normalizations before calling the function.
+- Require the second call to replay the exact first result, not raise `IDEMPOTENCY_KEY_REUSE`. Require the stored offer attributes to be exactly `{}`.
+- Verify the original request hash, idempotency result/status, completed execution/input/result/object, offer attributes and success event remain unchanged; require exactly one row/event in each of the four persistence tables after the first call and unchanged counts after replay.
+- Add `tests/sql/test-create-offer-null-empty-attributes-replay-contract.sh` to Verify. The shared isolated runtime executes on PostgreSQL 16 and 17.6.
+- This is a characterization of explicit existing NULL normalization in the migration and disposable fixture. No application code or migration is changed. It does not test JSONB literal `null` or numeric canonicalization.
+- QA400 remains IMPLEMENTED / PENDING until Verify, both complete PostgreSQL jobs and their explicit runtime marker succeed.
+- No Supabase Production data, schema, RLS policy, grants, secrets or persistent PostgreSQL settings are accessed or modified. No Production deployment, PR merge, force-push or branch-protection change is performed.
