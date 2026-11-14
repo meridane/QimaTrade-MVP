@@ -23,8 +23,9 @@
 - The disposable fixture's `create_offer_v1` stores `p_conditions` in `offers.conditions`.
 - The scenario is appended to `tests/sql/create-offer-runtime.sql`; its static contract is `tests/sql/test-create-offer-conditions-mismatch-replay-contract.sh`.
 - No application code or migration is changed.
-- QIMA CI [#1426](https://github.com/meridane/QimaTrade-MVP/actions/runs/43568610148) is running on the current PR HEAD. The QA402 static contract step passed in Verify; npm audit and TypeScript also completed successfully. The Next.js build and both PostgreSQL integration jobs are still running at this checkpoint; no `QA402 PASS` runtime marker is claimed yet.
-- CodeQL [#1374](https://github.com/meridane/QimaTrade-MVP/actions/runs/43568610095) is in progress. Vercel Preview status is pending for this HEAD.
+- QIMA CI [#1426](https://github.com/meridane/QimaTrade-MVP/actions/runs/43568610148) was triggered on code-bearing commit `8b81b4ca30d518b8f921b935dfd7e79234e26222`. Verify completed successfully: the QA402 static contract, npm audit, TypeScript, Next.js production build and all 347 Playwright tests passed. The full PostgreSQL 16 and PostgreSQL 17.6 jobs remain in progress at their final runner-privilege characterization steps; no `QA402 PASS` runtime marker is claimed yet.
+- CodeQL [#1374](https://github.com/meridane/QimaTrade-MVP/actions/runs/43568610095) completed successfully.
+- Vercel Preview for code-bearing commit `8b81b4ca30d518b8f921b935dfd7e79234e26222` returned SUCCESS: [Preview deployment](https://vercel.com/bmk1/qimatrade-mvp/G76eFK5JFHhd1XSTo5HWo4d8DNJf). The latest documentation-only HEAD is `6eb646e43d981e457535603c2a09e834754ac7bb`; its separate Vercel status remains pending.
 - QA402 remains PENDING until Verify and both complete PostgreSQL runtime jobs succeed and contain the explicit `QA402 PASS` marker.
 
 ## QA401 prerequisite closure

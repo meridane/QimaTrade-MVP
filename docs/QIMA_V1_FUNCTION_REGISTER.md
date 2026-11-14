@@ -9164,14 +9164,15 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 
 ## QA402 — changed p_conditions replay rejection
 
-**Status:** IMPLEMENTED — QA402 static contract PASS in QIMA CI #1426; PostgreSQL runtime pending.
+**Status:** IMPLEMENTED — static Verify PASS; PostgreSQL runtime pending.
 
 - The new disposable runtime scenario creates an offer with `p_conditions = 'qa402-original-conditions'`, then retries the same tenant/key with only `p_conditions` changed to `'qa402-changed-conditions'`.
 - The existing migration hashes `'conditions', p_conditions`; the expected result is exact `IDEMPOTENCY_KEY_REUSE` before new persistence.
 - The scenario verifies the original request hash, idempotency result, completed execution, original offer conditions, success event and all four persistence counts remain unchanged.
 - Static coverage is wired once into Verify; both PostgreSQL 16 and PostgreSQL 17.6 jobs use the existing isolated CREATE_OFFER integration runner.
-- QIMA CI [#1426](https://github.com/meridane/QimaTrade-MVP/actions/runs/43568610148) has passed the QA402 static contract, npm audit and TypeScript. Next.js build and the full PostgreSQL 16/17.6 jobs are still in progress at this checkpoint; no runtime marker is claimed.
-- CodeQL [#1374](https://github.com/meridane/QimaTrade-MVP/actions/runs/43568610095) is in progress. Vercel Preview is pending for this HEAD.
-- QA402 remains pending until Verify and both full PostgreSQL jobs succeed with explicit `QA402 PASS` markers.
+- QIMA CI [#1426](https://github.com/meridane/QimaTrade-MVP/actions/runs/43568610148), triggered on code-bearing commit `8b81b4ca30d518b8f921b935dfd7e79234e26222`, completed Verify successfully: QA402 static contract, npm audit, TypeScript, Next.js production build and all 347 Playwright tests passed. The full PostgreSQL 16 and PostgreSQL 17.6 jobs remain in progress at the final runner-privilege characterization steps; no runtime marker is claimed yet.
+- CodeQL [#1374](https://github.com/meridane/QimaTrade-MVP/actions/runs/43568610095) completed successfully.
+- Vercel Preview for code-bearing commit `8b81b4ca30d518b8f921b935dfd7e79234e26222` returned SUCCESS: [Preview deployment](https://vercel.com/bmk1/qimatrade-mvp/G76eFK5JFHhd1XSTo5HWo4d8DNJf). The latest documentation-only HEAD `6eb646e43d981e457535603c2a09e834754ac7bb` has a separate Vercel status pending.
+- QA402 remains pending until both full PostgreSQL jobs succeed and contain explicit `QA402 PASS` markers.
 - Runtime scope is disposable CI only. No Supabase Production data, schema, grants, secrets or persistent settings are accessed or modified; no Production deployment, PR merge, force-push or branch-protection change is performed.
 - MKT-1.1, MKT-1.2 and MKT-1.3 remain subject to business approval.
