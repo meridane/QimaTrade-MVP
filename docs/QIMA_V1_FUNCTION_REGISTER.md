@@ -9322,10 +9322,27 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 
 ## QA415 — omission de p_lifecycle et replay avec NULL explicite
 
-**Statut : IMPLEMENTED — nouvelle validation CI en attente.**
-- La signature existante déclare `p_lifecycle text DEFAULT NULL::text` ; aucune migration n'est modifiée.
-- Le premier appel CREATE_OFFER omet réellement `p_lifecycle` ; le replay de même tenant/clé fournit explicitement `p_lifecycle => NULL`.
-- `p_documentation_status => NULL` et tous les autres paramètres effectifs sont identiques dans les deux appels.
-- Le scénario vérifie le résultat JSON exact, le hash, l'exécution `COMPLETED`, `offers.lifecycle IS NULL`, l'événement `ACTION_SUCCEEDED` et les compteurs inchangés des quatre tables de persistance.
-- Le test runtime est intégré à `create-offer-runtime.sql` ; le contrôle statique est ajouté au script lifecycle déjà exécuté par Verify. Les runners PostgreSQL 16 et 17.6 existants sont réutilisés sans changement de workflow.
+**Statut : CLOSED — QIMA CI [#1449](https://github.com/meridane/QimaTrade-MVP/actions/runs/43634745260) SUCCESS ; Verify, PostgreSQL 16 et PostgreSQL 17.6 terminés. CodeQL [#1396](https://github.com/meridane/QimaTrade-MVP/actions/runs/43634745205) SUCCESS.**
+- La signature existante déclare `p_lifecycle text DEFAULT NULL::text` ; aucune migration n'a été modifiée.
+- Le premier appel CREATE_OFFER omet réellement `p_lifecycle` ; le replay avec le même tenant et la même clé fournit explicitement `p_lifecycle => NULL`. Tous les autres paramètres effectifs restent identiques.
+- Les deux appels retournent exactement le même résultat JSON ; le hash, l'exécution `COMPLETED`, `offers.lifecycle IS NULL`, l'événement `ACTION_SUCCEEDED` et les compteurs des quatre tables restent inchangés.
+- Verify job `132568972779` : marqueur statique QA415 PASS, npm audit au seuil high, TypeScript, build Next.js et **347/347** tests Playwright réussis.
+- PostgreSQL 16 job `132568972750` : SUCCESS ; exactement un marqueur `QA415 PASS`.
+- PostgreSQL 17.6 job `132568972722` : SUCCESS ; exactement un marqueur `QA415 PASS`.
+- Les deux jobs ont terminé les contrôles complets CREATE_OFFER/concurrence, repeat-guard, catalogue, replication slots, paramètres, extensions, privilèges du runner, RLS, ACL et nettoyage. Les simulations négatives et le job volontairement skipped ont été correctement caractérisés.
+- CodeQL [#1396](https://github.com/meridane/QimaTrade-MVP/actions/runs/43634745205) : SUCCESS. Le statut combiné Vercel indique `build-rate-limit` ; le build Next.js Verify est réussi et aucune erreur de compilation applicative n'est déduite.
 - Appendice : [QA415](QIMA_V1_FUNCTION_REGISTER_QA415_APPEND.md).
+
+## QA416 — omission de p_offer_type et replay avec NULL explicite
+
+**Statut : IMPLEMENTED — validation CI en attente sur le nouveau HEAD.**
+- La signature existante déclare `p_offer_type text DEFAULT NULL::text` ; aucune migration n'est modifiée.
+- Le premier appel CREATE_OFFER omet réellement `p_offer_type` ; le replay avec le même tenant et la même clé fournit explicitement `p_offer_type => NULL`.
+- Tous les autres paramètres effectifs restent identiques, notamment `p_lifecycle => NULL`, `p_documentation_status => NULL`, `p_market => 'fixture-market-stable'`, `p_attributes => '{}'::jsonb` et `p_pricing_model => 'fixture-pricing-model-stable'`.
+- Le scénario exige le résultat JSON exact, le hash inchangé, l'exécution `COMPLETED`, `offers.offer_type IS NULL`, l'événement `ACTION_SUCCEEDED` et l'absence de doublons dans `idempotency_keys`, `action_executions`, `offers` et `action_events`.
+- Le contrôle statique dédié vérifie la signature, le mapping du hash, le forwarding, l'omission réelle du premier appel, le NULL explicite du replay, les paramètres inchangés et les assertions read-only.
+- Le contrôle est câblé dans Verify ; le runtime est ajouté à `create-offer-runtime.sql`, exécuté par les runners PostgreSQL 16 et 17.6 existants.
+- Prérequis QA415 : CLOSED sur QIMA CI [#1449](https://github.com/meridane/QimaTrade-MVP/actions/runs/43634745260), avec un marqueur runtime par version, Verify et Playwright 347/347 réussis, CodeQL #1396 SUCCESS.
+- Aucun résultat runtime QA416 n'est revendiqué avant l'exécution CI sur le nouveau HEAD.
+- Appendice : [QA416](QIMA_V1_FUNCTION_REGISTER_QA416_APPEND.md).
+
