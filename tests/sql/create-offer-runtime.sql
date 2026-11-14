@@ -16288,3 +16288,193 @@ $qa397_jsonb_key_order_replay$;
 
 COMMIT;
 SELECT 'QA397 equivalent JSONB key-order replay preserves the original CREATE_OFFER state' AS result;
+
+
+BEGIN;
+DO $qa398_attributes_key_order_replay$
+DECLARE
+  v_tenant_id uuid := '10000000-0000-4000-8000-000000000001';
+  v_key text := 'fixture-qa398-attributes-key-order';
+  v_input jsonb := '{"case":"qa398-attributes-key-order"}'::jsonb;
+  v_offer_name text := 'QA398 Attributes Key Order Offer';
+  v_attributes jsonb := '{"alpha":"one","meta":{"x":"1","y":"2"},"beta":"two"}'::jsonb;
+  v_replay_attributes jsonb := '{"beta":"two","meta":{"y":"2","x":"1"},"alpha":"one"}'::jsonb;
+  v_first_result jsonb;
+  v_replay_result jsonb;
+  v_execution_id uuid;
+  v_offer_id uuid;
+  v_original_hash text;
+  v_replay_hash text;
+  v_idempotency_execution_id uuid;
+  v_idempotency_status text;
+  v_idempotency_result jsonb;
+  v_execution_status text;
+  v_execution_input jsonb;
+  v_execution_result jsonb;
+  v_execution_object_id uuid;
+  v_offer_attributes jsonb;
+  v_event_payload jsonb;
+  v_after_first record;
+  v_after_replay record;
+BEGIN
+  IF v_attributes IS DISTINCT FROM v_replay_attributes THEN
+    RAISE EXCEPTION 'QA398 fixture attributes must be semantically equal JSONB objects';
+  END IF;
+  IF v_attributes::text IS DISTINCT FROM v_replay_attributes::text THEN
+    RAISE EXCEPTION 'QA398 reordered attributes must have identical canonical JSONB text';
+  END IF;
+
+  v_first_result := public.execute_create_offer_v1(
+    p_tenant_id => v_tenant_id,
+    p_idempotency_key => v_key,
+    p_input => v_input,
+    p_name => v_offer_name,
+    p_demand_id => '50000000-0000-4000-8000-000000000001',
+    p_product_master_id => '40000000-0000-4000-8000-000000000001',
+    p_provider_actor_id => '30000000-0000-4000-8000-000000000001',
+    p_quantity => 1::numeric,
+    p_price => 12::numeric,
+    p_currency => 'USD',
+    p_attributes => v_attributes
+  );
+  IF v_first_result->>'status' IS DISTINCT FROM 'succeeded'
+     OR v_first_result->>'objectType' IS DISTINCT FROM 'Offer' THEN
+    RAISE EXCEPTION 'QA398 initial attributes request did not succeed: %', v_first_result;
+  END IF;
+
+  v_execution_id := (v_first_result->>'executionId')::uuid;
+  v_offer_id := (v_first_result->>'objectId')::uuid;
+
+  SELECT request_hash, execution_id, status, result
+  INTO v_original_hash, v_idempotency_execution_id, v_idempotency_status, v_idempotency_result
+  FROM public.idempotency_keys
+  WHERE tenant_id = v_tenant_id AND key = v_key;
+  IF NOT FOUND
+     OR v_idempotency_execution_id IS DISTINCT FROM v_execution_id
+     OR v_idempotency_status IS DISTINCT FROM 'COMPLETED'
+     OR v_idempotency_result IS DISTINCT FROM v_first_result THEN
+    RAISE EXCEPTION 'QA398 initial idempotency row does not match the original result';
+  END IF;
+
+  SELECT status, input, result, object_id
+  INTO v_execution_status, v_execution_input, v_execution_result, v_execution_object_id
+  FROM public.action_executions
+  WHERE tenant_id = v_tenant_id
+    AND idempotency_key = v_key
+    AND id = v_execution_id;
+  IF NOT FOUND
+     OR v_execution_status IS DISTINCT FROM 'COMPLETED'
+     OR v_execution_input IS DISTINCT FROM v_input
+     OR v_execution_result IS DISTINCT FROM v_first_result
+     OR v_execution_object_id IS DISTINCT FROM v_offer_id THEN
+    RAISE EXCEPTION 'QA398 initial action execution does not match the original request';
+  END IF;
+
+  SELECT attributes INTO v_offer_attributes
+  FROM public.offers
+  WHERE id = v_offer_id AND name = v_offer_name;
+  IF NOT FOUND OR v_offer_attributes IS DISTINCT FROM v_attributes THEN
+    RAISE EXCEPTION 'QA398 original offer attributes were not persisted exactly';
+  END IF;
+
+  SELECT payload INTO v_event_payload
+  FROM public.action_events
+  WHERE tenant_id = v_tenant_id
+    AND execution_id = v_execution_id
+    AND event_type = 'ACTION_SUCCEEDED'
+    AND object_type = 'Offer'
+    AND object_id = v_offer_id;
+  IF NOT FOUND OR v_event_payload IS DISTINCT FROM v_first_result THEN
+    RAISE EXCEPTION 'QA398 original success event does not match the persisted result';
+  END IF;
+
+  SELECT
+    (SELECT count(*)::integer FROM public.idempotency_keys WHERE tenant_id = v_tenant_id AND key = v_key) AS idempotency_count,
+    (SELECT count(*)::integer FROM public.action_executions WHERE tenant_id = v_tenant_id AND idempotency_key = v_key) AS execution_count,
+    (SELECT count(*)::integer FROM public.offers WHERE id = v_offer_id) AS offer_count,
+    (SELECT count(*)::integer FROM public.action_events WHERE tenant_id = v_tenant_id AND execution_id = v_execution_id AND event_type = 'ACTION_SUCCEEDED') AS event_count
+  INTO v_after_first;
+  IF v_after_first.idempotency_count <> 1
+     OR v_after_first.execution_count <> 1
+     OR v_after_first.offer_count <> 1
+     OR v_after_first.event_count <> 1 THEN
+    RAISE EXCEPTION 'QA398 initial request did not persist exactly one row in each expected table';
+  END IF;
+
+  v_replay_result := public.execute_create_offer_v1(
+    p_tenant_id => v_tenant_id,
+    p_idempotency_key => v_key,
+    p_input => v_input,
+    p_name => v_offer_name,
+    p_demand_id => '50000000-0000-4000-8000-000000000001',
+    p_product_master_id => '40000000-0000-4000-8000-000000000001',
+    p_provider_actor_id => '30000000-0000-4000-8000-000000000001',
+    p_quantity => 1::numeric,
+    p_price => 12::numeric,
+    p_currency => 'USD',
+    p_attributes => v_replay_attributes
+  );
+  IF v_replay_result IS DISTINCT FROM v_first_result THEN
+    RAISE EXCEPTION 'QA398 equivalent reordered attributes did not replay the exact original result';
+  END IF;
+
+  SELECT
+    (SELECT count(*)::integer FROM public.idempotency_keys WHERE tenant_id = v_tenant_id AND key = v_key) AS idempotency_count,
+    (SELECT count(*)::integer FROM public.action_executions WHERE tenant_id = v_tenant_id AND idempotency_key = v_key) AS execution_count,
+    (SELECT count(*)::integer FROM public.offers WHERE id = v_offer_id) AS offer_count,
+    (SELECT count(*)::integer FROM public.action_events WHERE tenant_id = v_tenant_id AND execution_id = v_execution_id AND event_type = 'ACTION_SUCCEEDED') AS event_count
+  INTO v_after_replay;
+  IF v_after_replay.idempotency_count IS DISTINCT FROM v_after_first.idempotency_count
+     OR v_after_replay.execution_count IS DISTINCT FROM v_after_first.execution_count
+     OR v_after_replay.offer_count IS DISTINCT FROM v_after_first.offer_count
+     OR v_after_replay.event_count IS DISTINCT FROM v_after_first.event_count THEN
+    RAISE EXCEPTION 'QA398 reordered attributes replay created duplicate persisted rows';
+  END IF;
+
+  SELECT request_hash, execution_id, status, result
+  INTO v_replay_hash, v_idempotency_execution_id, v_idempotency_status, v_idempotency_result
+  FROM public.idempotency_keys
+  WHERE tenant_id = v_tenant_id AND key = v_key;
+  IF NOT FOUND
+     OR v_replay_hash IS DISTINCT FROM v_original_hash
+     OR v_idempotency_execution_id IS DISTINCT FROM v_execution_id
+     OR v_idempotency_status IS DISTINCT FROM 'COMPLETED'
+     OR v_idempotency_result IS DISTINCT FROM v_first_result THEN
+    RAISE EXCEPTION 'QA398 replay changed the original idempotency record';
+  END IF;
+
+  SELECT status, input, result, object_id
+  INTO v_execution_status, v_execution_input, v_execution_result, v_execution_object_id
+  FROM public.action_executions
+  WHERE tenant_id = v_tenant_id AND idempotency_key = v_key AND id = v_execution_id;
+  IF NOT FOUND
+     OR v_execution_status IS DISTINCT FROM 'COMPLETED'
+     OR v_execution_input IS DISTINCT FROM v_input
+     OR v_execution_result IS DISTINCT FROM v_first_result
+     OR v_execution_object_id IS DISTINCT FROM v_offer_id THEN
+    RAISE EXCEPTION 'QA398 replay changed the original action execution';
+  END IF;
+
+  SELECT attributes INTO v_offer_attributes
+  FROM public.offers
+  WHERE id = v_offer_id AND name = v_offer_name;
+  IF NOT FOUND OR v_offer_attributes IS DISTINCT FROM v_attributes THEN
+    RAISE EXCEPTION 'QA398 replay changed the original offer attributes';
+  END IF;
+
+  SELECT payload INTO v_event_payload
+  FROM public.action_events
+  WHERE tenant_id = v_tenant_id
+    AND execution_id = v_execution_id
+    AND event_type = 'ACTION_SUCCEEDED'
+    AND object_type = 'Offer'
+    AND object_id = v_offer_id;
+  IF NOT FOUND OR v_event_payload IS DISTINCT FROM v_first_result THEN
+    RAISE EXCEPTION 'QA398 replay changed the original success event';
+  END IF;
+
+  RAISE NOTICE 'QA398 PASS: semantically equivalent p_attributes JSONB objects with reordered root and nested keys replay the original result without duplicate persisted rows';
+END
+$qa398_attributes_key_order_replay$;
+COMMIT;
+SELECT 'QA398 equivalent JSONB attributes key-order replay preserves the original CREATE_OFFER state' AS result;
