@@ -2,7 +2,7 @@
 
 ## QA410 — omitted p_attributes default versus explicit empty-object replay
 
-**Status:** IMPLEMENTED — pending GitHub Actions validation on the updated PR head.  
+**Status:** CLOSED — QIMA CI [#1442](https://github.com/meridane/QimaTrade-MVP/actions/runs/43606074353) SUCCESS; both PostgreSQL runtime markers and CodeQL [#1390](https://github.com/meridane/QimaTrade-MVP/actions/runs/43606074396) are confirmed.  
 **Target:** PR #26, branch `fix/create-offer-status-contract`  
 **Working branch:** `work/qa410-attributes-default-replay-20261114-2335`  
 **Base commit:** `ee30906835416b731fa835d28b2f44b58fc66425`
@@ -18,6 +18,17 @@
 - Static coverage verifies the migration's declared default, that the first call omits `p_attributes`, that the replay supplies the empty object exactly once, that all other effective arguments are identical, and that Verify/PostgreSQL 16/PostgreSQL 17.6 execute the appropriate checks.
 
 ## Validation state
+
+- QIMA CI [#1442](https://github.com/meridane/QimaTrade-MVP/actions/runs/43606074353) completed SUCCESS.
+- Verify job `132480878981` completed SUCCESS: QA410 static contract, npm audit at the high threshold, TypeScript, Next.js production build and **347/347** Playwright tests passed.
+- PostgreSQL 16 job `132480878934` completed SUCCESS. Its complete log contains exactly one explicit `QA410 PASS` marker from `create-offer-attributes-default-replay.sql`.
+- PostgreSQL 17.6 job `132480878989` completed SUCCESS. Its complete log contains exactly one explicit `QA410 PASS` marker from the same regression.
+- Both complete PostgreSQL jobs also passed CREATE_OFFER integration/concurrency, runner repeat-guard, catalog/replication-slot/settings/extension checks, runner privilege characterization, legacy RLS/ACL checks and cleanup assertions.
+- The two prepared-transaction negative-contract jobs reported their intentionally expected failures; their blocking assertion jobs passed. The deliberately skipped job and its assertion also produced the expected outcome.
+- CodeQL [#1390](https://github.com/meridane/QimaTrade-MVP/actions/runs/43606074396) completed SUCCESS.
+- The combined Vercel status for this HEAD is FAILURE with target `build-rate-limit`; this is a provider capacity/rate-limit result, not evidence of an application compilation failure.
+
+## Safety and decision boundaries
 
 - QA409 prerequisite is CLOSED: QIMA CI [#1441](https://github.com/meridane/QimaTrade-MVP/actions/runs/43603888887) completed SUCCESS.
 - Verify job `132474250490` completed SUCCESS: npm audit at the high threshold, TypeScript, Next.js build and **347/347** Playwright tests passed; QA409 static coverage passed.
