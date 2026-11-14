@@ -2,7 +2,7 @@
 
 ## QA402 — changed optional conditions parameter rejects same-key replay
 
-**Status:** IMPLEMENTED — CI validation pending  
+**Status:** IMPLEMENTED — QA402 static contract PASS in QIMA CI #1426; PostgreSQL runtime pending  
 **Target:** PR #26, branch `fix/create-offer-status-contract`  
 **Working branch:** `work/qa402-conditions-mismatch-replay-20261114-1551`  
 **Base commit:** `3d35831b70744a3fe725dfdeb77831630c5ee9de`
@@ -23,7 +23,9 @@
 - The disposable fixture's `create_offer_v1` stores `p_conditions` in `offers.conditions`.
 - The scenario is appended to `tests/sql/create-offer-runtime.sql`; its static contract is `tests/sql/test-create-offer-conditions-mismatch-replay-contract.sh`.
 - No application code or migration is changed.
-- QA402 remains PENDING until Verify succeeds and both complete PostgreSQL runtime jobs contain the explicit `QA402 PASS` marker.
+- QIMA CI [#1426](https://github.com/meridane/QimaTrade-MVP/actions/runs/43568610148) is running on the current PR HEAD. The QA402 static contract step passed in Verify; npm audit and TypeScript also completed successfully. The Next.js build and both PostgreSQL integration jobs are still running at this checkpoint; no `QA402 PASS` runtime marker is claimed yet.
+- CodeQL [#1374](https://github.com/meridane/QimaTrade-MVP/actions/runs/43568610095) is in progress. Vercel Preview status is pending for this HEAD.
+- QA402 remains PENDING until Verify and both complete PostgreSQL runtime jobs succeed and contain the explicit `QA402 PASS` marker.
 
 ## QA401 prerequisite closure
 
