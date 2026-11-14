@@ -46,7 +46,6 @@ for parameter in \
   "p_quantity => 1::numeric," \
   "p_price => 12::numeric," \
   "p_currency => 'USD'," \
-  "p_conditions => NULL," \
   "p_market => 'fixture-market-default-stable'," \
   "p_geography => NULL," \
   "p_attributes => '{}'::jsonb," \
@@ -56,7 +55,7 @@ for parameter in \
   "p_pricing_model => 'fixture-pricing-model-stable'"; do
   count="$(grep -Fc -- "$parameter" <<< "$BLOCK" || true)"
   [[ "$count" -eq 2 ]] ||
-    fail "all non-attributes effective parameters must remain identical across both calls: $parameter (found $count)"
+    fail "all non-conditions effective parameters must remain identical across both calls: $parameter (found $count)"
 done
 
 for required in \
@@ -134,4 +133,4 @@ grep -Fq 'DATABASE_URL: postgresql://postgres:postgres@localhost:5432/qima_test'
 grep -Fq 'DATABASE_URL: postgresql://postgres:postgres@localhost:5432/qima_test' <<< "$pg17_job" ||
   fail "PostgreSQL 17.6 must use the disposable loopback database"
 
-echo "QA411 static contract PASS: omitting p_conditions applies the declared '{}'::jsonb default and exactly replays an explicit NULL request without duplicate persisted state on PostgreSQL 16 and 17.6."
+echo "QA411 static contract PASS: omitting p_conditions applies the declared NULL::text default and exactly replays an explicit NULL request without duplicate persisted state on PostgreSQL 16 and 17.6."
