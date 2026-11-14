@@ -80,8 +80,44 @@ for expression in \
   [[ "$count" -eq 2 ]] || fail "QA395 must keep all non-name effective parameters identical: $expression (found $count)"
 done
 
-[[ "$(grep -Fc 'DO $qa395_name_mismatch_replay$' "$RUNTIME" || true)" -eq 1 ]] ||
+[[ "$(grep -Fc 'DO $qa395_name_mismatch_replay
+[[ "$(grep -Fc 'QA395 PASS:' "$RUNTIME" || true)" -eq 1 ]] ||
+  fail "QA395 runtime marker must appear exactly once"
+
+if grep -Ein '^[[:space:]]*(INSERT|UPDATE|DELETE|MERGE|CREATE|ALTER|DROP|TRUNCATE|GRANT|REVOKE|COPY)([[:space:]]|;)' \
+  <(sed '/^[[:space:]]*--/d' <<< "$BLOCK"); then
+  fail "QA395 must remain a function-call regression followed by read-only persisted-state assertions"
+fi
+
+job_section() {
+  local target="$1"
+  awk -v target="$target" '
+    $0 == "  " target ":" { inside = 1; next }
+    inside && /^  [[:alnum:]_-]+:$/ { exit }
+    inside { print }
+  ' "$WORKFLOW"
+}
+
+verify_job="$(job_section verify)"
+pg16_job="$(job_section postgres-integration)"
+pg17_job="$(job_section postgres17-create-offer-compatibility)"
+
+[[ "$(grep -Fc 'run: bash tests/sql/test-create-offer-name-mismatch-replay-contract.sh' <<< "$verify_job" || true)" -eq 1 ]] ||
+  fail "Verify must execute QA395 exactly once"
+[[ "$(grep -Fc 'run: bash tests/sql/run-create-offer-integration.sh' <<< "$pg16_job" || true)" -eq 1 ]] ||
+  fail "PostgreSQL 16 shared runtime runner wiring missing"
+[[ "$(grep -Fc 'run: bash tests/sql/run-create-offer-integration.sh' <<< "$pg17_job" || true)" -eq 1 ]] ||
+  fail "PostgreSQL 17.6 shared runtime runner wiring missing"
+grep -Fq 'image: postgres:16' <<< "$pg16_job" ||
+  fail "PostgreSQL 16 service image missing"
+grep -Fq 'image: postgres:17.6' <<< "$pg17_job" ||
+  fail "PostgreSQL 17.6 service image missing"
+
+echo "QA395 PASS: changing a completed CREATE_OFFER name with the same tenant/key raises IDEMPOTENCY_KEY_REUSE and preserves the original four-table persisted state on PostgreSQL 16 and 17.6."
+ "$RUNTIME" || true)" -eq 1 ]] ||
   fail "QA395 runtime block must appear exactly once"
+[[ "$(grep -Fc '$qa395_name_mismatch_replay$;' "$RUNTIME" || true)" -eq 1 ]] ||
+  fail "QA395 dollar-quoted block must close with the matching name-mismatch tag"
 [[ "$(grep -Fc 'QA395 PASS:' "$RUNTIME" || true)" -eq 1 ]] ||
   fail "QA395 runtime marker must appear exactly once"
 

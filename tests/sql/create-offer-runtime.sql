@@ -15756,7 +15756,7 @@ BEGIN
      OR v_original_hash IS NULL
      OR v_original_execution_id IS DISTINCT FROM v_execution_id
      OR v_original_result IS DISTINCT FROM v_first_result THEN
-    RAISE EXCEPTION 'QA395 initial completed idempotency record does not match the original USD result';
+    RAISE EXCEPTION 'QA395 initial completed idempotency record does not match the original-name result';
   END IF;
 
   v_error := NULL;
@@ -15771,9 +15771,9 @@ BEGIN
       p_provider_actor_id => '30000000-0000-4000-8000-000000000001',
       p_quantity => 1::numeric,
       p_price => 12::numeric,
-      p_currency => 'EUR'
+      p_currency => 'USD'
     );
-    RAISE EXCEPTION 'QA395 expected changed-currency replay to be rejected';
+    RAISE EXCEPTION 'QA395 expected changed-name replay to be rejected';
   EXCEPTION WHEN OTHERS THEN
     GET STACKED DIAGNOSTICS v_error = MESSAGE_TEXT;
   END;
@@ -15805,7 +15805,7 @@ BEGIN
     v_after_first.offer_count,
     v_after_first.event_count
   ) THEN
-    RAISE EXCEPTION 'QA395 rejected changed-currency replay altered persisted row counts';
+    RAISE EXCEPTION 'QA395 rejected changed-name replay altered persisted row counts';
   END IF;
 
   SELECT count(*) INTO v_count
@@ -15817,7 +15817,7 @@ BEGIN
     AND execution_id = v_execution_id
     AND result = v_first_result;
   IF v_count <> 1 THEN
-    RAISE EXCEPTION 'QA395 changed-currency replay changed or duplicated the original idempotency record';
+    RAISE EXCEPTION 'QA395 changed-name replay changed or duplicated the original idempotency record';
   END IF;
 
   SELECT count(*) INTO v_count
@@ -15830,7 +15830,7 @@ BEGIN
     AND input = v_input
     AND result = v_first_result;
   IF v_count <> 1 THEN
-    RAISE EXCEPTION 'QA395 changed-currency replay changed or duplicated the original action execution';
+    RAISE EXCEPTION 'QA395 changed-name replay changed or duplicated the original action execution';
   END IF;
 
   SELECT count(*) INTO v_count
@@ -15841,7 +15841,7 @@ BEGIN
     AND price = 12::numeric
     AND currency = 'USD';
   IF v_count <> 1 THEN
-    RAISE EXCEPTION 'QA395 changed-currency replay changed or duplicated the original USD offer';
+    RAISE EXCEPTION 'QA395 changed-name replay changed or duplicated the original-name offer';
   END IF;
 
   SELECT count(*) INTO v_count
@@ -15853,12 +15853,12 @@ BEGIN
     AND object_id = v_offer_id
     AND payload = v_first_result;
   IF v_count <> 1 THEN
-    RAISE EXCEPTION 'QA395 changed-currency replay changed or duplicated the original success event';
+    RAISE EXCEPTION 'QA395 changed-name replay changed or duplicated the original success event';
   END IF;
 
   RAISE NOTICE 'QA395 PASS: changing the offer name on a completed request with the same tenant/key raises IDEMPOTENCY_KEY_REUSE and preserves the original hash, result, offer, execution and event';
 END
-$qa395_currency_mismatch_replay$;
+$qa395_name_mismatch_replay$;
 
 COMMIT;
 SELECT 'QA395 changed-name replay preserves the original CREATE_OFFER state' AS result;

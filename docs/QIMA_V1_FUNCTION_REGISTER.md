@@ -9075,3 +9075,11 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 - QA395 est IMPLEMENTED; validation CI en attente. Aucun code applicatif ni migration n'a été modifié.
 - MKT-1.1 demande/tenant, MKT-1.2 brouillons/idempotence et MKT-1.3 canonicalisation numérique restent non approuvés.
 - Aucune donnée Supabase Production, migration, secret, configuration PostgreSQL persistante, règle de protection, fusion ou déploiement Production n'a été modifié.
+
+## QA395 — correction du scénario avant validation finale (14 novembre 2026)
+
+- La première version QA395 a déclenché QIMA CI [#1409](https://github.com/meridane/QimaTrade-MVP/actions/runs/43532381028). Une revue source après publication a détecté deux défauts de copie du scénario QA394 : l'appel de replay conservait EUR au lieu de USD, et le délimiteur dollar fermant conservait l'ancien nom de scénario.
+- Correction du replay pour garder p_currency = USD dans les deux appels; seul p_name varie désormais. Correction du délimiteur fermant et ajout d'une assertion statique qui vérifie sa correspondance.
+- Correction des messages résiduels qui parlaient encore de devise. Aucun code applicatif, migration ou comportement métier n'a été modifié.
+- CI #1409 n'est pas utilisée comme preuve de validation QA395. Une nouvelle CI sur le commit corrigé doit réussir Verify et les deux jobs PostgreSQL complets.
+- Aucun test synthétique n'est interprété comme preuve d'une vulnérabilité Production. Aucune donnée Supabase Production, secret, configuration PostgreSQL persistante, règle de protection, fusion ou déploiement Production n'a été modifié.

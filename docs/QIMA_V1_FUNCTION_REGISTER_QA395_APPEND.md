@@ -48,3 +48,11 @@ The existing CREATE_OFFER request hash includes name = p_name. QA392–QA394 alr
 - MKT-1.1 demand/tenant ownership, MKT-1.2 independent-draft idempotency semantics and MKT-1.3 numeric canonicalization remain unapproved.
 - No Production deployment, PR merge, force update or branch-protection change was performed.
 - The runtime test uses only disposable PostgreSQL fixtures; synthetic regression evidence is not a finding of a Production vulnerability.
+
+
+## Source review correction before final CI validation (14 November 2026)
+
+- The first QA395 commit started QIMA CI [#1409](https://github.com/meridane/QimaTrade-MVP/actions/runs/43532381028). A post-commit source review caught two template-copy defects before accepting any validation result: the replay call still carried QA394's EUR value, and the closing dollar-quote tag retained the old currency-mismatch name.
+- Corrected the replay currency to USD so p_name is the only changed effective parameter, and corrected the closing dollar-quote delimiter to match the QA395 DO block. Updated the static contract to assert the matching closing delimiter.
+- Also corrected stale error/assertion text that referred to changed currency. No migration, application code or business behavior changed.
+- CI #1409 is not accepted as QA395 validation; a fresh workflow on the corrected commit is required. No result from the first attempt is used to claim QA395 passed.
