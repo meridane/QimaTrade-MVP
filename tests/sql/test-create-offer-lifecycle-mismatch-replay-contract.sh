@@ -144,8 +144,15 @@ echo "QA406 static contract PASS: changing only p_lifecycle with the same tenant
 grep -Fq 'lifecycle text' "$FIXTURE" ||
   fail "disposable offers fixture must expose lifecycle text"
 
-QA415_BLOCK="$(sed -n '/^DO \$qa415_lifecycle_default_replay\$/,/^\$qa415_lifecycle_default_replay\$;/p' "$RUNTIME")"
+QA415_BLOCK="$(sed -n '/^DO \$qa415_lifecycle_default_replay\$$/,/^\$qa415_lifecycle_default_replay\$;/p' "$RUNTIME")"
 [[ -n "$QA415_BLOCK" ]] || fail "runtime is missing the QA415 omitted-lifecycle replay block"
+for required in \
+  "v_key text := 'fixture-qa415-lifecycle-default-replay';" \
+  "v_input jsonb := '{\"case\":\"qa415-lifecycle-default-replay\"}'::jsonb" \
+  "v_offer_name text := 'QA415 Lifecycle Default Replay Offer';"; do
+  grep -Fq -- "$required" <<< "$QA415_BLOCK" ||
+    fail "QA415 fixture identity is inconsistent: $required"
+done[[ -n "$QA415_BLOCK" ]] || fail "runtime is missing the QA415 omitted-lifecycle replay block"
 QA415_FIRST_CALL="$(sed -n '/v_first_result := public.execute_create_offer_v1(/,/^  );/p' <<< "$QA415_BLOCK")"
 QA415_REPLAY_CALL="$(sed -n '/v_replay_result := public.execute_create_offer_v1(/,/^  );/p' <<< "$QA415_BLOCK")"
 [[ -n "$QA415_FIRST_CALL" && -n "$QA415_REPLAY_CALL" ]] || fail "QA415 must contain the initial call and exact replay call"
