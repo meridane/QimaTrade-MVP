@@ -2,7 +2,7 @@
 
 ## QA416 — omission de p_offer_type et replay avec NULL explicite
 
-**Statut : IMPLEMENTED — validation CI en attente sur le nouveau HEAD.**
+**Statut : IMPLEMENTED — Verify SUCCESS ; jobs PostgreSQL complets encore en cours.**
 **Target :** PR #26, branche `fix/create-offer-status-contract`.
 **Branche de travail :** `work/qa416-offer-type-default-replay-20261115-0514`.
 **Commit de base :** `406485815a0560a2f11ddb435186f124b69e26b5`.
@@ -35,7 +35,7 @@
 - La relecture du scénario a détecté que le paramètre non ciblé `p_lifecycle` devait rester explicitement stable dans les deux appels. Le commit `da3ec87ecd1e5df2c5c2d7388e2c021e22f85b53` ajoute `p_lifecycle => NULL` aux deux appels ; seul `p_offer_type` diffère désormais par omission versus NULL explicite.
 - Prévalidation structurale sur le HEAD `da3ec87ecd1e5df2c5c2d7388e2c021e22f85b53` : défaut de signature, mapping du hash, forwarding, omission du premier argument, replay NULL, égalité des autres paramètres, assertions de persistance et absence de DML direct vérifiés.
 - CodeQL [#1397](https://github.com/meridane/QimaTrade-MVP/actions/runs/43636740480) a terminé SUCCESS sur le HEAD précédent `c71bd5a7cf3a039c807024b22757e9f4a58a439b` ; ce résultat n'est pas présenté comme une analyse du commit correctif `da3ec87`.
-- Au moment de cette mise à jour, aucun run QIMA CI n'est encore retourné par l'API Actions pour le HEAD final. Aucun résultat runtime QA416 n'est revendiqué ; PostgreSQL 16, PostgreSQL 17.6, Verify et Playwright restent à confirmer.
+- Cette observation concernait le HEAD précédent et est remplacée par la revalidation documentée ci-dessous.
 
 ## Revalidation on code/workflow HEAD 636acbca15a57832b97bbbe06cdcaa9c301e1850
 
