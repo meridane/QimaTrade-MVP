@@ -9297,13 +9297,22 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 
 ## QA413 — omission de p_geography et replay avec NULL explicite
 
-**Statut : IMPLEMENTED — validation GitHub Actions en attente sur le nouveau HEAD.**
-- La signature existante déclare `p_geography text DEFAULT NULL::text` ; aucune migration n'est modifiée.
-- Le premier appel CREATE_OFFER omet réellement `p_geography` ; les deux appels fournissent explicitement `p_market => NULL` et conservent identiques les autres paramètres.
-- Le replay du même tenant et de la même clé fournit explicitement `p_geography => NULL` et doit retourner exactement le résultat JSON initial.
-- Le scénario vérifie le hash, l'exécution `COMPLETED`, l'offre avec `geography IS NULL`, l'événement `ACTION_SUCCEEDED` et l'absence de doublons dans les quatre tables de persistance.
-- Le contrôle statique vérifie le défaut existant, l'omission réelle, le replay explicite, la stabilité des autres paramètres et les trois points d'intégration CI.
-- Le scénario est branché dans Verify, PostgreSQL 16 et PostgreSQL 17.6 après l'initialisation du fixture jetable.
-- QA412 prerequisite : CLOSED sur QIMA CI [#1446](https://github.com/meridane/QimaTrade-MVP/actions/runs/43615260933), avec les deux marqueurs runtime confirmés.
-- Les résultats QA413 seront consignés après la CI du nouveau HEAD.
+**Statut : CLOSED — QIMA CI [#1447](https://github.com/meridane/QimaTrade-MVP/actions/runs/43622170878) SUCCESS ; Verify, PostgreSQL 16 et PostgreSQL 17.6 terminés. CodeQL [#1394](https://github.com/meridane/QimaTrade-MVP/actions/runs/43622170873) SUCCESS.**
+- La signature existante déclare `p_geography text DEFAULT NULL::text` ; aucune migration n'a été modifiée.
+- Le premier appel nommé omet réellement `p_geography` ; le replay explicite `NULL` retourne exactement le résultat JSON initial et conserve hash, exécution, offre, événement et compteurs des quatre tables.
+- Verify job `132530053097` : QA413 statique, npm audit high, TypeScript, build Next.js et **347/347** tests Playwright réussis.
+- PostgreSQL 16 job `132530053047` : SUCCESS ; exactement un marqueur `QA413 PASS`.
+- PostgreSQL 17.6 job `132530052797` : SUCCESS ; exactement un marqueur `QA413 PASS`.
+- Les deux jobs ont terminé les contrôles complets CREATE_OFFER/concurrence, repeat-guard, catalogue, replication slots, paramètres, ACL, extensions, privilèges, RLS et nettoyage. Les échecs de simulation négative étaient attendus et leurs assertions ont réussi ; le job volontairement skipped a été correctement reconnu.
+- CodeQL [#1394](https://github.com/meridane/QimaTrade-MVP/actions/runs/43622170873) : SUCCESS. Vercel combiné sur le HEAD validé signale `build-rate-limit`, une limitation fournisseur et non une erreur de compilation démontrée.
 - Appendice : [QA413](QIMA_V1_FUNCTION_REGISTER_QA413_APPEND.md).
+
+## QA414 — omission de p_documentation_status et replay avec NULL explicite
+
+**Statut : IMPLEMENTED — validation CI en attente sur le nouveau HEAD.**
+- La signature existante déclare `p_documentation_status text DEFAULT NULL::text` ; aucune migration n'est modifiée.
+- Le premier appel du runtime `create-offer-runtime.sql` omet réellement `p_documentation_status` ; le replay avec la même clé fournit explicitement `p_documentation_status => NULL`.
+- Les autres paramètres restent identiques, notamment `p_geography => NULL`, `p_market => 'fixture-market-stable'` et `p_attributes => '{}'::jsonb`.
+- Le scénario exige le résultat JSON exact, le hash inchangé, l'exécution `COMPLETED`, l'offre avec `documentation_status IS NULL`, l'événement `ACTION_SUCCEEDED` et aucune nouvelle ligne dans les quatre tables de persistance.
+- Le contrôle statique QA414 est ajouté au script QA405 existant déjà exécuté par Verify ; le scénario runtime est intégré au fichier déjà exécuté par le runner PostgreSQL 16 et 17.6. Aucun workflow GitHub n'est modifié.
+- L'appendice [QA414](QIMA_V1_FUNCTION_REGISTER_QA414_APPEND.md) conserve le détail des assertions et le statut pending jusqu'aux résultats CI.
