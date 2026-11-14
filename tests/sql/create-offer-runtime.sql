@@ -17347,7 +17347,7 @@ DECLARE
   v_tenant_id uuid := '10000000-0000-4000-8000-000000000001';
   v_key text := 'fixture-qa403-geography-mismatch';
   v_input jsonb := '{"case":"qa403-geography-mismatch"}'::jsonb;
-  v_offer_name text := 'QA402 Geography Mismatch Offer';
+  v_offer_name text := 'QA403 Geography Mismatch Offer';
   v_original_geography text := 'KR';
   v_replay_geography text := 'US';
   v_first_result jsonb;
@@ -17378,7 +17378,7 @@ BEGIN
   ) OR EXISTS (
     SELECT 1 FROM public.offers WHERE name = v_offer_name
   ) THEN
-    RAISE EXCEPTION 'QA402 fixture data already exists';
+    RAISE EXCEPTION 'QA403 fixture data already exists';
   END IF;
 
   v_first_result := public.execute_create_offer_v1(
@@ -17394,7 +17394,6 @@ BEGIN
     p_currency => 'USD',
     p_geography => v_original_geography,
     p_market => NULL,
-    p_geography => NULL,
     p_attributes => '{}'::jsonb,
     p_documentation_status => NULL,
     p_lifecycle => NULL,
@@ -17407,7 +17406,7 @@ BEGIN
      OR v_first_result->>'objectType' IS DISTINCT FROM 'Offer'
      OR nullif(v_first_result->>'executionId', '') IS NULL
      OR nullif(v_first_result->>'objectId', '') IS NULL THEN
-    RAISE EXCEPTION 'QA402 initial request did not return a complete success result: %',
+    RAISE EXCEPTION 'QA403 initial request did not return a complete success result: %',
       coalesce(v_first_result::text, '<SQL NULL>');
   END IF;
 
@@ -17423,7 +17422,7 @@ BEGIN
      OR v_idempotency_execution_id IS DISTINCT FROM v_execution_id
      OR v_idempotency_status IS DISTINCT FROM 'COMPLETED'
      OR v_idempotency_result IS DISTINCT FROM v_first_result THEN
-    RAISE EXCEPTION 'QA402 initial idempotency record does not match the original request';
+    RAISE EXCEPTION 'QA403 initial idempotency record does not match the original request';
   END IF;
 
   SELECT status, input, result, object_id
@@ -17435,14 +17434,14 @@ BEGIN
      OR v_execution_input IS DISTINCT FROM v_input
      OR v_execution_result IS DISTINCT FROM v_first_result
      OR v_execution_object_id IS DISTINCT FROM v_offer_id THEN
-    RAISE EXCEPTION 'QA402 initial action execution does not match the original request';
+    RAISE EXCEPTION 'QA403 initial action execution does not match the original request';
   END IF;
 
   SELECT geography INTO v_offer_geography
   FROM public.offers
   WHERE id = v_offer_id AND name = v_offer_name;
   IF NOT FOUND OR v_offer_geography IS DISTINCT FROM v_original_geography THEN
-    RAISE EXCEPTION 'QA402 original offer geography were not persisted exactly';
+    RAISE EXCEPTION 'QA403 original offer geography were not persisted exactly';
   END IF;
 
   SELECT payload INTO v_event_payload
@@ -17453,7 +17452,7 @@ BEGIN
     AND object_type = 'Offer'
     AND object_id = v_offer_id;
   IF NOT FOUND OR v_event_payload IS DISTINCT FROM v_first_result THEN
-    RAISE EXCEPTION 'QA402 original success event does not match the persisted result';
+    RAISE EXCEPTION 'QA403 original success event does not match the persisted result';
   END IF;
 
   SELECT
@@ -17466,7 +17465,7 @@ BEGIN
      OR v_after_first.execution_count <> 1
      OR v_after_first.offer_count <> 1
      OR v_after_first.event_count <> 1 THEN
-    RAISE EXCEPTION 'QA402 initial request did not persist exactly one idempotency row, execution, offer and success event';
+    RAISE EXCEPTION 'QA403 initial request did not persist exactly one idempotency row, execution, offer and success event';
   END IF;
 
   BEGIN
@@ -17483,14 +17482,13 @@ BEGIN
       p_currency => 'USD',
       p_geography => v_replay_geography,
       p_market => NULL,
-      p_geography => NULL,
       p_attributes => '{}'::jsonb,
       p_documentation_status => NULL,
       p_lifecycle => NULL,
       p_offer_type => NULL,
       p_pricing_model => NULL
     );
-    RAISE EXCEPTION 'QA402 expected IDEMPOTENCY_KEY_REUSE when only p_geography changes';
+    RAISE EXCEPTION 'QA403 expected IDEMPOTENCY_KEY_REUSE when only p_geography changes';
   EXCEPTION WHEN OTHERS THEN
     IF SQLERRM <> 'IDEMPOTENCY_KEY_REUSE' THEN
       RAISE;
@@ -17499,7 +17497,7 @@ BEGIN
   END;
 
   IF v_replay_error IS DISTINCT FROM 'IDEMPOTENCY_KEY_REUSE' THEN
-    RAISE EXCEPTION 'QA402 changed-geography replay did not return exact IDEMPOTENCY_KEY_REUSE';
+    RAISE EXCEPTION 'QA403 changed-geography replay did not return exact IDEMPOTENCY_KEY_REUSE';
   END IF;
 
   SELECT
@@ -17512,7 +17510,7 @@ BEGIN
      OR v_after_replay.execution_count IS DISTINCT FROM v_after_first.execution_count
      OR v_after_replay.offer_count IS DISTINCT FROM v_after_first.offer_count
      OR v_after_replay.event_count IS DISTINCT FROM v_after_first.event_count THEN
-    RAISE EXCEPTION 'QA402 rejected replay changed persisted row counts';
+    RAISE EXCEPTION 'QA403 rejected replay changed persisted row counts';
   END IF;
 
   SELECT request_hash, execution_id, status, result
@@ -17524,7 +17522,7 @@ BEGIN
      OR v_idempotency_execution_id IS DISTINCT FROM v_execution_id
      OR v_idempotency_status IS DISTINCT FROM 'COMPLETED'
      OR v_idempotency_result IS DISTINCT FROM v_first_result THEN
-    RAISE EXCEPTION 'QA402 rejected replay changed the original idempotency record';
+    RAISE EXCEPTION 'QA403 rejected replay changed the original idempotency record';
   END IF;
 
   SELECT status, input, result, object_id
@@ -17536,14 +17534,14 @@ BEGIN
      OR v_execution_input IS DISTINCT FROM v_input
      OR v_execution_result IS DISTINCT FROM v_first_result
      OR v_execution_object_id IS DISTINCT FROM v_offer_id THEN
-    RAISE EXCEPTION 'QA402 rejected replay changed the original action execution';
+    RAISE EXCEPTION 'QA403 rejected replay changed the original action execution';
   END IF;
 
   SELECT geography INTO v_offer_geography
   FROM public.offers
   WHERE id = v_offer_id AND name = v_offer_name;
   IF NOT FOUND OR v_offer_geography IS DISTINCT FROM v_original_geography THEN
-    RAISE EXCEPTION 'QA402 rejected replay changed the original offer geography';
+    RAISE EXCEPTION 'QA403 rejected replay changed the original offer geography';
   END IF;
 
   SELECT payload INTO v_event_payload
@@ -17554,7 +17552,7 @@ BEGIN
     AND object_type = 'Offer'
     AND object_id = v_offer_id;
   IF NOT FOUND OR v_event_payload IS DISTINCT FROM v_first_result THEN
-    RAISE EXCEPTION 'QA402 rejected replay changed the original success event';
+    RAISE EXCEPTION 'QA403 rejected replay changed the original success event';
   END IF;
 
   RAISE NOTICE 'QA403 PASS: changing only p_geography with the same tenant/idempotency key raises IDEMPOTENCY_KEY_REUSE and preserves the original hash, result, execution, offer and success event';

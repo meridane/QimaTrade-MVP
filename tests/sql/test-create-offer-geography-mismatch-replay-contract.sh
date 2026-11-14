@@ -79,6 +79,10 @@ done
   fail "QA403 must pass the original geography exactly once"
 [[ "$(grep -Fc 'p_geography => v_replay_geography,' <<< "$BLOCK" || true)" -eq 1 ]] ||
   fail "QA403 must pass the changed geography exactly once"
+[[ "$(grep -Fc 'p_geography =>' <<< "$BLOCK" || true)" -eq 2 ]] ||
+  fail "QA403 must pass geography exactly once in each call"
+[[ "$(grep -Fc 'p_geography => NULL,' <<< "$BLOCK" || true)" -eq 0 ]] ||
+  fail "QA403 must not retain an additional default geography argument"
 [[ "$(grep -Fc 'public.execute_create_offer_v1(' <<< "$BLOCK" || true)" -eq 2 ]] ||
   fail "QA403 must contain exactly one initial call and one changed-geography replay"
 [[ "$(grep -Fc 'DO $qa403_geography_mismatch_replay$' "$RUNTIME" || true)" -eq 1 ]] ||
