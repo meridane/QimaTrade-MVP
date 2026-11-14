@@ -17779,3 +17779,223 @@ END
 $qa404_market_mismatch_replay$;
 COMMIT;
 SELECT 'QA404 changed-market replay rejection and original-state preservation' AS result;
+
+-- QA405: changing only p_documentation_status must reject same-key replay.
+DO $qa405_documentation_status_mismatch_replay$
+DECLARE
+  v_tenant_id uuid := '10000000-0000-4000-8000-000000000001';
+  v_key text := 'fixture-qa405-documentation-status-mismatch';
+  v_input jsonb := '{"case":"qa405-documentation-status-mismatch"}'::jsonb;
+  v_offer_name text := 'QA405 Documentation Status Mismatch Offer';
+  v_original_documentation_status text := 'fixture-documentation-status-original';
+  v_replay_documentation_status text := 'fixture-documentation-status-replay';
+  v_first_result jsonb;
+  v_replay_result jsonb;
+  v_replay_error text;
+  v_execution_id uuid;
+  v_offer_id uuid;
+  v_original_hash text;
+  v_replay_hash text;
+  v_idempotency_execution_id uuid;
+  v_idempotency_status text;
+  v_idempotency_result jsonb;
+  v_execution_status text;
+  v_execution_input jsonb;
+  v_execution_result jsonb;
+  v_execution_object_id uuid;
+  v_offer_documentation_status text;
+  v_event_payload jsonb;
+  v_after_first record;
+  v_after_replay record;
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM public.idempotency_keys
+    WHERE tenant_id = v_tenant_id AND key = v_key
+  ) OR EXISTS (
+    SELECT 1 FROM public.action_executions
+    WHERE tenant_id = v_tenant_id AND idempotency_key = v_key
+  ) OR EXISTS (
+    SELECT 1 FROM public.offers WHERE name = v_offer_name
+  ) THEN
+    RAISE EXCEPTION 'QA405 fixture data already exists';
+  END IF;
+
+  v_first_result := public.execute_create_offer_v1(
+    p_tenant_id => v_tenant_id,
+    p_idempotency_key => v_key,
+    p_input => v_input,
+    p_name => v_offer_name,
+    p_demand_id => '50000000-0000-4000-8000-000000000001',
+    p_product_master_id => '40000000-0000-4000-8000-000000000001',
+    p_provider_actor_id => '30000000-0000-4000-8000-000000000001',
+    p_quantity => 1::numeric,
+    p_price => 12::numeric,
+    p_currency => 'USD',
+    p_documentation_status => v_original_documentation_status,
+    p_geography => NULL,
+    p_attributes => '{}'::jsonb,
+    p_market => 'fixture-market-stable',
+    p_lifecycle => NULL,
+    p_offer_type => NULL,
+    p_pricing_model => NULL
+  );
+
+  IF jsonb_typeof(v_first_result) IS DISTINCT FROM 'object'
+     OR v_first_result->>'status' IS DISTINCT FROM 'succeeded'
+     OR v_first_result->>'objectType' IS DISTINCT FROM 'Offer'
+     OR nullif(v_first_result->>'executionId', '') IS NULL
+     OR nullif(v_first_result->>'objectId', '') IS NULL THEN
+    RAISE EXCEPTION 'QA405 initial request did not return a complete success result: %',
+      coalesce(v_first_result::text, '<SQL NULL>');
+  END IF;
+
+  v_execution_id := (v_first_result->>'executionId')::uuid;
+  v_offer_id := (v_first_result->>'objectId')::uuid;
+
+  SELECT request_hash, execution_id, status, result
+  INTO v_original_hash, v_idempotency_execution_id, v_idempotency_status, v_idempotency_result
+  FROM public.idempotency_keys
+  WHERE tenant_id = v_tenant_id AND key = v_key;
+  IF NOT FOUND
+     OR v_original_hash IS NULL
+     OR v_idempotency_execution_id IS DISTINCT FROM v_execution_id
+     OR v_idempotency_status IS DISTINCT FROM 'COMPLETED'
+     OR v_idempotency_result IS DISTINCT FROM v_first_result THEN
+    RAISE EXCEPTION 'QA405 initial idempotency record does not match the original request';
+  END IF;
+
+  SELECT status, input, result, object_id
+  INTO v_execution_status, v_execution_input, v_execution_result, v_execution_object_id
+  FROM public.action_executions
+  WHERE tenant_id = v_tenant_id AND idempotency_key = v_key AND id = v_execution_id;
+  IF NOT FOUND
+     OR v_execution_status IS DISTINCT FROM 'COMPLETED'
+     OR v_execution_input IS DISTINCT FROM v_input
+     OR v_execution_result IS DISTINCT FROM v_first_result
+     OR v_execution_object_id IS DISTINCT FROM v_offer_id THEN
+    RAISE EXCEPTION 'QA405 initial action execution does not match the original request';
+  END IF;
+
+  SELECT documentation_status INTO v_offer_documentation_status
+  FROM public.offers
+  WHERE id = v_offer_id AND name = v_offer_name;
+  IF NOT FOUND OR v_offer_documentation_status IS DISTINCT FROM v_original_documentation_status THEN
+    RAISE EXCEPTION 'QA405 original offer documentation status were not persisted exactly';
+  END IF;
+
+  SELECT payload INTO v_event_payload
+  FROM public.action_events
+  WHERE tenant_id = v_tenant_id
+    AND execution_id = v_execution_id
+    AND event_type = 'ACTION_SUCCEEDED'
+    AND object_type = 'Offer'
+    AND object_id = v_offer_id;
+  IF NOT FOUND OR v_event_payload IS DISTINCT FROM v_first_result THEN
+    RAISE EXCEPTION 'QA405 original success event does not match the persisted result';
+  END IF;
+
+  SELECT
+    (SELECT count(*)::integer FROM public.idempotency_keys WHERE tenant_id = v_tenant_id AND key = v_key) AS idempotency_count,
+    (SELECT count(*)::integer FROM public.action_executions WHERE tenant_id = v_tenant_id AND idempotency_key = v_key) AS execution_count,
+    (SELECT count(*)::integer FROM public.offers WHERE id = v_offer_id) AS offer_count,
+    (SELECT count(*)::integer FROM public.action_events WHERE tenant_id = v_tenant_id AND execution_id = v_execution_id AND event_type = 'ACTION_SUCCEEDED') AS event_count
+  INTO v_after_first;
+  IF v_after_first.idempotency_count <> 1
+     OR v_after_first.execution_count <> 1
+     OR v_after_first.offer_count <> 1
+     OR v_after_first.event_count <> 1 THEN
+    RAISE EXCEPTION 'QA405 initial request did not persist exactly one idempotency row, execution, offer and success event';
+  END IF;
+
+  BEGIN
+    v_replay_result := public.execute_create_offer_v1(
+      p_tenant_id => v_tenant_id,
+      p_idempotency_key => v_key,
+      p_input => v_input,
+      p_name => v_offer_name,
+      p_demand_id => '50000000-0000-4000-8000-000000000001',
+      p_product_master_id => '40000000-0000-4000-8000-000000000001',
+      p_provider_actor_id => '30000000-0000-4000-8000-000000000001',
+      p_quantity => 1::numeric,
+      p_price => 12::numeric,
+      p_currency => 'USD',
+      p_documentation_status => v_replay_documentation_status,
+      p_geography => NULL,
+      p_attributes => '{}'::jsonb,
+      p_market => 'fixture-market-stable',
+      p_lifecycle => NULL,
+      p_offer_type => NULL,
+      p_pricing_model => NULL
+    );
+    RAISE EXCEPTION 'QA405 expected IDEMPOTENCY_KEY_REUSE when only p_documentation_status changes';
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM <> 'IDEMPOTENCY_KEY_REUSE' THEN
+      RAISE;
+    END IF;
+    v_replay_error := SQLERRM;
+  END;
+
+  IF v_replay_error IS DISTINCT FROM 'IDEMPOTENCY_KEY_REUSE' THEN
+    RAISE EXCEPTION 'QA405 changed-documentation-status replay did not return exact IDEMPOTENCY_KEY_REUSE';
+  END IF;
+
+  SELECT
+    (SELECT count(*)::integer FROM public.idempotency_keys WHERE tenant_id = v_tenant_id AND key = v_key) AS idempotency_count,
+    (SELECT count(*)::integer FROM public.action_executions WHERE tenant_id = v_tenant_id AND idempotency_key = v_key) AS execution_count,
+    (SELECT count(*)::integer FROM public.offers WHERE id = v_offer_id) AS offer_count,
+    (SELECT count(*)::integer FROM public.action_events WHERE tenant_id = v_tenant_id AND execution_id = v_execution_id AND event_type = 'ACTION_SUCCEEDED') AS event_count
+  INTO v_after_replay;
+  IF v_after_replay.idempotency_count IS DISTINCT FROM v_after_first.idempotency_count
+     OR v_after_replay.execution_count IS DISTINCT FROM v_after_first.execution_count
+     OR v_after_replay.offer_count IS DISTINCT FROM v_after_first.offer_count
+     OR v_after_replay.event_count IS DISTINCT FROM v_after_first.event_count THEN
+    RAISE EXCEPTION 'QA405 rejected replay changed persisted row counts';
+  END IF;
+
+  SELECT request_hash, execution_id, status, result
+  INTO v_replay_hash, v_idempotency_execution_id, v_idempotency_status, v_idempotency_result
+  FROM public.idempotency_keys
+  WHERE tenant_id = v_tenant_id AND key = v_key;
+  IF NOT FOUND
+     OR v_replay_hash IS DISTINCT FROM v_original_hash
+     OR v_idempotency_execution_id IS DISTINCT FROM v_execution_id
+     OR v_idempotency_status IS DISTINCT FROM 'COMPLETED'
+     OR v_idempotency_result IS DISTINCT FROM v_first_result THEN
+    RAISE EXCEPTION 'QA405 rejected replay changed the original idempotency record';
+  END IF;
+
+  SELECT status, input, result, object_id
+  INTO v_execution_status, v_execution_input, v_execution_result, v_execution_object_id
+  FROM public.action_executions
+  WHERE tenant_id = v_tenant_id AND idempotency_key = v_key AND id = v_execution_id;
+  IF NOT FOUND
+     OR v_execution_status IS DISTINCT FROM 'COMPLETED'
+     OR v_execution_input IS DISTINCT FROM v_input
+     OR v_execution_result IS DISTINCT FROM v_first_result
+     OR v_execution_object_id IS DISTINCT FROM v_offer_id THEN
+    RAISE EXCEPTION 'QA405 rejected replay changed the original action execution';
+  END IF;
+
+  SELECT documentation_status INTO v_offer_documentation_status
+  FROM public.offers
+  WHERE id = v_offer_id AND name = v_offer_name;
+  IF NOT FOUND OR v_offer_documentation_status IS DISTINCT FROM v_original_documentation_status THEN
+    RAISE EXCEPTION 'QA405 rejected replay changed the original offer documentation status';
+  END IF;
+
+  SELECT payload INTO v_event_payload
+  FROM public.action_events
+  WHERE tenant_id = v_tenant_id
+    AND execution_id = v_execution_id
+    AND event_type = 'ACTION_SUCCEEDED'
+    AND object_type = 'Offer'
+    AND object_id = v_offer_id;
+  IF NOT FOUND OR v_event_payload IS DISTINCT FROM v_first_result THEN
+    RAISE EXCEPTION 'QA405 rejected replay changed the original success event';
+  END IF;
+
+  RAISE NOTICE 'QA405 PASS: changing only p_documentation_status with the same tenant/idempotency key raises IDEMPOTENCY_KEY_REUSE and preserves the original hash, result, execution, offer and success event';
+END
+$qa405_documentation_status_mismatch_replay$;
+COMMIT;
+SELECT 'QA405 changed-documentation-status replay rejection and original-state preservation' AS result;
