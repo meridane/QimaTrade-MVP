@@ -36,3 +36,13 @@
 - Prévalidation structurale sur le HEAD `da3ec87ecd1e5df2c5c2d7388e2c021e22f85b53` : défaut de signature, mapping du hash, forwarding, omission du premier argument, replay NULL, égalité des autres paramètres, assertions de persistance et absence de DML direct vérifiés.
 - CodeQL [#1397](https://github.com/meridane/QimaTrade-MVP/actions/runs/43636740480) a terminé SUCCESS sur le HEAD précédent `c71bd5a7cf3a039c807024b22757e9f4a58a439b` ; ce résultat n'est pas présenté comme une analyse du commit correctif `da3ec87`.
 - Au moment de cette mise à jour, aucun run QIMA CI n'est encore retourné par l'API Actions pour le HEAD final. Aucun résultat runtime QA416 n'est revendiqué ; PostgreSQL 16, PostgreSQL 17.6, Verify et Playwright restent à confirmer.
+
+## Revalidation on code/workflow HEAD 636acbca15a57832b97bbbe06cdcaa9c301e1850
+
+- QIMA CI [run 43644473687](https://github.com/meridane/QimaTrade-MVP/actions/runs/43644473687) is still IN_PROGRESS at this update.
+- Verify job `132599046989` completed SUCCESS. The logs contain exactly one `QA416 static contract PASS` and one `QA417 static contract PASS`; npm audit at the high threshold, TypeScript, Next.js production build and Playwright **347/347** also succeeded.
+- PostgreSQL 16 job `132599046809`: the CREATE_OFFER integration/concurrency runner step completed SUCCESS; the separate product-master, attributes, conditions, market and geography replay steps also completed SUCCESS. The full runner-privilege, RLS/ACL and cleanup tail remains in progress.
+- PostgreSQL 17.6 job `132599047040`: the CREATE_OFFER integration/concurrency runner step and the same separate replay steps completed SUCCESS; the full runner-privilege, RLS/ACL and cleanup tail remains in progress.
+- QA416 and QA417 runtime blocks are both in `create-offer-runtime.sql`, executed by the successful integration runner step on each version. Exact `QA416 PASS` / `QA417 PASS` marker counts are not claimed until the complete job logs are available.
+- CodeQL [run 43644473682](https://github.com/meridane/QimaTrade-MVP/actions/runs/43644473682) completed SUCCESS. The combined Vercel status on this code/workflow HEAD is SUCCESS.
+- This appendix-only update does not alter the code/workflow HEAD validated by the active QIMA CI run.
