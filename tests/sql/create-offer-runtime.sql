@@ -19273,7 +19273,7 @@ BEGIN
   FROM public.offers
   WHERE id = v_offer_id AND name = v_offer_name;
   IF NOT FOUND OR v_offer_type IS NOT NULL THEN
-    RAISE EXCEPTION 'QA416 explicit-default replay changed the original offer offer_type';
+    RAISE EXCEPTION 'QA416 explicit-default replay changed the original offer type';
   END IF;
 
   SELECT payload INTO v_event_payload
