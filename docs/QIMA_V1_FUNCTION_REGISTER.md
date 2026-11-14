@@ -9349,3 +9349,16 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 - Aucun run QIMA CI n'est encore retourné par l'API Actions pour le HEAD final ; aucun résultat runtime QA416 n'est revendiqué.
 - Appendice : [QA416](QIMA_V1_FUNCTION_REGISTER_QA416_APPEND.md).
 
+## QA417 — omission de p_pricing_model et replay avec NULL explicite
+
+**Statut : IMPLEMENTED — validation QIMA CI en attente sur le nouveau HEAD.**
+- La signature existante déclare `p_pricing_model text DEFAULT NULL::text` ; le hash contient déjà `'pricingModel', p_pricing_model` et la valeur est transmise à `create_offer_v1`. Aucune migration n'est modifiée.
+- Le premier appel CREATE_OFFER omet réellement `p_pricing_model` ; le replay avec le même tenant et la même clé fournit explicitement `p_pricing_model => NULL`.
+- `p_offer_type => 'fixture-offer-type-stable'` et tous les autres paramètres effectifs restent identiques dans les deux appels.
+- Le scénario exige le résultat JSON exact, le hash inchangé, l'exécution `COMPLETED`, `offers.pricing_model IS NULL`, l'événement `ACTION_SUCCEEDED` et l'absence de doublons dans `idempotency_keys`, `action_executions`, `offers` et `action_events`.
+- Le contrôle statique QA417 est `tests/sql/test-create-offer-pricing-model-default-replay-contract.sh` ; il vérifie le défaut, le hash, le forwarding, l'omission/replay, les paramètres non ciblés stables, les assertions read-only et le wiring Verify/PostgreSQL 16/PostgreSQL 17.6.
+- La relecture a découvert que le workflow contenait une seconde clé YAML `run:` sous le step QA415 modifié, au lieu d'un step QA416 distinct. Le workflow sépare désormais explicitement les steps QA416 et QA417 ; le contrôle statique QA416 exige son nom de step et le contrôle QA417 vérifie les deux câblages.
+- Le runtime est ajouté à `tests/sql/create-offer-runtime.sql`, exécuté par les runners PostgreSQL existants.
+- QA416 demeure en attente de validation QIMA CI ; le nouveau run doit valider QA416 et QA417 ensemble sur le HEAD corrigé.
+- Aucun résultat runtime QA417 n'est revendiqué avant les marqueurs exacts des journaux PostgreSQL 16 et 17.6.
+- Appendice : [QA417](QIMA_V1_FUNCTION_REGISTER_QA417_APPEND.md).
