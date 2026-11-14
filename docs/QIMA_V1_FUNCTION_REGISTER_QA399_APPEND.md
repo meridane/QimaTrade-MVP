@@ -29,7 +29,9 @@
 - Correction: remove the unrelated global baseline and assert exactly one row in each QA399-scoped persistence query after the first call; the existing fixture-absence guard and post-replay equality checks remain. The static contract now rejects any `v_before` reference and requires all four exact-one assertions.
 - QIMA CI [#1418](https://github.com/meridane/QimaTrade-MVP/actions/runs/43555387436) also completed FAILURE. Verify rejected the still-present QA399 `v_before` declaration; both PostgreSQL jobs failed earlier in the shared SQL runner because a broad first-occurrence replacement had removed the unrelated `v_before` declaration from QA91. The logs report `"v_before" is not a known variable` in `qa91_integrity`. This was an editing-scope defect in the regression test, not an application or Production failure.
 - Correction: scope the edit to the exact dollar-quoted blocks. Restore `v_before record;` in QA91, remove it only from QA399, and add static assertions that QA91 retains its declaration/baseline read while QA399 contains no `v_before` reference.
-- A new CI run on this targeted correction is required. Keep QA399 PENDING until Verify, both complete PostgreSQL jobs and the QA399 runtime marker in both logs succeed.
+- QIMA CI [#1419](https://github.com/meridane/QimaTrade-MVP/actions/runs/43555517101) was triggered on the targeted correction commit `6f2afc94cb093a0a969b0d81c9e0ba3327ea1a5f`. The QA399 static Verify step completed SUCCESS. At the latest check, the PostgreSQL 16 and PostgreSQL 17.6 integration steps had not started; npm audit, TypeScript, build and browser smoke tests were still pending.
+- CodeQL [#1367](https://github.com/meridane/QimaTrade-MVP/actions/runs/43555517063) was IN_PROGRESS. The Vercel status for this HEAD was FAILURE with the target `build-rate-limit`; no Preview readiness is claimed. This is an external Preview build quota/plan limit, not a source-code test result, and no billing or account setting was changed.
+- Keep QA399 PENDING until Verify and both complete PostgreSQL jobs succeed and both runtime logs contain the QA399 marker.
 
 ## Safety and decision boundaries
 
