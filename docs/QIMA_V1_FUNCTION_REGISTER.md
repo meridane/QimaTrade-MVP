@@ -9105,5 +9105,15 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 - Nouveau scénario : premier appel avec p_input = {"alpha":"one","beta":"two"}, puis replay avec les mêmes paires clé/valeur dans l'ordre source inverse.
 - Le test exige l'égalité JSONB et la même représentation canonique jsonb::text, puis le retour exact du résultat initial sans nouvelle écriture dans idempotency_keys, action_executions, offers ou action_events.
 - Le scénario n'utilise aucune valeur numérique et ne tranche donc pas MKT-1.3 sur la canonicalisation numérique.
-- Contrat statique ajouté à Verify; les jobs PostgreSQL 16 et 17.6 réutilisent le runner d'intégration isolé. QA397 reste PENDING jusqu'au succès complet de ces jobs et à la présence du marqueur runtime dans les deux journaux.
+- QIMA CI [#1414](https://github.com/meridane/QimaTrade-MVP/actions/runs/43540736504) a terminé SUCCESS : Verify, PostgreSQL 16 et PostgreSQL 17.6 ont tous terminé SUCCESS; les deux journaux runtime contiennent le marqueur QA397 PASS. Verify a également terminé npm audit, TypeScript, build Next.js et 347/347 tests Playwright avec succès; CodeQL [#1362](https://github.com/meridane/QimaTrade-MVP/actions/runs/43540736452) a terminé SUCCESS et le Preview Vercel du HEAD validé était Ready. QA397 est CLOSED.
+- Aucun code applicatif, migration, donnée Supabase Production, secret, configuration PostgreSQL persistante, règle de protection, fusion ou déploiement Production n'a été modifié.
+
+
+## QA398 — replay JSONB équivalent pour p_attributes avec ordre des clés différent (PENDING CI)
+
+- Nouveau scénario : premier appel avec `p_attributes = {"alpha":"one","meta":{"x":"1","y":"2"},"beta":"two"}`, puis replay avec les mêmes paires clé/valeur et les clés racines et imbriquées réordonnées.
+- Le test exige l'égalité JSONB et la même représentation canonique `jsonb::text`, puis le retour exact du résultat initial sans nouvelle écriture dans `idempotency_keys`, `action_executions`, `offers` ou `action_events`.
+- Il vérifie que le hash, le résultat d'idempotence, l'exécution terminée, les attributs de l'offre et l'événement de succès restent inchangés.
+- Le scénario utilise uniquement des valeurs textuelles et ne tranche pas MKT-1.3 sur la canonicalisation numérique.
+- Contrat statique ajouté à Verify; les jobs PostgreSQL 16 et 17.6 réutilisent le runner d'intégration isolé. QA398 reste PENDING jusqu'au succès complet de ces jobs et à la présence du marqueur runtime dans les deux journaux.
 - Aucun code applicatif, migration, donnée Supabase Production, secret, configuration PostgreSQL persistante, règle de protection, fusion ou déploiement Production n'a été modifié.
