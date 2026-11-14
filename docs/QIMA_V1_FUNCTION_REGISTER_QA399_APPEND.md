@@ -24,7 +24,9 @@
 - This scenario uses text-only array elements and does not test numeric lexical canonicalization or change MKT-1.3.
 - No migration or application code is changed.
 - Runtime SQL is appended to `tests/sql/create-offer-runtime.sql`; static contract is `tests/sql/test-create-offer-attributes-array-order-replay-contract.sh`.
-- Do not mark QA399 CLOSED until Verify, the full PostgreSQL 16 job and the full PostgreSQL 17.6 job succeed and both runtime logs contain the QA399 marker.
+- QIMA CI [#1416](https://github.com/meridane/QimaTrade-MVP/actions/runs/43555179600) was triggered on code commit `9795c3328b113fd4a9aff7c0a9c357d82edfe4db`. The Verify step `Verify CREATE_OFFER JSONB array-order change rejects replay and preserves original state` completed SUCCESS. At the latest check, the PostgreSQL 17.6 CREATE_OFFER runtime step was in progress; the PostgreSQL 16 runtime step had not started; the Verify job had reached the production build and browser tests remained pending.
+- CodeQL [#1364](https://github.com/meridane/QimaTrade-MVP/actions/runs/43555179638) was IN_PROGRESS and the Vercel status for this HEAD was PENDING at the same checkpoint. These are intermediate states, not final validation.
+- Keep QA399 PENDING until Verify, both complete PostgreSQL jobs and the QA399 runtime marker in both logs succeed.
 
 ## Safety and decision boundaries
 
