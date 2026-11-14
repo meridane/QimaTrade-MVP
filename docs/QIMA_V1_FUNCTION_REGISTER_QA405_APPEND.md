@@ -2,7 +2,7 @@
 
 ## QA405 — changed p_documentation_status replay rejection
 
-**Status:** IMPLEMENTED — pending GitHub Actions validation on the updated PR head.  
+**Status:** CLOSED — QIMA CI [#43583865145](https://github.com/meridane/QimaTrade-MVP/actions/runs/43583865145) completed SUCCESS on checkpoint commit `b2d4213ec84d0277ff334aff8fa99cace9f24bc2`; Verify, both full PostgreSQL jobs, CodeQL and explicit QA405 runtime markers are confirmed successful.  
 **Target:** PR #26, branch `fix/create-offer-status-contract`  
 **Working branch:** `work/qa405-documentation-status-mismatch-replay-20261114-1904`  
 **Base commit:** `4fb984510621dd38ad2e9273fd5373eff07624cf`
@@ -24,7 +24,12 @@
 - The runtime scenario is appended to `tests/sql/create-offer-runtime.sql`; its static contract is `tests/sql/test-create-offer-documentation-status-mismatch-replay-contract.sh`.
 - The Verify workflow invokes the static contract exactly once; both PostgreSQL jobs use the existing isolated CREATE_OFFER integration runner.
 - QA404 prerequisite is CLOSED: QIMA CI [#43577222315](https://github.com/meridane/QimaTrade-MVP/actions/runs/43577222315) completed SUCCESS; both full PostgreSQL jobs contain one explicit QA404 marker; CodeQL [#43577222369](https://github.com/meridane/QimaTrade-MVP/actions/runs/43577222369) completed SUCCESS.
-- QA405 validation will be recorded after the updated PR head starts GitHub Actions.
+- QIMA CI [#43583865145](https://github.com/meridane/QimaTrade-MVP/actions/runs/43583865145) completed SUCCESS. Verify passed all static contracts, npm audit at the configured high threshold, TypeScript, Next.js production build and **347/347** Playwright tests.
+- The complete PostgreSQL 16 job completed SUCCESS; its log contains exactly one explicit `QA405 PASS` marker and the remaining privilege, catalog, ACL, RLS and cleanup assertions completed.
+- The complete PostgreSQL 17.6 job completed SUCCESS; its log contains exactly one explicit `QA405 PASS` marker and the remaining privilege, catalog, ACL, RLS and cleanup assertions completed.
+- CodeQL [#43583865161](https://github.com/meridane/QimaTrade-MVP/actions/runs/43583865161) completed SUCCESS.
+- The combined Vercel status for checkpoint commit `b2d4213ec84d0277ff334aff8fa99cace9f24bc2` completed SUCCESS.
+- QA405 is CLOSED; this remains a regression characterization of the existing request-hash field, not a finding of a Production vulnerability.
 
 ## Safety and decision boundaries
 
