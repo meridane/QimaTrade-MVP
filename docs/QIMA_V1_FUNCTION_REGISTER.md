@@ -9216,9 +9216,19 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 
 ## QA406 — changement de p_lifecycle lors d'un replay
 
-**Statut : IMPLEMENTED — validation GitHub Actions en attente sur le nouveau HEAD.**
-- Le scénario utilise des libellés lifecycle synthétiques dans les fixtures PostgreSQL jetables et ne définit aucune taxonomie de production.
-- Le replay avec un `p_lifecycle` différent doit produire `IDEMPOTENCY_KEY_REUSE` et préserver les quatre tables.
-- Le contrôle statique est intégré à Verify et le scénario runtime est exécuté par les runners PostgreSQL 16 et 17.6.
+**Statut : CLOSED — CI #43586652941 SUCCESS.** Verify, PostgreSQL 16 et 17.6, les deux marqueurs explicites `QA406 PASS`, CodeQL #43586652920 et les contrôles applicatifs sont confirmés.
+- Verify a réussi : contrats statiques, npm audit au seuil high, TypeScript, build Next.js et **347/347** tests Playwright.
+- Les jobs complets PostgreSQL 16 et 17.6 ont terminé SUCCESS ; chaque journal contient exactement un marqueur `QA406 PASS`.
+- Les contrôles complémentaires du catalogue, des replication slots, des paramètres locaux, ACL, RLS, privilèges du runner et nettoyage ont terminé SUCCESS.
+- CodeQL #43586652920 a terminé SUCCESS.
+- Le statut Vercel du HEAD documentaire est `build-rate-limit`, une limitation de quota fournisseur ; aucun échec de compilation applicative n'est déduit et aucun Preview Ready n'est revendiqué pour ce HEAD.
 - Appendice : [QA406](QIMA_V1_FUNCTION_REGISTER_QA406_APPEND.md).
 
+## QA407 — changement de p_offer_type lors d'un replay
+
+**Statut : IMPLEMENTED — validation GitHub Actions en attente sur le nouveau HEAD.**
+- Le scénario utilise des libellés offer type synthétiques dans les fixtures PostgreSQL jetables ; il ne définit ni n'approuve une taxonomie de production.
+- Le replay avec un `p_offer_type` différent et la même clé doit produire `IDEMPOTENCY_KEY_REUSE` et préserver le hash, le résultat, l'exécution, l'offre et l'événement initiaux.
+- Le fixture expose `offers.offer_type` comme texte et le test vérifie également que la migration transmet le paramètre à `create_offer_v1`.
+- Le contrôle statique est intégré à Verify ; le scénario runtime est exécuté par les runners PostgreSQL 16 et 17.6.
+- Appendice : [QA407](QIMA_V1_FUNCTION_REGISTER_QA407_APPEND.md).

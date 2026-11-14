@@ -101,6 +101,8 @@ jobs:
         run: bash tests/sql/test-create-offer-documentation-status-mismatch-replay-contract.sh
       - name: Verify CREATE_OFFER lifecycle replay contract
         run: bash tests/sql/test-create-offer-lifecycle-mismatch-replay-contract.sh
+      - name: Verify CREATE_OFFER changed-offer-type replay preserves original state
+        run: bash tests/sql/test-create-offer-offer-type-mismatch-replay-contract.sh
       - name: Verify numeric replay fixture keys and PostgreSQL runner isolation
         run: bash tests/sql/test-create-offer-fixture-isolation-contract.sh
       - name: Verify CREATE_OFFER bootstrap preflight covers extension-aware catalog objects

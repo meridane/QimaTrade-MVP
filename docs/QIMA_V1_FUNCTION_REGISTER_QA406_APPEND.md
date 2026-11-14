@@ -2,7 +2,7 @@
 
 ## QA406 — changed p_lifecycle replay rejection
 
-**Status:** IMPLEMENTED — pending GitHub Actions validation on the updated PR head.  
+**Status:** CLOSED — QIMA CI [#43586652941](https://github.com/meridane/QimaTrade-MVP/actions/runs/43586652941) completed SUCCESS; both full PostgreSQL jobs and both explicit runtime markers are confirmed.  
 **Target:** PR #26, branch `fix/create-offer-status-contract`  
 **Working branch:** `work/qa406-lifecycle-mismatch-replay-20261114-1940`  
 **Base commit:** `b2d4213ec84d0277ff334aff8fa99cace9f24bc2`
@@ -24,7 +24,10 @@
 - The runtime scenario is appended to `tests/sql/create-offer-runtime.sql`; its static contract is `tests/sql/test-create-offer-lifecycle-mismatch-replay-contract.sh`.
 - The Verify workflow invokes the static contract exactly once; both PostgreSQL jobs use the existing isolated CREATE_OFFER integration runner.
 - QA405 prerequisite is CLOSED: QIMA CI [#43583865145](https://github.com/meridane/QimaTrade-MVP/actions/runs/43583865145) completed SUCCESS; both full PostgreSQL jobs contain one explicit QA405 marker; CodeQL [#43583865161](https://github.com/meridane/QimaTrade-MVP/actions/runs/43583865161) completed SUCCESS.
-- QA406 validation will be recorded after the updated PR head starts GitHub Actions.
+- QIMA CI #43586652941 / run #1438 completed SUCCESS. Verify, npm audit at the configured high threshold, TypeScript, Next.js production build and Playwright **347/347** all passed.
+- PostgreSQL 16 and PostgreSQL 17.6 full jobs completed SUCCESS; each runtime log contains exactly one `QA406 PASS` marker. Catalog, replication-slot, database settings, ACL, RLS, cleanup and runner-privilege checks also completed successfully.
+- CodeQL [#43586652920](https://github.com/meridane/QimaTrade-MVP/actions/runs/43586652920) completed SUCCESS.
+- The combined Vercel status for this documentation-only PR head is `build-rate-limit`; this is a provider quota result, not a failed application build. No Preview Ready is claimed for this head.
 
 ## Safety and decision boundaries
 
