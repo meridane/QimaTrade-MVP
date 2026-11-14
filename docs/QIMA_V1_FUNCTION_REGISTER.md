@@ -9193,3 +9193,32 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 - Vercel Preview for corrected code commit `f388d16d5290649a0a23598f47dbbfb240c3b891` is READY: [Preview deployment](https://vercel.com/bmk1/qimatrade-mvp/GVxk2iuveiK4ne8n4bE5dbJUtYLB). The later documentation-only checkpoint HEAD has a combined Vercel status of `build-rate-limit`; no separate Preview Ready is claimed for that docs-only HEAD.
 - Runtime scope is disposable CI only. No Supabase Production data, schema, grants, secrets or persistent settings are accessed or modified; no Production deployment, PR merge, force-push or branch-protection change is performed.
 - MKT-1.1 demand/tenant ownership, MKT-1.2 independent-draft idempotency semantics and MKT-1.3 numeric canonicalization remain subject to business approval.
+
+
+---
+
+## QA404 — changement de p_market lors d'un replay
+
+**Statut : CLOSED — CI #43577222315 SUCCESS.** Verify, PostgreSQL 16 et 17.6, les deux marqueurs explicites `QA404 PASS`, CodeQL #43577222369 et les contrôles applicatifs sont confirmés.  
+- Le replay avec un `p_market` différent et la même clé est rejeté par `IDEMPOTENCY_KEY_REUSE`.
+- L'état initial des quatre tables `idempotency_keys`, `action_executions`, `offers` et `action_events` est préservé.
+- Le statut Vercel `build-rate-limit` observé sur le checkpoint documentaire est une limitation de capacité du fournisseur, pas un échec de compilation démontré.
+- Appendice : [QA404](QIMA_V1_FUNCTION_REGISTER_QA404_APPEND.md).
+
+## QA405 — changement de p_documentation_status lors d'un replay
+
+**Statut : CLOSED — CI #43583865145 SUCCESS sur le commit `b2d4213ec84d0277ff334aff8fa99cace9f24bc2`.**
+- Verify a réussi : contrats statiques, npm audit au seuil high, TypeScript, build Next.js et **347/347** tests Playwright.
+- Les jobs complets PostgreSQL 16 et 17.6 ont terminé SUCCESS ; chaque journal contient exactement un marqueur `QA405 PASS`.
+- CodeQL #43583865161 et le statut combiné Vercel ont terminé SUCCESS.
+- Le replay avec un `p_documentation_status` différent et la même clé est rejeté ; le hash, le résultat, l'exécution, l'offre et l'événement initiaux restent inchangés.
+- Appendice : [QA405](QIMA_V1_FUNCTION_REGISTER_QA405_APPEND.md).
+
+## QA406 — changement de p_lifecycle lors d'un replay
+
+**Statut : IMPLEMENTED — validation GitHub Actions en attente sur le nouveau HEAD.**
+- Le scénario utilise des libellés lifecycle synthétiques dans les fixtures PostgreSQL jetables et ne définit aucune taxonomie de production.
+- Le replay avec un `p_lifecycle` différent doit produire `IDEMPOTENCY_KEY_REUSE` et préserver les quatre tables.
+- Le contrôle statique est intégré à Verify et le scénario runtime est exécuté par les runners PostgreSQL 16 et 17.6.
+- Appendice : [QA406](QIMA_V1_FUNCTION_REGISTER_QA406_APPEND.md).
+
