@@ -9177,7 +9177,7 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 
 ## QA403 — changed p_geography replay rejection
 
-**Status:** IMPLEMENTED — corrected QA403 static Verify PASS in CI #43575168210; PostgreSQL 16/17.6 runtime and Playwright remain in progress.
+**Status:** IMPLEMENTED — QA403 static Verify, npm audit, TypeScript, production build and 347 Playwright tests PASS in CI #43575168210; full PostgreSQL 16/17.6 jobs remain in final characterization.
 
 - The new disposable runtime scenario creates an offer with `p_geography = 'KR'`, then retries the same tenant/key with only `p_geography` changed to `'US'`.
 - The existing migration hashes `'geography', p_geography`; the expected result is exact `IDEMPOTENCY_KEY_REUSE` before new persistence.
@@ -9187,9 +9187,9 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 - No application code or migration is changed.
 - QIMA CI [#43574871835](https://github.com/meridane/QimaTrade-MVP/actions/runs/43574871835) first failed Verify because the copied QA403 block still emitted a second `QA402 PASS` marker; the marker was corrected in commit `9abe4980e7731132b7d7ffd25cf53eed2f6693a7`.
 - QIMA CI [#43574996910](https://github.com/meridane/QimaTrade-MVP/actions/runs/43574996910) passed the QA403 static contract, but both PostgreSQL runtime jobs failed before the function call with `argument name "p_geography" used more than once`. The copied QA402 template retained an unchanged `p_geography => NULL` argument after changing the tested parameter to geography. This is a test-fixture defect, not an application failure or evidence of a Production vulnerability. The duplicate argument is removed in the follow-up commit, and the static contract now asserts exactly two geography arguments and no additional NULL geography argument.
-- QIMA CI [#43575168210](https://github.com/meridane/QimaTrade-MVP/actions/runs/43575168210) on corrected code commit `f388d16d5290649a0a23598f47dbbfb240c3b891` passed the QA403 static contract, npm audit, TypeScript and Next.js production build. Playwright Chromium installation was still in progress at the checkpoint, so browser tests are not yet claimed.
-- PostgreSQL 16 and PostgreSQL 17.6 jobs both reached the isolated CREATE_OFFER integration/concurrency step and were still running at the checkpoint. No `QA403 PASS` runtime marker is claimed yet.
+- QIMA CI [#43575168210](https://github.com/meridane/QimaTrade-MVP/actions/runs/43575168210) on corrected code commit `f388d16d5290649a0a23598f47dbbfb240c3b891` completed the Verify/typecheck/audit/build/browser job with SUCCESS. The QA403 static contract passed, npm audit at the configured high threshold passed, TypeScript and Next.js production build passed, and Playwright completed **347/347**.
+- The full PostgreSQL 16 and PostgreSQL 17.6 jobs both passed the CREATE_OFFER integration/concurrency step and continued through final runner privilege, catalog, ACL and database-setting characterizations. They were still in progress at the latest check; no `QA403 PASS` runtime marker is claimed yet.
 - CodeQL [#43575168238](https://github.com/meridane/QimaTrade-MVP/actions/runs/43575168238) completed SUCCESS for corrected code commit `f388d16d5290649a0a23598f47dbbfb240c3b891`.
-- Vercel Preview for corrected code commit `f388d16d5290649a0a23598f47dbbfb240c3b891` is READY: [Preview deployment](https://vercel.com/bmk1/qimatrade-mvp/GVxk2iuveiK4ne8n4bE5dbJUtYLB).
+- Vercel Preview for corrected code commit `f388d16d5290649a0a23598f47dbbfb240c3b891` is READY: [Preview deployment](https://vercel.com/bmk1/qimatrade-mvp/GVxk2iuveiK4ne8n4bE5dbJUtYLB). The later documentation-only checkpoint HEAD has a combined Vercel status of `build-rate-limit`; no separate Preview Ready is claimed for that docs-only HEAD.
 - Runtime scope is disposable CI only. No Supabase Production data, schema, grants, secrets or persistent settings are accessed or modified; no Production deployment, PR merge, force-push or branch-protection change is performed.
 - MKT-1.1 demand/tenant ownership, MKT-1.2 independent-draft idempotency semantics and MKT-1.3 numeric canonicalization remain subject to business approval.
