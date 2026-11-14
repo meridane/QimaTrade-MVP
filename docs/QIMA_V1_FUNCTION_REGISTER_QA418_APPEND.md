@@ -2,7 +2,7 @@
 
 ## QA418 — changement de p_demand_id lors d'un replay
 
-**Statut : IMPLEMENTED — prévalidation structurelle terminée ; CI déclenchée après publication, validation runtime en attente.**  
+**Statut : CLOSED — QIMA CI [#1469](https://github.com/meridane/QimaTrade-MVP/actions/runs/43652436722) SUCCESS ; Verify, PostgreSQL 16 et PostgreSQL 17.6 terminés, exactement un marqueur QA418 PASS par version. CodeQL [#1404](https://github.com/meridane/QimaTrade-MVP/actions/runs/43652436705) SUCCESS ; Vercel SUCCESS.**  
 **Target :** PR #26, branche `fix/create-offer-status-contract`.  
 **Branche de travail :** `work/qa418-demand-id-mismatch-20261115-0811`.  
 **Commit de base :** `491a2de0fc7f46faf21815c75bb4ad1d17486343`.
@@ -25,5 +25,19 @@
 
 ## Validation
 - QA416 et QA417 sont CLOSED sur QIMA CI [#1468](https://github.com/meridane/QimaTrade-MVP/actions/runs/43644843255), avec Verify, PostgreSQL 16 et PostgreSQL 17.6 SUCCESS et exactement un marqueur runtime de chaque dossier par version.
-- Le contrôle statique QA418 et ses deux étapes runtime seront validés par le nouveau run QIMA CI déclenché par le commit de cette branche.
-- CodeQL #1403 est SUCCESS ; le statut combiné Vercel du HEAD antérieur indique build-rate-limit, tandis que le build Next.js Verify est réussi.
+- QIMA CI [#1469](https://github.com/meridane/QimaTrade-MVP/actions/runs/43652436722) : Verify job `132623653620` SUCCESS ; npm audit high, TypeScript, build Next.js et Playwright 347/347 réussis.
+- PostgreSQL 16 job `132623653455` et PostgreSQL 17.6 job `132623653677` : SUCCESS ; exactement un marqueur QA418 PASS dans chaque journal complet. QA416 et QA417 apparaissent également exactement une fois par version.
+- Les deux jobs ont terminé les caractérisations complètes CREATE_OFFER, concurrence, privilèges, RLS, ACL et nettoyage. Les simulations négatives ont produit les échecs attendus et leurs assertions ont réussi ; le job volontairement skipped a été correctement reconnu.
+- CodeQL [#1404](https://github.com/meridane/QimaTrade-MVP/actions/runs/43652436705) SUCCESS ; statut combiné Vercel SUCCESS sur le HEAD QA418.
+
+
+## Validation finale — QIMA CI #1469 (15 novembre 2026)
+
+- QIMA CI [run 43652436722](https://github.com/meridane/QimaTrade-MVP/actions/runs/43652436722) : SUCCESS sur le HEAD `474e628176a4889f8daaa6f71c0a4d96675cbf68`.
+- Verify job `132623653620` : SUCCESS ; npm audit high, TypeScript, build Next.js et Playwright 347/347 réussis.
+- PostgreSQL 16 job `132623653455` : SUCCESS ; exactement un marqueur runtime QA416 PASS, QA417 PASS et QA418 PASS dans le journal complet.
+- PostgreSQL 17.6 job `132623653677` : SUCCESS ; exactement un marqueur runtime QA416 PASS, QA417 PASS et QA418 PASS dans le journal complet.
+- Les deux jobs ont terminé les contrôles complets CREATE_OFFER/concurrence, catalogue, replication slots, paramètres, extensions, privilèges du runner, RLS, ACL et nettoyage.
+- Les simulations négatives du nettoyage ont produit leurs échecs attendus et leurs assertions ont réussi ; le job volontairement skipped a été correctement reconnu.
+- CodeQL [run 43652436705](https://github.com/meridane/QimaTrade-MVP/actions/runs/43652436705) : SUCCESS. Le statut combiné Vercel sur le HEAD QA418 est SUCCESS.
+- QA418 est CLOSED : changer uniquement `p_demand_id` avec le même tenant et la même clé provoque `IDEMPOTENCY_KEY_REUSE` et préserve le hash, le résultat, l'exécution, l'offre et l'événement initial.

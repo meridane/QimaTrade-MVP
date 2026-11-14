@@ -9378,12 +9378,27 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 
 ## QA418 — changement de p_demand_id lors d'un replay
 
-**Statut : IMPLEMENTED — nouveau contrôle statique et runtime câblés ; validation CI en attente.**
-- Le mapping existant 'demandId', p_demand_id est déjà inclus dans le hash de la migration ; aucune migration n'est modifiée.
-- Le test réutilise deux demandes valides synthétiques des fixtures jetables : la demande principale du schéma et la demande alternate publiée ajoutée par create-offer-runtime.sql.
-- Il crée avec la première puis rejette le replay de même tenant/clé qui ne change que p_demand_id vers la seconde, avec IDEMPOTENCY_KEY_REUSE.
-- Les assertions read-only vérifient le hash, le résultat JSON, l'exécution, offers.demand_id, l'événement et l'absence de doublons dans les quatre tables de persistance.
-- Le contrôle statique QA418 vérifie la signature, le hash, le forwarding, les deux demandes des fixtures, les paramètres non ciblés stables, l'absence de DML direct et le câblage Verify/PostgreSQL 16/PostgreSQL 17.6.
-- Ce scénario ne teste pas l'autorisation demand/tenant et ne constitue pas une conclusion de vulnérabilité ; cette décision métier reste séparée.
-- Aucune donnée ou migration Supabase Production, aucun secret, grant, policy RLS ou configuration persistante n'est modifié.
+**Statut : CLOSED — QIMA CI [#1469](https://github.com/meridane/QimaTrade-MVP/actions/runs/43652436722) SUCCESS ; Verify, PostgreSQL 16 et PostgreSQL 17.6 terminés, exactement un marqueur runtime QA418 PASS par version. CodeQL [#1404](https://github.com/meridane/QimaTrade-MVP/actions/runs/43652436705) SUCCESS ; Vercel SUCCESS.**
+- Le mapping existant `'demandId', p_demand_id` est inclus dans le hash de la migration ; aucune migration n'est modifiée.
+- Deux demandes synthétiques publiées du fixture jetable sont utilisées. Le replay change uniquement `p_demand_id` avec le même tenant et la même clé.
+- Le replay provoque exactement `IDEMPOTENCY_KEY_REUSE`.
+- Les assertions vérifient le hash, le résultat JSON, l'exécution `COMPLETED`, `offers.demand_id`, l'événement `ACTION_SUCCEEDED` et l'absence de doublons dans les quatre tables de persistance.
+- Le contrôle statique vérifie le hash, le forwarding, les deux demandes fixtures, la stabilité des autres paramètres, l'absence de DML direct et le câblage CI.
+- Le test ne vérifie pas l'autorisation demand/tenant et ne constitue pas une conclusion de vulnérabilité ; cette décision métier reste séparée.
+- QIMA CI [#1469](https://github.com/meridane/QimaTrade-MVP/actions/runs/43652436722) : Verify job `132623653620` SUCCESS ; npm audit high, TypeScript, build Next.js et Playwright 347/347 réussis.
+- PostgreSQL 16 job `132623653455` et PostgreSQL 17.6 job `132623653677` : SUCCESS ; exactement un marqueur QA416 PASS, QA417 PASS et QA418 PASS dans chaque journal complet.
+- Les caractérisations complètes des privilèges, RLS, ACL et nettoyage ont réussi sur les deux versions. Les échecs des simulations négatives étaient attendus et leurs assertions ont réussi ; le job volontairement skipped a été correctement reconnu.
+- CodeQL [#1404](https://github.com/meridane/QimaTrade-MVP/actions/runs/43652436705) SUCCESS ; statut combiné Vercel SUCCESS.
+- Aucune donnée ni migration Supabase Production, aucun secret, grant, policy RLS ou configuration persistante n'est modifié.
 - Appendice : [QA418](QIMA_V1_FUNCTION_REGISTER_QA418_APPEND.md).
+
+## QA419 — provider actor mismatch rejected before idempotency lookup
+
+**Statut : IMPLEMENTED — nouveau contrôle statique et runtime câblés ; validation CI en attente.**
+- La migration résout l'acteur depuis `auth.uid()`, puis rejette `p_provider_actor_id` différent avec `INVALID_PROVIDER_ACTOR` avant le hash et la lecture de la clé d'idempotence.
+- Le test crée d'abord une offre synthétique avec l'acteur A, puis rejoue le même tenant/clé avec l'acteur B tout en conservant le JWT subject A.
+- Le replay doit produire exactement `INVALID_PROVIDER_ACTOR` et préserver le hash, le résultat, l'exécution, `offers.provider_actor_id`, l'événement et les compteurs des quatre tables.
+- Le contrôle statique vérifie l'ordre des gardes, les profils A/B, la stabilité des autres paramètres, les assertions read-only et les trois intégrations CI.
+- Ce test caractérise uniquement le garde-fou d'identité existant ; il ne résout pas la décision métier séparée sur l'autorisation demand/tenant et ne prouve aucune vulnérabilité.
+- Les fixtures sont confinées aux services PostgreSQL jetables. Aucune donnée ni migration Supabase Production n'est modifiée.
+- Appendice : [QA419](QIMA_V1_FUNCTION_REGISTER_QA419_APPEND.md).
