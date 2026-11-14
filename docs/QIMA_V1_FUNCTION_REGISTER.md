@@ -1,6 +1,6 @@
 # QIMA Trade — Registre des fonctionnalités V1 et audit de départ
 
-Dernière vérification : 14 novembre 2026 (KST)
+Dernière vérification : 15 novembre 2026 (KST)
 Dépôt : meridane/QimaTrade-MVP — branche fix/create-offer-status-contract (PR #26, brouillon)
 Projet Supabase : `QIMA` (`yyulzlnrfcbaxovzjbnh`)
 
@@ -9258,10 +9258,23 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 
 ## QA410 — omission de p_attributes et replay avec la valeur par défaut explicite
 
-**Statut : IMPLEMENTED — validation GitHub Actions en attente sur le nouveau HEAD.**
-- Le premier appel omet volontairement l'argument nommé `p_attributes` ; la signature existante déclare `p_attributes jsonb DEFAULT '{}'::jsonb`.
-- Le replay avec le même tenant/la même clé fournit explicitement `p_attributes => '{}'::jsonb`, en conservant tous les autres paramètres effectifs.
-- Le replay doit retourner exactement le résultat initial et préserver le hash, l'exécution COMPLETED, l'offre avec `attributes = {}`, l'événement de succès et les quatre compteurs de persistance.
-- Le contrôle statique vérifie l'omission réelle dans le premier appel, la valeur explicite dans le replay et l'intégration de Verify/PostgreSQL 16/PostgreSQL 17.6.
-- Le scénario runtime est exécuté uniquement après le bootstrap du fixture PostgreSQL jetable.
+**Statut : CLOSED — QIMA CI [#1442](https://github.com/meridane/QimaTrade-MVP/actions/runs/43606074353) SUCCESS.** Verify, PostgreSQL 16, PostgreSQL 17.6, les deux marqueurs explicites `QA410 PASS` et CodeQL [#1390](https://github.com/meridane/QimaTrade-MVP/actions/runs/43606074396) sont confirmés.
+- Verify job `132480878981` a réussi : contrat statique QA410, npm audit au seuil high, TypeScript, build Next.js et **347/347** tests Playwright.
+- Le job PostgreSQL 16 `132480878934` a terminé SUCCESS ; son journal complet contient exactement un marqueur `QA410 PASS`.
+- Le job PostgreSQL 17.6 `132480878989` a terminé SUCCESS ; son journal complet contient exactement un marqueur `QA410 PASS`.
+- Les deux jobs complets ont également réussi l'intégration/concurrence CREATE_OFFER, le repeat-guard, les caractérisations catalogue/replication slots/paramètres/extensions, les privilèges du runner, les contrôles RLS/ACL et les assertions de nettoyage.
+- Les deux jobs négatifs de simulation de nettoyage ont échoué comme prévu ; leurs jobs d'assertion ont réussi. Le job volontairement skipped et son assertion ont également produit le résultat attendu.
+- CodeQL [#1390](https://github.com/meridane/QimaTrade-MVP/actions/runs/43606074396) a terminé SUCCESS. Le statut combiné Vercel de ce HEAD indique `build-rate-limit` ; il s'agit d'une limitation de capacité du fournisseur, pas d'un échec de compilation démontré.
+- L'appel initial omettant `p_attributes` et le replay avec `p_attributes => '{}'::jsonb` retournent exactement le résultat original et préservent le hash, l'exécution, l'offre et l'événement.
 - Appendice : [QA410](QIMA_V1_FUNCTION_REGISTER_QA410_APPEND.md).
+
+## QA411 — omission de p_conditions et replay avec NULL explicite
+
+**Statut : IMPLEMENTED — validation GitHub Actions en attente sur le nouveau HEAD.**
+- Le premier appel omet volontairement l'argument nommé `p_conditions` ; la signature existante déclare `p_conditions text DEFAULT NULL::text`.
+- Les deux appels conservent explicitement `p_attributes => '{}'::jsonb` et tous les autres paramètres effectifs identiques.
+- Le replay avec le même tenant/la même clé fournit explicitement `p_conditions => NULL`.
+- Le replay doit retourner exactement le résultat initial et préserver le hash, l'exécution COMPLETED, l'offre avec `conditions IS NULL`, l'événement de succès et les quatre compteurs de persistance.
+- Le contrôle statique vérifie l'omission réelle dans le premier appel, NULL explicite dans le replay, la stabilité des autres arguments et l'intégration Verify/PostgreSQL 16/PostgreSQL 17.6.
+- Le scénario runtime est exécuté uniquement après le bootstrap du fixture PostgreSQL jetable.
+- Appendice : [QA411](QIMA_V1_FUNCTION_REGISTER_QA411_APPEND.md).
