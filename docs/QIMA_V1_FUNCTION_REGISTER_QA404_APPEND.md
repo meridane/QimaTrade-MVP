@@ -2,7 +2,7 @@
 
 ## QA404 — changed p_market replay rejection
 
-**Status:** IMPLEMENTED — CI #43577037530 Verify SUCCESS (QA404 static contract, npm audit, TypeScript, Next.js build and 347 Playwright tests); CREATE_OFFER integration steps SUCCESS on PostgreSQL 16 and 17.6; full PostgreSQL jobs remain in final characterization. CodeQL #43577037553 SUCCESS.  
+**Status:** CLOSED — QIMA CI [#43577222315](https://github.com/meridane/QimaTrade-MVP/actions/runs/43577222315) completed SUCCESS on checkpoint commit `4fb984510621dd38ad2e9273fd5373eff07624cf`; Verify, both full PostgreSQL jobs, CodeQL and explicit QA404 runtime markers are confirmed successful.  
 **Target:** PR #26, branch `fix/create-offer-status-contract`  
 **Working branch:** `work/qa404-market-mismatch-replay-20261114-1740`  
 **Base commit:** `32ef9f799c7112cf7f125871090c780e776b1f9c`
@@ -37,3 +37,12 @@
 - No Production deployment, PR merge, force-push or branch-protection change is performed.
 - This is a regression characterization of an existing request-hash field, not a finding of a Production vulnerability.
 - The separate demand/tenant ownership model and MKT-1.1, MKT-1.2 and MKT-1.3 decisions remain subject to business approval.
+
+## Final closure — 14 November 2026
+
+- QIMA CI [#43577222315](https://github.com/meridane/QimaTrade-MVP/actions/runs/43577222315) completed SUCCESS for checkpoint commit `4fb984510621dd38ad2e9273fd5373eff07624cf`. Verify passed the QA404 static contract, npm audit (configured high threshold), TypeScript, Next.js production build and **347/347** Playwright tests.
+- The complete PostgreSQL 16 job completed SUCCESS; its log contains exactly one explicit `QA404 PASS` marker and the remaining privilege, catalog, ACL, RLS and cleanup assertions completed.
+- The complete PostgreSQL 17.6 job completed SUCCESS; its log contains exactly one explicit `QA404 PASS` marker and the remaining privilege, catalog, ACL, RLS and cleanup assertions completed.
+- CodeQL [#43577222369](https://github.com/meridane/QimaTrade-MVP/actions/runs/43577222369) completed SUCCESS.
+- The combined Vercel status for this documentation checkpoint commit reports `build-rate-limit`; this is a provider build-capacity limitation, not a demonstrated source compilation failure.
+- QA404 is CLOSED. This is a regression characterization of the existing `p_market` request-hash field, not a finding of a Production vulnerability.
