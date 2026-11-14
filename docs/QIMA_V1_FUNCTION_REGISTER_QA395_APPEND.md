@@ -64,3 +64,15 @@ The existing CREATE_OFFER request hash includes name = p_name. QA392–QA394 alr
 - The replay parameter and closing delimiter were corrected in commit 08232493b101bc097d0d72d15ec57535a72d29af. QA395 now keeps p_currency = USD in both calls and changes only p_name.
 - QIMA CI [#1410](https://github.com/meridane/QimaTrade-MVP/actions/runs/43532472369) again failed in Verify at the same p_name-count assertion because the static script still included p_name in the unchanged-parameter count loop. Its dependency-audit enforcement step received AUDIT_OUTCOME=skipped after Verify stopped; no audit result or vulnerability is inferred. PostgreSQL jobs were still running at the time of this checkpoint.
 - Rewrote the QA395 static script: each name expression must occur exactly once; all other effective parameters must occur exactly twice; opening and closing dollar tags are independently checked. A fresh CI on this corrected commit is required. CI #1409 and #1410 are not accepted as QA395 validation.
+
+
+## CI #1411 — validation définitive QA395 (14 novembre 2026)
+
+- QIMA CI [#1411](https://github.com/meridane/QimaTrade-MVP/actions/runs/43532630498) a terminé avec la conclusion globale SUCCESS sur le commit `a00c867c1d65610f95ab8ac6c50028977e9181d8`.
+- Le job Verify a réussi. Le script `test-create-offer-name-mismatch-replay-contract.sh` a réussi et le journal contient le marqueur QA395 PASS. npm audit, TypeScript, build Next.js et Playwright ont réussi; Playwright rapporte 347 tests réussis.
+- Le job d'intégration PostgreSQL 16 a terminé SUCCESS et son journal contient QA395 PASS. Les contrôles complémentaires de catalogues, ACL, privilèges du runner, RLS, nettoyage des migrations et restauration des prepared transactions ont également réussi.
+- Le job de compatibilité PostgreSQL 17.6 a terminé SUCCESS et son journal contient QA395 PASS. Les contrôles complémentaires de version, catalogues, ACL, privilèges et régressions RLS ont réussi.
+- CodeQL [#1359](https://github.com/meridane/QimaTrade-MVP/actions/runs/43532630467) a terminé SUCCESS. Le statut Vercel du commit est SUCCESS.
+- Deux jobs de harness de nettoyage affichent leur échec attendu; leurs jobs d'assertion dédiés ont réussi. Le job de scénario volontairement skipped est resté skipped et son assertion a réussi. La conclusion globale de CI #1411 est SUCCESS.
+- QA395 est donc CLOSED. Les échecs antérieurs #1409 et #1410 restent documentés comme défauts du harness QA395, corrigés avant la validation définitive; ils ne sont pas des défaillances applicatives ni des preuves d'une vulnérabilité Production.
+- Aucun code applicatif, migration, donnée Supabase Production, secret, configuration PostgreSQL persistante, règle de protection, fusion ou déploiement Production n'a été modifié.
