@@ -34,3 +34,11 @@
 - No Production deployment, PR merge, force-push or branch-protection change is performed.
 - This is a characterization of explicit existing NULL normalization, not a finding of a Production vulnerability.
 - MKT-1.1 demand/tenant ownership, MKT-1.2 independent-draft idempotency semantics and MKT-1.3 numeric canonicalization remain subject to business approval.
+
+## Initial CI failure and targeted correction
+
+- QIMA CI [#1422](https://github.com/meridane/QimaTrade-MVP/actions/runs/43558435927) failed in Verify because the generated static script escaped `${BASH_SOURCE[0]}` literally. Bash consequently resolved `ROOT` incorrectly and reported the runtime file missing at `/home/runner/work/tests/sql/create-offer-runtime.sql`.
+- The dependency-audit step received `AUDIT_OUTCOME=skipped` after Verify stopped. No npm audit result or vulnerability is inferred from this skipped step.
+- Corrected in commit `05ba445c8bcd3fe225e928650e92565c02a900e9` by removing the literal backslash so Bash expands `${BASH_SOURCE[0]}` normally.
+- QIMA CI [#1423](https://github.com/meridane/QimaTrade-MVP/actions/runs/43558467069) is PENDING on the corrected HEAD; CodeQL [#1371](https://github.com/meridane/QimaTrade-MVP/actions/runs/43558467095) is IN_PROGRESS. Vercel reports `build-rate-limit`; no Preview Ready is claimed.
+- QA400 remains PENDING until the corrected Verify and both complete PostgreSQL 16/17.6 jobs pass and both runtime logs contain `QA400 PASS`.
