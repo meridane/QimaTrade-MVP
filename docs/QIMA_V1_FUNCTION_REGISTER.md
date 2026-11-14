@@ -9226,9 +9226,20 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 
 ## QA407 — changement de p_offer_type lors d'un replay
 
-**Statut : IMPLEMENTED — validation GitHub Actions en attente sur le nouveau HEAD.**
-- Le scénario utilise des libellés offer type synthétiques dans les fixtures PostgreSQL jetables ; il ne définit ni n'approuve une taxonomie de production.
-- Le replay avec un `p_offer_type` différent et la même clé doit produire `IDEMPOTENCY_KEY_REUSE` et préserver le hash, le résultat, l'exécution, l'offre et l'événement initiaux.
-- Le fixture expose `offers.offer_type` comme texte et le test vérifie également que la migration transmet le paramètre à `create_offer_v1`.
-- Le contrôle statique est intégré à Verify ; le scénario runtime est exécuté par les runners PostgreSQL 16 et 17.6.
+**Statut : CLOSED — QIMA CI #43592280751 (run #1439) SUCCESS.** Verify, PostgreSQL 16, PostgreSQL 17.6, les deux marqueurs explicites `QA407 PASS`, CodeQL #43592280688 et le statut combiné Vercel sont confirmés.
+- Verify a réussi : contrat statique QA407, npm audit au seuil high, TypeScript, build Next.js et **347/347** tests Playwright.
+- Les jobs PostgreSQL 16 (`132439348894`) et PostgreSQL 17.6 (`132439348526`) ont terminé SUCCESS ; chaque journal contient exactement un marqueur `QA407 PASS`.
+- Les contrôles complets CREATE_OFFER/concurrence, catalogue, replication slots, paramètres de base, ACL, RLS, privilèges du runner et nettoyage ont terminé SUCCESS.
+- CodeQL #43592280688 a terminé SUCCESS ; le statut Vercel du HEAD QA407 est SUCCESS.
+- Les deux jobs négatifs de simulation de nettoyage ont échoué comme prévu ; leurs jobs d'assertion ont réussi. Le contrat du job volontairement skipped a également réussi.
+- Le replay avec un `p_offer_type` différent et la même clé est rejeté par `IDEMPOTENCY_KEY_REUSE` ; le hash, le résultat, l'exécution, l'offre et l'événement initiaux restent inchangés.
 - Appendice : [QA407](QIMA_V1_FUNCTION_REGISTER_QA407_APPEND.md).
+
+## QA408 — changement de p_pricing_model lors d'un replay
+
+**Statut : IMPLEMENTED — validation GitHub Actions en attente sur le nouveau HEAD.**
+- Le scénario utilise des libellés pricing model synthétiques dans les fixtures PostgreSQL jetables ; il ne définit ni n'approuve une taxonomie de production.
+- Le replay avec un `p_pricing_model` différent et la même clé doit produire `IDEMPOTENCY_KEY_REUSE` et préserver le hash, le résultat, l'exécution, l'offre et l'événement initiaux.
+- Le fixture expose `offers.pricing_model` comme texte ; `p_offer_type` reste identique dans les deux appels.
+- Le contrôle statique est intégré à Verify ; le scénario runtime est exécuté par les runners PostgreSQL 16 et 17.6.
+- Appendice : [QA408](QIMA_V1_FUNCTION_REGISTER_QA408_APPEND.md).
