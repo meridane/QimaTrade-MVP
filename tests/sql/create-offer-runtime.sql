@@ -18663,7 +18663,7 @@ DECLARE
   v_tenant_id uuid := '10000000-0000-4000-8000-000000000001';
   v_key text := 'fixture-qa414-documentation-status-default-replay';
   v_input jsonb := '{"case":"qa414-documentation-status-default-replay"}'::jsonb;
-  v_offer_name text := 'QA414 Geography Default Replay Offer';
+  v_offer_name text := 'QA414 Documentation Status Default Replay Offer';
   v_first_result jsonb;
   v_replay_result jsonb;
   v_execution_id uuid;
