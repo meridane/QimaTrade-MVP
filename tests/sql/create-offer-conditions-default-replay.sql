@@ -4,13 +4,13 @@ SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
 SET ROLE authenticated;
 
 -- QA411: omitting p_conditions uses its declared NULL::text default.
--- Replaying the same request with an explicit empty object must be an exact replay.
+-- Replaying the same request with explicit NULL must be an exact replay.
 DO $qa411_conditions_default_replay$
 DECLARE
   v_tenant_id uuid := '10000000-0000-4000-8000-000000000001';
   v_key text := 'fixture-qa411-conditions-default-replay';
   v_input jsonb := '{"case":"qa411-conditions-default-replay"}'::jsonb;
-  v_offer_name text := 'QA411 Attributes Default Replay Offer';
+  v_offer_name text := 'QA411 Conditions Default Replay Offer';
   v_first_result jsonb;
   v_replay_result jsonb;
   v_execution_id uuid;
@@ -41,7 +41,7 @@ BEGIN
     RAISE EXCEPTION 'QA411 fixture data already exists';
   END IF;
 
-  -- First call intentionally omits p_attributes; PostgreSQL applies the function default.
+  -- First call intentionally omits p_conditions; PostgreSQL applies the function default.
   v_first_result := public.execute_create_offer_v1(
     p_tenant_id => v_tenant_id,
     p_idempotency_key => v_key,
@@ -102,7 +102,7 @@ BEGIN
   FROM public.offers
   WHERE id = v_offer_id AND name = v_offer_name;
   IF NOT FOUND OR v_offer_conditions IS NOT NULL THEN
-    RAISE EXCEPTION 'QA411 omitted p_attributes did not persist NULL from the declared text default';
+    RAISE EXCEPTION 'QA411 omitted p_conditions did not persist NULL from the declared text default';
   END IF;
 
   SELECT payload INTO v_event_payload
@@ -210,6 +210,6 @@ BEGIN
     RAISE EXCEPTION 'QA411 explicit-default replay changed the original success event';
   END IF;
 
-  RAISE NOTICE 'QA411 PASS: omitting p_attributes applies the declared NULL text default and exactly replays an explicit NULL request without duplicate persisted state';
+  RAISE NOTICE 'QA411 PASS: omitting p_conditions applies the declared NULL::text default and exactly replays an explicit NULL request without duplicate persisted state';
 END
 $qa411_conditions_default_replay$;
