@@ -2,7 +2,7 @@
 
 ## QA408 — changed p_pricing_model replay rejection
 
-**Status:** IMPLEMENTED — pending GitHub Actions validation on the updated PR head.  
+**Status:** CLOSED — QIMA CI [#1440](https://github.com/meridane/QimaTrade-MVP/actions/runs/43598662540) completed SUCCESS. Verify, PostgreSQL 16, PostgreSQL 17.6, both explicit QA408 runtime markers, CodeQL [#1388](https://github.com/meridane/QimaTrade-MVP/actions/runs/43598662478) and the combined Vercel status are confirmed.  
 **Target:** PR #26, branch `fix/create-offer-status-contract`  
 **Working branch:** `work/qa408-pricing-model-mismatch-replay-20261114-2207`  
 **Base commit:** `9ed22f58151251abb1077c9462c40faaef684179`
@@ -23,7 +23,12 @@
 - QA407 prerequisite is CLOSED: QIMA CI [#43592280751](https://github.com/meridane/QimaTrade-MVP/actions/runs/43592280751) completed SUCCESS. Verify, npm audit, TypeScript, Next.js build and **347/347** Playwright tests passed.
 - PostgreSQL 16 and PostgreSQL 17.6 full jobs completed SUCCESS; each log contains exactly one explicit `QA407 PASS` marker.
 - CodeQL [#43592280688](https://github.com/meridane/QimaTrade-MVP/actions/runs/43592280688) and the combined Vercel status for the QA407 PR head completed SUCCESS.
-- QA408 static coverage and runtime validation are pending the updated PR-head workflow; no runtime result is claimed yet.
+- Verify completed SUCCESS: QA408 static contract, npm audit at the high threshold, TypeScript, Next.js production build and **347/347** Playwright tests passed.
+- PostgreSQL 16 job `132458489795` and PostgreSQL 17.6 job `132458489797` both completed SUCCESS; each complete log contains exactly one explicit `QA408 PASS` marker.
+- Both complete jobs also passed CREATE_OFFER integration/concurrency, runner privilege characterization, catalog/replication-slot/settings/extension checks, legacy RLS checks, ACL checks and cleanup assertions.
+- The two prepared-transaction negative-contract jobs reported their intentionally expected failures; their blocking assertion jobs passed. The deliberately skipped contract job remained skipped and its assertion passed.
+- CodeQL [#1388](https://github.com/meridane/QimaTrade-MVP/actions/runs/43598662478) completed SUCCESS; the combined Vercel status for this HEAD was SUCCESS.
+- The same-key replay changing only `p_pricing_model` returned `IDEMPOTENCY_KEY_REUSE` and preserved the original hash, result, completed execution, offer and success event.
 
 ## Safety and decision boundaries
 

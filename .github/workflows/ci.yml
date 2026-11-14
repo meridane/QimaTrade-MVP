@@ -105,6 +105,8 @@ jobs:
         run: bash tests/sql/test-create-offer-offer-type-mismatch-replay-contract.sh
       - name: Verify CREATE_OFFER changed-pricing-model replay preserves original state
         run: bash tests/sql/test-create-offer-pricing-model-mismatch-replay-contract.sh
+      - name: Verify CREATE_OFFER changed product-master replay preserves original state
+        run: bash tests/sql/test-create-offer-product-master-mismatch-replay-contract.sh
       - name: Verify numeric replay fixture keys and PostgreSQL runner isolation
         run: bash tests/sql/test-create-offer-fixture-isolation-contract.sh
       - name: Verify CREATE_OFFER bootstrap preflight covers extension-aware catalog objects
@@ -267,6 +269,8 @@ jobs:
 
       - name: Run isolated CREATE_OFFER integration and concurrency tests
         run: bash tests/sql/run-create-offer-integration.sh
+      - name: Run isolated CREATE_OFFER product-master replay regression on PostgreSQL 16
+        run: psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -f tests/sql/create-offer-product-master-mismatch-replay.sql
       - name: Verify a second CREATE_OFFER runner invocation rejects initialized qima_test without changes
         run: bash tests/sql/test-create-offer-integration-repeat-guard.sh
 
@@ -399,6 +403,8 @@ jobs:
           bash tests/sql/assert-postgres-17-6-version.sh "$version_num"
       - name: Run CREATE_OFFER integration and concurrency tests on PostgreSQL 17
         run: bash tests/sql/run-create-offer-integration.sh
+      - name: Run isolated CREATE_OFFER product-master replay regression on PostgreSQL 17.6
+        run: psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -f tests/sql/create-offer-product-master-mismatch-replay.sql
       - name: Verify a second CREATE_OFFER runner invocation rejects initialized qima_test without changes on PostgreSQL 17.6
         run: bash tests/sql/test-create-offer-integration-repeat-guard.sh
 

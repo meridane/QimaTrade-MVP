@@ -9237,9 +9237,19 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 
 ## QA408 — changement de p_pricing_model lors d'un replay
 
-**Statut : IMPLEMENTED — validation GitHub Actions en attente sur le nouveau HEAD.**
-- Le scénario utilise des libellés pricing model synthétiques dans les fixtures PostgreSQL jetables ; il ne définit ni n'approuve une taxonomie de production.
-- Le replay avec un `p_pricing_model` différent et la même clé doit produire `IDEMPOTENCY_KEY_REUSE` et préserver le hash, le résultat, l'exécution, l'offre et l'événement initiaux.
-- Le fixture expose `offers.pricing_model` comme texte ; `p_offer_type` reste identique dans les deux appels.
-- Le contrôle statique est intégré à Verify ; le scénario runtime est exécuté par les runners PostgreSQL 16 et 17.6.
+**Statut : CLOSED — QIMA CI [#1440](https://github.com/meridane/QimaTrade-MVP/actions/runs/43598662540) SUCCESS.** Verify, PostgreSQL 16, PostgreSQL 17.6, les deux marqueurs explicites `QA408 PASS`, CodeQL [#1388](https://github.com/meridane/QimaTrade-MVP/actions/runs/43598662478) et le statut combiné Vercel sont confirmés.
+- Verify a réussi : contrat statique QA408, npm audit au seuil high, TypeScript, build Next.js et **347/347** tests Playwright.
+- Les jobs PostgreSQL 16 (`132458489795`) et PostgreSQL 17.6 (`132458489797`) ont terminé SUCCESS ; chaque journal complet contient exactement un marqueur `QA408 PASS`.
+- Les contrôles complets CREATE_OFFER/concurrence, catalogue, replication slots, paramètres de base, ACL, RLS, privilèges du runner et nettoyage ont terminé SUCCESS.
+- Les deux jobs négatifs de simulation de nettoyage ont échoué comme prévu ; leurs jobs d'assertion ont réussi. Le contrat du job volontairement skipped a également été correctement reconnu.
+- Le replay avec un `p_pricing_model` différent et la même clé est rejeté par `IDEMPOTENCY_KEY_REUSE` ; le hash, le résultat, l'exécution, l'offre et l'événement initiaux restent inchangés.
 - Appendice : [QA408](QIMA_V1_FUNCTION_REGISTER_QA408_APPEND.md).
+
+## QA409 — changement de p_product_master_id lors d'un replay
+
+**Statut : IMPLEMENTED — validation GitHub Actions en attente sur le nouveau HEAD.**
+- Le scénario utilise deux product masters actifs synthétiques déjà présents dans le fixture PostgreSQL jetable ; il ne définit ni n'approuve une taxonomie de production.
+- Le replay avec un `p_product_master_id` différent et la même clé doit produire `IDEMPOTENCY_KEY_REUSE` et préserver le hash, le résultat, l'exécution, l'offre et l'événement initiaux.
+- Le test conserve le même `p_demand_id` et tous les autres paramètres effectifs ; il ne tranche pas la question distincte de l'autorisation demand/tenant.
+- Le contrôle statique est intégré à Verify ; le SQL runtime dédié est exécuté après le runner de fixture dans les jobs PostgreSQL 16 et 17.6.
+- Appendice : [QA409](QIMA_V1_FUNCTION_REGISTER_QA409_APPEND.md).
