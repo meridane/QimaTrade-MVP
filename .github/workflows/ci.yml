@@ -3,8 +3,12 @@ name: QIMA CI
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - "docs/**"
   pull_request:
     branches: [main]
+    paths-ignore:
+      - "docs/**"
   schedule:
     - cron: "0 10 * * *"
   workflow_dispatch:
@@ -13,8 +17,9 @@ permissions:
   contents: read
 
 concurrency:
-  group: qima-ci-${{ github.ref }}
-  cancel-in-progress: true
+  group: qima-ci-${{ github.event_name }}-${{ github.ref }}
+  # Keep active PR validation running while newer commits arrive; stale push/scheduled runs may still be cancelled.
+  cancel-in-progress: ${{ github.event_name != 'pull_request' }}
 
 jobs:
   verify:
@@ -23,16 +28,105 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Configure apt retries for transient mirror failures
+        shell: bash
+        run: |
+          printf '%s\n' \
+            'Acquire::Retries "3";' \
+            'Acquire::http::Timeout "30";' \
+            'Acquire::https::Timeout "30";' \
+            | sudo tee /etc/apt/apt.conf.d/80-qima-network-retries >/dev/null
+      - name: Verify workflow concurrency isolation
+        run: bash tests/ci/verify-workflow-concurrency.sh
+      - name: Verify prepared-transaction always-cleanup workflow wiring
+        run: bash tests/ci/verify-prepared-transactions-always-cleanup-contract.sh
+      - name: Verify prepared-transaction cleanup assertions reject malformed, skipped and cancelled outcomes
+        run: bash tests/ci/test-prepared-transactions-cleanup-assertions.sh
+      - name: Verify parallel prepared-transaction cleanup harness isolation
+        run: bash tests/ci/test-prepared-transactions-harness-isolation.sh
+      - name: Verify PostgreSQL 17.6 version guard boundary cases
+        run: bash tests/sql/test-postgres-17-6-version-guard.sh
+      - name: Verify numeric idempotency characterization remains read-only and runs on PostgreSQL 16 and 17.6
+        run: bash tests/sql/test-idempotency-numeric-characterization-contract.sh
+      - name: Verify numeric replay rejection preserves original persisted state
+        run: bash tests/sql/test-create-offer-numeric-replay-contract.sh
+      - name: Verify CREATE_OFFER request-hash field coverage
+        run: bash tests/sql/test-create-offer-request-hash-contract.sh
+      - name: Verify CREATE_OFFER tenant-scoped idempotency lock and lookup contract
+        run: bash tests/sql/test-create-offer-tenant-idempotency-scope-contract.sh
+      - name: Verify CREATE_OFFER finite numeric-domain rejection coverage
+        run: bash tests/sql/test-create-offer-numeric-domain-contract.sh
+      - name: Verify CREATE_OFFER zero-quantity boundary rejection coverage
+        run: bash tests/sql/test-create-offer-zero-quantity-contract.sh
+      - name: Verify CREATE_OFFER finite negative-quantity boundary rejection coverage
+        run: bash tests/sql/test-create-offer-negative-quantity-contract.sh
+      - name: Verify CREATE_OFFER finite negative-price boundary rejection coverage
+        run: bash tests/sql/test-create-offer-negative-price-contract.sh
+      - name: Verify CREATE_OFFER positive-Infinity boundary rejection coverage
+        run: bash tests/sql/test-create-offer-positive-infinity-contract.sh
+      - name: Verify CREATE_OFFER NaN quantity boundary rejection coverage
+        run: bash tests/sql/test-create-offer-nan-quantity-contract.sh
+      - name: Verify CREATE_OFFER NULL numeric boundary rejection coverage
+        run: bash tests/sql/test-create-offer-null-numeric-contract.sh
+      - name: Verify CREATE_OFFER zero-price acceptance and exact replay contract
+        run: bash tests/sql/test-create-offer-zero-price-contract.sh
+      - name: Verify CREATE_OFFER zero-price changed-parameter replay preserves original state
+        run: bash tests/sql/test-create-offer-zero-price-mismatch-replay-contract.sh
+      - name: Verify CREATE_OFFER changed-quantity replay preserves original state
+        run: bash tests/sql/test-create-offer-quantity-mismatch-replay-contract.sh
+      - name: Verify CREATE_OFFER changed-currency replay preserves original state
+        run: bash tests/sql/test-create-offer-currency-mismatch-replay-contract.sh
+      - name: Verify CREATE_OFFER changed-name replay preserves original state
+        run: bash tests/sql/test-create-offer-name-mismatch-replay-contract.sh
+      - name: Verify CREATE_OFFER changed-input replay preserves original state
+        run: bash tests/sql/test-create-offer-input-mismatch-replay-contract.sh
+      - name: Verify CREATE_OFFER equivalent JSONB key-order replay preserves original state
+        run: bash tests/sql/test-create-offer-jsonb-key-order-replay-contract.sh
+      - name: Verify CREATE_OFFER equivalent JSONB attributes key-order replay preserves original state
+        run: bash tests/sql/test-create-offer-attributes-key-order-replay-contract.sh
+      - name: Verify CREATE_OFFER JSONB array-order change rejects replay and preserves original state
+        run: bash tests/sql/test-create-offer-attributes-array-order-replay-contract.sh
+      - name: Verify CREATE_OFFER SQL NULL and empty-object attributes replay equivalence
+        run: bash tests/sql/test-create-offer-null-empty-attributes-replay-contract.sh
+      - name: Verify CREATE_OFFER distinguishes SQL NULL from JSONB literal null attributes
+        run: bash tests/sql/test-create-offer-sql-null-jsonb-null-attributes-replay-contract.sh
+      - name: Verify CREATE_OFFER changed-conditions replay preserves original state
+        run: bash tests/sql/test-create-offer-conditions-mismatch-replay-contract.sh
+      - name: Verify CREATE_OFFER changed-geography replay preserves original state
+        run: bash tests/sql/test-create-offer-geography-mismatch-replay-contract.sh
+      - name: Verify CREATE_OFFER changed-market replay preserves original state
+        run: bash tests/sql/test-create-offer-market-mismatch-replay-contract.sh
+      - name: Verify CREATE_OFFER documentation-status replay contract
+        run: bash tests/sql/test-create-offer-documentation-status-mismatch-replay-contract.sh
+      - name: Verify CREATE_OFFER lifecycle replay contract
+        run: bash tests/sql/test-create-offer-lifecycle-mismatch-replay-contract.sh
+      - name: Verify CREATE_OFFER changed-offer-type replay preserves original state
+        run: bash tests/sql/test-create-offer-offer-type-mismatch-replay-contract.sh
+      - name: Verify numeric replay fixture keys and PostgreSQL runner isolation
+        run: bash tests/sql/test-create-offer-fixture-isolation-contract.sh
+      - name: Verify CREATE_OFFER bootstrap preflight covers extension-aware catalog objects
+        run: bash tests/sql/test-create-offer-bootstrap-preflight.sh
+      - name: Verify replication-slot bootstrap scope and isolated runtime contract
+        run: bash tests/sql/test-create-offer-replication-slot-preflight.sh
+      - name: Verify database-scoped role settings and default ACL bootstrap contract
+        run: bash tests/sql/test-create-offer-database-settings-acl-preflight.sh
+      - name: Verify QA371 parameter ACL and extension configuration boundaries
+        run: bash tests/sql/test-create-offer-parameter-acl-extension-config-preflight.sh
+      - name: Verify QA372 non-superuser bootstrap catalog visibility contract
+        run: bash tests/sql/test-create-offer-preflight-privilege-visibility.sh
+      - name: Verify full CREATE_OFFER runner write-privilege contract
+        run: bash tests/sql/test-create-offer-runner-privilege-contract.sh
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 20
-      - name: Install dependencies
+      - name: Install dependencies from committed lockfile
         id: install
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
       - name: Dependency security audit
         id: audit
+        # Defer failure until the report can be uploaded; the enforcement step below remains blocking.
         continue-on-error: true
         shell: bash
         run: |
@@ -66,7 +160,7 @@ jobs:
         id: build
         run: npm run build
         env:
-          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder-anon-key
       - name: Install Playwright Chromium
         id: browser_install
@@ -76,17 +170,36 @@ jobs:
         run: npm run test:e2e
         env:
           CI: "true"
-          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder-anon-key
           PLAYWRIGHT_BASE_URL: http://127.0.0.1:3000
+      - name: Enforce dependency audit result
+        if: always()
+        env:
+          AUDIT_OUTCOME: ${{ steps.audit.outcome }}
+        shell: bash
+        run: |
+          if [ "${AUDIT_OUTCOME}" != "success" ]; then
+            echo "::error::Dependency audit did not complete successfully. Review the npm-audit-report artifact."
+            exit 1
+          fi
+
       - name: Upload npm audit report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: npm-audit-report
           path: npm-audit.json
           if-no-files-found: ignore
           retention-days: 14
+      - name: Upload committed lockfile for verification
+        if: success() && steps.install.outcome == 'success'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: committed-package-lock
+          path: package-lock.json
+          if-no-files-found: error
+          retention-days: 7
       - name: Write automation report
         if: always()
         shell: bash
@@ -108,5 +221,361 @@ jobs:
             echo "| Installation navigateur | ${{ steps.browser_install.outcome || 'non exécuté' }} |"
             echo "| Tests navigateur | ${{ steps.e2e.outcome || 'non exécuté' }} |"
             echo
-            echo "L'audit npm reste informatif. Toute correction de dépendance doit être revue avant fusion."
+            echo "L'audit npm est bloquant au seuil high : tout résultat non nul de npm audit --audit-level=high fait échouer ce job via l'étape d'application dédiée. Les niveaux sous le seuil sont reportés dans le tableau et l'artefact JSON sans bloquer ce contrôle. Toute correction de dépendance doit être revue avant fusion."
           } >> "$GITHUB_STEP_SUMMARY"
+
+
+  postgres-integration:
+    name: CREATE_OFFER PostgreSQL integration tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: qima_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d qima_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/qima_test
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Configure apt retries for transient mirror failures
+        shell: bash
+        run: |
+          printf '%s\n' \
+            'Acquire::Retries "3";' \
+            'Acquire::http::Timeout "30";' \
+            'Acquire::https::Timeout "30";' \
+            | sudo tee /etc/apt/apt.conf.d/80-qima-network-retries >/dev/null
+      - name: Verify CREATE_OFFER integration runner rejects unsafe database URLs
+        run: bash tests/sql/test-create-offer-integration-runner-guard.sh
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Run isolated CREATE_OFFER integration and concurrency tests
+        run: bash tests/sql/run-create-offer-integration.sh
+      - name: Verify a second CREATE_OFFER runner invocation rejects initialized qima_test without changes
+        run: bash tests/sql/test-create-offer-integration-repeat-guard.sh
+
+      - name: Characterize extension-aware bootstrap catalog objects on PostgreSQL 16
+        run: bash tests/sql/test-create-offer-bootstrap-catalog-runtime.sh
+      - name: Characterize database-scoped logical and cluster-wide physical replication slots on PostgreSQL 16
+        env:
+          PG_SLOT_TEST_IMAGE: postgres:16
+        run: bash tests/sql/test-create-offer-replication-slot-catalog-runtime.sh
+      - name: Characterize database-local role settings and default ACLs on PostgreSQL 16
+        run: bash tests/sql/test-create-offer-database-settings-acl-runtime.sh
+      - name: Characterize extension configuration tables on PostgreSQL 16
+        env:
+          PG_EXTENSION_CONFIG_TEST_IMAGE: postgres:16
+        run: bash tests/sql/test-create-offer-extension-config-runtime.sh
+      - name: Characterize bootstrap catalog visibility for non-superusers on PostgreSQL 16
+        env:
+          PG_PRIVILEGE_TEST_IMAGE: postgres:16
+        run: bash tests/sql/test-create-offer-preflight-privilege-visibility-runtime.sh
+      - name: Characterize full CREATE_OFFER runner write privileges on PostgreSQL 16
+        env:
+          PG_RUNNER_PRIVILEGE_TEST_IMAGE: postgres:16
+        run: bash tests/sql/test-create-offer-runner-privilege-runtime.sh
+
+      - name: Verify legacy offers INSERT RLS binds provider actor to authenticated profile
+        env:
+          PGAPPNAME: qima-ci-legacy-offer-rls
+        run: psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -f tests/sql/legacy-offer-insert-rls-regression.sql
+      - name: Verify legacy offers INSERT RETURNING and SELECT RLS mechanics with an isolated actor-scoped policy
+        env:
+          PGAPPNAME: qima-ci-legacy-offer-returning
+        run: psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -f tests/sql/legacy-offer-returning-select-rls-regression.sql
+
+      - name: Verify wrapper-owner and function ACL runners reject unsafe database URLs
+        run: bash tests/sql/test-auxiliary-postgres-runner-guards.sh
+
+      - name: Verify SECURITY DEFINER wrapper retains low-level CREATE_OFFER access after direct-call revocation
+        run: bash tests/sql/run-create-offer-wrapper-owner-regression.sh
+
+      - name: Verify explicit RPC EXECUTE ACLs on disposable PostgreSQL
+        run: bash tests/sql/run-function-execute-acl-regression.sh
+
+      - name: Verify legacy migration runner rejects unsafe database URLs
+        run: bash tests/sql/test-legacy-messages-runner-guard.sh
+
+      - name: Run isolated legacy messages RLS regression tests
+        run: bash tests/sql/run-legacy-messages-rls-regression.sh
+
+      - name: Verify disposable migration database was removed from PostgreSQL
+        run: bash tests/sql/assert-legacy-migration-database-absent.sh
+
+      - name: Run real SQL failure and verify disposable migration cleanup
+        run: bash tests/sql/test-legacy-messages-real-failure-cleanup.sh
+
+      - name: Verify DROP DATABASE WITH FORCE terminates active sessions
+        run: bash tests/sql/test-legacy-messages-active-session-cleanup.sh
+
+      - name: Verify DROP DATABASE WITH FORCE terminates multiple active and idle-in-transaction sessions
+        run: bash tests/sql/test-legacy-messages-multiple-sessions-cleanup.sh
+
+      - name: Verify prepared-transaction configuration restoration guard
+        run: bash tests/sql/test-prepared-transactions-config-restore.sh
+
+      - name: Verify prepared-transaction setup records restoration intent before mutation
+        run: bash tests/sql/test-prepared-transactions-config-setup.sh
+
+      - name: Verify prepared-transaction setup failures are restored by always cleanup
+        run: bash tests/sql/test-prepared-transactions-failure-restoration.sh
+
+      - name: Enable prepared transactions for the disposable PostgreSQL regression
+        id: enable_prepared
+        shell: bash
+        run: bash tests/sql/enable-prepared-transactions-config.sh
+
+      - name: Verify prepared transactions block forced disposable database cleanup
+        run: bash tests/sql/test-legacy-messages-prepared-transaction-cleanup.sh
+
+      - name: Restore prepared-transaction configuration and verify disposable resources
+        if: always()
+        env:
+          RESTORE_REQUIRED: ${{ steps.enable_prepared.outputs.restore_required }}
+          BASELINE_MAX_PREPARED_TRANSACTIONS: ${{ steps.enable_prepared.outputs.baseline }}
+        run: bash tests/sql/restore-prepared-transactions-config.sh
+
+      - name: Verify participant self-enrollment runner rejects unsafe database URLs
+        run: bash tests/sql/test-participant-self-enrollment-runner-guard.sh
+
+      - name: Run isolated participant self-enrollment RLS regression tests
+        run: bash tests/sql/run-participant-self-enrollment-regression.sh
+
+  postgres17-create-offer-compatibility:
+    name: CREATE_OFFER PostgreSQL 17.6 compatibility
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17.6
+        env:
+          POSTGRES_DB: qima_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d qima_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/qima_test
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Configure apt retries for transient mirror failures
+        shell: bash
+        run: |
+          printf '%s\n' \
+            'Acquire::Retries "3";' \
+            'Acquire::http::Timeout "30";' \
+            'Acquire::https::Timeout "30";' \
+            | sudo tee /etc/apt/apt.conf.d/80-qima-network-retries >/dev/null
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+      - name: Assert PostgreSQL 17.6 server version
+        shell: bash
+        run: |
+          version_num="$(psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t -c 'SHOW server_version_num')"
+          bash tests/sql/assert-postgres-17-6-version.sh "$version_num"
+      - name: Run CREATE_OFFER integration and concurrency tests on PostgreSQL 17
+        run: bash tests/sql/run-create-offer-integration.sh
+      - name: Verify a second CREATE_OFFER runner invocation rejects initialized qima_test without changes on PostgreSQL 17.6
+        run: bash tests/sql/test-create-offer-integration-repeat-guard.sh
+
+      - name: Characterize extension-aware bootstrap catalog objects on PostgreSQL 17.6
+        run: bash tests/sql/test-create-offer-bootstrap-catalog-runtime.sh
+      - name: Characterize database-scoped logical and cluster-wide physical replication slots on PostgreSQL 17.6
+        env:
+          PG_SLOT_TEST_IMAGE: postgres:17.6
+        run: bash tests/sql/test-create-offer-replication-slot-catalog-runtime.sh
+      - name: Characterize database-local role settings and default ACLs on PostgreSQL 17.6
+        run: bash tests/sql/test-create-offer-database-settings-acl-runtime.sh
+      - name: Characterize extension configuration tables on PostgreSQL 17.6
+        env:
+          PG_EXTENSION_CONFIG_TEST_IMAGE: postgres:17.6
+        run: bash tests/sql/test-create-offer-extension-config-runtime.sh
+      - name: Characterize bootstrap catalog visibility for non-superusers on PostgreSQL 17.6
+        env:
+          PG_PRIVILEGE_TEST_IMAGE: postgres:17.6
+        run: bash tests/sql/test-create-offer-preflight-privilege-visibility-runtime.sh
+      - name: Characterize full CREATE_OFFER runner write privileges on PostgreSQL 17.6
+        env:
+          PG_RUNNER_PRIVILEGE_TEST_IMAGE: postgres:17.6
+        run: bash tests/sql/test-create-offer-runner-privilege-runtime.sh
+
+      - name: Verify legacy offers INSERT RLS binds provider actor to authenticated profile
+        env:
+          PGAPPNAME: qima-ci-legacy-offer-rls
+        run: psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -f tests/sql/legacy-offer-insert-rls-regression.sql
+      - name: Verify legacy offers INSERT RETURNING and SELECT RLS mechanics with an isolated actor-scoped policy
+        env:
+          PGAPPNAME: qima-ci-legacy-offer-returning
+        run: psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -f tests/sql/legacy-offer-returning-select-rls-regression.sql
+      - name: Run CREATE_OFFER wrapper-owner and membership regressions on PostgreSQL 17
+        run: bash tests/sql/run-create-offer-wrapper-owner-regression.sh
+      - name: Run seven-function EXECUTE ACL regression on PostgreSQL 17
+        run: bash tests/sql/run-function-execute-acl-regression.sh
+
+
+  prepared_transactions_always_cleanup_contract:
+    name: Prepared-transaction always-cleanup runtime contract (expected setup failure)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # This job deliberately fails its setup step; a blocking dependent job checks the cleanup outcome.
+    continue-on-error: true
+    outputs:
+      setup_outcome: ${{ steps.simulated_setup.outcome }}
+      cleanup_outcome: ${{ steps.always_cleanup.outcome }}
+      cleanup_ran: ${{ steps.always_cleanup.outputs.cleanup_ran }}
+      cleanup_exit_code: ${{ steps.always_cleanup.outputs.cleanup_exit_code }}
+      cleanup_failure_observed: ${{ steps.always_cleanup.outputs.cleanup_failure_observed }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Simulate a partial setup failure after publishing cleanup outputs
+        id: simulated_setup
+        shell: bash
+        run: |
+          printf 'baseline=0\nrestore_required=true\n' >> "$GITHUB_OUTPUT"
+          printf '10\n' > "$RUNNER_TEMP/qima-prepared-cleanup-contract-state"
+          exit 47
+      - name: Execute actual restore script after the simulated setup failure
+        id: always_cleanup
+        if: always()
+        env:
+          SETUP_OUTCOME: ${{ steps.simulated_setup.outcome }}
+          RESTORE_REQUIRED: ${{ steps.simulated_setup.outputs.restore_required }}
+          BASELINE_MAX_PREPARED_TRANSACTIONS: ${{ steps.simulated_setup.outputs.baseline }}
+        shell: bash
+        run: bash tests/ci/test-prepared-transactions-always-cleanup-runtime.sh
+
+  prepared_transactions_always_cleanup_assert:
+    name: Assert prepared-transaction always-cleanup runtime contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: always()
+    needs: prepared_transactions_always_cleanup_contract
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Assert cleanup ran after failed setup and reported success
+        shell: bash
+        env:
+          HARNESS_RESULT: ${{ needs.prepared_transactions_always_cleanup_contract.result }}
+          SETUP_OUTCOME: ${{ needs.prepared_transactions_always_cleanup_contract.outputs.setup_outcome }}
+          CLEANUP_OUTCOME: ${{ needs.prepared_transactions_always_cleanup_contract.outputs.cleanup_outcome }}
+          CLEANUP_RAN: ${{ needs.prepared_transactions_always_cleanup_contract.outputs.cleanup_ran }}
+          CLEANUP_EXIT_CODE: ${{ needs.prepared_transactions_always_cleanup_contract.outputs.cleanup_exit_code }}
+          CLEANUP_FAILURE_OBSERVED: ${{ needs.prepared_transactions_always_cleanup_contract.outputs.cleanup_failure_observed }}
+        run: bash tests/ci/assert-prepared-transactions-cleanup-contract.sh success
+
+
+  prepared_transactions_always_cleanup_failure_contract:
+    name: Prepared-transaction always-cleanup failure propagation contract (expected cleanup failure)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # The cleanup failure is deliberate; a separate blocking job verifies its exact outcome.
+    continue-on-error: true
+    outputs:
+      setup_outcome: ${{ steps.simulated_setup.outcome }}
+      cleanup_outcome: ${{ steps.always_cleanup.outcome }}
+      cleanup_ran: ${{ steps.always_cleanup.outputs.cleanup_ran }}
+      cleanup_exit_code: ${{ steps.always_cleanup.outputs.cleanup_exit_code }}
+      cleanup_failure_observed: ${{ steps.always_cleanup.outputs.cleanup_failure_observed }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Simulate a partial setup failure before cleanup
+        id: simulated_setup
+        shell: bash
+        run: |
+          printf 'baseline=0\nrestore_required=true\n' >> "$GITHUB_OUTPUT"
+          printf '10\n' > "$RUNNER_TEMP/qima-prepared-cleanup-contract-state"
+          exit 47
+      - name: Execute actual restore script and expect a cleanup failure
+        id: always_cleanup
+        if: always()
+        env:
+          SETUP_OUTCOME: ${{ steps.simulated_setup.outcome }}
+          RESTORE_REQUIRED: ${{ steps.simulated_setup.outputs.restore_required }}
+          BASELINE_MAX_PREPARED_TRANSACTIONS: ${{ steps.simulated_setup.outputs.baseline }}
+          SIMULATE_RESTORE_FAILURE: "true"
+        shell: bash
+        run: bash tests/ci/test-prepared-transactions-always-cleanup-runtime.sh
+
+  prepared_transactions_always_cleanup_failure_assert:
+    name: Assert prepared-transaction cleanup failures remain blocking
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: always()
+    needs: prepared_transactions_always_cleanup_failure_contract
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Assert cleanup failure was preserved and not reported as success
+        shell: bash
+        env:
+          HARNESS_RESULT: ${{ needs.prepared_transactions_always_cleanup_failure_contract.result }}
+          SETUP_OUTCOME: ${{ needs.prepared_transactions_always_cleanup_failure_contract.outputs.setup_outcome }}
+          CLEANUP_OUTCOME: ${{ needs.prepared_transactions_always_cleanup_failure_contract.outputs.cleanup_outcome }}
+          CLEANUP_RAN: ${{ needs.prepared_transactions_always_cleanup_failure_contract.outputs.cleanup_ran }}
+          CLEANUP_EXIT_CODE: ${{ needs.prepared_transactions_always_cleanup_failure_contract.outputs.cleanup_exit_code }}
+          CLEANUP_FAILURE_OBSERVED: ${{ needs.prepared_transactions_always_cleanup_failure_contract.outputs.cleanup_failure_observed }}
+        run: bash tests/ci/assert-prepared-transactions-cleanup-contract.sh failure
+
+
+  prepared_transactions_cleanup_skipped_contract:
+    name: Prepared-transaction cleanup skipped-result contract (expected skipped job)
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    if: ${{ false }}
+    outputs:
+      setup_outcome: ${{ steps.never_run.outputs.setup_outcome }}
+      cleanup_outcome: ${{ steps.never_run.outputs.cleanup_outcome }}
+      cleanup_ran: ${{ steps.never_run.outputs.cleanup_ran }}
+      cleanup_exit_code: ${{ steps.never_run.outputs.cleanup_exit_code }}
+      cleanup_failure_observed: ${{ steps.never_run.outputs.cleanup_failure_observed }}
+    steps:
+      - name: This step must not run because the job is skipped
+        id: never_run
+        shell: bash
+        run: |
+          printf 'setup_outcome=failure\ncleanup_outcome=success\ncleanup_ran=true\n' >> "$GITHUB_OUTPUT"
+
+  prepared_transactions_cleanup_skipped_assert:
+    name: Assert skipped cleanup harness cannot be treated as success
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: always()
+    needs: prepared_transactions_cleanup_skipped_contract
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Assert skipped harness has no cleanup outputs
+        shell: bash
+        env:
+          HARNESS_RESULT: ${{ needs.prepared_transactions_cleanup_skipped_contract.result }}
+          SETUP_OUTCOME: ${{ needs.prepared_transactions_cleanup_skipped_contract.outputs.setup_outcome }}
+          CLEANUP_OUTCOME: ${{ needs.prepared_transactions_cleanup_skipped_contract.outputs.cleanup_outcome }}
+          CLEANUP_RAN: ${{ needs.prepared_transactions_cleanup_skipped_contract.outputs.cleanup_ran }}
+          CLEANUP_EXIT_CODE: ${{ needs.prepared_transactions_cleanup_skipped_contract.outputs.cleanup_exit_code }}
+          CLEANUP_FAILURE_OBSERVED: ${{ needs.prepared_transactions_cleanup_skipped_contract.outputs.cleanup_failure_observed }}
+        run: bash tests/ci/assert-prepared-transactions-cleanup-contract.sh skipped

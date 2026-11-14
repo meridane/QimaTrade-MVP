@@ -1,66 +1,149 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { randomUUID } from "crypto";
-import { executeUniversalAction } from "@/lib/actions/runtime";
+import { executeUniversalAction } from "../../../../lib/actions/runtime";
 
 export const dynamic = "force-dynamic";
+const currencies = new Set(["USD", "EUR", "KRW", "MAD", "CNY"]);
+
+function unauthenticatedResponse(invalidToken = false) {
+  const challenge = invalidToken
+    ? 'Bearer realm="qimatrade", error="invalid_token"'
+    : 'Bearer realm="qimatrade"';
+
+  return NextResponse.json(
+    { error: "UNAUTHENTICATED" },
+    { status: 401, headers: { "WWW-Authenticate": challenge } },
+  );
+}
+
+// Only exact, documented CREATE_OFFER domain codes may cross the API boundary.
+// Supabase/PostgREST messages and unexpected exception text remain server-side.
+const publicCreateOfferErrorCodes = new Set([
+  "ACTION_NOT_PUBLISHED",
+  "UNAUTHENTICATED",
+  "TENANT_REQUIRED",
+  "IDEMPOTENCY_KEY_REQUIRED",
+  "ACTION_INPUT_REQUIRED",
+  "TENANT_ACCESS_DENIED",
+  "PROFILE_ACTOR_NOT_FOUND",
+  "INVALID_PROVIDER_ACTOR",
+  "INVALID_QUANTITY",
+  "INVALID_PRICE",
+  "INVALID_CURRENCY",
+  "PRODUCT_MASTER_NOT_FOUND",
+  "DEMAND_NOT_FOUND",
+  "IDEMPOTENCY_KEY_REUSE",
+  "ACTION_ALREADY_RUNNING",
+]);
 
 export async function POST(request: Request) {
   try {
     const authHeader = request.headers.get("authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
-    }
+    // RFC 6750 requires SP separators and a b64token credential with optional trailing padding.
+    // Reject punctuation and misplaced padding before forwarding malformed credentials to Auth.
+    const bearerMatch = authHeader?.match(/^Bearer +([-A-Za-z0-9._~+\/]+={0,})$/i);
+    if (!bearerMatch) return unauthenticatedResponse();
 
-    const token = authHeader.slice("Bearer ".length);
+    const token = bearerMatch[1];
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      { auth: { autoRefreshToken: false, persistSession: false }, global: { headers: { Authorization: authHeader } } },
+      { auth: { autoRefreshToken: false, persistSession: false }, global: { headers: { Authorization: `Bearer ${token}` } } },
     );
 
     const { data: { user }, error: userError } = await supabase.auth.getUser(token);
-    if (userError || !user) return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
+    if (userError || !user) {
+      return unauthenticatedResponse(userError ? userError.status === 401 : !user);
+    }
 
-    const body = await request.json();
+    let body: Record<string, unknown>;
+    try {
+      const parsedBody: unknown = await request.json();
+      if (!parsedBody || typeof parsedBody !== "object" || Array.isArray(parsedBody)) {
+        return NextResponse.json({ error: "INVALID_REQUEST_BODY" }, { status: 400 });
+      }
+      body = parsedBody as Record<string, unknown>;
+    } catch {
+      return NextResponse.json({ error: "INVALID_REQUEST_BODY" }, { status: 400 });
+    }
+
+    const name = typeof body.name === "string" ? body.name.trim() : "";
+    const demandId = typeof body.demandId === "string" ? body.demandId.trim() : "";
+    const quantity =
+      typeof body.quantity === "number"
+        ? body.quantity
+        : typeof body.quantity === "string" && body.quantity.trim()
+          ? Number(body.quantity)
+          : Number.NaN;
+    const rawPrice = body.price;
+    const price =
+      typeof rawPrice === "number"
+        ? rawPrice
+        : typeof rawPrice === "string" && rawPrice.trim()
+          ? Number(rawPrice)
+          : Number.NaN;
+    const currency = typeof body.currency === "string" ? body.currency.trim() : "";
+
+    if (!name || !demandId) return NextResponse.json({ error: "NAME_AND_DEMAND_REQUIRED" }, { status: 400 });
+    if (!Number.isFinite(quantity) || quantity <= 0) return NextResponse.json({ error: "INVALID_QUANTITY" }, { status: 400 });
+    if (!Number.isFinite(price) || price < 0) return NextResponse.json({ error: "INVALID_PRICE" }, { status: 400 });
+    if (!currencies.has(currency)) return NextResponse.json({ error: "INVALID_CURRENCY" }, { status: 400 });
+
     const { data: profile, error: profileError } = await supabase.from("profiles").select("actor_id").eq("auth_user_id", user.id).maybeSingle();
     if (profileError || !profile?.actor_id) return NextResponse.json({ error: "PROFILE_ACTOR_NOT_FOUND" }, { status: 403 });
 
-    const { data: membership, error: membershipError } = await supabase.from("dt_memberships").select("tenant_id").eq("user_id", user.id).limit(1).maybeSingle();
-    if (membershipError || !membership?.tenant_id) return NextResponse.json({ error: "TENANT_MEMBERSHIP_REQUIRED" }, { status: 403 });
+    const { data: memberships, error: membershipError } = await supabase.from("dt_memberships").select("tenant_id").eq("user_id", user.id);
+    if (membershipError || !memberships?.length) return NextResponse.json({ error: "TENANT_MEMBERSHIP_REQUIRED" }, { status: 403 });
+
+    const tenantIds = [...new Set(
+      memberships
+        .map((membership) => typeof membership.tenant_id === "string" ? membership.tenant_id.trim() : "")
+        .filter((tenantId) => tenantId.length > 0),
+    )];
+    if (tenantIds.length === 0) {
+      return NextResponse.json({ error: "TENANT_MEMBERSHIP_REQUIRED" }, { status: 403 });
+    }
+    if (tenantIds.length > 1) {
+      return NextResponse.json({ error: "TENANT_SELECTION_REQUIRED", message: "Select an active tenant before creating an offer." }, { status: 409 });
+    }
+    const tenantId = tenantIds[0];
 
     const input = {
-      name: String(body.name ?? "Offer"),
-      demandId: String(body.demandId ?? ""),
-      productMasterId: String(body.productMasterId ?? ""),
+      name,
+      demandId,
+      productMasterId: typeof body.productMasterId === "string" ? body.productMasterId.trim() : "",
       providerActorId: profile.actor_id,
-      quantity: Number(body.quantity),
-      price: Number(body.price),
-      currency: String(body.currency ?? ""),
-      pricingModel: body.pricingModel == null ? null : String(body.pricingModel),
+      quantity,
+      price,
+      currency,
+      pricingModel: body.pricingModel == null ? "fixed" : String(body.pricingModel),
       conditions: body.conditions == null ? null : String(body.conditions),
       market: body.market == null ? null : String(body.market),
       geography: body.geography == null ? null : String(body.geography),
-      attributes: body.attributes ?? {},
+      attributes: body.attributes && typeof body.attributes === "object" && !Array.isArray(body.attributes) ? body.attributes as Record<string, unknown> : {},
       documentationStatus: body.documentationStatus == null ? null : String(body.documentationStatus),
-      lifecycle: body.lifecycle == null ? null : String(body.lifecycle),
-      offerType: body.offerType == null ? null : String(body.offerType),
+      lifecycle: body.lifecycle == null ? "draft" : String(body.lifecycle),
+      offerType: body.offerType == null ? "supplier_offer" : String(body.offerType),
     };
 
     const result = await executeUniversalAction({
       userId: user.id,
-      tenantId: membership.tenant_id,
+      tenantId,
       actionKey: "CREATE_OFFER",
       actionVersion: 1,
       objectType: "Demand",
       objectId: input.demandId,
-      correlationId: body.correlationId?.trim() || randomUUID(),
-      idempotencyKey: body.idempotencyKey?.trim() || randomUUID(),
+      correlationId: typeof body.correlationId === "string" && body.correlationId.trim() ? body.correlationId.trim() : randomUUID(),
+      idempotencyKey: typeof body.idempotencyKey === "string" && body.idempotencyKey.trim() ? body.idempotencyKey.trim() : randomUUID(),
     }, input, token);
 
     return NextResponse.json(result, { status: result.status === "succeeded" ? 200 : 409 });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "ACTION_FAILED";
-    return NextResponse.json({ error: message }, { status: 400 });
+    const candidate = error instanceof Error ? error.message : "";
+    if (publicCreateOfferErrorCodes.has(candidate)) {
+      return NextResponse.json({ error: candidate }, { status: 400 });
+    }
+    return NextResponse.json({ error: "ACTION_FAILED" }, { status: 500 });
   }
 }
