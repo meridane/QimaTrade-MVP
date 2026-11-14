@@ -55,6 +55,18 @@ done
 [[ "$(grep -Fc 'QA399 PASS:' "$RUNTIME" || true)" -eq 1 ]] ||
   fail "QA399 runtime marker must appear exactly once"
 
+for required in \
+  "v_after_first.idempotency_count <> 1" \
+  "v_after_first.execution_count <> 1" \
+  "v_after_first.offer_count <> 1" \
+  "v_after_first.event_count <> 1"; do
+  grep -Fq -- "$required" <<< "$BLOCK" ||
+    fail "QA399 must assert exactly one original row in each scoped persistence table: $required"
+done
+if grep -Fq 'v_before' <<< "$BLOCK"; then
+  fail "QA399 must not compare scoped post-call row counts with unrelated global pre-call counts"
+fi
+
 for expression in \
   "p_tenant_id => v_tenant_id," \
   "p_idempotency_key => v_key," \

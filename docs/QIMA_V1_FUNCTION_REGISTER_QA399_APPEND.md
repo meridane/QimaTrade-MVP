@@ -24,9 +24,10 @@
 - This scenario uses text-only array elements and does not test numeric lexical canonicalization or change MKT-1.3.
 - No migration or application code is changed.
 - Runtime SQL is appended to `tests/sql/create-offer-runtime.sql`; static contract is `tests/sql/test-create-offer-attributes-array-order-replay-contract.sh`.
-- QIMA CI [#1416](https://github.com/meridane/QimaTrade-MVP/actions/runs/43555179600) was triggered on code commit `9795c3328b113fd4a9aff7c0a9c357d82edfe4db`. The Verify step `Verify CREATE_OFFER JSONB array-order change rejects replay and preserves original state` completed SUCCESS. At the latest check, the PostgreSQL 17.6 CREATE_OFFER runtime step was in progress; the PostgreSQL 16 runtime step had not started; the Verify job had reached the production build and browser tests remained pending.
-- CodeQL [#1364](https://github.com/meridane/QimaTrade-MVP/actions/runs/43555179638) was IN_PROGRESS and the Vercel status for this HEAD was PENDING at the same checkpoint. These are intermediate states, not final validation.
-- Keep QA399 PENDING until Verify, both complete PostgreSQL jobs and the QA399 runtime marker in both logs succeed.
+- QIMA CI [#1416](https://github.com/meridane/QimaTrade-MVP/actions/runs/43555179600) completed with overall FAILURE. The QA399 static Verify step, npm audit, TypeScript, production build and browser smoke tests completed SUCCESS; CodeQL [#1364](https://github.com/meridane/QimaTrade-MVP/actions/runs/43555179638) completed SUCCESS.
+- Both PostgreSQL runtime jobs failed at the same QA399 assertion: `QA399 initial request did not persist exactly one idempotency row, execution, offer and event`. The test compared scoped post-call counts (filtered to the QA399 key/offer/execution) with `v_before` global table counts, so those quantities were not comparable. This is a regression-test accounting defect, not evidence of an application or Production defect.
+- Correction: remove the unrelated global baseline and assert exactly one row in each QA399-scoped persistence query after the first call; the existing fixture-absence guard and post-replay equality checks remain. The static contract now rejects any `v_before` reference and requires all four exact-one assertions.
+- A new CI run on the corrected commit is required. Keep QA399 PENDING until Verify, both complete PostgreSQL jobs and the QA399 runtime marker in both logs succeed.
 
 ## Safety and decision boundaries
 

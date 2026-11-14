@@ -11045,7 +11045,6 @@ RESET ROLE;
 
 DO $qa91_integrity$
 DECLARE
-  v_before record;
   v_after record;
 BEGIN
   SELECT * INTO v_before FROM pg_temp.qa91_baseline;
@@ -16528,13 +16527,6 @@ BEGIN
     RAISE EXCEPTION 'QA399 fixture data already exists';
   END IF;
 
-  SELECT
-    (SELECT count(*)::integer FROM public.idempotency_keys) AS idempotency_count,
-    (SELECT count(*)::integer FROM public.action_executions) AS execution_count,
-    (SELECT count(*)::integer FROM public.offers) AS offer_count,
-    (SELECT count(*)::integer FROM public.action_events) AS event_count
-  INTO v_before;
-
   v_first_result := public.execute_create_offer_v1(
     p_tenant_id => v_tenant_id,
     p_idempotency_key => v_key,
@@ -16612,11 +16604,7 @@ BEGIN
   IF v_after_first.idempotency_count <> 1
      OR v_after_first.execution_count <> 1
      OR v_after_first.offer_count <> 1
-     OR v_after_first.event_count <> 1
-     OR v_after_first.idempotency_count <> v_before.idempotency_count + 1
-     OR v_after_first.execution_count <> v_before.execution_count + 1
-     OR v_after_first.offer_count <> v_before.offer_count + 1
-     OR v_after_first.event_count <> v_before.event_count + 1 THEN
+     OR v_after_first.event_count <> 1 THEN
     RAISE EXCEPTION 'QA399 initial request did not persist exactly one idempotency row, execution, offer and event';
   END IF;
 
