@@ -2,7 +2,7 @@
 
 ## QA404 — changed p_market replay rejection
 
-**Status:** IMPLEMENTED — pending GitHub Actions validation on PostgreSQL 16 and PostgreSQL 17.6.  
+**Status:** IMPLEMENTED — CI #43577037530 Verify SUCCESS (QA404 static contract, npm audit, TypeScript, Next.js build and 347 Playwright tests); CREATE_OFFER integration steps SUCCESS on PostgreSQL 16 and 17.6; full PostgreSQL jobs remain in final characterization. CodeQL #43577037553 SUCCESS.  
 **Target:** PR #26, branch `fix/create-offer-status-contract`  
 **Working branch:** `work/qa404-market-mismatch-replay-20261114-1740`  
 **Base commit:** `32ef9f799c7112cf7f125871090c780e776b1f9c`
@@ -25,7 +25,10 @@
 - The Verify workflow invokes the new static contract exactly once; both PostgreSQL jobs use the existing isolated CREATE_OFFER integration runner.
 - No application code or migration is changed.
 - Prerequisite QA403 is CLOSED: QIMA CI [#43575452745](https://github.com/meridane/QimaTrade-MVP/actions/runs/43575452745) completed SUCCESS, including one explicit `QA403 PASS` runtime marker on each PostgreSQL version; CodeQL [#43575452736](https://github.com/meridane/QimaTrade-MVP/actions/runs/43575452736) completed SUCCESS.
-- QA404 validation will be recorded after GitHub Actions starts for the updated PR head.
+- QIMA CI [#43577037530](https://github.com/meridane/QimaTrade-MVP/actions/runs/43577037530) started for code commit `f0136cf53a2d8b7edd7375107cbd45a6f679d8b5`. Its Verify job completed SUCCESS: the QA404 static contract passed, npm audit at the configured high threshold passed, TypeScript passed, the Next.js production build passed, and Playwright completed **347/347**.
+- The PostgreSQL 16 `Run isolated CREATE_OFFER integration and concurrency tests` step and PostgreSQL 17.6 `Run CREATE_OFFER integration and concurrency tests on PostgreSQL 17` step both completed SUCCESS. Their full jobs were still running the remaining privilege, RLS, ACL and cleanup characterizations at this checkpoint. No explicit `QA404 PASS` log marker is claimed until the completed job logs can be inspected.
+- CodeQL [#43577037553](https://github.com/meridane/QimaTrade-MVP/actions/runs/43577037553) completed SUCCESS.
+- The combined Vercel status for this HEAD reports `build-rate-limit`. The separate Vercel Preview Comments check completed SUCCESS with no unresolved feedback; that is not a deployment-ready confirmation.
 
 ## Safety and decision boundaries
 
