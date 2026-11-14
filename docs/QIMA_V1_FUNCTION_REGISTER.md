@@ -9335,7 +9335,7 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 
 ## QA416 — omission de p_offer_type et replay avec NULL explicite
 
-**Statut : IMPLEMENTED — validation CI en attente sur le nouveau HEAD.**
+**Statut : IMPLEMENTED — revalidation statique SUCCESS ; jobs PostgreSQL complets encore en cours sur le code/workflow HEAD `636acbca15a57832b97bbbe06cdcaa9c301e1850`.**
 - La signature existante déclare `p_offer_type text DEFAULT NULL::text` ; aucune migration n'est modifiée.
 - Le premier appel CREATE_OFFER omet réellement `p_offer_type` ; le replay avec le même tenant et la même clé fournit explicitement `p_offer_type => NULL`.
 - Tous les autres paramètres effectifs restent identiques, notamment `p_lifecycle => NULL`, `p_documentation_status => NULL`, `p_market => 'fixture-market-stable'`, `p_attributes => '{}'::jsonb` et `p_pricing_model => 'fixture-pricing-model-stable'`.
@@ -9347,18 +9347,24 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 - Prévalidation structurale sur le HEAD `da3ec87ecd1e5df2c5c2d7388e2c021e22f85b53` : défaut de signature, mapping du hash, forwarding, omission/replay, égalité des autres paramètres, assertions read-only et wiring Verify/PostgreSQL vérifiés.
 - CodeQL [#1397](https://github.com/meridane/QimaTrade-MVP/actions/runs/43636740480) : SUCCESS sur le HEAD précédent `c71bd5a7cf3a039c807024b22757e9f4a58a439b`, pas sur le correctif `da3ec87`.
 - Aucun run QIMA CI n'est encore retourné par l'API Actions pour le HEAD final ; aucun résultat runtime QA416 n'est revendiqué.
+- Revalidation QIMA CI [run 43644473687](https://github.com/meridane/QimaTrade-MVP/actions/runs/43644473687), code/workflow HEAD `636acbca15a57832b97bbbe06cdcaa9c301e1850` : Verify SUCCESS avec exactement un marqueur statique QA416 PASS et un QA417 PASS ; npm audit high, TypeScript, build Next.js et Playwright 347/347 réussis.
+- PostgreSQL 16 job `132599046809` et PostgreSQL 17.6 job `132599047040` ont terminé SUCCESS pour leur étape principale CREATE_OFFER integration/concurrency et les régressions séparées QA409–QA413. Les caractérisations complètes des privilèges, RLS/ACL et nettoyage sont encore en cours ; les marqueurs runtime exacts QA416/QA417 attendent les journaux finaux.
+- CodeQL [run 43644473682](https://github.com/meridane/QimaTrade-MVP/actions/runs/43644473682) SUCCESS ; statut combiné Vercel SUCCESS sur ce code/workflow HEAD.
 - Appendice : [QA416](QIMA_V1_FUNCTION_REGISTER_QA416_APPEND.md).
 
 ## QA417 — omission de p_pricing_model et replay avec NULL explicite
 
-**Statut : IMPLEMENTED — validation QIMA CI en attente sur le nouveau HEAD.**
+**Statut : IMPLEMENTED — Verify SUCCESS ; jobs PostgreSQL complets encore en cours sur le code/workflow HEAD `636acbca15a57832b97bbbe06cdcaa9c301e1850`.**
 - La signature existante déclare `p_pricing_model text DEFAULT NULL::text` ; le hash contient déjà `'pricingModel', p_pricing_model` et la valeur est transmise à `create_offer_v1`. Aucune migration n'est modifiée.
 - Le premier appel CREATE_OFFER omet réellement `p_pricing_model` ; le replay avec le même tenant et la même clé fournit explicitement `p_pricing_model => NULL`.
 - `p_offer_type => 'fixture-offer-type-stable'` et tous les autres paramètres effectifs restent identiques dans les deux appels.
 - Le scénario exige le résultat JSON exact, le hash inchangé, l'exécution `COMPLETED`, `offers.pricing_model IS NULL`, l'événement `ACTION_SUCCEEDED` et l'absence de doublons dans `idempotency_keys`, `action_executions`, `offers` et `action_events`.
 - Le contrôle statique QA417 est `tests/sql/test-create-offer-pricing-model-default-replay-contract.sh` ; il vérifie le défaut, le hash, le forwarding, l'omission/replay, les paramètres non ciblés stables, les assertions read-only et le wiring Verify/PostgreSQL 16/PostgreSQL 17.6.
-- La relecture a découvert que le workflow contenait une seconde clé YAML `run:` sous le step QA415 modifié, au lieu d'un step QA416 distinct. Le workflow sépare désormais explicitement les steps QA416 et QA417 ; le contrôle statique QA416 exige son nom de step et le contrôle QA417 vérifie les deux câblages.
+- La relecture a découvert que le workflow contenait une seconde clé YAML `run:` sous le step `Verify CREATE_OFFER changed-offer-type replay preserves original state` (QA407), au lieu d'un step QA416 distinct. Le workflow sépare désormais explicitement les steps QA416 et QA417 ; le contrôle statique QA416 exige son nom de step et le contrôle QA417 vérifie les deux câblages.
 - Le runtime est ajouté à `tests/sql/create-offer-runtime.sql`, exécuté par les runners PostgreSQL existants.
 - QA416 demeure en attente de validation QIMA CI ; le nouveau run doit valider QA416 et QA417 ensemble sur le HEAD corrigé.
 - Aucun résultat runtime QA417 n'est revendiqué avant les marqueurs exacts des journaux PostgreSQL 16 et 17.6.
+- QIMA CI [run 43644473687](https://github.com/meridane/QimaTrade-MVP/actions/runs/43644473687) : Verify SUCCESS avec les contrôles statiques QA416 et QA417, npm audit high, TypeScript, build Next.js et Playwright 347/347 réussis.
+- Les étapes principales CREATE_OFFER integration/concurrency et les régressions séparées QA409–QA413 ont réussi sur PostgreSQL 16 et 17.6 ; les caractérisations finales de privilèges, RLS/ACL et nettoyage restent en cours. Aucun nombre exact de marqueurs runtime QA416/QA417 n'est revendiqué avant les journaux finaux.
+- CodeQL [run 43644473682](https://github.com/meridane/QimaTrade-MVP/actions/runs/43644473682) SUCCESS ; statut combiné Vercel SUCCESS sur le code/workflow HEAD `636acbca15a57832b97bbbe06cdcaa9c301e1850`.
 - Appendice : [QA417](QIMA_V1_FUNCTION_REGISTER_QA417_APPEND.md).
