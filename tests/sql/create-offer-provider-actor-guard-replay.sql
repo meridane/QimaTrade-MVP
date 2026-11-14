@@ -16,6 +16,7 @@ DECLARE
   v_execution_id uuid;
   v_offer_id uuid;
   v_original_hash text;
+  v_replay_hash text;
   v_idempotency_actor_id uuid;
   v_idempotency_execution_id uuid;
   v_idempotency_status text;
@@ -195,10 +196,11 @@ BEGIN
   END IF;
 
   SELECT request_hash, actor_id, execution_id, status, result
-  INTO v_idempotency_actor_id, v_idempotency_actor_id, v_idempotency_execution_id, v_idempotency_status, v_idempotency_result
+  INTO v_replay_hash, v_idempotency_actor_id, v_idempotency_execution_id, v_idempotency_status, v_idempotency_result
   FROM public.idempotency_keys
   WHERE tenant_id = v_tenant_id AND key = v_key;
   IF NOT FOUND
+     OR v_replay_hash IS DISTINCT FROM v_original_hash
      OR v_idempotency_actor_id IS DISTINCT FROM v_authenticated_actor_id
      OR v_idempotency_execution_id IS DISTINCT FROM v_execution_id
      OR v_idempotency_status IS DISTINCT FROM 'COMPLETED'
@@ -237,14 +239,6 @@ BEGIN
      OR v_event_actor_id IS DISTINCT FROM v_authenticated_actor_id
      OR v_event_payload IS DISTINCT FROM v_first_result THEN
     RAISE EXCEPTION 'QA419 rejected provider actor replay changed the original success event';
-  END IF;
-
-  -- The request hash must remain the exact original value.
-  SELECT request_hash INTO v_original_hash
-  FROM public.idempotency_keys
-  WHERE tenant_id = v_tenant_id AND key = v_key;
-  IF NOT FOUND OR v_original_hash IS NULL THEN
-    RAISE EXCEPTION 'QA419 original request hash disappeared after rejected provider actor replay';
   END IF;
 
   RAISE NOTICE 'QA419 PASS: a mismatched p_provider_actor_id is rejected as INVALID_PROVIDER_ACTOR before idempotency lookup and preserves the completed original state';
