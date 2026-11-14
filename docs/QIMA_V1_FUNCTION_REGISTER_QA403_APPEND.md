@@ -2,7 +2,7 @@
 
 ## QA403 — changed p_geography replay rejection
 
-**Status:** IMPLEMENTED — QA403 static Verify PASS; first PostgreSQL runtime attempt exposed and corrected a duplicate named geography argument; corrected-HEAD runtime pending.  
+**Status:** IMPLEMENTED — corrected QA403 static Verify PASS in CI #43575168210; PostgreSQL 16/17.6 runtime and Playwright remain in progress.  
 **Target:** PR #26, branch `fix/create-offer-status-contract`  
 **Working branch:** `work/qa403-geography-mismatch-replay-20261114-1711`  
 **Base commit:** `20eda0d2d83d1b1b845c421caa4e14acb1fa5c96`
@@ -26,7 +26,7 @@
 - No application code or migration is changed.
 - QIMA CI [#43574871835](https://github.com/meridane/QimaTrade-MVP/actions/runs/43574871835) first failed Verify because the copied QA403 block still emitted a second `QA402 PASS` marker; the marker was corrected in commit `9abe4980e7731132b7d7ffd25cf53eed2f6693a7`.
 - QIMA CI [#43574996910](https://github.com/meridane/QimaTrade-MVP/actions/runs/43574996910) passed the QA403 static contract, but both PostgreSQL runtime jobs failed before the function call with `argument name "p_geography" used more than once`. The QA402 template's unchanged `p_geography => NULL` argument had been retained after changing the tested parameter to geography, so each call had a duplicate named argument. This is a test-fixture defect, not an application failure or evidence of a Production vulnerability. The duplicate argument has been removed and a static assertion now requires exactly two geography arguments (one per call) and no additional NULL geography argument.
-- At the checkpoint, npm audit and TypeScript passed; the production build/browser portion was still running. CodeQL [#43574871867](https://github.com/meridane/QimaTrade-MVP/actions/runs/43574871867) completed SUCCESS for the first QA403 HEAD; the corrected HEAD will trigger a new analysis.
+- QIMA CI [#43575168210](https://github.com/meridane/QimaTrade-MVP/actions/runs/43575168210) on corrected code commit `f388d16d5290649a0a23598f47dbbfb240c3b891` passed the QA403 static contract, npm audit, TypeScript and Next.js production build. Playwright Chromium installation was still in progress at the checkpoint, so browser tests are not yet claimed.
 - This is a regression characterization of an existing request-hash field, not a finding of a Production vulnerability.
 
 ## Safety and decision boundaries
