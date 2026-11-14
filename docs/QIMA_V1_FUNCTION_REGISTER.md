@@ -9054,3 +9054,24 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 - Correction du script tests/sql/test-create-offer-currency-mismatch-replay-contract.sh : les assertions reconnaissent désormais les arguments finaux p_currency => USD/EUR sans virgule. Le SQL runtime et la migration restent inchangés.
 - Les jobs PostgreSQL 16 et 17.6 de CI #1407 étaient encore en cours à ce checkpoint. QA394 reste IMPLEMENTED / PENDING jusqu'à la réussite d'un nouveau Verify et des deux jobs PostgreSQL complets.
 - Aucun code applicatif, migration, donnée Supabase Production, secret, paramètre PostgreSQL persistant, règle de protection, fusion ou déploiement Production n'a été modifié.
+
+## QA394 — validation complète et clôture (14 novembre 2026)
+
+- PR #26 HEAD vérifié : 487531053648501e1dd8b08e40ecf36bc9068c28; PR OPEN, DRAFT, mergeable et non fusionnée.
+- QIMA CI [#1408](https://github.com/meridane/QimaTrade-MVP/actions/runs/43519543157) a terminé **SUCCESS**. Verify (job 132212510706) a émis QA394 PASS; npm audit, TypeScript, build Next.js et 347/347 Playwright ont réussi.
+- PostgreSQL 16 (job 132212511193) et PostgreSQL 17.6 (job 132212511050) ont chacun émis QA394 PASS et QA381 passed; les deux jobs complets ont terminé **SUCCESS** après les contrôles catalogues, ACL, RLS, privilèges et nettoyage.
+- QIMA CodeQL [#1356](https://github.com/meridane/QimaTrade-MVP/actions/runs/43519543244) et le check Vercel du HEAD ont terminé **SUCCESS**.
+- QA394 est **CLOSED**. Cette régression caractérise le rejet d'un replay avec devise modifiée sur des bases PostgreSQL jetables; elle ne constitue ni une validation Production ni une preuve de vulnérabilité.
+- CI #1407 a échoué dans Verify à cause d'une assertion statique exigeant à tort une virgule finale après p_currency. CI #1408 est la validation définitive après correction; aucun résultat d'audit n'est déduit de l'étape skipped de CI #1407.
+- Aucune donnée Supabase Production, migration, secret, configuration PostgreSQL persistante, règle de protection, fusion ou déploiement Production n'a été modifié.
+
+## QA395 — rejet d'un replay avec nom d'offre modifié
+
+- Le hash métier de la migration existante inclut name = p_name. QA392–QA394 couvrent déjà les changements de prix, quantité et devise; QA395 ajoute un cas runtime isolé pour le nom.
+- Ajout d'un scénario PostgreSQL jetable : premier appel valide avec le nom original, quantité 1, prix 12 USD, puis replay sous le même tenant/clé avec uniquement p_name changé.
+- Le test exige exactement IDEMPOTENCY_KEY_REUSE, l'absence d'une offre portant le nom modifié et des nombres de lignes inchangés dans idempotency_keys, action_executions, offers et action_events.
+- Le hash, le résultat, l'exécution COMPLETED, l'offre originale et l'événement ACTION_SUCCEEDED doivent rester inchangés.
+- Ajout de tests/sql/test-create-offer-name-mismatch-replay-contract.sh et intégration dans Verify; les jobs PostgreSQL 16 et 17.6 exécutent le runtime SQL partagé.
+- QA395 est IMPLEMENTED; validation CI en attente. Aucun code applicatif ni migration n'a été modifié.
+- MKT-1.1 demande/tenant, MKT-1.2 brouillons/idempotence et MKT-1.3 canonicalisation numérique restent non approuvés.
+- Aucune donnée Supabase Production, migration, secret, configuration PostgreSQL persistante, règle de protection, fusion ou déploiement Production n'a été modifié.

@@ -5,7 +5,7 @@ PR: [#26](https://github.com/meridane/QimaTrade-MVP/pull/26)
 Branch: fix/create-offer-status-contract
 Working branch: work/qa394-currency-mismatch-replay-20261114-0723
 Parent HEAD: 2d10319b2db707027dccbc214c312f6e39aeec69
-Status: IMPLEMENTED — CI VALIDATION PENDING
+Status: CLOSED — QIMA CI #1408 SUCCESS
 
 ## Initial state verified
 
@@ -39,7 +39,7 @@ The existing CREATE_OFFER request hash includes currency and the current accepte
 - Source-level review confirms the new case uses only the existing disposable authenticated fixture and does not modify the migration or application code.
 - Initial QIMA CI [#1407](https://github.com/meridane/QimaTrade-MVP/actions/runs/43519394194) failed in Verify at the QA394 static contract because the script incorrectly expected a trailing comma after the final named argument p_currency. The runtime SQL call correctly has no trailing comma; this was a test-harness assertion defect, not an application or migration failure.
 - The downstream npm-audit enforcement step also failed because the earlier Verify assertion stopped the job before npm audit ran; no audit result was produced and no vulnerability is inferred from that skipped check.
-- Corrected the QA394 static script to match the final p_currency arguments without commas. Runtime SQL and migration are unchanged. PostgreSQL 16 and 17.6 jobs from CI #1407 were still running at this checkpoint; QA394 remains PENDING until a fresh CI run completes Verify and both full PostgreSQL jobs successfully with the runtime marker.
+- Corrected the QA394 static script to match the final p_currency arguments without commas. Runtime SQL and migration are unchanged. PostgreSQL 16 and 17.6 jobs from CI #1407 were still running at this checkpoint; At this initial checkpoint QA394 remained pending; final closure evidence is recorded below.
 - The CI workflow ignores docs/** changes; the code and workflow commit triggers the PR validation.
 
 ## Safety and decision boundaries
@@ -50,3 +50,14 @@ The existing CREATE_OFFER request hash includes currency and the current accepte
 - MKT-1.1 demand/tenant ownership, MKT-1.2 independent-draft idempotency semantics and MKT-1.3 numeric canonicalization remain unapproved.
 - No Production deployment, PR merge, force update or branch-protection change was performed.
 - The runtime test uses only disposable PostgreSQL fixtures; synthetic regression evidence is not a finding of a Production vulnerability.
+
+
+## Final validation and closure (14 November 2026)
+
+- QIMA CI [#1408](https://github.com/meridane/QimaTrade-MVP/actions/runs/43519543157) completed **SUCCESS** on HEAD 487531053648501e1dd8b08e40ecf36bc9068c28.
+- Verify job 132212510706 completed SUCCESS. Its log contains the explicit QA394 PASS marker; npm audit, TypeScript, Next.js production build and **347/347 Playwright** passed.
+- PostgreSQL 16 job 132212511193 and PostgreSQL 17.6 job 132212511050 both completed SUCCESS. Each log contains the QA394 runtime PASS marker and QA381 passed; all subsequent catalog, ACL, RLS, privilege and cleanup steps completed successfully.
+- QIMA CodeQL [#1356](https://github.com/meridane/QimaTrade-MVP/actions/runs/43519543244) completed SUCCESS. The Vercel commit status completed SUCCESS.
+- QA394 is **CLOSED**. This validates the existing currency-sensitive idempotency contract on disposable CI databases; it is not a Production validation or a finding of a Production vulnerability.
+- CI [#1407](https://github.com/meridane/QimaTrade-MVP/actions/runs/43519394194) had a Verify-only static assertion defect (the final named argument was incorrectly expected to have a trailing comma). Its PostgreSQL jobs completed successfully, but the failed Verify stopped the audit/build/browser steps. CI #1408 is the definitive successful rerun after the assertion fix; no vulnerability is inferred from the skipped audit step in #1407.
+- No application code, migration, Supabase Production data, secret, persistent PostgreSQL setting, branch protection, PR merge or Production deployment was changed.
