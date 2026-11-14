@@ -2,33 +2,27 @@
 
 ## QA413 — omission de p_geography et replay avec NULL explicite
 
-**Statut : IMPLEMENTED — validation GitHub Actions en attente sur le nouveau HEAD.**
-**Target :** PR #26, branche `fix/create-offer-status-contract`.
-**Branche de travail :** `work/qa413-geography-default-replay-20261115-0233`.
-**Commit de base :** `0543731c297b1925956bcda3286ea5d44741e2b8`.
+**Statut : CLOSED — QIMA CI [#1447](https://github.com/meridane/QimaTrade-MVP/actions/runs/43622170878) SUCCESS ; Verify, PostgreSQL 16 et PostgreSQL 17.6 terminés. CodeQL [#1394](https://github.com/meridane/QimaTrade-MVP/actions/runs/43622170873) SUCCESS.**
 
-## Portée
+## Portée vérifiée
+- La signature existante déclare `p_geography text DEFAULT NULL::text` ; aucune migration n'a été modifiée.
+- Le premier appel nommé omet réellement `p_geography` ; les deux appels fournissent explicitement `p_market => NULL` et conservent identiques tous les autres paramètres effectifs.
+- Le replay avec le même tenant et la même clé fournit explicitement `p_geography => NULL` et retourne exactement le résultat JSON initial.
+- Le hash, l'exécution `COMPLETED`, l'offre avec `geography IS NULL`, l'événement `ACTION_SUCCEEDED` et les compteurs des quatre tables de persistance restent inchangés.
 
-- Caractériser la signature existante `p_geography text DEFAULT NULL::text` sans modifier la migration.
-- Le premier appel CREATE_OFFER de la fixture PostgreSQL jetable omet réellement l'argument nommé `p_geography`.
-- Les deux appels fournissent explicitement `p_market => NULL` et conservent identiques tous les autres paramètres effectifs.
-- Le replay avec le même tenant et la même clé fournit explicitement `p_geography => NULL`.
-- Exiger un résultat JSON exactement identique et préserver le hash, l'exécution `COMPLETED`, l'offre avec `geography IS NULL`, l'événement `ACTION_SUCCEEDED` et les quatre compteurs de persistance.
-- Vérifier une seule ligne initiale dans `idempotency_keys`, `action_executions`, `offers` et un seul événement de succès, puis les mêmes compteurs après replay.
-- Le contrôle statique vérifie le défaut dans la migration existante, l'omission dans le premier appel, NULL explicite dans le replay, la stabilité de tous les autres paramètres et les trois points d'intégration CI.
-
-## Validation
-
-- QA412 prerequisite : CLOSED. QIMA CI [#1446](https://github.com/meridane/QimaTrade-MVP/actions/runs/43615260933) SUCCESS ; Verify, PostgreSQL 16 et PostgreSQL 17.6 ainsi que les deux marqueurs explicites QA412 PASS sont confirmés.
-- La signature existante contient `p_geography text DEFAULT NULL::text` ; aucune migration n'est modifiée.
-- Le scénario QA413 est ajouté à Verify, PostgreSQL 16 et PostgreSQL 17.6, après l'initialisation de la fixture jetable.
-- Les résultats QA413, npm audit, TypeScript, build, Playwright, CodeQL et Vercel seront consignés après la CI déclenchée par la mise à jour de la branche PR.
-- Aucun résultat QA413 n'est revendiqué avant l'exécution des jobs.
+## Preuves CI
+- QIMA CI [#1447](https://github.com/meridane/QimaTrade-MVP/actions/runs/43622170878) — run `43622170878`, conclusion SUCCESS.
+- Verify job `132530053097` — contrat statique QA413 PASS, npm audit au seuil high, TypeScript, build Next.js et **347/347** tests Playwright réussis.
+- PostgreSQL 16 job `132530053047` — SUCCESS ; le journal contient exactement un marqueur `QA413 PASS`.
+- PostgreSQL 17.6 job `132530052797` — SUCCESS ; le journal contient exactement un marqueur `QA413 PASS`.
+- Les deux jobs complets ont aussi terminé les tests CREATE_OFFER/concurrence, repeat-guard, catalogue, replication slots, paramètres, ACL, extensions, privilèges du runner, RLS et nettoyage.
+- Les deux jobs de simulation négative du nettoyage ont échoué comme prévu ; leurs jobs d'assertion ont réussi. Le job volontairement skipped et son assertion ont produit le résultat attendu.
+- CodeQL [#1394](https://github.com/meridane/QimaTrade-MVP/actions/runs/43622170873) — SUCCESS.
+- Le statut combiné Vercel sur le HEAD `c4dcdfa4ff6e35343570fd640092f67e01bdce2f` indique `build-rate-limit`. C'est une limitation de capacité du fournisseur, pas une preuve d'échec de compilation ; le build Next.js du job Verify est réussi.
 
 ## Sécurité et limites
-
-- Les tests runtime n'utilisent que les bases PostgreSQL jetables CI et une URL loopback.
-- Aucun accès ou changement aux données ou migrations Supabase Production, secrets, grants, RLS ou paramètres PostgreSQL persistants.
+- Les tests runtime utilisent uniquement les bases PostgreSQL jetables de CI et des fixtures synthétiques.
+- Aucune donnée ni migration Supabase Production, aucun secret, grant, RLS ou paramètre PostgreSQL persistant n'a été modifié.
 - Aucun déploiement Production, merge, force-push ou changement de règle de protection.
-- Les valeurs utilisées sont des fixtures synthétiques ; ce test caractérise le contrat PostgreSQL existant et ne prouve aucune vulnérabilité Production.
+- Ce test caractérise le contrat PostgreSQL ; il ne prouve aucune vulnérabilité Production.
 - Le modèle d'autorisation demand/tenant et les décisions MKT-1.1, MKT-1.2 et MKT-1.3 restent en attente d'approbation métier.
