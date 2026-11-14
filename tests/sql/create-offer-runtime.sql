@@ -18873,8 +18873,8 @@ $qa414_documentation_status_default_replay$;
 DO $qa415_lifecycle_default_replay$
 DECLARE
   v_tenant_id uuid := '10000000-0000-4000-8000-000000000001';
-  v_key text := 'fixture-qa415-documentation-status-default-replay';
-  v_input jsonb := '{"case":"qa415-documentation-status-default-replay"}'::jsonb;
+  v_key text := 'fixture-qa415-lifecycle-default-replay';
+  v_input jsonb := '{"case":"qa415-lifecycle-default-replay"}'::jsonb;
   v_offer_name text := 'QA415 Lifecycle Default Replay Offer';
   v_first_result jsonb;
   v_replay_result jsonb;
