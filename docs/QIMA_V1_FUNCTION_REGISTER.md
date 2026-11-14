@@ -9091,3 +9091,19 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 - QIMA CI [#1410](https://github.com/meridane/QimaTrade-MVP/actions/runs/43532472369) a encore échoué dans Verify sur la même assertion p_name, restée dans la boucle des paramètres inchangés. L'étape d'application de l'audit a reçu AUDIT_OUTCOME=skipped après l'arrêt de Verify; aucun résultat d'audit ni vulnérabilité n'est déduit. Les jobs PostgreSQL étaient encore en cours à ce point de contrôle.
 - Réécriture du script statique : chaque expression p_name doit apparaître exactement une fois; tous les autres paramètres effectifs doivent apparaître deux fois; les délimiteurs dollar ouvrant et fermant sont contrôlés séparément. Une nouvelle CI sur ce commit corrigé est requise; #1409 et #1410 ne sont pas des validations QA395.
 - Aucun code applicatif, migration, donnée Supabase Production, secret, configuration PostgreSQL persistante, règle de protection, fusion ou déploiement Production n'a été modifié.
+
+
+## QA396 — changement de p_input sur une clé terminée (CLOSED, 14 novembre 2026)
+
+- Le replay d'une requête CREATE_OFFER terminée sous le même tenant et la même clé, avec uniquement p_input modifié, est rejeté par l'erreur exacte IDEMPOTENCY_KEY_REUSE.
+- QIMA CI [#1413](https://github.com/meridane/QimaTrade-MVP/actions/runs/43536122294) a terminé SUCCESS : Verify, PostgreSQL 16 et PostgreSQL 17.6 ont tous terminé SUCCESS; les deux journaux runtime contiennent QA396 PASS.
+- Verify a terminé npm audit, TypeScript, build Next.js et 347/347 tests Playwright avec succès. CodeQL [#1361](https://github.com/meridane/QimaTrade-MVP/actions/runs/43536122403) et le statut Vercel du HEAD validé ont terminé SUCCESS.
+- QA396 est CLOSED. Le scénario confirme la préservation du hash, du résultat, de l'offre, de l'exécution et de l'événement d'origine sur des bases jetables; il ne prouve aucune vulnérabilité Production.
+
+## QA397 — replay JSONB équivalent avec ordre de clés différent (PENDING CI)
+
+- Nouveau scénario : premier appel avec p_input = {"alpha":"one","beta":"two"}, puis replay avec les mêmes paires clé/valeur dans l'ordre source inverse.
+- Le test exige l'égalité JSONB et la même représentation canonique jsonb::text, puis le retour exact du résultat initial sans nouvelle écriture dans idempotency_keys, action_executions, offers ou action_events.
+- Le scénario n'utilise aucune valeur numérique et ne tranche donc pas MKT-1.3 sur la canonicalisation numérique.
+- Contrat statique ajouté à Verify; les jobs PostgreSQL 16 et 17.6 réutilisent le runner d'intégration isolé. QA397 reste PENDING jusqu'au succès complet de ces jobs et à la présence du marqueur runtime dans les deux journaux.
+- Aucun code applicatif, migration, donnée Supabase Production, secret, configuration PostgreSQL persistante, règle de protection, fusion ou déploiement Production n'a été modifié.
