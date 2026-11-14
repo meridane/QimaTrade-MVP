@@ -9282,12 +9282,28 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 
 ## QA412 — omission de p_market et replay avec NULL explicite
 
-**Statut : IMPLEMENTED — revalidation en cours après correction du premier contrôle statique.**
+**Statut : CLOSED — QIMA CI [#1446](https://github.com/meridane/QimaTrade-MVP/actions/runs/43615260933) SUCCESS ; Verify, PostgreSQL 16 et PostgreSQL 17.6 terminés. CodeQL [#1393](https://github.com/meridane/QimaTrade-MVP/actions/runs/43615260918) SUCCESS.**
 - La signature existante déclare `p_market text DEFAULT NULL::text` ; aucune migration n'est modifiée.
 - Le premier appel nommé omet volontairement `p_market` ; les deux appels conservent explicitement `p_conditions => NULL` et tous les autres paramètres effectifs identiques.
-- Le replay du même tenant/de la même clé fournit explicitement `p_market => NULL`.
-- Le test exige le résultat JSON initial exact, le hash inchangé, l'exécution `COMPLETED`, l'offre avec `market IS NULL`, l'événement `ACTION_SUCCEEDED` et exactement une ligne dans chacune des quatre tables de persistance.
-- Le contrôle statique vérifie le défaut déclaré, l'omission effective, NULL explicite au replay, les paramètres stables et l'intégration Verify/PostgreSQL 16/PostgreSQL 17.6.
-- Première tentative QIMA CI [#1444](https://github.com/meridane/QimaTrade-MVP/actions/runs/43615154472) : Verify a échoué parce que le commentaire et le NOTICE du scénario runtime indiquaient encore `p_conditions` alors que le contrôle attendait `p_market`. Le scénario et le contrôle statique ont ainsi détecté une incohérence de test/documentation, pas un défaut applicatif.
-- Le commentaire et le marqueur runtime ont été corrigés ; une nouvelle validation CI est déclenchée par ce commit. Les jobs PostgreSQL de #1444 étaient encore en cours au moment de la correction et aucun résultat final n'est revendiqué pour cette tentative.
+- Le replay du même tenant et de la même clé fournit explicitement `p_market => NULL` et retourne exactement le résultat JSON initial.
+- Verify job `132510374617` : contrat statique, npm audit au seuil high, TypeScript, build Next.js et **347/347** tests Playwright réussis.
+- PostgreSQL 16 job `132510374270` : SUCCESS ; exactement un marqueur `QA412 PASS`.
+- PostgreSQL 17.6 job `132510374562` : SUCCESS ; exactement un marqueur `QA412 PASS`.
+- Les deux environnements ont réussi les contrôles complets CREATE_OFFER/concurrence, repeat-guard, catalogue, replication slots, paramètres, ACL, extensions, privilèges, RLS et nettoyage.
+- Les échecs des jobs de simulation négative du nettoyage étaient attendus et leurs assertions ont réussi ; le job volontairement skipped a également été correctement reconnu.
+- La première tentative [#1444](https://github.com/meridane/QimaTrade-MVP/actions/runs/43615154472) avait échoué sur un commentaire/marqueur QA412 obsolète ; le contrôle a détecté une incohérence de test, pas un défaut applicatif. Le marqueur a été corrigé avant #1446.
+- Vercel combiné sur le HEAD validé : SUCCESS.
 - Appendice : [QA412](QIMA_V1_FUNCTION_REGISTER_QA412_APPEND.md).
+
+## QA413 — omission de p_geography et replay avec NULL explicite
+
+**Statut : IMPLEMENTED — validation GitHub Actions en attente sur le nouveau HEAD.**
+- La signature existante déclare `p_geography text DEFAULT NULL::text` ; aucune migration n'est modifiée.
+- Le premier appel CREATE_OFFER omet réellement `p_geography` ; les deux appels fournissent explicitement `p_market => NULL` et conservent identiques les autres paramètres.
+- Le replay du même tenant et de la même clé fournit explicitement `p_geography => NULL` et doit retourner exactement le résultat JSON initial.
+- Le scénario vérifie le hash, l'exécution `COMPLETED`, l'offre avec `geography IS NULL`, l'événement `ACTION_SUCCEEDED` et l'absence de doublons dans les quatre tables de persistance.
+- Le contrôle statique vérifie le défaut existant, l'omission réelle, le replay explicite, la stabilité des autres paramètres et les trois points d'intégration CI.
+- Le scénario est branché dans Verify, PostgreSQL 16 et PostgreSQL 17.6 après l'initialisation du fixture jetable.
+- QA412 prerequisite : CLOSED sur QIMA CI [#1446](https://github.com/meridane/QimaTrade-MVP/actions/runs/43615260933), avec les deux marqueurs runtime confirmés.
+- Les résultats QA413 seront consignés après la CI du nouveau HEAD.
+- Appendice : [QA413](QIMA_V1_FUNCTION_REGISTER_QA413_APPEND.md).
