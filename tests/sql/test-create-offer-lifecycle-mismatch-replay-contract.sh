@@ -144,7 +144,7 @@ echo "QA406 static contract PASS: changing only p_lifecycle with the same tenant
 grep -Fq 'lifecycle text' "$FIXTURE" ||
   fail "disposable offers fixture must expose lifecycle text"
 
-QA415_BLOCK="$(sed -n '/^DO \\$qa415_lifecycle_default_replay\\$$/,/^\\$qa415_lifecycle_default_replay\\$;/p' "$RUNTIME")"
+QA415_BLOCK="$(sed -n '/^DO \$qa415_lifecycle_default_replay\$/,/^\$qa415_lifecycle_default_replay\$;/p' "$RUNTIME")"
 [[ -n "$QA415_BLOCK" ]] || fail "runtime is missing the QA415 omitted-lifecycle replay block"
 QA415_FIRST_CALL="$(sed -n '/v_first_result := public.execute_create_offer_v1(/,/^  );/p' <<< "$QA415_BLOCK")"
 QA415_REPLAY_CALL="$(sed -n '/v_replay_result := public.execute_create_offer_v1(/,/^  );/p' <<< "$QA415_BLOCK")"
