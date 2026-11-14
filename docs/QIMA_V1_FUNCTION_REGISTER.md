@@ -9335,7 +9335,7 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 
 ## QA416 — omission de p_offer_type et replay avec NULL explicite
 
-**Statut : IMPLEMENTED — revalidation statique SUCCESS ; jobs PostgreSQL complets encore en cours sur le code/workflow HEAD `636acbca15a57832b97bbbe06cdcaa9c301e1850`.**
+**Statut : CLOSED — QIMA CI [#1468](https://github.com/meridane/QimaTrade-MVP/actions/runs/43644843255) SUCCESS ; Verify, PostgreSQL 16 et PostgreSQL 17.6 terminés, exactement un marqueur runtime QA416 par version. CodeQL [#1403](https://github.com/meridane/QimaTrade-MVP/actions/runs/43644843266) SUCCESS.**
 - La signature existante déclare `p_offer_type text DEFAULT NULL::text` ; aucune migration n'est modifiée.
 - Le premier appel CREATE_OFFER omet réellement `p_offer_type` ; le replay avec le même tenant et la même clé fournit explicitement `p_offer_type => NULL`.
 - Tous les autres paramètres effectifs restent identiques, notamment `p_lifecycle => NULL`, `p_documentation_status => NULL`, `p_market => 'fixture-market-stable'`, `p_attributes => '{}'::jsonb` et `p_pricing_model => 'fixture-pricing-model-stable'`.
@@ -9350,11 +9350,14 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 - Revalidation QIMA CI [run 43644473687](https://github.com/meridane/QimaTrade-MVP/actions/runs/43644473687), code/workflow HEAD `636acbca15a57832b97bbbe06cdcaa9c301e1850` : Verify SUCCESS avec exactement un marqueur statique QA416 PASS et un QA417 PASS ; npm audit high, TypeScript, build Next.js et Playwright 347/347 réussis.
 - PostgreSQL 16 job `132599046809` et PostgreSQL 17.6 job `132599047040` ont terminé SUCCESS pour leur étape principale CREATE_OFFER integration/concurrency et les régressions séparées QA409–QA413. Les caractérisations complètes des privilèges, RLS/ACL et nettoyage sont encore en cours ; les marqueurs runtime exacts QA416/QA417 attendent les journaux finaux.
 - CodeQL [run 43644473682](https://github.com/meridane/QimaTrade-MVP/actions/runs/43644473682) SUCCESS ; statut combiné Vercel SUCCESS sur ce code/workflow HEAD.
+- QIMA CI [#1468](https://github.com/meridane/QimaTrade-MVP/actions/runs/43644843255) : Verify job 132600980210 SUCCESS, npm audit high, TypeScript, build Next.js et Playwright 347/347 réussis.
+- PostgreSQL 16 job 132600980596 et PostgreSQL 17.6 job 132600980578 : SUCCESS ; exactement un marqueur QA416 PASS dans chaque journal complet. QA414, QA415 et QA417 apparaissent aussi exactement une fois par journal.
+- CodeQL [#1403](https://github.com/meridane/QimaTrade-MVP/actions/runs/43644843266) : SUCCESS. Vercel combiné indique build-rate-limit ; le build Verify est réussi.
 - Appendice : [QA416](QIMA_V1_FUNCTION_REGISTER_QA416_APPEND.md).
 
 ## QA417 — omission de p_pricing_model et replay avec NULL explicite
 
-**Statut : IMPLEMENTED — Verify SUCCESS ; jobs PostgreSQL complets encore en cours sur le code/workflow HEAD `636acbca15a57832b97bbbe06cdcaa9c301e1850`.**
+**Statut : CLOSED — QIMA CI [#1468](https://github.com/meridane/QimaTrade-MVP/actions/runs/43644843255) SUCCESS ; Verify, PostgreSQL 16 et PostgreSQL 17.6 terminés, exactement un marqueur runtime QA417 par version. CodeQL [#1403](https://github.com/meridane/QimaTrade-MVP/actions/runs/43644843266) SUCCESS.**
 - La signature existante déclare `p_pricing_model text DEFAULT NULL::text` ; le hash contient déjà `'pricingModel', p_pricing_model` et la valeur est transmise à `create_offer_v1`. Aucune migration n'est modifiée.
 - Le premier appel CREATE_OFFER omet réellement `p_pricing_model` ; le replay avec le même tenant et la même clé fournit explicitement `p_pricing_model => NULL`.
 - `p_offer_type => 'fixture-offer-type-stable'` et tous les autres paramètres effectifs restent identiques dans les deux appels.
@@ -9367,4 +9370,20 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 - QIMA CI [run 43644473687](https://github.com/meridane/QimaTrade-MVP/actions/runs/43644473687) : Verify SUCCESS avec les contrôles statiques QA416 et QA417, npm audit high, TypeScript, build Next.js et Playwright 347/347 réussis.
 - Les étapes principales CREATE_OFFER integration/concurrency et les régressions séparées QA409–QA413 ont réussi sur PostgreSQL 16 et 17.6 ; les caractérisations finales de privilèges, RLS/ACL et nettoyage restent en cours. Aucun nombre exact de marqueurs runtime QA416/QA417 n'est revendiqué avant les journaux finaux.
 - CodeQL [run 43644473682](https://github.com/meridane/QimaTrade-MVP/actions/runs/43644473682) SUCCESS ; statut combiné Vercel SUCCESS sur le code/workflow HEAD `636acbca15a57832b97bbbe06cdcaa9c301e1850`.
+- QIMA CI [#1468](https://github.com/meridane/QimaTrade-MVP/actions/runs/43644843255) : Verify job 132600980210 SUCCESS, npm audit high, TypeScript, build Next.js et Playwright 347/347 réussis.
+- PostgreSQL 16 job 132600980596 et PostgreSQL 17.6 job 132600980578 : SUCCESS ; exactement un marqueur QA417 PASS dans chaque journal complet. QA414–QA416 apparaissent aussi exactement une fois par journal.
+- CodeQL [#1403](https://github.com/meridane/QimaTrade-MVP/actions/runs/43644843266) : SUCCESS. Vercel combiné indique build-rate-limit ; le build Verify est réussi.
 - Appendice : [QA417](QIMA_V1_FUNCTION_REGISTER_QA417_APPEND.md).
+
+
+## QA418 — changement de p_demand_id lors d'un replay
+
+**Statut : IMPLEMENTED — nouveau contrôle statique et runtime câblés ; validation CI en attente.**
+- Le mapping existant 'demandId', p_demand_id est déjà inclus dans le hash de la migration ; aucune migration n'est modifiée.
+- Le test réutilise deux demandes valides synthétiques des fixtures jetables : la demande principale du schéma et la demande alternate publiée ajoutée par create-offer-runtime.sql.
+- Il crée avec la première puis rejette le replay de même tenant/clé qui ne change que p_demand_id vers la seconde, avec IDEMPOTENCY_KEY_REUSE.
+- Les assertions read-only vérifient le hash, le résultat JSON, l'exécution, offers.demand_id, l'événement et l'absence de doublons dans les quatre tables de persistance.
+- Le contrôle statique QA418 vérifie la signature, le hash, le forwarding, les deux demandes des fixtures, les paramètres non ciblés stables, l'absence de DML direct et le câblage Verify/PostgreSQL 16/PostgreSQL 17.6.
+- Ce scénario ne teste pas l'autorisation demand/tenant et ne constitue pas une conclusion de vulnérabilité ; cette décision métier reste séparée.
+- Aucune donnée ou migration Supabase Production, aucun secret, grant, policy RLS ou configuration persistante n'est modifié.
+- Appendice : [QA418](QIMA_V1_FUNCTION_REGISTER_QA418_APPEND.md).

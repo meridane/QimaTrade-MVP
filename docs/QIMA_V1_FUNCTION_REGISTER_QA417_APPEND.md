@@ -2,7 +2,7 @@
 
 ## QA417 — omission de p_pricing_model et replay avec NULL explicite
 
-**Statut : IMPLEMENTED — Verify SUCCESS ; jobs PostgreSQL complets encore en cours.**  
+**Statut : CLOSED — QIMA CI [#1468](https://github.com/meridane/QimaTrade-MVP/actions/runs/43644843255) SUCCESS ; PostgreSQL 16/17.6 et les marqueurs runtime QA417 confirmés. CodeQL [#1403](https://github.com/meridane/QimaTrade-MVP/actions/runs/43644843266) SUCCESS.  
 **Target :** PR #26, branche `fix/create-offer-status-contract`.  
 **Branche de travail :** `work/qa417-pricing-model-default-replay-20261115-0641`.  
 **Commit de base :** `4f92de83c9eaf2f8d10a275d295a1f697c82d77a`.
@@ -50,3 +50,16 @@
 - QA417 runtime is part of `create-offer-runtime.sql`, which the successful integration runner executes on both versions. Exact `QA417 PASS` marker counts await the complete PostgreSQL job logs; QA417 is not marked CLOSED yet.
 - CodeQL [run 43644473682](https://github.com/meridane/QimaTrade-MVP/actions/runs/43644473682) completed SUCCESS. The combined Vercel status on this code/workflow HEAD is SUCCESS.
 - This appendix-only update does not change the code/workflow files validated by the active CI run.
+
+
+## Validation finale — QIMA CI #1468 (15 novembre 2026)
+
+- QIMA CI [run 43644843255](https://github.com/meridane/QimaTrade-MVP/actions/runs/43644843255) : SUCCESS sur le HEAD 491a2de0fc7f46faf21815c75bb4ad1d17486343.
+- Verify job 132600980210 : SUCCESS ; exactement un marqueur statique QA416 PASS et QA417 PASS ; npm audit high, TypeScript, build Next.js et Playwright 347/347 réussis.
+- PostgreSQL 16 job 132600980596 : SUCCESS ; exactement un marqueur runtime QA417 PASS et QA416 PASS dans le journal complet.
+- PostgreSQL 17.6 job 132600980578 : SUCCESS ; exactement un marqueur runtime QA417 PASS et QA416 PASS dans le journal complet.
+- Les deux jobs ont terminé les contrôles complets CREATE_OFFER/concurrence, catalogue, replication slots, paramètres, extensions, privilèges du runner, RLS, ACL et nettoyage.
+- Les simulations négatives du nettoyage ont produit leurs échecs attendus et leurs assertions ont réussi ; le job volontairement skipped a été correctement reconnu.
+- CodeQL [run 43644843266](https://github.com/meridane/QimaTrade-MVP/actions/runs/43644843266) : SUCCESS.
+- Vercel combiné indique build-rate-limit ; le build Next.js Verify a néanmoins réussi, sans erreur de compilation démontrée.
+- QA417 est CLOSED : l'omission de p_pricing_model et le replay explicite NULL préservent exactement le hash, le résultat et les quatre tables de persistance.

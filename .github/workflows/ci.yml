@@ -111,6 +111,8 @@ jobs:
         run: bash tests/sql/test-create-offer-pricing-model-mismatch-replay-contract.sh
       - name: Verify CREATE_OFFER changed product-master replay preserves original state
         run: bash tests/sql/test-create-offer-product-master-mismatch-replay-contract.sh
+      - name: Verify CREATE_OFFER changed-demand replay preserves original state
+        run: bash tests/sql/test-create-offer-demand-mismatch-replay-contract.sh
       - name: Verify CREATE_OFFER omitted p_attributes default replays explicit empty object
         run: bash tests/sql/test-create-offer-attributes-default-replay-contract.sh
       - name: Verify CREATE_OFFER omitted p_conditions default replays explicit NULL
@@ -283,6 +285,8 @@ jobs:
         run: bash tests/sql/run-create-offer-integration.sh
       - name: Run isolated CREATE_OFFER product-master replay regression on PostgreSQL 16
         run: psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -f tests/sql/create-offer-product-master-mismatch-replay.sql
+      - name: Run isolated CREATE_OFFER demand replay regression on PostgreSQL 16
+        run: psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -f tests/sql/create-offer-demand-mismatch-replay.sql
       - name: Run isolated CREATE_OFFER attributes-default replay regression on PostgreSQL 16
         run: psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -f tests/sql/create-offer-attributes-default-replay.sql
 
@@ -426,6 +430,8 @@ jobs:
         run: bash tests/sql/run-create-offer-integration.sh
       - name: Run isolated CREATE_OFFER product-master replay regression on PostgreSQL 17.6
         run: psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -f tests/sql/create-offer-product-master-mismatch-replay.sql
+      - name: Run isolated CREATE_OFFER demand replay regression on PostgreSQL 17.6
+        run: psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -f tests/sql/create-offer-demand-mismatch-replay.sql
       - name: Run isolated CREATE_OFFER attributes-default replay regression on PostgreSQL 17.6
         run: psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -f tests/sql/create-offer-attributes-default-replay.sql
 
