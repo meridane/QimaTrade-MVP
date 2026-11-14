@@ -136,3 +136,89 @@ pg17_job="$(awk '
   fail "PostgreSQL 17.6 integration runner wiring missing"
 
 echo "QA406 static contract PASS: changing only p_lifecycle with the same tenant/idempotency key is rejected before persistence and preserves the original state on PostgreSQL 16 and 17.6."
+
+
+# QA415: omission of p_lifecycle must equal its declared explicit NULL default.
+[[ "$(grep -Fc "p_lifecycle text DEFAULT NULL::text" "$MIGRATION" || true)" -eq 1 ]] ||
+  fail "the existing function signature must declare the p_lifecycle NULL default exactly once"
+grep -Fq 'lifecycle text' "$FIXTURE" ||
+  fail "disposable offers fixture must expose lifecycle text"
+
+QA415_BLOCK="$(sed -n '/^DO \\$qa415_lifecycle_default_replay\\$$/,/^\\$qa415_lifecycle_default_replay\\$;/p' "$RUNTIME")"
+[[ -n "$QA415_BLOCK" ]] || fail "runtime is missing the QA415 omitted-lifecycle replay block"
+QA415_FIRST_CALL="$(sed -n '/v_first_result := public.execute_create_offer_v1(/,/^  );/p' <<< "$QA415_BLOCK")"
+QA415_REPLAY_CALL="$(sed -n '/v_replay_result := public.execute_create_offer_v1(/,/^  );/p' <<< "$QA415_BLOCK")"
+[[ -n "$QA415_FIRST_CALL" && -n "$QA415_REPLAY_CALL" ]] || fail "QA415 must contain the initial call and exact replay call"
+[[ "$(grep -Fc 'public.execute_create_offer_v1(' <<< "$QA415_BLOCK" || true)" -eq 2 ]] ||
+  fail "QA415 must contain exactly two CREATE_OFFER calls"
+if grep -Fq 'p_lifecycle =>' <<< "$QA415_FIRST_CALL"; then
+  fail "the first QA415 call must omit p_lifecycle so PostgreSQL applies its declared default"
+fi
+[[ "$(grep -Fc 'p_lifecycle => NULL' <<< "$QA415_REPLAY_CALL" || true)" -eq 1 ]] ||
+  fail "the QA415 replay must explicitly supply the declared NULL default exactly once"
+[[ "$(grep -Fc 'p_lifecycle =>' <<< "$QA415_BLOCK" || true)" -eq 1 ]] ||
+  fail "only the explicit QA415 replay may supply p_lifecycle"
+
+for parameter in \
+  "p_tenant_id => v_tenant_id," \
+  "p_idempotency_key => v_key," \
+  "p_input => v_input," \
+  "p_name => v_offer_name," \
+  "p_demand_id => '50000000-0000-4000-8000-000000000001'," \
+  "p_product_master_id => '40000000-0000-4000-8000-000000000001'," \
+  "p_provider_actor_id => '30000000-0000-4000-8000-000000000001'," \
+  "p_quantity => 1::numeric," \
+  "p_price => 12::numeric," \
+  "p_currency => 'USD'," \
+  "p_conditions => NULL," \
+  "p_market => 'fixture-market-stable'," \
+  "p_geography => NULL," \
+  "p_attributes => '{}'::jsonb," \
+  "p_documentation_status => NULL," \
+  "p_offer_type => 'fixture-offer-type-stable'," \
+  "p_pricing_model => 'fixture-pricing-model-stable'"; do
+  count="$(grep -Fc -- "$parameter" <<< "$QA415_BLOCK" || true)"
+  [[ "$count" -eq 2 ]] ||
+    fail "all non-lifecycle effective parameters must remain identical: $parameter (found $count)"
+done
+
+for required in \
+  "v_replay_result IS DISTINCT FROM v_first_result" \
+  "v_replay_hash IS DISTINCT FROM v_original_hash" \
+  "v_idempotency_status IS DISTINCT FROM 'COMPLETED'" \
+  "v_idempotency_result IS DISTINCT FROM v_first_result" \
+  "v_execution_status IS DISTINCT FROM 'COMPLETED'" \
+  "v_execution_result IS DISTINCT FROM v_first_result" \
+  "v_offer_lifecycle IS NOT NULL" \
+  "v_event_payload IS DISTINCT FROM v_first_result" \
+  "v_after_replay.idempotency_count IS DISTINCT FROM v_after_first.idempotency_count" \
+  "v_after_replay.execution_count IS DISTINCT FROM v_after_first.execution_count" \
+  "v_after_replay.offer_count IS DISTINCT FROM v_after_first.offer_count" \
+  "v_after_replay.event_count IS DISTINCT FROM v_after_first.event_count" \
+  "QA415 PASS: omitting p_lifecycle applies the declared NULL::text default and exactly replays an explicit NULL request without duplicate persisted state"; do
+  grep -Fq -- "$required" <<< "$QA415_BLOCK" ||
+    fail "QA415 is missing a required default/replay/persisted-state assertion: $required"
+done
+
+for required in \
+  "v_after_first.idempotency_count <> 1" \
+  "v_after_first.execution_count <> 1" \
+  "v_after_first.offer_count <> 1" \
+  "v_after_first.event_count <> 1"; do
+  grep -Fq -- "$required" <<< "$QA415_BLOCK" ||
+    fail "QA415 must assert exactly one original row in each persistence table: $required"
+done
+
+[[ "$(grep -Fc 'DO $qa415_lifecycle_default_replay$' "$RUNTIME" || true)" -eq 1 ]] ||
+  fail "QA415 runtime block must appear exactly once"
+[[ "$(grep -Fc '$qa415_lifecycle_default_replay$;' "$RUNTIME" || true)" -eq 1 ]] ||
+  fail "QA415 dollar-quoted block must close exactly once"
+[[ "$(grep -Fc 'QA415 PASS:' "$RUNTIME" || true)" -eq 1 ]] ||
+  fail "QA415 runtime marker must appear exactly once"
+
+if grep -Ein '^[[:space:]]*(INSERT|UPDATE|DELETE|MERGE|CREATE|ALTER|DROP|TRUNCATE|GRANT|REVOKE|COPY)([[:space:]]|;)' \
+  <(sed '/^[[:space:]]*--/d' <<< "$QA415_BLOCK"); then
+  fail "QA415 must remain a function-call regression followed by read-only persisted-state assertions"
+fi
+
+echo "QA415 static contract PASS: omitting p_lifecycle applies the declared NULL::text default and exactly replays an explicit NULL request without duplicate persisted state."
