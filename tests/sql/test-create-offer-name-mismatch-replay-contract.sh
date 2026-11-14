@@ -60,15 +60,19 @@ for required in \
   "FROM public.action_events" \
   "v_after_replay.idempotency_count" \
   "v_after_first.idempotency_count" \
+  "WHERE name IN (v_offer_name, v_replay_offer_name)" \
   "WHERE name = v_replay_offer_name" \
   "QA395 PASS: changing the offer name on a completed request with the same tenant/key raises IDEMPOTENCY_KEY_REUSE"; do
   grep -Fq -- "$required" <<< "$BLOCK" ||
     fail "QA395 runtime block is missing required assertion: $required"
 done
 
+[[ "$(grep -Fc "p_name => v_offer_name," <<< "$BLOCK" || true)" -eq 1 ]] ||
+  fail "QA395 must contain exactly one original-name call"
+[[ "$(grep -Fc "p_name => v_replay_offer_name," <<< "$BLOCK" || true)" -eq 1 ]] ||
+  fail "QA395 must contain exactly one changed-name replay call"
+
 for expression in \
-  "p_name => v_offer_name," \
-  "p_name => v_replay_offer_name," \
   "p_demand_id => '50000000-0000-4000-8000-000000000001'," \
   "p_product_master_id => '40000000-0000-4000-8000-000000000001'," \
   "p_provider_actor_id => '30000000-0000-4000-8000-000000000001'," \
@@ -77,44 +81,11 @@ for expression in \
   "p_price => 12::numeric," \
   "p_currency => 'USD'"; do
   count="$(grep -Fc "$expression" <<< "$BLOCK" || true)"
-  [[ "$count" -eq 2 ]] || fail "QA395 must keep all non-name effective parameters identical: $expression (found $count)"
+  [[ "$count" -eq 2 ]] ||
+    fail "QA395 must keep all non-name effective parameters identical: $expression (found $count)"
 done
 
-[[ "$(grep -Fc 'DO $qa395_name_mismatch_replay
-[[ "$(grep -Fc 'QA395 PASS:' "$RUNTIME" || true)" -eq 1 ]] ||
-  fail "QA395 runtime marker must appear exactly once"
-
-if grep -Ein '^[[:space:]]*(INSERT|UPDATE|DELETE|MERGE|CREATE|ALTER|DROP|TRUNCATE|GRANT|REVOKE|COPY)([[:space:]]|;)' \
-  <(sed '/^[[:space:]]*--/d' <<< "$BLOCK"); then
-  fail "QA395 must remain a function-call regression followed by read-only persisted-state assertions"
-fi
-
-job_section() {
-  local target="$1"
-  awk -v target="$target" '
-    $0 == "  " target ":" { inside = 1; next }
-    inside && /^  [[:alnum:]_-]+:$/ { exit }
-    inside { print }
-  ' "$WORKFLOW"
-}
-
-verify_job="$(job_section verify)"
-pg16_job="$(job_section postgres-integration)"
-pg17_job="$(job_section postgres17-create-offer-compatibility)"
-
-[[ "$(grep -Fc 'run: bash tests/sql/test-create-offer-name-mismatch-replay-contract.sh' <<< "$verify_job" || true)" -eq 1 ]] ||
-  fail "Verify must execute QA395 exactly once"
-[[ "$(grep -Fc 'run: bash tests/sql/run-create-offer-integration.sh' <<< "$pg16_job" || true)" -eq 1 ]] ||
-  fail "PostgreSQL 16 shared runtime runner wiring missing"
-[[ "$(grep -Fc 'run: bash tests/sql/run-create-offer-integration.sh' <<< "$pg17_job" || true)" -eq 1 ]] ||
-  fail "PostgreSQL 17.6 shared runtime runner wiring missing"
-grep -Fq 'image: postgres:16' <<< "$pg16_job" ||
-  fail "PostgreSQL 16 service image missing"
-grep -Fq 'image: postgres:17.6' <<< "$pg17_job" ||
-  fail "PostgreSQL 17.6 service image missing"
-
-echo "QA395 PASS: changing a completed CREATE_OFFER name with the same tenant/key raises IDEMPOTENCY_KEY_REUSE and preserves the original four-table persisted state on PostgreSQL 16 and 17.6."
- "$RUNTIME" || true)" -eq 1 ]] ||
+[[ "$(grep -Fc 'DO $qa395_name_mismatch_replay$' "$RUNTIME" || true)" -eq 1 ]] ||
   fail "QA395 runtime block must appear exactly once"
 [[ "$(grep -Fc '$qa395_name_mismatch_replay$;' "$RUNTIME" || true)" -eq 1 ]] ||
   fail "QA395 dollar-quoted block must close with the matching name-mismatch tag"

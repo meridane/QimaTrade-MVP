@@ -9083,3 +9083,11 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 - Correction des messages résiduels qui parlaient encore de devise. Aucun code applicatif, migration ou comportement métier n'a été modifié.
 - CI #1409 n'est pas utilisée comme preuve de validation QA395. Une nouvelle CI sur le commit corrigé doit réussir Verify et les deux jobs PostgreSQL complets.
 - Aucun test synthétique n'est interprété comme preuve d'une vulnérabilité Production. Aucune donnée Supabase Production, secret, configuration PostgreSQL persistante, règle de protection, fusion ou déploiement Production n'a été modifié.
+
+## QA395 — correction du contrat statique après CI #1409 et #1410 (14 novembre 2026)
+
+- QIMA CI [#1409](https://github.com/meridane/QimaTrade-MVP/actions/runs/43532381028) a échoué dans Verify : le script QA395 plaçait à tort les deux expressions p_name, volontairement différentes, dans la boucle qui exige que les paramètres inchangés apparaissent deux fois. Le message exact était « QA395 must keep all non-name effective parameters identical: p_name => v_offer_name, (found 1) ». Les deux jobs PostgreSQL ont également échoué au parsing du bloc runtime, dont le délimiteur dollar fermant conservait l'ancien nom QA394.
+- Le commit 08232493b101bc097d0d72d15ec57535a72d29af a corrigé le replay pour garder p_currency = USD et le délimiteur fermant. QA395 ne change désormais que p_name.
+- QIMA CI [#1410](https://github.com/meridane/QimaTrade-MVP/actions/runs/43532472369) a encore échoué dans Verify sur la même assertion p_name, restée dans la boucle des paramètres inchangés. L'étape d'application de l'audit a reçu AUDIT_OUTCOME=skipped après l'arrêt de Verify; aucun résultat d'audit ni vulnérabilité n'est déduit. Les jobs PostgreSQL étaient encore en cours à ce point de contrôle.
+- Réécriture du script statique : chaque expression p_name doit apparaître exactement une fois; tous les autres paramètres effectifs doivent apparaître deux fois; les délimiteurs dollar ouvrant et fermant sont contrôlés séparément. Une nouvelle CI sur ce commit corrigé est requise; #1409 et #1410 ne sont pas des validations QA395.
+- Aucun code applicatif, migration, donnée Supabase Production, secret, configuration PostgreSQL persistante, règle de protection, fusion ou déploiement Production n'a été modifié.

@@ -56,3 +56,11 @@ The existing CREATE_OFFER request hash includes name = p_name. QA392–QA394 alr
 - Corrected the replay currency to USD so p_name is the only changed effective parameter, and corrected the closing dollar-quote delimiter to match the QA395 DO block. Updated the static contract to assert the matching closing delimiter.
 - Also corrected stale error/assertion text that referred to changed currency. No migration, application code or business behavior changed.
 - CI #1409 is not accepted as QA395 validation; a fresh workflow on the corrected commit is required. No result from the first attempt is used to claim QA395 passed.
+
+
+## CI attempts #1409 and #1410 — static harness correction (14 November 2026)
+
+- QIMA CI [#1409](https://github.com/meridane/QimaTrade-MVP/actions/runs/43532381028) failed in Verify because the first QA395 script incorrectly put the two intentionally different p_name expressions into the loop that requires unchanged parameters to occur twice. The exact failure was: "QA395 must keep all non-name effective parameters identical: p_name => v_offer_name, (found 1)". The script also had a mismatched QA395 closing dollar tag; both PostgreSQL jobs failed when parsing the runtime block. These were test-harness defects, not application or migration failures.
+- The replay parameter and closing delimiter were corrected in commit 08232493b101bc097d0d72d15ec57535a72d29af. QA395 now keeps p_currency = USD in both calls and changes only p_name.
+- QIMA CI [#1410](https://github.com/meridane/QimaTrade-MVP/actions/runs/43532472369) again failed in Verify at the same p_name-count assertion because the static script still included p_name in the unchanged-parameter count loop. Its dependency-audit enforcement step received AUDIT_OUTCOME=skipped after Verify stopped; no audit result or vulnerability is inferred. PostgreSQL jobs were still running at the time of this checkpoint.
+- Rewrote the QA395 static script: each name expression must occur exactly once; all other effective parameters must occur exactly twice; opening and closing dollar tags are independently checked. A fresh CI on this corrected commit is required. CI #1409 and #1410 are not accepted as QA395 validation.
