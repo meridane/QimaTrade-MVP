@@ -2,7 +2,7 @@
 
 ## QA397 — semantically equivalent JSONB object key order replays the original result
 
-**Status:** PENDING full CI validation  
+**Status:** CLOSED — 14 November 2026  
 **Target:** PR #26, branch `fix/create-offer-status-contract`  
 **Working branch:** `work/qa397-jsonb-key-order-idempotent-replay-20261114-1023`  
 **Base commit:** `92dad6e0cd997dc9e439e5e4a8efdf7aa6bcbf4f`
@@ -24,7 +24,10 @@
 - Source review confirms `p_input` is typed as JSONB and is included in the existing request hash. PostgreSQL JSONB normalizes object key order; this scenario intentionally uses string values only and does not test numeric lexical canonicalization.
 - No migration or application code is changed.
 - The runtime scenario is appended to `tests/sql/create-offer-runtime.sql`; the static contract is `tests/sql/test-create-offer-jsonb-key-order-replay-contract.sh`.
-- Do not mark QA397 CLOSED until Verify, the full PostgreSQL 16 job and the full PostgreSQL 17.6 job succeed and both runtime logs contain the QA397 marker.
+- QIMA CI [#1414](https://github.com/meridane/QimaTrade-MVP/actions/runs/43540736504) completed SUCCESS. Verify, the full PostgreSQL 16 job and the full PostgreSQL 17.6 job all completed SUCCESS; both PostgreSQL logs contain the explicit QA397 PASS marker.
+- Verify completed npm audit, TypeScript, Next.js build and 347/347 Playwright tests successfully. CodeQL [#1362](https://github.com/meridane/QimaTrade-MVP/actions/runs/43540736452) completed SUCCESS, and the Vercel Preview for the validated HEAD was Ready.
+- The expected-failure prepared-transaction harness jobs and expected-skipped job were accepted by their dedicated assertion jobs; the overall workflow conclusion remained SUCCESS.
+- QA397 is CLOSED. The result characterizes JSONB object-key-order equivalence on disposable PostgreSQL fixtures and does not establish a Production vulnerability.
 
 ## Safety and decision boundaries
 
