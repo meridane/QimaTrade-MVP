@@ -2,7 +2,7 @@
 
 ## QA403 — changed p_geography replay rejection
 
-**Status:** IMPLEMENTED — QA403 static Verify, npm audit, TypeScript, production build and 347 Playwright tests PASS in CI #43575168210; full PostgreSQL 16/17.6 jobs remain in final characterization.  
+**Status:** CLOSED — QIMA CI #43575452745 completed SUCCESS; explicit QA403 runtime markers confirmed on PostgreSQL 16 and PostgreSQL 17.6.  
 **Target:** PR #26, branch `fix/create-offer-status-contract`  
 **Working branch:** `work/qa403-geography-mismatch-replay-20261114-1711`  
 **Base commit:** `20eda0d2d83d1b1b845c421caa4e14acb1fa5c96`
@@ -27,9 +27,12 @@
 - QIMA CI [#43574871835](https://github.com/meridane/QimaTrade-MVP/actions/runs/43574871835) first failed Verify because the copied QA403 block still emitted a second `QA402 PASS` marker; the marker was corrected in commit `9abe4980e7731132b7d7ffd25cf53eed2f6693a7`.
 - QIMA CI [#43574996910](https://github.com/meridane/QimaTrade-MVP/actions/runs/43574996910) passed the QA403 static contract, but both PostgreSQL runtime jobs failed before the function call with `argument name "p_geography" used more than once`. The QA402 template's unchanged `p_geography => NULL` argument had been retained after changing the tested parameter to geography, so each call had a duplicate named argument. This is a test-fixture defect, not an application failure or evidence of a Production vulnerability. The duplicate argument has been removed and a static assertion now requires exactly two geography arguments (one per call) and no additional NULL geography argument.
 - QIMA CI [#43575168210](https://github.com/meridane/QimaTrade-MVP/actions/runs/43575168210) on corrected code commit `f388d16d5290649a0a23598f47dbbfb240c3b891` completed the Verify/typecheck/audit/build/browser job with SUCCESS. The QA403 static contract passed, npm audit at the configured high threshold passed, TypeScript and Next.js production build passed, and Playwright completed **347/347**.
-- The full PostgreSQL 16 and PostgreSQL 17.6 jobs both passed the CREATE_OFFER integration/concurrency step and continued through final runner privilege, catalog, ACL and database-setting characterizations. They were still in progress at the latest check; no `QA403 PASS` runtime marker is claimed yet.
+- QIMA CI [#43575452745](https://github.com/meridane/QimaTrade-MVP/actions/runs/43575452745) completed SUCCESS. Both full PostgreSQL 16 and PostgreSQL 17.6 jobs completed the CREATE_OFFER integration/concurrency suite, runner privilege, catalog, ACL, RLS and cleanup characterizations; each runtime log contains exactly one explicit `QA403 PASS` marker. The Verify job passed all static contracts, npm audit, TypeScript, Next.js build and 347 Playwright tests.
 - CodeQL [#43575168238](https://github.com/meridane/QimaTrade-MVP/actions/runs/43575168238) completed SUCCESS for corrected code commit `f388d16d5290649a0a23598f47dbbfb240c3b891`.
 - Vercel Preview for corrected code commit `f388d16d5290649a0a23598f47dbbfb240c3b891` is READY: [Preview deployment](https://vercel.com/bmk1/qimatrade-mvp/GVxk2iuveiK4ne8n4bE5dbJUtYLB). The later documentation-only checkpoint HEAD has a combined Vercel status of `build-rate-limit`; no separate Preview Ready is claimed for that docs-only HEAD.
+- CodeQL [#43575452736](https://github.com/meridane/QimaTrade-MVP/actions/runs/43575452736) completed SUCCESS.
+- The Vercel status for this documentation-only HEAD is `build-rate-limit`; no Preview Ready is claimed for this HEAD.
+- QA403 is **CLOSED**: static Verify, full PostgreSQL 16/17.6 jobs and both explicit runtime markers are confirmed.
 - This is a regression characterization of an existing request-hash field, not a finding of a Production vulnerability.
 
 ## Safety and decision boundaries
