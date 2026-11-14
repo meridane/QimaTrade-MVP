@@ -103,6 +103,7 @@ jobs:
         run: bash tests/sql/test-create-offer-lifecycle-mismatch-replay-contract.sh
       - name: Verify CREATE_OFFER changed-offer-type replay preserves original state
         run: bash tests/sql/test-create-offer-offer-type-mismatch-replay-contract.sh
+        run: bash tests/sql/test-create-offer-offer-type-default-replay-contract.sh
       - name: Verify CREATE_OFFER changed-pricing-model replay preserves original state
         run: bash tests/sql/test-create-offer-pricing-model-mismatch-replay-contract.sh
       - name: Verify CREATE_OFFER changed product-master replay preserves original state
