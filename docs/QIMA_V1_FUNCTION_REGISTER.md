@@ -9727,7 +9727,7 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 - Nouveau contrôle statique : tests/sql/test-create-offer-concurrent-identical-success-contract.sh.
 - Le contrôle statique est intégré au job Verify.
 - Le runner partagé existant exécute le scénario sur PostgreSQL 16 et PostgreSQL 17.6.
-- La validation du nouveau HEAD reste en attente ; aucun résultat runtime QA429 n'est revendiqué avant lecture des journaux de la nouvelle CI.
+- Statut au moment de la rédaction initiale de cet appendice : validation en attente. Cette attente est supersédée par la validation finale QIMA CI #1495 ci-dessous.
 
 ## Sécurité et limites
 
