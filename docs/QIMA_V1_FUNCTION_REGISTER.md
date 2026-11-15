@@ -9482,6 +9482,7 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 - Il compare avant/après les comptes des quatre tables `idempotency_keys`, `action_executions`, `offers` et `action_events`, puis vérifie l'absence des clés et offres sentinelles.
 - QA95 et QA96 couvrent déjà les échecs transactionnels après le début de la persistance ; QA421 couvre séparément les gardes de validation préalables.
 - Le contrôle statique est `tests/sql/test-create-offer-pre-persistence-rejection-contract.sh`. Le workflow l'exécute dans Verify et lance le SQL sur PostgreSQL 16 et PostgreSQL 17.6.
+- Relecture pré-CI : le quoting du chemin `ROOT` dans le script statique a été corrigé afin que Bash développe correctement `${BASH_SOURCE[0]}` ; le HEAD corrigé doit être utilisé pour la validation.
 - CI [#1473](https://github.com/meridane/QimaTrade-MVP/actions/runs/43665095980) et CodeQL [#1408](https://github.com/meridane/QimaTrade-MVP/actions/runs/43665096013) sont des preuves de référence sur le HEAD précédent, pas une validation QA421.
 - Aucun marqueur runtime QA421 n'est revendiqué avant les journaux complets des deux versions PostgreSQL. Le scénario synthétique ne constitue pas un constat de vulnérabilité et ne modifie aucune règle métier.
 - Appendice : [QA421](QIMA_V1_FUNCTION_REGISTER_QA421_APPEND.md).
