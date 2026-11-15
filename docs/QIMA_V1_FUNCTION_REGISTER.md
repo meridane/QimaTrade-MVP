@@ -9632,3 +9632,13 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 - CodeQL [#1422](https://github.com/meridane/QimaTrade-MVP/actions/runs/43695130996) : SUCCESS. Le statut combiné Vercel sur le HEAD `39568e72` : SUCCESS.
 - Cette validation confirme les contrôles existants sur le HEAD courant ; elle n'ajoute aucun scénario runtime ni aucune règle métier.
 - Aucun SQL, migration, donnée Supabase Production, secret, grant, policy RLS ou configuration persistante n'est modifié. Aucun déploiement Production, merge, force-push ou changement de règle de protection.
+
+
+## QA427 — exact replay of an omitted geography default across committed PostgreSQL sessions
+- QA413 already checks omitted \`p_geography\` versus explicit NULL, but its two calls run inside one \`DO\` block. QA427 adds a distinct cross-commit regression: the first psql process creates the offer and commits; a second psql process opens a new connection and replays with explicit NULL.
+- Runtime: \`tests/sql/run-create-offer-geography-default-committed-replay.sh\`. It uses two separate psql processes with different \`application_name\` values and explicit BEGIN/COMMIT boundaries. The first call omits \`p_geography\`; the second supplies NULL while keeping every other effective business parameter identical.
+- The second session checks the persisted idempotency hash/result, completed execution, offer geography, success-event payload, and unchanged counts of \`idempotency_keys\`, \`action_executions\`, \`offers\` and \`action_events\`.
+- Safety guard: the runner accepts only \`postgresql://postgres:postgres@localhost:5432/qima_test\`, the disposable loopback URL configured in CI. It performs no direct DML or schema/privilege changes.
+- Static contract: \`tests/sql/test-create-offer-geography-default-committed-replay-contract.sh\`; wired into Verify, PostgreSQL 16 and PostgreSQL 17.6.
+- Initial status: **IMPLEMENTED — runtime pending**. Baseline QIMA CI [#1488](https://github.com/meridane/QimaTrade-MVP/actions/runs/43698923008), CodeQL [#1423](https://github.com/meridane/QimaTrade-MVP/actions/runs/43698923016), and Vercel all succeeded on base HEAD \`e2a2d12d72f82fd13e35fe5df63be4415d651d57\`; these results do not validate QA427.
+- No production data/migration, secret, grant, policy, persistent configuration, deployment, merge, force-push or protection-rule change.

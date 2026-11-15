@@ -131,6 +131,8 @@ jobs:
         run: bash tests/sql/test-create-offer-market-default-replay-contract.sh
       - name: Verify CREATE_OFFER omitted p_geography default replays explicit NULL
         run: bash tests/sql/test-create-offer-geography-default-replay-contract.sh
+      - name: Verify CREATE_OFFER geography default replay crosses committed PostgreSQL sessions
+        run: bash tests/sql/test-create-offer-geography-default-committed-replay-contract.sh
       - name: Verify CREATE_OFFER default-replay diagnostics identify their own parameter
         run: bash tests/sql/test-create-offer-default-replay-diagnostics-contract.sh
       - name: Verify numeric replay fixture keys and PostgreSQL runner isolation
@@ -318,6 +320,8 @@ jobs:
         run: psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -f tests/sql/create-offer-market-default-replay.sql
       - name: Run isolated CREATE_OFFER geography-default replay regression on PostgreSQL 16
         run: psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -f tests/sql/create-offer-geography-default-replay.sql
+      - name: Run CREATE_OFFER geography default committed-session replay regression on PostgreSQL 16
+        run: bash tests/sql/run-create-offer-geography-default-committed-replay.sh
       - name: Verify a second CREATE_OFFER runner invocation rejects initialized qima_test without changes
         run: bash tests/sql/test-create-offer-integration-repeat-guard.sh
 
@@ -473,6 +477,8 @@ jobs:
         run: psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -f tests/sql/create-offer-market-default-replay.sql
       - name: Run isolated CREATE_OFFER geography-default replay regression on PostgreSQL 17.6
         run: psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -f tests/sql/create-offer-geography-default-replay.sql
+      - name: Run CREATE_OFFER geography default committed-session replay regression on PostgreSQL 17.6
+        run: bash tests/sql/run-create-offer-geography-default-committed-replay.sh
       - name: Verify a second CREATE_OFFER runner invocation rejects initialized qima_test without changes on PostgreSQL 17.6
         run: bash tests/sql/test-create-offer-integration-repeat-guard.sh
 
