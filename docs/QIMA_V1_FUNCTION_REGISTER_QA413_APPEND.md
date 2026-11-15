@@ -26,3 +26,11 @@
 - Aucun déploiement Production, merge, force-push ou changement de règle de protection.
 - Ce test caractérise le contrat PostgreSQL ; il ne prouve aucune vulnérabilité Production.
 - Le modèle d'autorisation demand/tenant et les décisions MKT-1.1, MKT-1.2 et MKT-1.3 restent en attente d'approbation métier.
+
+
+## Follow-up QA425 — fixture input label correction
+
+- Une relecture du fichier `tests/sql/create-offer-geography-default-replay.sql` a trouvé que la valeur JSON de `v_input` utilisait encore le libellé `qa412-market-default-replay` dans le bloc QA413.
+- Cette valeur ne changeait pas le paramètre testé `p_geography` ni le comportement du replay, mais elle rendait les traces de fixture trompeuses.
+- QA425 corrige le libellé en `qa413-geography-default-replay` et renforce le contrôle statique existant pour exiger la valeur exacte et refuser l'ancien libellé dans le bloc QA413.
+- Le résultat runtime antérieur QA413 reste valide pour le contrat d'omission/replay ; QA425 revalide le fixture corrigé sur PostgreSQL 16 et 17.6.
