@@ -9679,4 +9679,60 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 
 - QIMA CI [#1493](https://github.com/meridane/QimaTrade-MVP/actions/runs/43715598192) Verify job `132816329767` stopped at the new QA428 static contract because its expected strings omitted the quoted Bash variable expansions in the runner. This was a static assertion defect, not a runtime SQL failure.
 - The dependency-audit enforcement step was skipped after Verify failed; its resulting job failure is not an npm audit finding and no audit report was produced by that job.
-- The static contract was corrected to match the exact quoted `[[ "$variable" ... ]]` expressions. QA428 remains IMPLEMENTED pending a successful replacement Verify and final PostgreSQL 16/17.6 runtime evidence.
+- The static contract was corrected to match the exact quoted `[[ "$variable" ... ]]` expressions. At the time of the first CI attempt, QA428 remained IMPLEMENTED pending replacement Verify and final PostgreSQL 16/17.6 runtime evidence; that pending status is superseded by the final validation recorded below.
+
+
+## QA428 final validation — QIMA CI #1494 (2026-11-15)
+
+- QA428 is **CLOSED** on exact PR HEAD b17dc3ac672d0ef54ea8d38a16197d19dc5e83b0. QIMA CI [#1494](https://github.com/meridane/QimaTrade-MVP/actions/runs/43715751146) completed with overall SUCCESS.
+- Verify job 132818238544 passed with exactly one QA428 static-contract marker. npm audit at the high threshold, TypeScript, Next.js production build, Chromium installation and Playwright **347/347** all succeeded.
+- PostgreSQL 16 job 132818238527 completed SUCCESS with exactly one QA428 PASS marker.
+- PostgreSQL 17.6 job 132818238555 completed SUCCESS with exactly one QA428 PASS marker.
+- Both database versions observed the first same-tenant/key request holding the advisory lock and the changed-price request waiting on the same lock. The first committed; the queued changed payload and its later replay were rejected with IDEMPOTENCY_KEY_REUSE. Exactly one idempotency row, execution, offer and success event remained.
+- CodeQL [#1429](https://github.com/meridane/QimaTrade-MVP/actions/runs/43715751139) succeeded. The combined Vercel status on the validated HEAD also succeeded.
+- Expected-failure prepared-transaction simulation jobs 132818238337 and 132818238620 were paired with successful cleanup assertions 132818272062 and 132818286874. The intentionally skipped job 132818239596 was correctly checked by assertion job 132818238648. Overall CI #1494 remained SUCCESS.
+- This is disposable CI fixture evidence, not a production Supabase assessment or vulnerability finding. No production data/migration, secret, grant, RLS policy, persistent configuration, production deployment, merge, force-push or protection-rule change.
+
+## QA429 — concurrent identical same-key requests return one committed success result
+
+- QA103 already covers identical concurrent calls when the first request is deliberately rolled back; QA288 and QA428 cover concurrent changed-payload rejection after a successful winner. QA429 adds the missing positive case where two identical concurrent calls both succeed.
+- The first request holds the tenant/key advisory lock during the fixture delay. A second session with the same tenant, idempotency key and every effective business parameter waits for that exact lock. After the first COMMIT, both calls must return byte-identical success JSON.
+- A later sequential replay must match the same response. The test asserts the canonical request hash and exactly one persisted idempotency row, completed execution, offer and ACTION_SUCCEEDED event.
+- Runtime is added to the existing disposable CREATE_OFFER runner, which already runs on PostgreSQL 16 and PostgreSQL 17.6. A dedicated static contract is added to Verify.
+- Initial status: **IMPLEMENTED — runtime pending on the new PR HEAD**. The test uses only the guarded loopback qima_test database, performs no direct DML or schema/privilege changes, and is not a production security finding.
+
+
+# QIMA V1 Function Register — QA429
+
+## QA429 — concurrent identical same-key requests both return one committed success result
+
+**Statut : IMPLEMENTED — validation runtime en attente sur la CI du HEAD courant.**  
+**Target :** PR #26, branche fix/create-offer-status-contract.  
+**HEAD de base :** b17dc3ac672d0ef54ea8d38a16197d19dc5e83b0.  
+**Branche de travail :** work/qa429-concurrent-identical-success-20261115-2301.
+
+## Constat et portée
+
+- QA103 couvre déjà le cas où le premier appel identique échoue volontairement puis où le second appel identique réussit après rollback.
+- QA288 et QA428 couvrent des requêtes concurrentes utilisant la même tenant/key avec des payloads différents ; la requête en attente est rejetée.
+- Les tests de replay séquentiel vérifient le retour du résultat après COMMIT, mais ne caractérisent pas directement deux requêtes identiques simultanées dont les deux clients reçoivent un succès.
+- QA429 ajoute ce cas complémentaire : la première requête détient le verrou advisory tenant/key pendant le délai fixture ; la deuxième requête strictement identique attend le même verrou ; après le COMMIT de la première, la deuxième doit réussir en rejouant le résultat persisté.
+- Les deux appels utilisent le même tenant, la même clé d'idempotence, le même input JSONB et les mêmes paramètres métier. Les noms de session PostgreSQL sont distincts pour prouver l'attente concurrente.
+- Le test compare byte-for-byte les résultats des deux appels, le résultat stocké dans idempotency_keys et un replay séquentiel ultérieur.
+- Les assertions vérifient le hash canonique, un seul enregistrement dans chacune des tables idempotency_keys, action_executions, offers et action_events, ainsi que le résultat de succès identique.
+
+## Contrôles et intégration
+
+- Nouveau scénario runtime : bloc QA429 dans tests/sql/run-create-offer-integration.sh.
+- Nouveau contrôle statique : tests/sql/test-create-offer-concurrent-identical-success-contract.sh.
+- Le contrôle statique est intégré au job Verify.
+- Le runner partagé existant exécute le scénario sur PostgreSQL 16 et PostgreSQL 17.6.
+- La validation du nouveau HEAD reste en attente ; aucun résultat runtime QA429 n'est revendiqué avant lecture des journaux de la nouvelle CI.
+
+## Sécurité et limites
+
+- Le runner commun refuse toute URL DATABASE_URL qui ne cible pas le service PostgreSQL jetable qima_test sur loopback.
+- QA429 n'effectue aucun DML direct ni changement de schéma, de rôle, de grant ou de policy. Les écritures applicatives passent uniquement par execute_create_offer_v1 ; les assertions sont en lecture seule.
+- Le test caractérise le comportement du wrapper et des fixtures synthétiques de CI, pas la fonction basse couche dans Supabase Production.
+- Il ne constitue pas un constat de vulnérabilité.
+- Aucun déploiement Production, merge, force-push ou changement des règles de protection.

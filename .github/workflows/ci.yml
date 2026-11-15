@@ -57,6 +57,8 @@ jobs:
         run: bash tests/sql/test-create-offer-tenant-idempotency-scope-contract.sh
       - name: Verify CREATE_OFFER concurrent successful winner rejects queued changed payload
         run: bash tests/sql/test-create-offer-concurrent-success-mismatch-contract.sh
+      - name: Verify CREATE_OFFER concurrent identical same-key requests share one successful result
+        run: bash tests/sql/test-create-offer-concurrent-identical-success-contract.sh
       - name: Verify CREATE_OFFER finite numeric-domain rejection coverage
         run: bash tests/sql/test-create-offer-numeric-domain-contract.sh
       - name: Verify CREATE_OFFER zero-quantity boundary rejection coverage

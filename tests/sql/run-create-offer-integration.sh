@@ -9236,3 +9236,293 @@ SQL
 
 echo "QA428 PASS: first same-key payload committed successfully; the queued changed-price request and its later replay were rejected with IDEMPOTENCY_KEY_REUSE, preserving one idempotency row, execution, offer and success event."
 # QA428_CONCURRENT_SUCCESS_MISMATCH_END
+
+
+
+# QA429_CONCURRENT_IDENTICAL_SUCCESS_BEGIN
+# Two concurrent first-time requests use the same tenant, key and effective
+# payload. Both callers must receive the same committed success result.
+qa429_first_sql=$(cat <<'SQL'
+SET application_name = 'qima-qa429-first';
+SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+SET ROLE authenticated;
+SELECT public.execute_create_offer_v1(
+  p_tenant_id => '10000000-0000-4000-8000-000000000001',
+  p_idempotency_key => 'fixture-qa429-concurrent-identical-success',
+  p_input => '{"case":"qa429-concurrent-identical-success"}'::jsonb,
+  p_name => 'QA429 Concurrent Identical Offer',
+  p_demand_id => '50000000-0000-4000-8000-000000000001',
+  p_product_master_id => '40000000-0000-4000-8000-000000000001',
+  p_provider_actor_id => '30000000-0000-4000-8000-000000000001',
+  p_quantity => 3,
+  p_price => 23,
+  p_currency => 'USD'
+);
+SQL
+)
+
+qa429_second_sql=$(cat <<'SQL'
+SET application_name = 'qima-qa429-second';
+SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+SET ROLE authenticated;
+SELECT public.execute_create_offer_v1(
+  p_tenant_id => '10000000-0000-4000-8000-000000000001',
+  p_idempotency_key => 'fixture-qa429-concurrent-identical-success',
+  p_input => '{"case":"qa429-concurrent-identical-success"}'::jsonb,
+  p_name => 'QA429 Concurrent Identical Offer',
+  p_demand_id => '50000000-0000-4000-8000-000000000001',
+  p_product_master_id => '40000000-0000-4000-8000-000000000001',
+  p_provider_actor_id => '30000000-0000-4000-8000-000000000001',
+  p_quantity => 3,
+  p_price => 23,
+  p_currency => 'USD'
+);
+SQL
+)
+
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t -c "$qa429_first_sql" > /tmp/qima-qa429-first.log 2>&1 &
+qa429_first_pid=$!
+
+qa429_first_lock_snapshot=""
+for attempt in $(seq 1 200); do
+  qa429_first_lock_snapshot=$(psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -At -c "
+    SELECT
+      count(DISTINCT a.application_name)::text || '|' ||
+      count(*) FILTER (
+        WHERE l.granted AND a.wait_event = 'PgSleep'
+      )::text
+    FROM pg_stat_activity a
+    JOIN pg_locks l ON l.pid = a.pid
+    WHERE a.application_name = 'qima-qa429-first'
+      AND a.state = 'active'
+      AND l.locktype = 'advisory'
+      AND l.mode = 'ExclusiveLock';
+  " | tr -d '[:space:]')
+  if [[ "$qa429_first_lock_snapshot" == "1|1" ]]; then
+    break
+  fi
+  sleep 0.025
+done
+
+if [[ "$qa429_first_lock_snapshot" != "1|1" ]]; then
+  set +e
+  wait "$qa429_first_pid"
+  qa429_first_status=$?
+  set -e
+  echo "QA429 first request never exposed its granted advisory lock during PgSleep (snapshot='$qa429_first_lock_snapshot', exit=$qa429_first_status)." >&2
+  cat /tmp/qima-qa429-first.log >&2
+  exit 1
+fi
+
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t -c "$qa429_second_sql" > /tmp/qima-qa429-second.log 2>&1 &
+qa429_second_pid=$!
+
+qa429_lock_snapshot=""
+for attempt in $(seq 1 200); do
+  qa429_lock_snapshot=$(psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -At -c "
+    SELECT
+      count(DISTINCT a.application_name)::text || '|' ||
+      count(*) FILTER (
+        WHERE l.granted AND a.wait_event = 'PgSleep'
+      )::text || '|' ||
+      count(*) FILTER (
+        WHERE NOT l.granted
+          AND a.wait_event_type = 'Lock'
+          AND a.wait_event = 'advisory'
+      )::text || '|' ||
+      count(DISTINCT (
+        l.classid::text || ':' || l.objid::text || ':' || l.objsubid::text
+      ))::text
+    FROM pg_stat_activity a
+    JOIN pg_locks l ON l.pid = a.pid
+    WHERE a.application_name IN ('qima-qa429-first', 'qima-qa429-second')
+      AND a.state = 'active'
+      AND l.locktype = 'advisory'
+      AND l.mode = 'ExclusiveLock';
+  " | tr -d '[:space:]')
+  if [[ "$qa429_lock_snapshot" == "2|1|1|1" ]]; then
+    break
+  fi
+  sleep 0.025
+done
+
+set +e
+wait "$qa429_first_pid"
+qa429_first_status=$?
+wait "$qa429_second_pid"
+qa429_second_status=$?
+set -e
+
+if [[ "$qa429_first_status" -ne 0 || "$qa429_second_status" -ne 0 ]]; then
+  echo "QA429 expected both identical same-key requests to succeed (first=$qa429_first_status, second=$qa429_second_status)." >&2
+  cat /tmp/qima-qa429-first.log /tmp/qima-qa429-second.log >&2
+  exit 1
+fi
+
+if [[ "$qa429_lock_snapshot" != "2|1|1|1" ]]; then
+  echo "QA429 expected one granted and one waiting advisory lock for the same tenant/key; observed '$qa429_lock_snapshot'." >&2
+  cat /tmp/qima-qa429-first.log /tmp/qima-qa429-second.log >&2
+  exit 1
+fi
+
+if [[ ! -s /tmp/qima-qa429-first.log || ! -s /tmp/qima-qa429-second.log ]] ||
+   ! cmp -s /tmp/qima-qa429-first.log /tmp/qima-qa429-second.log; then
+  echo "QA429 concurrent identical requests did not return byte-identical success results." >&2
+  diff -u /tmp/qima-qa429-first.log /tmp/qima-qa429-second.log >&2 || true
+  exit 1
+fi
+
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t -c "
+  SELECT result::text
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-qa429-concurrent-identical-success'
+    AND status = 'COMPLETED';
+" > /tmp/qima-qa429-stored-result.log
+
+if ! cmp -s /tmp/qima-qa429-first.log /tmp/qima-qa429-stored-result.log; then
+  echo "QA429 concurrent success result does not match the single stored idempotency result." >&2
+  diff -u /tmp/qima-qa429-first.log /tmp/qima-qa429-stored-result.log >&2 || true
+  exit 1
+fi
+
+qa429_replay_sql=$(cat <<'SQL'
+SET application_name = 'qima-qa429-replay';
+SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+SET ROLE authenticated;
+SELECT public.execute_create_offer_v1(
+  p_tenant_id => '10000000-0000-4000-8000-000000000001',
+  p_idempotency_key => 'fixture-qa429-concurrent-identical-success',
+  p_input => '{"case":"qa429-concurrent-identical-success"}'::jsonb,
+  p_name => 'QA429 Concurrent Identical Offer',
+  p_demand_id => '50000000-0000-4000-8000-000000000001',
+  p_product_master_id => '40000000-0000-4000-8000-000000000001',
+  p_provider_actor_id => '30000000-0000-4000-8000-000000000001',
+  p_quantity => 3,
+  p_price => 23,
+  p_currency => 'USD'
+);
+SQL
+)
+
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t -c "$qa429_replay_sql" > /tmp/qima-qa429-replay.log
+if ! cmp -s /tmp/qima-qa429-first.log /tmp/qima-qa429-replay.log; then
+  echo "QA429 post-concurrency exact replay did not return the original success result." >&2
+  diff -u /tmp/qima-qa429-first.log /tmp/qima-qa429-replay.log >&2 || true
+  exit 1
+fi
+
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 <<'SQL'
+DO $qa429$
+DECLARE
+  v_count integer;
+  v_expected_hash text;
+  v_request_hash text;
+  v_execution_id uuid;
+  v_result jsonb;
+  v_offer_id uuid;
+  v_input jsonb := '{"case":"qa429-concurrent-identical-success"}'::jsonb;
+BEGIN
+  v_expected_hash := md5(jsonb_build_object(
+    'input', v_input,
+    'name', 'QA429 Concurrent Identical Offer',
+    'demandId', '50000000-0000-4000-8000-000000000001'::uuid,
+    'productMasterId', '40000000-0000-4000-8000-000000000001'::uuid,
+    'providerActorId', '30000000-0000-4000-8000-000000000001'::uuid,
+    'quantity', 3::numeric,
+    'price', 23::numeric,
+    'currency', 'USD',
+    'conditions', NULL::text,
+    'market', NULL::text,
+    'geography', NULL::text,
+    'attributes', '{}'::jsonb,
+    'documentationStatus', NULL::text,
+    'lifecycle', NULL::text,
+    'offerType', NULL::text,
+    'pricingModel', NULL::text
+  )::text);
+
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-qa429-concurrent-identical-success';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA429 expected exactly one idempotency row, found %', v_count;
+  END IF;
+
+  SELECT request_hash, execution_id, result
+  INTO v_request_hash, v_execution_id, v_result
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-qa429-concurrent-identical-success'
+    AND status = 'COMPLETED';
+  IF NOT FOUND
+     OR v_request_hash IS DISTINCT FROM v_expected_hash
+     OR v_result ->> 'status' IS DISTINCT FROM 'succeeded'
+     OR nullif(v_result ->> 'executionId', '') IS NULL
+     OR nullif(v_result ->> 'objectId', '') IS NULL THEN
+    RAISE EXCEPTION 'QA429 expected one completed idempotency row with the canonical same-payload hash and success result';
+  END IF;
+
+  v_offer_id := (v_result ->> 'objectId')::uuid;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND id = v_execution_id
+    AND idempotency_key = 'fixture-qa429-concurrent-identical-success'
+    AND status = 'COMPLETED'
+    AND input = v_input
+    AND result = v_result
+    AND completed_at IS NOT NULL;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA429 expected exactly one completed execution matching the shared result, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE id = v_offer_id
+    AND name = 'QA429 Concurrent Identical Offer'
+    AND demand_id = '50000000-0000-4000-8000-000000000001'
+    AND product_master_id = '40000000-0000-4000-8000-000000000001'
+    AND provider_actor_id = '30000000-0000-4000-8000-000000000001'
+    AND quantity = 3
+    AND price = 23
+    AND currency = 'USD'
+    AND conditions IS NULL
+    AND market IS NULL
+    AND geography IS NULL
+    AND attributes = '{}'::jsonb;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA429 expected exactly one offer matching the identical concurrent payload, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_events e
+  JOIN public.action_executions x
+    ON x.id = e.execution_id
+   AND x.tenant_id = e.tenant_id
+  WHERE x.tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND x.idempotency_key = 'fixture-qa429-concurrent-identical-success'
+    AND e.event_type = 'ACTION_SUCCEEDED'
+    AND e.object_type = 'Offer'
+    AND e.object_id = v_offer_id
+    AND e.payload = v_result;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA429 expected exactly one success event matching the shared result, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_events
+  WHERE execution_id = v_execution_id;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA429 expected exactly one event for the shared execution, found %', v_count;
+  END IF;
+END
+$qa429$;
+SELECT 'QA429 concurrent identical requests returned the same committed result with one idempotency row, execution, offer and success event' AS result;
+SQL
+
+echo "QA429 PASS: two concurrent identical same-key requests both returned the same committed success result; a later replay matched it and one idempotency row, execution, offer and success event remained."
+# QA429_CONCURRENT_IDENTICAL_SUCCESS_END
+

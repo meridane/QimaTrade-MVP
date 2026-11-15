@@ -2,7 +2,7 @@
 
 ## QA428 — concurrent successful first request wins; queued changed-payload retry is rejected
 
-**Statut : IMPLEMENTED — validation runtime en attente sur la CI du HEAD courant.**  
+**Statut : CLOSED — QIMA CI #1494 SUCCESS sur le HEAD exact b17dc3ac672d0ef54ea8d38a16197d19dc5e83b0.**  
 **Target :** PR #26, branche `fix/create-offer-status-contract`.  
 **HEAD de base :** `9d911be0eea79c568491ac9aeb89736e7c184507`.  
 **Branche de travail :** `work/qa428-concurrent-success-mismatch-20261115-2139`.
@@ -23,7 +23,7 @@
 - Nouveau contrôle statique : `tests/sql/test-create-offer-concurrent-success-mismatch-contract.sh`.
 - Le contrôle statique est intégré au job Verify.
 - Le scénario runtime est exécuté par le runner commun dans PostgreSQL 16 et PostgreSQL 17.6.
-- La validation de ce nouveau HEAD reste en attente de GitHub Actions ; aucun résultat runtime n'est revendiqué avant lecture des journaux correspondants.
+- L'attente initiale est levée par la validation finale QIMA CI #1494, détaillée ci-dessous.
 
 ## Sécurité et limites
 
@@ -40,3 +40,16 @@
 - The dependency-audit enforcement step also concluded FAILURE because the audit step was skipped after Verify stopped at QA428. No npm audit result was produced by that job; this is not an npm vulnerability finding.
 - The static contract has been corrected to match the exact `[[ "$variable" ... ]]` expressions. The replacement CI must pass Verify before QA428 is considered validated.
 - PostgreSQL 16 and PostgreSQL 17.6 jobs from #1493 were still running when this correction was prepared; their final runtime results are not inferred here.
+
+
+## Validation finale — QIMA CI #1494 (2026-11-15)
+
+- QA428 est **CLOSED** sur le HEAD exact de la PR b17dc3ac672d0ef54ea8d38a16197d19dc5e83b0. QIMA CI [#1494](https://github.com/meridane/QimaTrade-MVP/actions/runs/43715751146) a terminé avec la conclusion globale **SUCCESS**.
+- Verify job 132818238544 : SUCCESS ; exactement un marqueur QA428 static contract PASS. npm audit au seuil high, TypeScript, build Next.js, installation Chromium et Playwright **347/347** : SUCCESS.
+- PostgreSQL 16 job 132818238527 : SUCCESS ; exactement un marqueur QA428 PASS.
+- PostgreSQL 17.6 job 132818238555 : SUCCESS ; exactement un marqueur QA428 PASS.
+- Les deux environnements ont observé la requête initiale tenant/clé détentrice du verrou et la requête à prix modifié en attente ; la première a commité, la seconde et son replay ont été rejetés avec IDEMPOTENCY_KEY_REUSE. Une seule ligne d'idempotence, exécution, offre et événement de succès a été conservée.
+- CodeQL [#1429](https://github.com/meridane/QimaTrade-MVP/actions/runs/43715751139) : SUCCESS. Le statut combiné Vercel sur le HEAD validé : SUCCESS.
+- Les jobs de simulation négative préparée 132818238337 et 132818238620 ont la conclusion failure attendue ; les assertions de nettoyage 132818272062 et 132818286874 sont SUCCESS. Le job volontairement skipped 132818239596 est accompagné de son assertion SUCCESS 132818238648. La conclusion globale CI #1494 reste SUCCESS.
+- Les deux échecs attendus de simulation ne sont pas des échecs de QA428 ni des constats de vulnérabilité.
+- Portée limitée aux fixtures PostgreSQL jetables de CI. Aucun résultat n'est extrapolé à Supabase Production. Aucune donnée/migration production, secret, grant, policy RLS, configuration persistante, production deployment, merge, force-push ou règle de protection n'a été modifié.
