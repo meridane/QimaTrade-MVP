@@ -9427,8 +9427,6 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 - Aucune donnée ni migration Supabase Production, aucun secret, grant, policy RLS ou configuration persistante n'est modifié.
 - Aucun déploiement Production, merge, force-push ou changement de règle de protection.
 
-# QIMA V1 Function Register — QA420
-
 ## QA420 — audit documentaire de la couverture du request hash CREATE_OFFER
 
 **Statut : DOCUMENTATION AUDIT COMPLETE — aucune nouvelle régression runtime ajoutée ; la couverture existante des 16 champs métier est déjà cartographiée et le contrat statique QA382 la vérifie.**  
