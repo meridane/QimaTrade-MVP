@@ -9610,12 +9610,13 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 
 ## QA426 — correction et protection des diagnostics des tests de valeurs par défaut
 
-**Statut : CLOSED — QIMA CI [#1484](https://github.com/meridane/QimaTrade-MVP/actions/runs/43690898637), Verify job `132741139490` SUCCESS sur le HEAD `c4648fc1aefd473126c79ac257fa66d4330925f1`.**
+**Statut : CLOSED — QIMA CI [#1484](https://github.com/meridane/QimaTrade-MVP/actions/runs/43690898637) SUCCESS sur le HEAD de code `c4648fc1aefd473126c79ac257fa66d4330925f1`.**
 - Les diagnostics QA413 ont été corrigés pour nommer `geography` au lieu de `market`, et le contrôle d'existence du bloc précède désormais l'inspection de `v_input`.
-- Le contrôle statique `tests/sql/test-create-offer-default-replay-diagnostics-contract.sh` vérifie les diagnostics des contrats QA410 (attributes), QA411 (conditions), QA412 (market) et QA413 (geography), ainsi que l'ordre du garde QA413.
-- Le contrôle est câblé une seule fois dans Verify ; step 51 SUCCESS et exactement un marqueur `QA426 static contract PASS`.
-- Verify job `132741139490` : SUCCESS ; npm audit au seuil high, TypeScript, build Next.js, Chromium et Playwright **347/347** : SUCCESS.
-- CodeQL [#1419](https://github.com/meridane/QimaTrade-MVP/actions/runs/43690898685) : SUCCESS. Le statut combiné Vercel sur ce HEAD : SUCCESS.
-- Les steps runtime QA413 dans les jobs PostgreSQL 16 et 17.6 ont terminé avec succès, mais les jobs complets poursuivent encore leurs caractérisations de privilèges/RLS/ACL/nettoyage. La conclusion globale de QIMA CI #1484 n'est pas présentée comme SUCCESS.
-- QA426 est CLOSED pour son périmètre statique ; aucun changement SQL runtime, migration, règle métier ou donnée applicative n'a été effectué.
+- Le contrôle statique `tests/sql/test-create-offer-default-replay-diagnostics-contract.sh` vérifie les diagnostics QA410 (attributes), QA411 (conditions), QA412 (market) et QA413 (geography), ainsi que l'ordre du garde QA413.
+- Verify job `132741139490` : SUCCESS ; exactement un marqueur `QA426 static contract PASS`.
+- PostgreSQL 16 job `132741139537` : SUCCESS ; exactement un marqueur `QA413 PASS`.
+- PostgreSQL 17.6 job `132741139574` : SUCCESS ; exactement un marqueur `QA413 PASS`.
+- npm audit au seuil high, TypeScript, build Next.js, Chromium et Playwright **347/347** : SUCCESS. CodeQL [#1419](https://github.com/meridane/QimaTrade-MVP/actions/runs/43690898685) : SUCCESS. Vercel sur le HEAD de code : SUCCESS.
+- Le commit documentaire `e72e2af3` a déclenché une exécution PR supplémentaire, QIMA CI [#1485](https://github.com/meridane/QimaTrade-MVP/actions/runs/43691351096), actuellement IN PROGRESS ; CodeQL [#1420](https://github.com/meridane/QimaTrade-MVP/actions/runs/43691351183) et Vercel sont SUCCESS. Cette exécution ne modifie pas le résultat SUCCESS de CI #1484 sur le code QA426.
+- QA426 est CLOSED sur son périmètre statique ; aucun SQL runtime, migration, règle métier ou donnée applicative n'a été modifié.
 - Aucune donnée ni migration Supabase Production, aucun secret, grant, policy RLS ou configuration persistante n'est modifié. Aucun déploiement Production, merge, force-push ou changement de règle de protection.
