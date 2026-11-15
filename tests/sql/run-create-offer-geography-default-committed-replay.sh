@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-: "\${DATABASE_URL:?DATABASE_URL is required}"
+: "${DATABASE_URL:?DATABASE_URL is required}"
 EXPECTED_DATABASE_URL="postgresql://postgres:postgres@localhost:5432/qima_test"
 if [[ "$DATABASE_URL" != "$EXPECTED_DATABASE_URL" ]]; then
   echo "QA427 requires the disposable loopback qima_test database." >&2

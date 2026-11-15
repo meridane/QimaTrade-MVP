@@ -14,6 +14,9 @@ for file in "$RUNTIME" "$WORKFLOW"; do
   [[ -f "$file" ]] || fail "required QA427 file is missing: $file"
 done
 
+grep -Fq ': "${DATABASE_URL:?DATABASE_URL is required}"' "$RUNTIME" ||
+  fail "QA427 must fail clearly when DATABASE_URL is unset"
+
 [[ "$(grep -Fc 'psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1' "$RUNTIME" || true)" -eq 2 ]] ||
   fail "QA427 must use exactly two independent psql processes"
 
