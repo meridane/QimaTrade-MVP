@@ -63,3 +63,15 @@
 - Les jobs de simulation de nettoyage qui terminent en `failure` sont les résultats négatifs attendus ; les jobs d'assertion correspondants ont terminé `SUCCESS`. Le job volontairement `skipped` a également été reconnu par son assertion. La conclusion globale CI #1500 reste `SUCCESS`.
 - Cette vérification porte sur les journaux des fixtures PostgreSQL jetables de CI. Elle ne constitue ni une preuve d'exécution sur Supabase Production ni un constat de vulnérabilité.
 - Le commit documentaire ultérieur `b38d8ed286ff7fd1b2c57c1d475cdd2e4ee55d3f` met à jour le registre canonique ; CI #1500 valide le HEAD antérieur `1b463af2`, pas ce commit documentaire.
+
+## Vérification directe des journaux CI #1501 et #1502 — 16 novembre 2026 (KST)
+
+- QIMA CI [#1501](https://github.com/meridane/QimaTrade-MVP/actions/runs/43742089435) : conclusion globale `SUCCESS` sur le HEAD `b38d8ed286ff7fd1b2c57c1d475cdd2e4ee55d3f`. Verify `132897255508`, PostgreSQL 16 `132897255145` et PostgreSQL 17.6 `132897255432` sont tous terminés avec `SUCCESS`.
+- Le job Verify #1501 confirme les étapes d'audit des dépendances (gate high), TypeScript, build Next.js et navigateur réussies ; Playwright rapporte `347 passed`.
+- Le journal complet PostgreSQL 16 #1501 contient exactement un `QA429 PASS` ; le journal PostgreSQL 17.6 #1501 contient exactement un `QA429 PASS`.
+- QIMA CI [#1502](https://github.com/meridane/QimaTrade-MVP/actions/runs/43742163550) : conclusion globale `SUCCESS` sur le HEAD exact `3d5750f94394eb5df5c0223a49fb9043ff649f34`. Verify `132899378193`, PostgreSQL 16 `132899378045` et PostgreSQL 17.6 `132899378323` sont tous terminés avec `SUCCESS`.
+- Le job Verify #1502 confirme les étapes d'audit des dépendances (gate high), TypeScript, build Next.js et navigateur réussies ; Playwright rapporte `347 passed`.
+- Le journal complet PostgreSQL 16 #1502 contient exactement un `QA429 PASS` ; le journal PostgreSQL 17.6 #1502 contient exactement un `QA429 PASS`. Chaque marqueur confirme deux requêtes concurrentes identiques, un résultat de succès commité commun, un replay ultérieur identique et une seule ligne dans chacune des quatre tables de persistance.
+- CodeQL #1435 sur `b38d8ed` et CodeQL #1436 sur `3d5750f` sont `SUCCESS`. Le statut combiné Vercel sur `3d5750f` est `success`.
+- Les jobs de simulation négative de nettoyage ont les échecs attendus et leurs assertions ont réussi ; le job volontairement skipped est aussi vérifié. Les deux conclusions globales restent `SUCCESS`.
+- La vérification concerne uniquement les bases jetables de CI ; elle ne prouve rien sur l'état de Supabase Production et ne constitue pas un constat de vulnérabilité.
