@@ -9657,3 +9657,19 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 - CodeQL [#1426](https://github.com/meridane/QimaTrade-MVP/actions/runs/43706667642) and the combined Vercel status on the validated HEAD both succeeded.
 - Expected-failure prepared-transaction simulation jobs were paired with successful assertion jobs; the deliberately skipped job was also correctly asserted. Overall CI #1491 remained SUCCESS.
 - Scope is limited to the disposable PostgreSQL fixtures. This is not a production Supabase assessment or a vulnerability finding. No production data/migration, secret, grant, RLS policy, persistent configuration, production deployment, merge, force-push or protection-rule change.
+
+
+## QA428 — concurrent successful first request wins; queued changed-payload retry is rejected
+
+**Statut : IMPLEMENTED — GitHub Actions runtime validation pending on the current PR HEAD.**  
+**Target :** PR #26, branche `fix/create-offer-status-contract`.  
+**Base HEAD :** `9d911be0eea79c568491ac9aeb89736e7c184507`.
+
+- QA104 already covers a queued changed-payload request after a deliberately rolled-back first attempt, and existing mismatch tests cover sequential rejection after success.
+- QA428 adds the complementary race: the first same-tenant/key request succeeds and commits while a different-price request waits on the same transaction-scoped advisory lock.
+- The first request uses price 23; the queued request uses price 24 with all other effective business parameters identical. The second request must receive `IDEMPOTENCY_KEY_REUSE`.
+- Exact replay of the winning first payload must return the original JSON result; replay of the losing payload must remain rejected.
+- Assertions require one completed idempotency row, one completed execution, one offer at price 23, one matching `ACTION_SUCCEEDED` event, and a stored request hash matching only the winning payload.
+- Runtime is included in the existing disposable integration runner for PostgreSQL 16 and PostgreSQL 17.6. A dedicated static contract is included in Verify.
+- The new HEAD has not yet completed CI; runtime success is not claimed until both PostgreSQL job logs and the Verify result are checked.
+- Scope is limited to disposable CI fixtures. No production data or migration, secret, grant, RLS policy, persistent database configuration, production deployment, merge, force-push or protection-rule change. This is not a vulnerability finding.

@@ -8896,3 +8896,343 @@ SELECT 'QA314 duplicate keys ending in JSON null inside p_input and p_attributes
 SQL
 
 echo "QA314 confirmed duplicate JSON keys ending in JSON null inside array objects in p_input and p_attributes; canonical explicit-null replay succeeded, absent-property retries were rejected, array order and original records were preserved."
+
+# QA428_CONCURRENT_SUCCESS_MISMATCH_BEGIN
+# QA428: a successful first request commits while a different-payload request
+# waits on the same tenant/key lock; the queued request must then be rejected.
+qa428_first_sql=$(cat <<'SQL'
+SET application_name = 'qima-qa428-first';
+SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+SET ROLE authenticated;
+SELECT public.execute_create_offer_v1(
+  p_tenant_id => '10000000-0000-4000-8000-000000000001',
+  p_idempotency_key => 'fixture-qa428-concurrent-success-mismatch',
+  p_input => '{"case":"qa428-concurrent-success-mismatch"}'::jsonb,
+  p_name => 'QA428 Concurrent Winner Offer',
+  p_demand_id => '50000000-0000-4000-8000-000000000001',
+  p_product_master_id => '40000000-0000-4000-8000-000000000001',
+  p_provider_actor_id => '30000000-0000-4000-8000-000000000001',
+  p_quantity => 3,
+  p_price => 23,
+  p_currency => 'USD'
+);
+SQL
+)
+
+qa428_second_sql=$(cat <<'SQL'
+SET application_name = 'qima-qa428-second';
+SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+SET ROLE authenticated;
+SELECT public.execute_create_offer_v1(
+  p_tenant_id => '10000000-0000-4000-8000-000000000001',
+  p_idempotency_key => 'fixture-qa428-concurrent-success-mismatch',
+  p_input => '{"case":"qa428-concurrent-success-mismatch"}'::jsonb,
+  p_name => 'QA428 Concurrent Winner Offer',
+  p_demand_id => '50000000-0000-4000-8000-000000000001',
+  p_product_master_id => '40000000-0000-4000-8000-000000000001',
+  p_provider_actor_id => '30000000-0000-4000-8000-000000000001',
+  p_quantity => 3,
+  p_price => 24,
+  p_currency => 'USD'
+);
+SQL
+)
+
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t -v VERBOSITY=verbose -c "$qa428_first_sql" > /tmp/qima-qa428-first.log 2>&1 &
+qa428_first_pid=$!
+
+qa428_first_lock_snapshot=""
+for attempt in $(seq 1 200); do
+  qa428_first_lock_snapshot=$(psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -At -c "
+    SELECT
+      count(DISTINCT a.application_name)::text || '|' ||
+      count(*) FILTER (
+        WHERE l.granted AND a.wait_event = 'PgSleep'
+      )::text
+    FROM pg_stat_activity a
+    JOIN pg_locks l ON l.pid = a.pid
+    WHERE a.application_name = 'qima-qa428-first'
+      AND a.state = 'active'
+      AND l.locktype = 'advisory'
+      AND l.mode = 'ExclusiveLock';
+  " | tr -d '[:space:]')
+  if [[ "$qa428_first_lock_snapshot" == "1|1" ]]; then
+    break
+  fi
+  sleep 0.025
+done
+
+if [[ "$qa428_first_lock_snapshot" != "1|1" ]]; then
+  set +e
+  wait "$qa428_first_pid"
+  qa428_first_status=$?
+  set -e
+  echo "QA428 first request never exposed its granted advisory lock during PgSleep (snapshot='$qa428_first_lock_snapshot', exit=$qa428_first_status)." >&2
+  cat /tmp/qima-qa428-first.log >&2
+  exit 1
+fi
+
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t -v VERBOSITY=verbose -c "$qa428_second_sql" > /tmp/qima-qa428-second.log 2>&1 &
+qa428_second_pid=$!
+
+qa428_lock_snapshot=""
+for attempt in $(seq 1 200); do
+  qa428_lock_snapshot=$(psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -At -c "
+    SELECT
+      count(DISTINCT a.application_name)::text || '|' ||
+      count(*) FILTER (
+        WHERE l.granted AND a.wait_event = 'PgSleep'
+      )::text || '|' ||
+      count(*) FILTER (
+        WHERE NOT l.granted
+          AND a.wait_event_type = 'Lock'
+          AND a.wait_event = 'advisory'
+      )::text || '|' ||
+      count(DISTINCT (
+        l.classid::text || ':' || l.objid::text || ':' || l.objsubid::text
+      ))::text
+    FROM pg_stat_activity a
+    JOIN pg_locks l ON l.pid = a.pid
+    WHERE a.application_name IN ('qima-qa428-first', 'qima-qa428-second')
+      AND a.state = 'active'
+      AND l.locktype = 'advisory'
+      AND l.mode = 'ExclusiveLock';
+  " | tr -d '[:space:]')
+  if [[ "$qa428_lock_snapshot" == "2|1|1|1" ]]; then
+    break
+  fi
+  sleep 0.025
+done
+
+set +e
+wait "$qa428_first_pid"
+qa428_first_status=$?
+wait "$qa428_second_pid"
+qa428_second_status=$?
+set -e
+
+if [[ "$qa428_first_status" -ne 0 || "$qa428_second_status" -eq 0 ]]; then
+  echo "QA428 expected the first payload to succeed and the queued changed-price payload to fail (first=$qa428_first_status, second=$qa428_second_status)." >&2
+  cat /tmp/qima-qa428-first.log /tmp/qima-qa428-second.log >&2
+  exit 1
+fi
+
+if [[ "$qa428_lock_snapshot" != "2|1|1|1" ]]; then
+  echo "QA428 expected one granted and one waiting advisory lock for the same tenant/key; observed '$qa428_lock_snapshot'." >&2
+  cat /tmp/qima-qa428-first.log /tmp/qima-qa428-second.log >&2
+  exit 1
+fi
+
+if [[ ! -s /tmp/qima-qa428-first.log ]] ||
+   ! grep -Fq '"status": "succeeded"' /tmp/qima-qa428-first.log; then
+  echo "QA428 first request did not return a successful public result." >&2
+  cat /tmp/qima-qa428-first.log >&2
+  exit 1
+fi
+
+if ! grep -Fq "IDEMPOTENCY_KEY_REUSE" /tmp/qima-qa428-second.log; then
+  echo "QA428 queued changed-price request was not rejected with IDEMPOTENCY_KEY_REUSE." >&2
+  cat /tmp/qima-qa428-second.log >&2
+  exit 1
+fi
+
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t -c "
+  SELECT result::text
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-qa428-concurrent-success-mismatch'
+    AND status = 'COMPLETED';
+" > /tmp/qima-qa428-stored-result.log
+
+if ! cmp -s /tmp/qima-qa428-first.log /tmp/qima-qa428-stored-result.log; then
+  echo "QA428 first response does not match the persisted winning result." >&2
+  diff -u /tmp/qima-qa428-first.log /tmp/qima-qa428-stored-result.log >&2 || true
+  exit 1
+fi
+
+qa428_first_replay_sql=$(cat <<'SQL'
+SET application_name = 'qima-qa428-first-replay';
+SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+SET ROLE authenticated;
+SELECT public.execute_create_offer_v1(
+  p_tenant_id => '10000000-0000-4000-8000-000000000001',
+  p_idempotency_key => 'fixture-qa428-concurrent-success-mismatch',
+  p_input => '{"case":"qa428-concurrent-success-mismatch"}'::jsonb,
+  p_name => 'QA428 Concurrent Winner Offer',
+  p_demand_id => '50000000-0000-4000-8000-000000000001',
+  p_product_master_id => '40000000-0000-4000-8000-000000000001',
+  p_provider_actor_id => '30000000-0000-4000-8000-000000000001',
+  p_quantity => 3,
+  p_price => 23,
+  p_currency => 'USD'
+);
+SQL
+)
+
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t -c "$qa428_first_replay_sql" > /tmp/qima-qa428-first-replay.log
+if ! cmp -s /tmp/qima-qa428-first.log /tmp/qima-qa428-first-replay.log; then
+  echo "QA428 exact replay of the winning first payload did not return its original result." >&2
+  diff -u /tmp/qima-qa428-first.log /tmp/qima-qa428-first-replay.log >&2 || true
+  exit 1
+fi
+
+qa428_second_replay_sql=$(cat <<'SQL'
+SET application_name = 'qima-qa428-second-replay';
+SET request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+SET ROLE authenticated;
+SELECT public.execute_create_offer_v1(
+  p_tenant_id => '10000000-0000-4000-8000-000000000001',
+  p_idempotency_key => 'fixture-qa428-concurrent-success-mismatch',
+  p_input => '{"case":"qa428-concurrent-success-mismatch"}'::jsonb,
+  p_name => 'QA428 Concurrent Winner Offer',
+  p_demand_id => '50000000-0000-4000-8000-000000000001',
+  p_product_master_id => '40000000-0000-4000-8000-000000000001',
+  p_provider_actor_id => '30000000-0000-4000-8000-000000000001',
+  p_quantity => 3,
+  p_price => 24,
+  p_currency => 'USD'
+);
+SQL
+)
+
+set +e
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -A -t -v VERBOSITY=verbose -c "$qa428_second_replay_sql" > /tmp/qima-qa428-second-replay.log 2>&1
+qa428_second_replay_status=$?
+set -e
+
+if [[ "$qa428_second_replay_status" -eq 0 ]] ||
+   ! grep -Fq "IDEMPOTENCY_KEY_REUSE" /tmp/qima-qa428-second-replay.log; then
+  echo "QA428 replay of the losing changed-price payload was not rejected with IDEMPOTENCY_KEY_REUSE." >&2
+  cat /tmp/qima-qa428-second-replay.log >&2
+  exit 1
+fi
+
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 <<'SQL'
+DO $qa428$
+DECLARE
+  v_count integer;
+  v_request_hash text;
+  v_expected_first_hash text;
+  v_expected_second_hash text;
+  v_execution_id uuid;
+  v_result jsonb;
+  v_offer_id uuid;
+  v_price numeric;
+BEGIN
+  v_expected_first_hash := md5(jsonb_build_object(
+    'input', '{"case":"qa428-concurrent-success-mismatch"}'::jsonb,
+    'name', 'QA428 Concurrent Winner Offer',
+    'demandId', '50000000-0000-4000-8000-000000000001'::uuid,
+    'productMasterId', '40000000-0000-4000-8000-000000000001'::uuid,
+    'providerActorId', '30000000-0000-4000-8000-000000000001'::uuid,
+    'quantity', 3,
+    'price', 23,
+    'currency', 'USD',
+    'conditions', NULL,
+    'market', NULL,
+    'geography', NULL,
+    'attributes', '{}'::jsonb,
+    'documentationStatus', NULL,
+    'lifecycle', NULL,
+    'offerType', NULL,
+    'pricingModel', NULL
+  )::text);
+
+  v_expected_second_hash := md5(jsonb_build_object(
+    'input', '{"case":"qa428-concurrent-success-mismatch"}'::jsonb,
+    'name', 'QA428 Concurrent Winner Offer',
+    'demandId', '50000000-0000-4000-8000-000000000001'::uuid,
+    'productMasterId', '40000000-0000-4000-8000-000000000001'::uuid,
+    'providerActorId', '30000000-0000-4000-8000-000000000001'::uuid,
+    'quantity', 3,
+    'price', 24,
+    'currency', 'USD',
+    'conditions', NULL,
+    'market', NULL,
+    'geography', NULL,
+    'attributes', '{}'::jsonb,
+    'documentationStatus', NULL,
+    'lifecycle', NULL,
+    'offerType', NULL,
+    'pricingModel', NULL
+  )::text);
+
+  SELECT count(*) INTO v_count
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-qa428-concurrent-success-mismatch';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA428 expected exactly one idempotency row, found %', v_count;
+  END IF;
+
+  SELECT request_hash, execution_id, result
+  INTO v_request_hash, v_execution_id, v_result
+  FROM public.idempotency_keys
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND key = 'fixture-qa428-concurrent-success-mismatch'
+    AND status = 'COMPLETED';
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'QA428 expected one completed idempotency row';
+  END IF;
+  IF v_request_hash IS DISTINCT FROM v_expected_first_hash
+     OR v_request_hash = v_expected_second_hash THEN
+    RAISE EXCEPTION 'QA428 stored hash does not belong exclusively to the successful first payload';
+  END IF;
+
+  v_offer_id := (v_result->>'objectId')::uuid;
+
+  SELECT count(*), max(price)
+  INTO v_count, v_price
+  FROM public.offers
+  WHERE id = v_offer_id
+    AND name = 'QA428 Concurrent Winner Offer';
+  IF v_count <> 1 OR v_price IS DISTINCT FROM 23 THEN
+    RAISE EXCEPTION 'QA428 expected exactly one winning offer at price 23, found count %, price %', v_count, v_price;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.offers
+  WHERE name = 'QA428 Concurrent Winner Offer';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA428 losing request created a duplicate offer: %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_executions
+  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND idempotency_key = 'fixture-qa428-concurrent-success-mismatch'
+    AND id = v_execution_id
+    AND status = 'COMPLETED'
+    AND result = v_result;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA428 expected exactly one completed execution matching the winning result, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_events e
+  JOIN public.action_executions x
+    ON x.id = e.execution_id
+   AND x.tenant_id = e.tenant_id
+  WHERE x.tenant_id = '10000000-0000-4000-8000-000000000001'
+    AND x.idempotency_key = 'fixture-qa428-concurrent-success-mismatch'
+    AND e.event_type = 'ACTION_SUCCEEDED'
+    AND e.object_type = 'Offer'
+    AND e.object_id = v_offer_id
+    AND e.payload = v_result;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA428 expected exactly one success event matching the winning result, found %', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.action_events
+  WHERE execution_id = v_execution_id;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'QA428 expected exactly one event for the winning execution, found %', v_count;
+  END IF;
+END
+$qa428$;
+SELECT 'QA428 successful first payload wins; queued changed-price request and its later replay are rejected without duplicate persistence' AS result;
+SQL
+
+echo "QA428 PASS: first same-key payload committed successfully; the queued changed-price request and its later replay were rejected with IDEMPOTENCY_KEY_REUSE, preserving one idempotency row, execution, offer and success event."
+# QA428_CONCURRENT_SUCCESS_MISMATCH_END
