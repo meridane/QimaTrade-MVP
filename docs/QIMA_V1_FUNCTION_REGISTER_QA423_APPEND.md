@@ -2,23 +2,28 @@
 
 ## QA423 — all supported currency codes are accepted, persisted and exactly replayed
 
-**Statut : IMPLEMENTED — validation CI en attente sur le nouveau HEAD.**  
+**Statut : CLOSED — QIMA CI #1479 SUCCESS sur le HEAD `981f57442441619bac0bb597560000e2e66f9d18`.**  
 **Target :** PR #26, branche `fix/create-offer-status-contract`.  
-**Commit de base :** `ccacb9890546c243916f11567a07ca1356848d66`.  
+**Commit validé :** `981f57442441619bac0bb597560000e2e66f9d18`.  
 **Branche de travail :** `work/qa423-supported-currency-acceptance-20261115-1342`.
 
 ## Portée
-- Caractériser positivement la liste exacte déclarée par la migration : `USD`, `EUR`, `KRW`, `MAD` et `CNY`.
-- La relecture de `tests/sql/create-offer-runtime.sql` montre que les appels nommés existants n'utilisent explicitement que `USD` et `EUR` ; QA423 ajoute une couverture d'acceptation pour les trois codes restants tout en gardant une matrice complète des cinq codes.
-- Chaque devise reçoit une clé d'idempotence et un nom d'offre distincts, avec les mêmes références synthétiques valides de tenant, acteur, demande et produit.
-- Chaque premier appel doit retourner `status = succeeded`, persister le code exact dans `offers.currency`, et produire une seule ligne cohérente dans `idempotency_keys`, `action_executions`, `offers` et `action_events`.
-- Un second appel identique avec la même clé doit retourner exactement le JSON initial, conserver le request hash et ne créer aucune ligne supplémentaire.
-- Le contrôle statique vérifie la whitelist exacte, les cinq cas, les deux appels RPC par cas, les assertions de persistance/replay et le câblage Verify/PostgreSQL 16/PostgreSQL 17.6.
+- La whitelist exacte de la migration — `USD`, `EUR`, `KRW`, `MAD` et `CNY` — est caractérisée positivement.
+- Chaque devise a été acceptée, persistée avec son code exact et rejouée avec la même clé sans créer de doublons.
+- Le replay a conservé le JSON de résultat et le request hash originaux.
+- Les quatre tables `idempotency_keys`, `action_executions`, `offers` et `action_events` ont conservé une seule ligne cohérente par clé et devise.
 
-## Validation et limites
-- Le SQL `tests/sql/create-offer-supported-currency-acceptance.sql` utilise uniquement les fixtures de CI jetables, `execute_create_offer_v1` et des assertions SELECT ; il ne contient aucun DML direct ni changement de schéma.
-- Le contrôle statique est `tests/sql/test-create-offer-supported-currency-acceptance-contract.sh`.
-- Le workflow exécute le contrôle statique dans Verify et le SQL sur PostgreSQL 16 et PostgreSQL 17.6.
-- Aucun marqueur QA423 PASS n'est revendiqué avant les journaux runtime finaux des deux versions PostgreSQL.
-- Le scénario synthétique caractérise le contrat existant et ne constitue pas un constat de vulnérabilité ni une décision métier sur les devises.
-- Aucune donnée ni migration Supabase Production, aucun secret, grant, policy RLS ou configuration persistante n'est modifié. Aucun déploiement Production, merge, force-push ou changement de règle de protection.
+## Validation définitive
+- QIMA CI [#1479](https://github.com/meridane/QimaTrade-MVP/actions/runs/43678170735) : **SUCCESS** sur le HEAD `981f5744`.
+- Verify job `132702790629` : SUCCESS ; exactement un marqueur `QA423 static contract PASS`.
+- PostgreSQL 16 job `132702790819` : SUCCESS ; exactement un marqueur runtime `QA423 PASS`.
+- PostgreSQL 17.6 job `132702790889` : SUCCESS ; exactement un marqueur runtime `QA423 PASS`.
+- npm audit au seuil high : SUCCESS. TypeScript : SUCCESS. Build Next.js : SUCCESS. Playwright : **347/347**.
+- CodeQL [#1414](https://github.com/meridane/QimaTrade-MVP/actions/runs/43678170697) : SUCCESS.
+- Statut combiné Vercel sur le HEAD `981f5744` : SUCCESS ([Preview](https://vercel.com/bmk1/qimatrade-mvp/8f7Qc1jjBBFxGKV9c7Qm1CUnCTsX)).
+- Les deux jobs de simulation négative du nettoyage ont présenté leurs échecs attendus ; les jobs d'assertion correspondants ont réussi. Le job de nettoyage volontairement skipped a été reconnu comme tel. La conclusion globale de QIMA CI reste SUCCESS.
+
+## Limites et sécurité
+- Le runtime utilise le wrapper et les fixtures synthétiques de CI jetable ; il ne constitue pas une preuve directe de la fonction basse couche déployée en production ni un constat de vulnérabilité.
+- Aucune donnée ni migration Supabase Production, aucun secret, grant, policy RLS ou configuration persistante n'est modifié.
+- Aucun déploiement Production, merge, force-push ou changement de règle de protection.
