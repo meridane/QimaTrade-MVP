@@ -33,4 +33,15 @@
 - Une relecture du fichier `tests/sql/create-offer-geography-default-replay.sql` a trouvé que la valeur JSON de `v_input` utilisait encore le libellé `qa412-market-default-replay` dans le bloc QA413.
 - Cette valeur ne changeait pas le paramètre testé `p_geography` ni le comportement du replay, mais elle rendait les traces de fixture trompeuses.
 - QA425 corrige le libellé en `qa413-geography-default-replay` et renforce le contrôle statique existant pour exiger la valeur exacte et refuser l'ancien libellé dans le bloc QA413.
-- Le résultat runtime antérieur QA413 reste valide pour le contrat d'omission/replay ; QA425 revalide le fixture corrigé sur PostgreSQL 16 et 17.6.
+- Le résultat runtime antérieur QA413 reste valide pour le contrat d'omission/replay ; QA425 a revalidé le fixture corrigé sur PostgreSQL 16 et 17.6 dans QIMA CI #1483.
+
+
+## QA425 validation — corrected fixture on QIMA CI #1483
+
+- QIMA CI [#1483](https://github.com/meridane/QimaTrade-MVP/actions/runs/43684750243) completed with conclusion **SUCCESS** on HEAD `4f35e3424d7beee21ab3a2e06a7fdb7850338408`.
+- Verify job `132723980558` completed successfully; the journal contains exactly one `QA413 static contract PASS`. npm audit at the high threshold, TypeScript, Next.js build, Chromium installation and Playwright **347/347** also succeeded.
+- PostgreSQL 16 job `132723980516` completed successfully; the journal contains exactly one `QA413 PASS` for the corrected geography-default fixture.
+- PostgreSQL 17.6 job `132723980262` completed successfully; the journal contains exactly one `QA413 PASS` for the corrected geography-default fixture.
+- CodeQL [#1418](https://github.com/meridane/QimaTrade-MVP/actions/runs/43684750307) completed successfully.
+- The combined Vercel status is failure with target `build-rate-limit`; the Vercel bot reported the provider's daily deployment quota. This is not a failed Next.js build: the GitHub Actions production build succeeded.
+- QA425 is therefore **CLOSED**. The correction remains limited to fixture identity and static-contract diagnostics; it does not change SQL behavior or business rules.

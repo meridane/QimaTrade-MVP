@@ -9597,10 +9597,22 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 
 ## QA425 — correction de l'étiquette du fixture geography-default
 
+**Statut : CLOSED — QIMA CI [#1483](https://github.com/meridane/QimaTrade-MVP/actions/runs/43684750243) SUCCESS sur le HEAD `4f35e3424d7beee21ab3a2e06a7fdb7850338408`.**
+- La valeur `v_input` du bloc QA413 est corrigée de `qa412-market-default-replay` à `qa413-geography-default-replay`.
+- Le contrôle statique QA413 exige la valeur corrigée et interdit l'ancien libellé dans la ligne de fixture.
+- Verify job `132723980558` : SUCCESS ; exactement un marqueur `QA413 static contract PASS`.
+- PostgreSQL 16 job `132723980516` : SUCCESS ; exactement un marqueur runtime `QA413 PASS`.
+- PostgreSQL 17.6 job `132723980262` : SUCCESS ; exactement un marqueur runtime `QA413 PASS`.
+- npm audit au seuil high, TypeScript, build Next.js et Playwright **347/347** : SUCCESS. CodeQL [#1418](https://github.com/meridane/QimaTrade-MVP/actions/runs/43684750307) : SUCCESS.
+- Vercel combined status : FAILURE avec cible `build-rate-limit`, correspondant à la limite quotidienne du fournisseur ; le build Next.js GitHub Actions est réussi.
+- La correction ne change ni `p_geography`, ni le hash, ni le comportement de replay. Aucun constat de vulnérabilité n'est déduit du fixture synthétique.
+- Aucune donnée ni migration Supabase Production, aucun secret, grant, policy RLS ou configuration persistante n'est modifié. Aucun déploiement Production, merge, force-push ou changement de règle de protection.
+
+## QA426 — correction et protection des diagnostics des tests de valeurs par défaut
+
 **Statut : IMPLEMENTED — validation CI en attente sur le nouveau HEAD.**
-- La valeur `v_input` du bloc QA413 utilisait à tort le libellé `qa412-market-default-replay`. Elle est corrigée en `qa413-geography-default-replay`.
-- Le contrat statique QA413 exige désormais la valeur correcte exactement une fois et interdit l'ancien libellé dans le bloc QA413.
-- Le workflow existant exécute déjà ce contrat dans Verify et le SQL QA413 sur PostgreSQL 16 et 17.6 ; aucun câblage supplémentaire n'est requis.
-- Cette correction n'altère ni le paramètre `p_geography`, ni le hash, ni le comportement de la fonction ; elle aligne uniquement la métadonnée de fixture avec le scénario.
-- Le résultat QA425 sera clôturé après une nouvelle CI sur le HEAD corrigé, avec le marqueur QA413 PASS sur les deux versions PostgreSQL.
-- Aucun changement de migration, donnée Supabase Production, secret, grant, policy RLS, configuration persistante, déploiement Production, merge, force-push ou règle de protection.
+- Le script QA413 nommait encore le paramètre `market` dans deux diagnostics alors que le paramètre ciblé est `geography`. Les deux diagnostics ont été corrigés et le contrôle d'existence du bloc a été déplacé avant l'inspection de `v_input`.
+- Le nouveau contrôle `tests/sql/test-create-offer-default-replay-diagnostics-contract.sh` vérifie les diagnostics de QA410 (attributes), QA411 (conditions), QA412 (market) et QA413 (geography), ainsi que l'ordre du garde QA413.
+- Le contrôle est câblé une seule fois dans Verify après le contrôle statique QA413. Aucun runtime PostgreSQL supplémentaire n'est ajouté.
+- QA426 reste IMPLEMENTED jusqu'au succès du nouveau Verify sur le HEAD publié.
+- Aucun changement SQL runtime, migration, donnée Supabase Production, secret, grant, policy RLS, configuration persistante, déploiement Production, merge, force-push ou règle de protection.

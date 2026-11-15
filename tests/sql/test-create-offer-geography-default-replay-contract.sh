@@ -19,6 +19,7 @@ done
   fail "the existing function signature must declare the p_geography NULL default exactly once"
 
 BLOCK="$(sed -n '/^DO \$qa413_geography_default_replay\$/,/^\$qa413_geography_default_replay\$;/p' "$RUNTIME")"
+[[ -n "$BLOCK" ]] || fail "runtime is missing the QA413 geography-default replay block"
 
 INPUT_LINE="$(grep -F 'v_input jsonb :=' <<< "$BLOCK" || true)"
 [[ "$(grep -Fc 'v_input jsonb :=' <<< "$BLOCK" || true)" -eq 1 ]] ||
@@ -28,7 +29,6 @@ INPUT_LINE="$(grep -F 'v_input jsonb :=' <<< "$BLOCK" || true)"
 if [[ "$INPUT_LINE" == *'qa412-market-default-replay'* ]]; then
   fail "QA413 geography-default input must not reuse the QA412 market-default label"
 fi
-[[ -n "$BLOCK" ]] || fail "runtime is missing the QA413 market-default replay block"
 
 FIRST_CALL="$(sed -n '/v_first_result := public.execute_create_offer_v1(/,/^  );/p' <<< "$BLOCK")"
 REPLAY_CALL="$(sed -n '/v_replay_result := public.execute_create_offer_v1(/,/^  );/p' <<< "$BLOCK")"
@@ -64,7 +64,7 @@ for parameter in \
   "p_pricing_model => 'fixture-pricing-model-stable'"; do
   count="$(grep -Fc -- "$parameter" <<< "$BLOCK" || true)"
   [[ "$count" -eq 2 ]] ||
-    fail "all non-market effective parameters must remain identical across both calls: $parameter (found $count)"
+    fail "all non-geography effective parameters must remain identical across both calls: $parameter (found $count)"
 done
 
 for required in \
