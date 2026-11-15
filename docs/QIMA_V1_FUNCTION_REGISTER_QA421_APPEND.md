@@ -23,7 +23,7 @@
 - Ce scénario ne remplace pas QA95/QA96 et n'ajoute aucune règle d'autorisation demand/tenant.
 
 ## Validation et limites
-- Relecture pré-CI : le quoting du chemin `ROOT` dans le script statique a été corrigé afin que Bash développe correctement `${BASH_SOURCE[0]}` ; le HEAD corrigé ci-dessous est celui à valider.
+- Relecture pré-CI : le quoting du chemin `ROOT` dans le script statique a été corrigé afin que Bash développe correctement `${BASH_SOURCE[0]}`. Le marqueur runtime a aussi été ramené à un seul `RAISE NOTICE` (suppression d'un second SELECT de présentation) pour satisfaire le contrat d'unicité.
 - QIMA CI [#1473](https://github.com/meridane/QimaTrade-MVP/actions/runs/43665095980) a validé le HEAD de base `29751384` : Verify, PostgreSQL 16, PostgreSQL 17.6, npm audit au seuil high, TypeScript, build Next.js et Playwright 347/347 SUCCESS. Ce run est un état de référence antérieur ; il ne valide pas QA421.
 - CodeQL [#1408](https://github.com/meridane/QimaTrade-MVP/actions/runs/43665096013) SUCCESS sur le HEAD de base.
 - Aucun marqueur QA421 PASS n'est revendiqué avant l'exécution du nouveau SQL dans les deux environnements PostgreSQL.

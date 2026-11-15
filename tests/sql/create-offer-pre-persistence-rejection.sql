@@ -131,5 +131,3 @@ $qa421_pre_persistence_rejection$;
 
 RESET ROLE;
 COMMIT;
-
-SELECT 'QA421 PASS: pre-persistence validation rejections leave no idempotency key, action execution, offer or action event' AS result;
