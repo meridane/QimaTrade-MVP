@@ -9484,5 +9484,8 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 - Le contrôle statique est `tests/sql/test-create-offer-pre-persistence-rejection-contract.sh`. Le workflow l'exécute dans Verify et lance le SQL sur PostgreSQL 16 et PostgreSQL 17.6.
 - Relecture pré-CI : le quoting du chemin `ROOT` dans le script statique a été corrigé afin que Bash développe correctement `${BASH_SOURCE[0]}`. Le marqueur runtime a aussi été ramené à un seul `RAISE NOTICE` (suppression d'un second SELECT de présentation) pour satisfaire le contrat d'unicité.
 - CI [#1473](https://github.com/meridane/QimaTrade-MVP/actions/runs/43665095980) et CodeQL [#1408](https://github.com/meridane/QimaTrade-MVP/actions/runs/43665096013) sont des preuves de référence sur le HEAD précédent, pas une validation QA421.
+- CodeQL [#1411](https://github.com/meridane/QimaTrade-MVP/actions/runs/43669207851) : SUCCESS sur le HEAD `abf9cb17`.
+- QIMA CI [#1476](https://github.com/meridane/QimaTrade-MVP/actions/runs/43669207857) : événement `pull_request`, HEAD `abf9cb17`, statut `pending` sans jobs provisionnés au dernier contrôle ; aucun résultat Verify/runtime QA421 n'est revendiqué.
+- Le statut Vercel combiné sur ce HEAD est `failure` avec la cible `build-rate-limit` ; ce statut fournisseur ne constitue pas un diagnostic de compilation. Le build Next.js doit encore être validé par QIMA CI.
 - Aucun marqueur runtime QA421 n'est revendiqué avant les journaux complets des deux versions PostgreSQL. Le scénario synthétique ne constitue pas un constat de vulnérabilité et ne modifie aucune règle métier.
 - Appendice : [QA421](QIMA_V1_FUNCTION_REGISTER_QA421_APPEND.md).
