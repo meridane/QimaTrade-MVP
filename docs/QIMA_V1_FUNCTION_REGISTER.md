@@ -9646,3 +9646,14 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 - QIMA CI [#1489](https://github.com/meridane/QimaTrade-MVP/actions/runs/43706451155), HEAD `615d63fe5f81504dc9bc253dbccccdb9f955a913`: the PostgreSQL 16 and PostgreSQL 17.6 QA427 runtime steps both completed SUCCESS. Verify failed only because the static contract incorrectly expected the fixture-key string at least four times; the key is declared exactly twice, while the request-input case string is separate. This was a test assertion defect, not a runtime SQL failure or a vulnerability finding.
 - The static assertion was corrected to require exactly two matching key declarations and exactly two matching request-input and offer-name declarations. The corrected required-DATABASE_URL guard is also protected by the static contract.
 - QIMA CI [#1490](https://github.com/meridane/QimaTrade-MVP/actions/runs/43706557817) was queued on the intermediate HEAD `f2dd8d85f4f4b64a2c6fabe2d0b5647c0c0a6a4d`, before this fixture-count correction; it is not evidence for the corrected static contract.
+
+### QA427 final validation — QIMA CI #1491 (2026-11-15)
+
+- QA427 is **CLOSED** on exact PR HEAD `3239f1643b5203991c8f2f08ce9fd6c34f8a8b14`. QIMA CI [#1491](https://github.com/meridane/QimaTrade-MVP/actions/runs/43706667678) completed SUCCESS.
+- Verify job `132790231211` passed with exactly one QA427 static-contract marker; npm audit (high threshold), TypeScript, Next.js production build, Chromium installation and Playwright **347/347** succeeded.
+- PostgreSQL 16 job `132790231298` passed with exactly one first-session marker (backend PID 390) and exactly one QA427 final marker (backend PID 391).
+- PostgreSQL 17.6 job `132790231234` passed with exactly one first-session marker (backend PID 366) and exactly one QA427 final marker (backend PID 367).
+- Distinct backend PIDs on each PostgreSQL version corroborate that the second committed replay used a different server session. The replay preserved the original hash/result and the four persisted records.
+- CodeQL [#1426](https://github.com/meridane/QimaTrade-MVP/actions/runs/43706667642) and the combined Vercel status on the validated HEAD both succeeded.
+- Expected-failure prepared-transaction simulation jobs were paired with successful assertion jobs; the deliberately skipped job was also correctly asserted. Overall CI #1491 remained SUCCESS.
+- Scope is limited to the disposable PostgreSQL fixtures. This is not a production Supabase assessment or a vulnerability finding. No production data/migration, secret, grant, RLS policy, persistent configuration, production deployment, merge, force-push or protection-rule change.
