@@ -2,7 +2,7 @@
 
 ## QA424 — non-finite price rejection leaves all persistence tables unchanged
 
-**Statut : IMPLEMENTED — validation CI en attente sur le nouveau HEAD.**  
+**Statut : CLOSED — QIMA CI [#1480](https://github.com/meridane/QimaTrade-MVP/actions/runs/43681820165) SUCCESS sur le HEAD `6964384f3b572c91cdc8f13c39b58b1e5f4dcb48`.**  
 **Target :** PR #26, branche `fix/create-offer-status-contract`.  
 **Commit de base :** `981f57442441619bac0bb597560000e2e66f9d18`.  
 **Branche de travail :** `work/qa424-nonfinite-price-no-writes-20261115-1432`.
@@ -28,3 +28,14 @@
 - Aucun résultat runtime QA424 n'est revendiqué avant les journaux finaux des deux versions PostgreSQL.
 - Le scénario utilise uniquement les fixtures et bases jetables de CI ; il ne constitue pas un constat de vulnérabilité.
 - Aucune donnée ni migration Supabase Production, aucun secret, grant, policy RLS ou configuration persistante n'est modifié. Aucun déploiement Production, merge, force-push ou changement de règle de protection.
+
+
+## Validation finale — QIMA CI #1480 (15 novembre 2026)
+
+- Verify job `132713866491` : SUCCESS ; exactement un marqueur `QA424 static contract PASS` ; npm audit au seuil high, TypeScript, build Next.js, installation Chromium et Playwright **347/347** réussis.
+- PostgreSQL 16 job `132713866330` : SUCCESS ; exactement un marqueur runtime `QA424 PASS` dans le journal complet.
+- PostgreSQL 17.6 job `132713866487` : SUCCESS ; exactement un marqueur runtime `QA424 PASS` dans le journal complet.
+- Les deux jobs complets ont terminé les tests CREATE_OFFER/concurrence, catalogue, replication slots, paramètres, extensions, privilèges du runner, RLS, ACL et nettoyage.
+- Les deux simulations négatives du nettoyage ont produit leurs échecs attendus ; les assertions de propagation ont réussi et le job volontairement skipped a été correctement reconnu. La conclusion globale QIMA CI reste SUCCESS.
+- CodeQL [#1415](https://github.com/meridane/QimaTrade-MVP/actions/runs/43681820172) : SUCCESS. Le statut combiné Vercel sur ce HEAD est SUCCESS ([Preview](https://vercel.com/bmk1/qimatrade-mvp/7FVULnJyELKWmSDsmUUfhmXvF7RR)).
+- QA424 est CLOSED : `NaN` et `-Infinity` sont rejetés par `INVALID_PRICE`, sans changement des quatre tables de persistance dans les deux versions PostgreSQL.
