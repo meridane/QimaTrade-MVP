@@ -72,8 +72,12 @@ done
   fail "QA427 runtime marker must appear exactly once"
 [[ "$(grep -Fc 'QA427 FIRST COMMITTED SESSION PASS:' "$RUNTIME" || true)" -eq 1 ]] ||
   fail "QA427 first-session marker must appear exactly once"
-[[ "$(grep -Fc 'fixture-qa427-geography-default-committed-replay' "$RUNTIME" || true)" -ge 4 ]] ||
-  fail "QA427 must use the same unique idempotency fixture key in both sessions"
+[[ "$(grep -Fc "v_key text := 'fixture-qa427-geography-default-committed-replay';" "$RUNTIME" || true)" -eq 2 ]] ||
+  fail "QA427 must declare the same unique idempotency key in both sessions"
+[[ "$(grep -Fc "v_input jsonb := '{\"case\":\"qa427-geography-default-committed-replay\"}'::jsonb;" "$RUNTIME" || true)" -eq 2 ]] ||
+  fail "QA427 must use the same request input in both sessions"
+[[ "$(grep -Fc "v_offer_name text := 'QA427 Geography Default Committed Replay Offer';" "$RUNTIME" || true)" -eq 2 ]] ||
+  fail "QA427 must use the same offer name in both sessions"
 [[ "$(grep -Fc 'postgresql://postgres:postgres@localhost:5432/qima_test' "$RUNTIME" || true)" -eq 1 ]] ||
   fail "QA427 must be restricted to the disposable loopback qima_test database"
 

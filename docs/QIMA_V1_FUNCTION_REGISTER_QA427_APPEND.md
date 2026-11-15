@@ -30,3 +30,8 @@
 - QA427 est un test de contrat de replay inter-session ; il ne constitue pas un constat de vulnérabilité ni une preuve de comportement de la fonction basse couche sur le projet Supabase Production.
 
 - Pre-CI review corrected the shell parameter-expansion guard to use the actual required-variable expansion; the static contract now protects that exact guard.
+
+## First CI attempt and correction
+- QIMA CI [#1489](https://github.com/meridane/QimaTrade-MVP/actions/runs/43706451155), HEAD `615d63fe5f81504dc9bc253dbccccdb9f955a913`: the PostgreSQL 16 and PostgreSQL 17.6 QA427 runtime steps both completed SUCCESS. Verify failed only because the static contract incorrectly expected the fixture-key string at least four times; the key is declared exactly twice, while the request-input case string is separate. This was a test assertion defect, not a runtime SQL failure or a vulnerability finding.
+- The static assertion was corrected to require exactly two matching key declarations and exactly two matching request-input and offer-name declarations. The corrected required-DATABASE_URL guard is also protected by the static contract.
+- QIMA CI [#1490](https://github.com/meridane/QimaTrade-MVP/actions/runs/43706557817) was queued on the intermediate HEAD `f2dd8d85f4f4b64a2c6fabe2d0b5647c0c0a6a4d`, before this fixture-count correction; it is not evidence for the corrected static contract.
