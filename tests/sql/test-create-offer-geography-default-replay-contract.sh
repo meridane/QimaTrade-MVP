@@ -18,7 +18,13 @@ done
 [[ "$(grep -Fc "p_geography text DEFAULT NULL::text" "$MIGRATION" || true)" -eq 1 ]] ||
   fail "the existing function signature must declare the p_geography NULL default exactly once"
 
-BLOCK="$(sed -n '/^DO \$qa413_geography_default_replay\$$/,/^\$qa413_geography_default_replay\$;/p' "$RUNTIME")"
+BLOCK="$(sed -n '/^DO \$qa413_geography_default_replay\$/,/^\$qa413_geography_default_replay\$;/p' "$RUNTIME")"
+
+[[ "$(grep -Fc \"v_input jsonb := '{\\\"case\\\":\\\"qa413-geography-default-replay\\\"}'::jsonb;\" <<< \"$BLOCK\" || true)" -eq 1 ]] ||
+  fail "QA413 input fixture must identify the geography-default scenario exactly once"
+if grep -Fq 'qa412-market-default-replay' <<< "$BLOCK"; then
+  fail "QA413 geography-default block must not reuse the QA412 market-default fixture label"
+fi
 [[ -n "$BLOCK" ]] || fail "runtime is missing the QA413 market-default replay block"
 
 FIRST_CALL="$(sed -n '/v_first_result := public.execute_create_offer_v1(/,/^  );/p' <<< "$BLOCK")"
