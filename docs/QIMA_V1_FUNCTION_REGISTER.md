@@ -9516,12 +9516,36 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 
 ## QA422 — rejet des devises invalides sans écriture persistante
 
-**Statut : IMPLEMENTED — validation CI en attente sur le nouveau HEAD.**
-- Le scénario `tests/sql/create-offer-currency-rejection-no-writes.sql` vérifie cinq variantes invalides de `p_currency` : XYZ, SQL NULL, espaces seuls, code paddé et code en minuscules.
-- Chaque appel exige exactement `INVALID_CURRENCY` avec un tenant, un acteur, un produit actif et une demande valides.
-- Les comptes de `idempotency_keys`, `action_executions`, `offers` et `action_events` sont comparés avant/après ; les clés, exécutions, offres et événements sentinelles doivent rester absents.
-- Le contrôle statique `tests/sql/test-create-offer-currency-rejection-no-writes-contract.sh` vérifie l'ordre du garde avant hash/verrou/persistance et le câblage Verify, PostgreSQL 16 et PostgreSQL 17.6.
-- La couverture historique vérifiait déjà les erreurs de devise et l'absence d'offres ; QA422 ajoute la preuve explicite sur les quatre tables.
-- Aucun marqueur QA422 PASS n'est revendiqué avant la nouvelle CI. Le scénario synthétique ne constitue pas un constat de vulnérabilité.
-- Aucun changement de migration, de données Supabase Production, de secret, grant, policy RLS ou configuration persistante. Aucun déploiement Production, merge, force-push ou changement de règle de protection.
-- Appendice : [QA422](QIMA_V1_FUNCTION_REGISTER_QA422_APPEND.md).
+**Statut : CLOSED — QIMA CI #1478 SUCCESS sur le HEAD `ccacb989`.**
+- Cinq entrées invalides (`XYZ`, SQL NULL, espaces seuls, ` USD `, `usd`) sont rejetées avec `INVALID_CURRENCY`.
+- Les quatre tables `idempotency_keys`, `action_executions`, `offers` et `action_events` conservent leurs comptes et n'ont aucune ligne sentinelle issue des appels rejetés.
+- QIMA CI [#1478](https://github.com/meridane/QimaTrade-MVP/actions/runs/43673391449) : Verify, PostgreSQL 16, PostgreSQL 17.6, npm audit, TypeScript, build Next.js et Playwright **347/347** SUCCESS.
+- Exactly one marker `QA422 static contract PASS` in Verify, one `QA422 PASS` in PostgreSQL 16 and one `QA422 PASS` in PostgreSQL 17.6.
+- CodeQL [#1413](https://github.com/meridane/QimaTrade-MVP/actions/runs/43673391361) : SUCCESS. Vercel combined status on `ccacb989` : SUCCESS.
+- Le scénario utilise des fixtures synthétiques et des bases jetables ; il ne constitue pas un constat de vulnérabilité.
+
+# QIMA V1 Function Register — QA423
+
+## QA423 — all supported currency codes are accepted, persisted and exactly replayed
+
+**Statut : IMPLEMENTED — validation CI en attente sur le nouveau HEAD.**  
+**Target :** PR #26, branche `fix/create-offer-status-contract`.  
+**Commit de base :** `ccacb9890546c243916f11567a07ca1356848d66`.  
+**Branche de travail :** `work/qa423-supported-currency-acceptance-20261115-1342`.
+
+## Portée
+- Caractériser positivement la liste exacte déclarée par la migration : `USD`, `EUR`, `KRW`, `MAD` et `CNY`.
+- La relecture de `tests/sql/create-offer-runtime.sql` montre que les appels nommés existants n'utilisent explicitement que `USD` et `EUR` ; QA423 ajoute une couverture d'acceptation pour les trois codes restants tout en gardant une matrice complète des cinq codes.
+- Chaque devise reçoit une clé d'idempotence et un nom d'offre distincts, avec les mêmes références synthétiques valides de tenant, acteur, demande et produit.
+- Chaque premier appel doit retourner `status = succeeded`, persister le code exact dans `offers.currency`, et produire une seule ligne cohérente dans `idempotency_keys`, `action_executions`, `offers` et `action_events`.
+- Un second appel identique avec la même clé doit retourner exactement le JSON initial, conserver le request hash et ne créer aucune ligne supplémentaire.
+- Le contrôle statique vérifie la whitelist exacte, les cinq cas, les deux appels RPC par cas, les assertions de persistance/replay et le câblage Verify/PostgreSQL 16/PostgreSQL 17.6.
+
+## Validation et limites
+- Le SQL `tests/sql/create-offer-supported-currency-acceptance.sql` utilise uniquement les fixtures de CI jetables, `execute_create_offer_v1` et des assertions SELECT ; il ne contient aucun DML direct ni changement de schéma.
+- Le contrôle statique est `tests/sql/test-create-offer-supported-currency-acceptance-contract.sh`.
+- Le workflow exécute le contrôle statique dans Verify et le SQL sur PostgreSQL 16 et PostgreSQL 17.6.
+- Aucun marqueur QA423 PASS n'est revendiqué avant les journaux runtime finaux des deux versions PostgreSQL.
+- Le scénario synthétique caractérise le contrat existant et ne constitue pas un constat de vulnérabilité ni une décision métier sur les devises.
+- Aucune donnée ni migration Supabase Production, aucun secret, grant, policy RLS ou configuration persistante n'est modifié. Aucun déploiement Production, merge, force-push ou changement de règle de protection.
+
