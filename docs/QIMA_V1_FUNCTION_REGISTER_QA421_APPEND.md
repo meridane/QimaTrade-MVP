@@ -2,7 +2,7 @@
 
 ## QA421 — pre-persistence validation failures leave no persisted side effects
 
-**Statut : IMPLEMENTED — validation CI en attente sur le nouveau HEAD.**  
+**Statut : CLOSED — QIMA CI #1477 SUCCESS sur le HEAD `0b2962711b7d321eebdcf4080dc81ac7b2428cf3`.**  
 **Target :** PR #26, branche `fix/create-offer-status-contract`.  
 **Commit de base :** `2975138456c1c7d289a75d7faf2dbaf9b4d2fdaa`.  
 **Branche de travail :** `work/qa421-pre-persistence-rejection-no-writes-20261115-1139`.
@@ -22,10 +22,17 @@
 - QA421 couvre un autre point : les rejets de validation qui doivent survenir avant le hash, le verrou et toute création de ligne d'exécution/idempotence.
 - Ce scénario ne remplace pas QA95/QA96 et n'ajoute aucune règle d'autorisation demand/tenant.
 
-## Validation et limites
-- Relecture pré-CI : le quoting du chemin `ROOT` dans le script statique a été corrigé afin que Bash développe correctement `${BASH_SOURCE[0]}`. Le marqueur runtime a aussi été ramené à un seul `RAISE NOTICE` (suppression d'un second SELECT de présentation) pour satisfaire le contrat d'unicité.
-- QIMA CI [#1473](https://github.com/meridane/QimaTrade-MVP/actions/runs/43665095980) a validé le HEAD de base `29751384` : Verify, PostgreSQL 16, PostgreSQL 17.6, npm audit au seuil high, TypeScript, build Next.js et Playwright 347/347 SUCCESS. Ce run est un état de référence antérieur ; il ne valide pas QA421.
-- CodeQL [#1408](https://github.com/meridane/QimaTrade-MVP/actions/runs/43665096013) SUCCESS sur le HEAD de base.
-- Aucun marqueur QA421 PASS n'est revendiqué avant l'exécution du nouveau SQL dans les deux environnements PostgreSQL.
+## Validation définitive
+- QIMA CI [#1477](https://github.com/meridane/QimaTrade-MVP/actions/runs/43669377735) : **SUCCESS** sur le HEAD `0b296271`.
+- Verify job `132676597613` : SUCCESS ; le step `Verify CREATE_OFFER pre-persistence validation rejection is write-free` a réussi. Le journal contient exactement un marqueur de contrat statique QA421 PASS.
+- PostgreSQL 16 job `132676597763` : SUCCESS ; le step runtime QA421 a réussi et le journal contient exactement un marqueur `QA421 PASS`.
+- PostgreSQL 17.6 job `132676597862` : SUCCESS ; le step runtime QA421 a réussi et le journal contient exactement un marqueur `QA421 PASS`.
+- npm audit : SUCCESS, 0 vulnérabilité reportée aux niveaux info, low, moderate, high et critical. TypeScript : SUCCESS. Build Next.js : SUCCESS. Playwright : **347/347**.
+- CodeQL [#1412](https://github.com/meridane/QimaTrade-MVP/actions/runs/43669377722) : SUCCESS.
+- Statut Vercel combiné sur le HEAD `0b296271` : `failure`, cible `build-rate-limit`. Cette limitation du fournisseur n'est pas un échec du build Next.js, qui a réussi dans Verify.
+- Les jobs de simulation négative du nettoyage ont présenté les échecs attendus ; leurs assertions dédiées ont réussi. Le job volontairement skipped a été reconnu comme tel.
+
+## Limites et sécurité
 - Le test utilise uniquement les fixtures synthétiques et les bases jetables de CI. Il ne constitue pas un constat de vulnérabilité.
-- Aucune donnée ni migration Supabase Production, aucun secret, grant, policy RLS ou configuration persistante n'est modifié. Aucun déploiement Production, merge, force-push ou changement de règle de protection.
+- Aucune donnée ni migration Supabase Production, aucun secret, grant, policy RLS ou configuration persistante n'est modifié.
+- Aucun déploiement Production, merge, force-push ou changement de règle de protection.
