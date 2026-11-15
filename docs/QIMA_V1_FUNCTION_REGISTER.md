@@ -9392,13 +9392,81 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 - Aucune donnée ni migration Supabase Production, aucun secret, grant, policy RLS ou configuration persistante n'est modifié.
 - Appendice : [QA418](QIMA_V1_FUNCTION_REGISTER_QA418_APPEND.md).
 
+# QIMA V1 Function Register — QA419
+
 ## QA419 — provider actor mismatch rejected before idempotency lookup
 
-**Statut : IMPLEMENTED — nouveau contrôle statique et runtime câblés ; validation CI en attente.**
-- La migration résout l'acteur depuis `auth.uid()`, puis rejette `p_provider_actor_id` différent avec `INVALID_PROVIDER_ACTOR` avant le hash et la lecture de la clé d'idempotence.
-- Le test crée d'abord une offre synthétique avec l'acteur A, puis rejoue le même tenant/clé avec l'acteur B tout en conservant le JWT subject A.
-- Le replay doit produire exactement `INVALID_PROVIDER_ACTOR` et préserver le hash, le résultat, l'exécution, `offers.provider_actor_id`, l'événement et les compteurs des quatre tables.
-- Le contrôle statique vérifie l'ordre des gardes, les profils A/B, la stabilité des autres paramètres, les assertions read-only et les trois intégrations CI.
-- Ce test caractérise uniquement le garde-fou d'identité existant ; il ne résout pas la décision métier séparée sur l'autorisation demand/tenant et ne prouve aucune vulnérabilité.
-- Les fixtures sont confinées aux services PostgreSQL jetables. Aucune donnée ni migration Supabase Production n'est modifiée.
-- Appendice : [QA419](QIMA_V1_FUNCTION_REGISTER_QA419_APPEND.md).
+**Statut : CLOSED — QIMA CI #1471 SUCCESS sur le HEAD corrigé.**  
+**Target :** PR #26, branche `fix/create-offer-status-contract`.  
+**Commit de base :** `474e628176a4889f8daaa6f71c0a4d96675cbf68`.  
+**Commit correctif validé :** [`ab4b8842cfe012704f4f231401c282a59d3451db`](https://github.com/meridane/QimaTrade-MVP/commit/ab4b8842cfe012704f4f231401c282a59d3451db).
+
+## Portée
+- Caractériser l'ordre déjà présent dans `execute_create_offer_v1` : l'identité d'acteur est résolue depuis `auth.uid()`, puis `p_provider_actor_id` est comparé à cet acteur avant le calcul du hash et la lecture de la clé d'idempotence.
+- Créer une offre initiale avec l'utilisateur synthétique A, le tenant A et le provider actor A.
+- Réutiliser exactement le même tenant, la même clé d'idempotence et tous les autres paramètres, mais fournir le provider actor B tout en conservant le JWT subject de l'utilisateur A.
+- Le replay doit retourner exactement `INVALID_PROVIDER_ACTOR`, avant toute consultation du hash/idempotency record.
+- Vérifier que le hash, le résultat JSON, l'acteur, l'exécution `COMPLETED`, `offers.provider_actor_id`, l'événement `ACTION_SUCCEEDED` et les quatre compteurs de persistance restent inchangés.
+- Le contrôle statique vérifie l'ordre profile lookup → provider actor guard → hash → idempotency lookup → persistence, les deux profils du fixture, la stabilité de tous les autres paramètres, l'absence de DML direct et le câblage Verify/PostgreSQL 16/PostgreSQL 17.6.
+
+## Historique de validation
+- Première tentative QIMA CI [#1470](https://github.com/meridane/QimaTrade-MVP/actions/runs/43654482580) : Verify a correctement échoué parce que le contrôle statique exigeait une comparaison explicite du hash après replay. Les deux premières étapes SQL QA419 avaient réussi sur PostgreSQL 16 et 17.6, mais ces succès isolés ne validaient pas le job complet.
+- Correctif [`ab4b8842`](https://github.com/meridane/QimaTrade-MVP/commit/ab4b8842cfe012704f4f231401c282a59d3451db) : ajoute `v_replay_hash`, lit `request_hash` dans la même vérification read-only que l'acteur/exécution/résultat et exige `v_replay_hash IS NOT DISTINCT FROM v_original_hash`. Le hash n'est plus relu dans une assertion séparée qui ne pouvait pas comparer la valeur initiale.
+- QIMA CI [#1471](https://github.com/meridane/QimaTrade-MVP/actions/runs/43654514471) : **run global SUCCESS** sur le HEAD `ab4b8842`.
+- Verify job `132631708552` : SUCCESS ; exactement un marqueur `QA419 static contract PASS`. npm audit (seuil high), TypeScript, build Next.js et Playwright **347/347** ont réussi.
+- PostgreSQL 16 job `132631708797` : SUCCESS ; exactement un marqueur runtime `QA419 PASS`.
+- PostgreSQL 17.6 job `132631708875` : SUCCESS ; exactement un marqueur runtime `QA419 PASS`.
+- Les caractérisations complètes des privilèges du runner, RLS, ACL, concurrence et nettoyage ont réussi dans les deux environnements. Les jobs de simulation négative du nettoyage ont conservé leurs échecs attendus et leurs assertions dédiées ont réussi ; le job volontairement skipped a été reconnu comme tel.
+- CodeQL [#1406](https://github.com/meridane/QimaTrade-MVP/actions/runs/43654514480) : SUCCESS. Statut combiné Vercel sur le HEAD `ab4b8842` : SUCCESS.
+- La validation QA419 est donc clôturée sur preuves statiques et runtime des deux versions PostgreSQL.
+
+## Limites métier et sécurité
+- Ce test caractérise un garde-fou d'identité déjà présent ; il ne change aucune règle métier et ne prétend pas résoudre l'autorisation demand/tenant.
+- L'acteur B est un profil synthétique existant dans le fixture jetable ; aucun compte ni membership de production n'est créé.
+- Aucun constat de vulnérabilité n'est déduit du scénario synthétique.
+- Aucune donnée ni migration Supabase Production, aucun secret, grant, policy RLS ou configuration persistante n'est modifié.
+- Aucun déploiement Production, merge, force-push ou changement de règle de protection.
+
+# QIMA V1 Function Register — QA420
+
+## QA420 — audit documentaire de la couverture du request hash CREATE_OFFER
+
+**Statut : DOCUMENTATION AUDIT COMPLETE — aucune nouvelle régression runtime ajoutée ; la couverture existante des 16 champs métier est déjà cartographiée et le contrat statique QA382 la vérifie.**  
+**Target :** PR #26, branche `fix/create-offer-status-contract`.  
+**Commit de référence du code audité :** [`ab4b8842cfe012704f4f231401c282a59d3451db`](https://github.com/meridane/QimaTrade-MVP/commit/ab4b8842cfe012704f4f231401c282a59d3451db).
+
+## Constat vérifié
+- La migration `20261027090000_fix_create_offer_action_status_contract.sql` construit un hash JSONB avec exactement 16 propriétés métier : `input`, `name`, `demandId`, `productMasterId`, `providerActorId`, `quantity`, `price`, `currency`, `conditions`, `market`, `geography`, `attributes`, `documentationStatus`, `lifecycle`, `offerType` et `pricingModel`.
+- Le contrat statique existant `tests/sql/test-create-offer-request-hash-contract.sh` exige chaque mapping exactement une fois, vérifie que `p_tenant_id` et `p_idempotency_key` restent hors du payload hash et confirme que les 16 paramètres restent représentés dans le runtime.
+- Le même contrôle vérifie aussi la portée tenant/key dans le runtime via le cas `fixture-same-key-two-tenants`. Le tenant et la clé sont donc documentés comme portée du verrou/lookup, pas comme propriétés du hash métier.
+
+## Index de couverture existante
+| Paramètre | Couverture runtime / contrat existant |
+|---|---|
+| `p_input` | `test-create-offer-input-mismatch-replay-contract.sh` ; QA82/QA83 |
+| `p_name` | `test-create-offer-name-mismatch-replay-contract.sh` ; QA83 |
+| `p_demand_id` | `create-offer-demand-mismatch-replay.sql` ; QA418 |
+| `p_product_master_id` | `create-offer-product-master-mismatch-replay.sql` ; QA409 |
+| `p_provider_actor_id` | QA84 (ordre du garde avant hash/status) ; QA419 (replay avec acteur fourni différent) |
+| `p_quantity` | `test-create-offer-quantity-mismatch-replay-contract.sh` ; validations numériques dédiées |
+| `p_price` | `test-create-offer-zero-price-mismatch-replay-contract.sh` ; QA112 pour l'échelle numérique |
+| `p_currency` | `test-create-offer-currency-mismatch-replay-contract.sh` |
+| `p_conditions` | `test-create-offer-conditions-mismatch-replay-contract.sh` et QA411 |
+| `p_market` | `test-create-offer-market-mismatch-replay-contract.sh` et QA412 |
+| `p_geography` | `test-create-offer-geography-mismatch-replay-contract.sh` et QA413 |
+| `p_attributes` | contrôles key-order, array-order, SQL NULL/objet vide et SQL NULL/JSONB literal null ; QA410 |
+| `p_documentation_status` | `test-create-offer-documentation-status-mismatch-replay-contract.sh` et QA414 |
+| `p_lifecycle` | `test-create-offer-lifecycle-mismatch-replay-contract.sh` et QA415 |
+| `p_offer_type` | `test-create-offer-offer-type-mismatch-replay-contract.sh` et QA416 |
+| `p_pricing_model` | `test-create-offer-pricing-model-mismatch-replay-contract.sh` et QA417 |
+
+## Décision de portée
+- Aucun nouveau test de changement de prix, d'acteur ou de paramètre hashé n'est ajouté dans QA420 : les scénarios existants et le contrat statique couvrent déjà ces champs. Ajouter une variante redondante augmenterait le temps CI sans combler de lacune démontrée.
+- Le lien métier entre `demandId` et `tenantId` reste une décision distincte : le modèle d'ownership/autorisation de la demande n'est pas approuvé dans les éléments consultés. Aucun test ne doit inventer cette règle ni qualifier une vulnérabilité à partir d'un fixture synthétique.
+- QA420 est un audit documentaire, pas une nouvelle preuve runtime ni un constat de sécurité.
+
+## Validation et limites
+- QIMA CI [#1471](https://github.com/meridane/QimaTrade-MVP/actions/runs/43654514471) a validé le code/workflow de référence `ab4b8842` : Verify, PostgreSQL 16 et PostgreSQL 17.6 SUCCESS ; npm audit high, TypeScript, build Next.js et Playwright 347/347 SUCCESS.
+- Le step `Verify CREATE_OFFER request-hash field coverage` a réussi dans le job Verify. Les deux runners PostgreSQL complets ont également réussi.
+- Cette mise à jour QA420 ne modifie que la documentation. Le workflow QIMA CI ignore explicitement `docs/**` pour les événements push et pull_request ; aucun nouveau run applicatif n'est donc attendu pour ce commit documentaire. La preuve CI #1471 reste applicable au code inchangé.
+- Aucune donnée ni migration Supabase Production, aucun secret, grant, policy RLS ou configuration persistante n'est modifié. Aucun déploiement Production, merge, force-push ou changement de règle de protection.
