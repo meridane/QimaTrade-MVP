@@ -1,6 +1,6 @@
 # QIMA Trade — Registre des fonctionnalités V1 et audit de départ
 
-Dernière vérification : 15 novembre 2026 (KST)
+Dernière vérification : 16 novembre 2026 (KST)
 Dépôt : meridane/QimaTrade-MVP — branche fix/create-offer-status-contract (PR #26, brouillon)
 Projet Supabase : `QIMA` (`yyulzlnrfcbaxovzjbnh`)
 
@@ -9699,14 +9699,14 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 - The first request holds the tenant/key advisory lock during the fixture delay. A second session with the same tenant, idempotency key and every effective business parameter waits for that exact lock. After the first COMMIT, both calls must return byte-identical success JSON.
 - A later sequential replay must match the same response. The test asserts the canonical request hash and exactly one persisted idempotency row, completed execution, offer and ACTION_SUCCEEDED event.
 - Runtime is added to the existing disposable CREATE_OFFER runner, which already runs on PostgreSQL 16 and PostgreSQL 17.6. A dedicated static contract is added to Verify.
-- Initial status: **IMPLEMENTED — runtime pending on the new PR HEAD**. The test uses only the guarded loopback qima_test database, performs no direct DML or schema/privilege changes, and is not a production security finding.
+- Final status: **CLOSED** on exact PR HEAD `3a054654efd5dbfa9bb498eb1a72d95ac5a39dc9`; QIMA CI #1495 completed successfully. The test uses only the guarded loopback qima_test database, performs no direct DML or schema/privilege changes, and is not a production security finding.
 
 
 # QIMA V1 Function Register — QA429
 
 ## QA429 — concurrent identical same-key requests both return one committed success result
 
-**Statut : IMPLEMENTED — validation runtime en attente sur la CI du HEAD courant.**  
+**Statut : CLOSED — validation complète sur le HEAD exact `3a054654efd5dbfa9bb498eb1a72d95ac5a39dc9`.**  
 **Target :** PR #26, branche fix/create-offer-status-contract.  
 **HEAD de base :** b17dc3ac672d0ef54ea8d38a16197d19dc5e83b0.  
 **Branche de travail :** work/qa429-concurrent-identical-success-20261115-2301.
@@ -9736,3 +9736,21 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 - Le test caractérise le comportement du wrapper et des fixtures synthétiques de CI, pas la fonction basse couche dans Supabase Production.
 - Il ne constitue pas un constat de vulnérabilité.
 - Aucun déploiement Production, merge, force-push ou changement des règles de protection.
+
+
+## QA429 final validation — QIMA CI #1495 (2026-11-15 KST)
+
+- QA429 is **CLOSED** on exact PR HEAD `3a054654efd5dbfa9bb498eb1a72d95ac5a39dc9`. QIMA CI [#1495](https://github.com/meridane/QimaTrade-MVP/actions/runs/43722522458) completed with overall `SUCCESS`.
+- Verify job `132837370358` completed `SUCCESS`; it includes the QA429 static contract and the dependency audit, TypeScript, Next.js build and browser-test steps.
+- PostgreSQL 16 integration job `132837370304` completed `SUCCESS`. The shared runner containing the QA429 block completed without error.
+- PostgreSQL 17.6 compatibility job `132837370287` completed `SUCCESS` with the same QA429 runner.
+- The two identical same-tenant/key concurrent calls were exercised by the shared runner; both must return byte-identical successful JSON, match the single stored idempotency result, and match a later exact replay. Runtime assertions require one idempotency row, one completed execution, one offer and one success event, with the canonical request hash.
+- CodeQL [#1430](https://github.com/meridane/QimaTrade-MVP/actions/runs/43722522469) completed `SUCCESS`; the Vercel Preview check on the same HEAD completed `SUCCESS`.
+- Expected-failure prepared-transaction simulation jobs were paired with successful assertion jobs; the intentionally skipped job was also asserted. Overall QIMA CI #1495 remained `SUCCESS`.
+- Job summaries were available, but the full raw log text was not exposed in this inspection; no exact marker count is claimed. Evidence is limited to disposable PostgreSQL CI fixtures, not Supabase Production or a vulnerability finding.
+- No production data/migration, secret, grant, RLS policy, persistent configuration, production deployment, merge, force-push or protection-rule change.
+
+## Concurrency coverage audit after QA429
+
+- Existing coverage already includes same-tenant distinct-key concurrency (QA105), same-key inter-tenant independence (the intertenant runner block), identical retry after rollback (QA103), successful first request with queued changed-payload rejection (QA428), and concurrent identical successful replay (QA429).
+- No redundant QA430 concurrency test is opened. The separate `demand_id`/`tenant_id` ownership contract remains blocked on an explicit business decision and is not changed by this test work.
