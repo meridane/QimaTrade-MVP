@@ -9,7 +9,7 @@ DO $qa413_geography_default_replay$
 DECLARE
   v_tenant_id uuid := '10000000-0000-4000-8000-000000000001';
   v_key text := 'fixture-qa413-geography-default-replay';
-  v_input jsonb := '{"case":"qa412-market-default-replay"}'::jsonb;
+  v_input jsonb := '{"case":"qa413-geography-default-replay"}'::jsonb;
   v_offer_name text := 'QA413 Geography Default Replay Offer';
   v_first_result jsonb;
   v_replay_result jsonb;
