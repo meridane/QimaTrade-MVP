@@ -32,3 +32,11 @@
 - Aucun changement de fonction, migration, règle métier, privilège, grant, policy RLS ou donnée persistante.
 - Il s'agit d'une régression de concurrence/idempotence sur fixture synthétique, pas d'un constat de vulnérabilité ni d'une évaluation de Supabase Production.
 - Aucun déploiement Production, merge, force-push ou changement des règles de protection.
+
+
+## First CI attempt and static-contract correction
+
+- QIMA CI [#1493](https://github.com/meridane/QimaTrade-MVP/actions/runs/43715598192) started on HEAD `f57de87354b98ae5c3aeb374f9538955b61b374b`. Verify job `132816329767` failed at the new QA428 static contract because three required strings omitted the quoted Bash variable expansions used by the runner. The runner itself contains the intended lock snapshots and exit-status checks; this was a static assertion mismatch.
+- The dependency-audit enforcement step also concluded FAILURE because the audit step was skipped after Verify stopped at QA428. No npm audit result was produced by that job; this is not an npm vulnerability finding.
+- The static contract has been corrected to match the exact `[[ "$variable" ... ]]` expressions. The replacement CI must pass Verify before QA428 is considered validated.
+- PostgreSQL 16 and PostgreSQL 17.6 jobs from #1493 were still running when this correction was prepared; their final runtime results are not inferred here.

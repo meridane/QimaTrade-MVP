@@ -9673,3 +9673,10 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 - Runtime is included in the existing disposable integration runner for PostgreSQL 16 and PostgreSQL 17.6. A dedicated static contract is included in Verify.
 - The new HEAD has not yet completed CI; runtime success is not claimed until both PostgreSQL job logs and the Verify result are checked.
 - Scope is limited to disposable CI fixtures. No production data or migration, secret, grant, RLS policy, persistent database configuration, production deployment, merge, force-push or protection-rule change. This is not a vulnerability finding.
+
+
+### QA428 first CI attempt
+
+- QIMA CI [#1493](https://github.com/meridane/QimaTrade-MVP/actions/runs/43715598192) Verify job `132816329767` stopped at the new QA428 static contract because its expected strings omitted the quoted Bash variable expansions in the runner. This was a static assertion defect, not a runtime SQL failure.
+- The dependency-audit enforcement step was skipped after Verify failed; its resulting job failure is not an npm audit finding and no audit report was produced by that job.
+- The static contract was corrected to match the exact quoted `[[ "$variable" ... ]]` expressions. QA428 remains IMPLEMENTED pending a successful replacement Verify and final PostgreSQL 16/17.6 runtime evidence.

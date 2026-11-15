@@ -28,9 +28,9 @@ p_price => 23,
 p_price => 24,
 SET application_name = 'qima-qa428-first';
 SET application_name = 'qima-qa428-second';
-qa428_first_lock_snapshot == "1|1"
-qa428_lock_snapshot == "2|1|1|1"
-qa428_first_status -ne 0 || qa428_second_status -eq 0
+[[ "$qa428_first_lock_snapshot" == "1|1" ]]
+[[ "$qa428_lock_snapshot" == "2|1|1|1" ]]
+if [[ "$qa428_first_status" -ne 0 || "$qa428_second_status" -eq 0 ]]; then
 IDEMPOTENCY_KEY_REUSE
 qa428_first_replay_sql=
 qa428_second_replay_sql=
