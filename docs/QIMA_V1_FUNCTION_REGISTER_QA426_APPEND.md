@@ -2,7 +2,7 @@
 
 ## QA426 — correct and protect CREATE_OFFER default-replay diagnostics
 
-**Statut : IMPLEMENTED — validation CI en attente sur le nouveau HEAD.**  
+**Statut : CLOSED — QIMA CI [#1484](https://github.com/meridane/QimaTrade-MVP/actions/runs/43690898637), Verify job `132741139490` SUCCESS sur le HEAD `c4648fc1aefd473126c79ac257fa66d4330925f1`.**  
 **Target :** PR #26, branche `fix/create-offer-status-contract`.  
 **HEAD de base :** `4f35e3424d7beee21ab3a2e06a7fdb7850338408`.  
 **Branche de travail :** `work/qa426-geography-default-diagnostics-20261115-1635`.
@@ -16,10 +16,14 @@
 - Le nouveau contrôle vérifie également que QA413 vérifie l'existence du bloc avant de lire sa ligne `v_input`.
 - Le script est intégré une seule fois au job Verify, immédiatement après le contrôle statique QA413. Aucun nouveau job PostgreSQL ni modification de migration n'est nécessaire.
 
-## Validation
-- Prévalidation structurelle : les deux anciens diagnostics QA413 sont absents, les deux nouveaux diagnostics sont présents, et le garde de bloc précède l'extraction de `INPUT_LINE`.
-- La validation GitHub Actions sur le nouveau HEAD reste en attente ; aucun résultat QA426 PASS n'est revendiqué avant le journal Verify.
-- Le runtime QA413 déjà validé sur PostgreSQL 16 et 17.6 par CI #1483 constitue une preuve de QA425, pas une preuve d'exécution du nouveau contrôle QA426.
+## Validation définitive du périmètre QA426 — QIMA CI #1484
+- QIMA CI [#1484](https://github.com/meridane/QimaTrade-MVP/actions/runs/43690898637) : le job Verify `132741139490` est **SUCCESS** sur le HEAD `c4648fc1aefd473126c79ac257fa66d4330925f1`.
+- Le journal Verify contient exactement un marqueur `QA426 static contract PASS` ; le step `Verify CREATE_OFFER default-replay diagnostics identify their own parameter` (step 51) est SUCCESS.
+- npm audit au seuil high, TypeScript, build Next.js, installation Chromium et Playwright **347/347** : SUCCESS.
+- CodeQL [#1419](https://github.com/meridane/QimaTrade-MVP/actions/runs/43690898685) : SUCCESS. Le statut combiné Vercel sur le HEAD : SUCCESS.
+- Les steps runtime QA413 déjà présents dans les jobs PostgreSQL 16 et 17.6 ont eux aussi terminé avec succès ; les deux jobs complets poursuivent encore les caractérisations de privilèges/RLS/ACL/nettoyage au moment de cette mise à jour. La conclusion globale de QIMA CI #1484 n'est donc pas revendiquée comme SUCCESS.
+- QA426 est **CLOSED** sur son périmètre statique : aucun nouveau scénario runtime n'a été ajouté, et son contrôle dédié ainsi que le job Verify complet ont réussi.
+
 
 ## Sécurité et limites
 - QA426 modifie uniquement les diagnostics d'un test shell et ajoute un contrôle statique de cohérence.

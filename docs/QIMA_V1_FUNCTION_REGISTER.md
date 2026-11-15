@@ -9610,9 +9610,12 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 
 ## QA426 — correction et protection des diagnostics des tests de valeurs par défaut
 
-**Statut : IMPLEMENTED — validation CI en attente sur le nouveau HEAD.**
-- Le script QA413 nommait encore le paramètre `market` dans deux diagnostics alors que le paramètre ciblé est `geography`. Les deux diagnostics ont été corrigés et le contrôle d'existence du bloc a été déplacé avant l'inspection de `v_input`.
-- Le nouveau contrôle `tests/sql/test-create-offer-default-replay-diagnostics-contract.sh` vérifie les diagnostics de QA410 (attributes), QA411 (conditions), QA412 (market) et QA413 (geography), ainsi que l'ordre du garde QA413.
-- Le contrôle est câblé une seule fois dans Verify après le contrôle statique QA413. Aucun runtime PostgreSQL supplémentaire n'est ajouté.
-- QA426 reste IMPLEMENTED jusqu'au succès du nouveau Verify sur le HEAD publié.
-- Aucun changement SQL runtime, migration, donnée Supabase Production, secret, grant, policy RLS, configuration persistante, déploiement Production, merge, force-push ou règle de protection.
+**Statut : CLOSED — QIMA CI [#1484](https://github.com/meridane/QimaTrade-MVP/actions/runs/43690898637), Verify job `132741139490` SUCCESS sur le HEAD `c4648fc1aefd473126c79ac257fa66d4330925f1`.**
+- Les diagnostics QA413 ont été corrigés pour nommer `geography` au lieu de `market`, et le contrôle d'existence du bloc précède désormais l'inspection de `v_input`.
+- Le contrôle statique `tests/sql/test-create-offer-default-replay-diagnostics-contract.sh` vérifie les diagnostics des contrats QA410 (attributes), QA411 (conditions), QA412 (market) et QA413 (geography), ainsi que l'ordre du garde QA413.
+- Le contrôle est câblé une seule fois dans Verify ; step 51 SUCCESS et exactement un marqueur `QA426 static contract PASS`.
+- Verify job `132741139490` : SUCCESS ; npm audit au seuil high, TypeScript, build Next.js, Chromium et Playwright **347/347** : SUCCESS.
+- CodeQL [#1419](https://github.com/meridane/QimaTrade-MVP/actions/runs/43690898685) : SUCCESS. Le statut combiné Vercel sur ce HEAD : SUCCESS.
+- Les steps runtime QA413 dans les jobs PostgreSQL 16 et 17.6 ont terminé avec succès, mais les jobs complets poursuivent encore leurs caractérisations de privilèges/RLS/ACL/nettoyage. La conclusion globale de QIMA CI #1484 n'est pas présentée comme SUCCESS.
+- QA426 est CLOSED pour son périmètre statique ; aucun changement SQL runtime, migration, règle métier ou donnée applicative n'a été effectué.
+- Aucune donnée ni migration Supabase Production, aucun secret, grant, policy RLS ou configuration persistante n'est modifié. Aucun déploiement Production, merge, force-push ou changement de règle de protection.
