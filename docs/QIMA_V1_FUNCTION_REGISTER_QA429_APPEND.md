@@ -35,7 +35,7 @@
 - Les assertions runtime vérifient le hash canonique et exactement une ligne dans `idempotency_keys`, `action_executions`, `offers` et `action_events`.
 - CodeQL [#1430](https://github.com/meridane/QimaTrade-MVP/actions/runs/43722522469) a terminé `SUCCESS`. Le check Vercel Preview sur ce HEAD est également `SUCCESS`.
 - Les jobs de simulation de nettoyage qui terminent en `failure` sont des scénarios d'échec attendus ; leurs jobs d'assertion ont terminé `SUCCESS`. Le job volontairement skipped a aussi été vérifié. Le résultat global de CI #1495 reste `SUCCESS`.
-- Le résumé des jobs confirme leurs conclusions, mais ne fournit pas le texte intégral des logs dans cette consultation ; aucun nombre précis de marqueurs n'est revendiqué ici.
+- Cette limitation de preuve concernait la consultation des seuls résumés de jobs de CI #1495 ; une lecture directe des journaux complets a ensuite été effectuée sur CI #1500, comme consigné ci-dessous.
 
 ## Sécurité et limites
 
@@ -50,3 +50,16 @@
 
 - La couverture de concurrence existante inclut aussi l'indépendance inter-tenant avec une même clé (bloc intertenant antérieur), les clés distinctes dans un même tenant (QA105), le premier appel qui échoue puis le suivant qui réussit (QA103), le payload concurrent modifié après succès (QA428) et les deux appels identiques réussis (QA429).
 - Aucun QA430 de concurrence redondant n'est ouvert. La prochaine revue doit cibler une lacune indépendante dans le contrat CREATE_OFFER ou la documentation, sans modifier le modèle métier `demand_id`/`tenant_id` qui reste explicitement soumis à une décision d'ownership.
+
+
+## Vérification directe des journaux CI #1500 — 16 novembre 2026 (KST)
+
+- QIMA CI [#1500](https://github.com/meridane/QimaTrade-MVP/actions/runs/43737904552) a terminé avec la conclusion globale `SUCCESS` sur le HEAD `1b463af2e7677d51bd6ab0460172d3f615a89abe`.
+- Verify job `132884464473` : `SUCCESS`. Son journal contient exactement un marqueur `QA429 static contract PASS`, confirme npm audit au seuil high, TypeScript, le build Next.js et Playwright avec `347 passed`.
+- PostgreSQL 16 job `132884464551` : `SUCCESS`. Le journal complet contient exactement un marqueur `QA429 PASS`.
+- PostgreSQL 17.6 job `132884464486` : `SUCCESS`. Le journal complet contient exactement un marqueur `QA429 PASS`.
+- Les deux journaux runtime confirment deux requêtes simultanées identiques de même tenant/clé, deux résultats de succès commité identiques et un replay ultérieur correspondant. Une seule ligne subsiste dans chacune des tables `idempotency_keys`, `action_executions`, `offers` et `action_events`.
+- CodeQL [#1434](https://github.com/meridane/QimaTrade-MVP/actions/runs/43737904467) : `SUCCESS`. Le statut combiné Vercel sur le HEAD `1b463af2` : `success`.
+- Les jobs de simulation de nettoyage qui terminent en `failure` sont les résultats négatifs attendus ; les jobs d'assertion correspondants ont terminé `SUCCESS`. Le job volontairement `skipped` a également été reconnu par son assertion. La conclusion globale CI #1500 reste `SUCCESS`.
+- Cette vérification porte sur les journaux des fixtures PostgreSQL jetables de CI. Elle ne constitue ni une preuve d'exécution sur Supabase Production ni un constat de vulnérabilité.
+- Le commit documentaire ultérieur `b38d8ed286ff7fd1b2c57c1d475cdd2e4ee55d3f` met à jour le registre canonique ; CI #1500 valide le HEAD antérieur `1b463af2`, pas ce commit documentaire.
