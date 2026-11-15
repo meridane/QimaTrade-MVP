@@ -121,6 +121,8 @@ jobs:
         run: bash tests/sql/test-create-offer-currency-rejection-no-writes-contract.sh
       - name: Verify CREATE_OFFER supported currency acceptance and exact replay
         run: bash tests/sql/test-create-offer-supported-currency-acceptance-contract.sh
+      - name: Verify CREATE_OFFER non-finite price rejection preserves all persistence tables
+        run: bash tests/sql/test-create-offer-nonfinite-price-no-writes-contract.sh
       - name: Verify CREATE_OFFER omitted p_attributes default replays explicit empty object
         run: bash tests/sql/test-create-offer-attributes-default-replay-contract.sh
       - name: Verify CREATE_OFFER omitted p_conditions default replays explicit NULL
@@ -303,6 +305,8 @@ jobs:
         run: psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -f tests/sql/create-offer-currency-rejection-no-writes.sql
       - name: Run CREATE_OFFER supported currency acceptance and exact replay regression on PostgreSQL 16
         run: psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -f tests/sql/create-offer-supported-currency-acceptance.sql
+      - name: Run CREATE_OFFER non-finite price rejection no-write regression on PostgreSQL 16
+        run: psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -f tests/sql/create-offer-nonfinite-price-no-writes.sql
       - name: Run isolated CREATE_OFFER attributes-default replay regression on PostgreSQL 16
         run: psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -f tests/sql/create-offer-attributes-default-replay.sql
 
@@ -456,6 +460,8 @@ jobs:
         run: psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -f tests/sql/create-offer-currency-rejection-no-writes.sql
       - name: Run CREATE_OFFER supported currency acceptance and exact replay regression on PostgreSQL 17.6
         run: psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -f tests/sql/create-offer-supported-currency-acceptance.sql
+      - name: Run CREATE_OFFER non-finite price rejection no-write regression on PostgreSQL 17.6
+        run: psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -f tests/sql/create-offer-nonfinite-price-no-writes.sql
       - name: Run isolated CREATE_OFFER attributes-default replay regression on PostgreSQL 17.6
         run: psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -f tests/sql/create-offer-attributes-default-replay.sql
 
