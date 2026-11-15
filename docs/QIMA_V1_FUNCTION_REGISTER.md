@@ -9558,7 +9558,7 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 
 ## QA424 — non-finite price rejection leaves all persistence tables unchanged
 
-**Statut : IMPLEMENTED — validation CI en attente sur le nouveau HEAD.**  
+**Statut : CLOSED — QIMA CI [#1480](https://github.com/meridane/QimaTrade-MVP/actions/runs/43681820165) SUCCESS sur le HEAD `6964384f3b572c91cdc8f13c39b58b1e5f4dcb48`.**  
 **Target :** PR #26, branche `fix/create-offer-status-contract`.  
 **Commit de base :** `981f57442441619bac0bb597560000e2e66f9d18`.  
 **Branche de travail :** `work/qa424-nonfinite-price-no-writes-20261115-1432`.
@@ -9584,3 +9584,23 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 - Aucun résultat runtime QA424 n'est revendiqué avant les journaux finaux des deux versions PostgreSQL.
 - Le scénario utilise uniquement les fixtures et bases jetables de CI ; il ne constitue pas un constat de vulnérabilité.
 - Aucune donnée ni migration Supabase Production, aucun secret, grant, policy RLS ou configuration persistante n'est modifié. Aucun déploiement Production, merge, force-push ou changement de règle de protection.
+
+
+## Validation finale — QIMA CI #1480 (15 novembre 2026)
+
+- Verify job `132713866491` : SUCCESS ; exactement un marqueur `QA424 static contract PASS` ; npm audit high, TypeScript, build Next.js, Chromium et Playwright **347/347** réussis.
+- PostgreSQL 16 job `132713866330` : SUCCESS ; exactement un marqueur runtime `QA424 PASS`.
+- PostgreSQL 17.6 job `132713866487` : SUCCESS ; exactement un marqueur runtime `QA424 PASS`.
+- Les contrôles complets de concurrence, catalogue, replication slots, paramètres, extensions, privilèges, RLS, ACL et nettoyage ont terminé. Les échecs de simulation négative du nettoyage étaient attendus et leurs assertions ont réussi ; le job volontairement skipped a été correctement reconnu.
+- CodeQL [#1415](https://github.com/meridane/QimaTrade-MVP/actions/runs/43681820172) : SUCCESS. Le statut combiné Vercel sur le HEAD est SUCCESS.
+- QA424 est CLOSED : NaN et -Infinity sont rejetés par INVALID_PRICE sans écriture dans les quatre tables sur les deux versions PostgreSQL.
+
+## QA425 — correction de l'étiquette du fixture geography-default
+
+**Statut : IMPLEMENTED — validation CI en attente sur le nouveau HEAD.**
+- La valeur `v_input` du bloc QA413 utilisait à tort le libellé `qa412-market-default-replay`. Elle est corrigée en `qa413-geography-default-replay`.
+- Le contrat statique QA413 exige désormais la valeur correcte exactement une fois et interdit l'ancien libellé dans le bloc QA413.
+- Le workflow existant exécute déjà ce contrat dans Verify et le SQL QA413 sur PostgreSQL 16 et 17.6 ; aucun câblage supplémentaire n'est requis.
+- Cette correction n'altère ni le paramètre `p_geography`, ni le hash, ni le comportement de la fonction ; elle aligne uniquement la métadonnée de fixture avec le scénario.
+- Le résultat QA425 sera clôturé après une nouvelle CI sur le HEAD corrigé, avec le marqueur QA413 PASS sur les deux versions PostgreSQL.
+- Aucun changement de migration, donnée Supabase Production, secret, grant, policy RLS, configuration persistante, déploiement Production, merge, force-push ou règle de protection.
