@@ -20,7 +20,7 @@ done
 
 BLOCK="$(sed -n '/^DO \$qa413_geography_default_replay\$/,/^\$qa413_geography_default_replay\$;/p' "$RUNTIME")"
 
-[[ "$(grep -Fc \"v_input jsonb := '{\\\"case\\\":\\\"qa413-geography-default-replay\\\"}'::jsonb;\" <<< \"$BLOCK\" || true)" -eq 1 ]] ||
+[[ "$(grep -Fc 'qa413-geography-default-replay' <<< "$BLOCK" || true)" -eq 1 ]] ||
   fail "QA413 input fixture must identify the geography-default scenario exactly once"
 if grep -Fq 'qa412-market-default-replay' <<< "$BLOCK"; then
   fail "QA413 geography-default block must not reuse the QA412 market-default fixture label"
