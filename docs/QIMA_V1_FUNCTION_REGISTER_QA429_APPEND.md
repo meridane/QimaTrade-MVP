@@ -75,3 +75,14 @@
 - CodeQL #1435 sur `b38d8ed` et CodeQL #1436 sur `3d5750f` sont `SUCCESS`. Le statut combiné Vercel sur `3d5750f` est `success`.
 - Les jobs de simulation négative de nettoyage ont les échecs attendus et leurs assertions ont réussi ; le job volontairement skipped est aussi vérifié. Les deux conclusions globales restent `SUCCESS`.
 - La vérification concerne uniquement les bases jetables de CI ; elle ne prouve rien sur l'état de Supabase Production et ne constitue pas un constat de vulnérabilité.
+
+## Vérification directe des journaux CI #1503 — 16 novembre 2026 (KST)
+
+- QIMA CI [#1503](https://github.com/meridane/QimaTrade-MVP/actions/runs/43751211590) a terminé avec la conclusion globale `SUCCESS` sur le HEAD exact `7e87c7815df9fa6414cd11383c224cbb973f5bd5`.
+- Verify `132925349616`, PostgreSQL 16 `132925350017` et PostgreSQL 17.6 `132925349551` sont terminés avec `SUCCESS`.
+- Le job Verify confirme l'audit des dépendances au seuil high, TypeScript, le build Next.js et Playwright avec `347 passed`.
+- Le journal PostgreSQL 16 #1503 contient exactement un marqueur `QA429 PASS`, et le journal PostgreSQL 17.6 #1503 en contient exactement un. Les deux journaux confirment le même résultat de succès commité pour les requêtes concurrentes identiques et le replay ultérieur, avec une seule ligne dans chacune des quatre tables de persistance.
+- CodeQL [#1437](https://github.com/meridane/QimaTrade-MVP/actions/runs/43751211589) et le statut combiné Vercel sur le HEAD `7e87c78` sont `SUCCESS`.
+- Les simulations négatives de nettoyage préparé ont leurs échecs attendus et leurs assertions ont réussi ; le job volontairement skipped est également couvert par une assertion réussie. La conclusion globale CI #1503 reste `SUCCESS`.
+- Cette preuve concerne exclusivement les bases PostgreSQL jetables de CI ; elle ne constitue ni une validation de Supabase Production ni un constat de vulnérabilité.
+- Le nouveau commit documentaire qui ajoute cette section n'est pas validé par CI #1503 ; ses propres checks doivent être lus séparément.
