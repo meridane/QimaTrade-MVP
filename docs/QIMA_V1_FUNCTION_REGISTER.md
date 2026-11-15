@@ -9622,3 +9622,13 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 - Les commits `e72e2af3` et `57f1cef0` ne modifient que `docs/**` ; la validation #1486 porte le HEAD exact de la PR sans changement du code QA426 depuis le HEAD de code `c4648fc1aefd473126c79ac257fa66d4330925f1`.
 - QA426 est CLOSED sur son périmètre statique ; aucun SQL runtime, migration, règle métier ou donnée applicative n'a été modifié.
 - Aucune donnée ni migration Supabase Production, aucun secret, grant, policy RLS ou configuration persistante n'est modifié. Aucun déploiement Production, merge, force-push ou changement de règle de protection.
+
+### Validation supplémentaire du HEAD PR `39568e72cbc7804c2d50de8a8b575fee8fef7bbb` — QIMA CI #1487
+- QIMA CI [#1487](https://github.com/meridane/QimaTrade-MVP/actions/runs/43695131019) : **SUCCESS** sur le HEAD exact `39568e72cbc7804c2d50de8a8b575fee8fef7bbb`.
+- Verify job `132753864326` : SUCCESS ; exactement un marqueur `QA426 static contract PASS` et exactement un marqueur `QA413 static contract PASS`. npm audit au seuil high, TypeScript, build Next.js, installation Chromium et Playwright **347/347** : SUCCESS.
+- PostgreSQL 16 job `132753864284` : SUCCESS ; exactement un marqueur runtime `QA413 PASS` dans le journal complet.
+- PostgreSQL 17.6 job `132753864301` : SUCCESS ; exactement un marqueur runtime `QA413 PASS` dans le journal complet.
+- Les jobs de simulation négative préparée `132753864115` et `132753864302` ont la conclusion `failure` attendue ; les assertions `132753886518` et `132753893754` sont SUCCESS. Le job de scénario volontairement skipped `132753865265` est SKIPPED et son assertion `132753864423` est SUCCESS. La conclusion globale de QIMA CI #1487 reste SUCCESS.
+- CodeQL [#1422](https://github.com/meridane/QimaTrade-MVP/actions/runs/43695130996) : SUCCESS. Le statut combiné Vercel sur le HEAD `39568e72` : SUCCESS.
+- Cette validation confirme les contrôles existants sur le HEAD courant ; elle n'ajoute aucun scénario runtime ni aucune règle métier.
+- Aucun SQL, migration, donnée Supabase Production, secret, grant, policy RLS ou configuration persistante n'est modifié. Aucun déploiement Production, merge, force-push ou changement de règle de protection.
