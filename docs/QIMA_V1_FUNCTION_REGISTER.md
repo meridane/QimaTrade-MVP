@@ -9177,7 +9177,7 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 
 ## QA403 — changed p_geography replay rejection
 
-**Status:** IMPLEMENTED — QA403 static Verify, npm audit, TypeScript, production build and 347 Playwright tests PASS in CI #43575168210; full PostgreSQL 16/17.6 jobs remain in final characterization.
+**Status:** CLOSED — QIMA CI #1431 completed SUCCESS; Verify, PostgreSQL 16 and PostgreSQL 17.6 all completed SUCCESS.
 
 - The new disposable runtime scenario creates an offer with `p_geography = 'KR'`, then retries the same tenant/key with only `p_geography` changed to `'US'`.
 - The existing migration hashes `'geography', p_geography`; the expected result is exact `IDEMPOTENCY_KEY_REUSE` before new persistence.
@@ -9967,3 +9967,15 @@ Portée : réconciliation documentaire uniquement. Aucun code applicatif, test, 
 - Cette correction est documentaire uniquement et ne change pas MKT-1.3 : le scénario QA397 porte sur des valeurs textuelles et ne tranche pas la canonicalisation numérique.
 
 Portée : correction d'une étiquette documentaire uniquement. Aucun code applicatif, test, SQL, migration, donnée Supabase Production, secret, grant, politique RLS persistante ou configuration PostgreSQL n'est modifié ; aucun déploiement Production, merge, force-push ou changement des règles de protection.
+
+
+## QA403 — clôture après vérification des journaux PostgreSQL (16 novembre 2026 KST)
+
+- La note intermédiaire QA403 indiquant que les jobs PostgreSQL étaient encore en cours est supersédée par la vérification finale de QIMA CI [#1431](https://github.com/meridane/QimaTrade-MVP/actions/runs/43575168210), déclenchée sur le commit corrigé `f388d16d5290649a0a23598f47dbbfb240c3b891`.
+- Verify job `132387725148` : **SUCCESS**. Le contrat statique QA403 a émis exactement un marqueur PASS ; npm audit au seuil high configuré (`AUDIT_OUTCOME=success`), TypeScript, build de production Next.js et Playwright **347 passed** ont réussi.
+- PostgreSQL 16 job `132387725116` : **SUCCESS** ; le journal complet contient exactement un marqueur runtime `QA403 PASS`.
+- PostgreSQL 17.6 job `132387724920` : **SUCCESS** ; le journal complet contient exactement un marqueur runtime `QA403 PASS`.
+- Les jobs négatifs de simulation des transactions préparées `132387725111` et `132387725125` ont les conclusions `failure` attendues ; les assertions correspondantes `132387746037` et `132387748608` ont terminé **SUCCESS**. Le job volontairement `skipped` `132387725842` est couvert par l'assertion réussie `132387725191`. La conclusion globale de CI #1431 reste **SUCCESS**.
+- QIMA CodeQL [#1379](https://github.com/meridane/QimaTrade-MVP/actions/runs/43575168238) a terminé **SUCCESS** sur le même commit ; le statut combiné Vercel du commit est **success** (Preview uniquement).
+- QA403 est donc **CLOSED**. Le scénario caractérise le rejet d'un replay dont seul `p_geography` change et la préservation de l'état initial sur des bases PostgreSQL jetables. Il ne vérifie pas l'ownership métier `demand_id`/tenant et ne constitue ni une évaluation de Supabase Production ni une preuve de vulnérabilité.
+- Aucun code applicatif, migration, donnée Supabase Production, secret, grant, politique RLS persistante, configuration PostgreSQL, déploiement Production, fusion, force-push ou règle de protection n'a été modifié.
