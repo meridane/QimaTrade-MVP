@@ -9100,7 +9100,7 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 - Verify a terminé npm audit, TypeScript, build Next.js et 347/347 tests Playwright avec succès. CodeQL [#1361](https://github.com/meridane/QimaTrade-MVP/actions/runs/43536122403) et le statut Vercel du HEAD validé ont terminé SUCCESS.
 - QA396 est CLOSED. Le scénario confirme la préservation du hash, du résultat, de l'offre, de l'exécution et de l'événement d'origine sur des bases jetables; il ne prouve aucune vulnérabilité Production.
 
-## QA397 — replay JSONB équivalent avec ordre de clés différent (PENDING CI)
+## QA397 — replay JSONB équivalent avec ordre de clés différent (CLOSED, 14 novembre 2026)
 
 - Nouveau scénario : premier appel avec p_input = {"alpha":"one","beta":"two"}, puis replay avec les mêmes paires clé/valeur dans l'ordre source inverse.
 - Le test exige l'égalité JSONB et la même représentation canonique jsonb::text, puis le retour exact du résultat initial sans nouvelle écriture dans idempotency_keys, action_executions, offers ou action_events.
@@ -9957,3 +9957,13 @@ Portée : réconciliation documentaire uniquement. Aucun code applicatif, test, 
 - Cette note est ajoutée au registre canonique complet en conservant les sections historiques QA370, QA371, QA372, QA382 et QA383. Les résultats #1513/CodeQL #1447/Vercel portent sur le parent 8ea1e201, pas sur le nouveau commit documentaire créé par cette réconciliation ; les contrôles du nouveau HEAD sont suivis séparément.
 
 Portée : réconciliation documentaire uniquement. Aucun code applicatif, test, SQL, migration, donnée Supabase Production, secret, grant, politique RLS persistante ou configuration PostgreSQL n'est modifié ; aucun déploiement Production, merge, force-push ou changement des règles de protection.
+
+
+## Correction d'état documentaire QA397 — 16 novembre 2026 (KST)
+
+- Audit de cohérence : l'en-tête QA397 indiquait encore « PENDING CI », alors que la ligne de validation existante référence QIMA CI [#1414](https://github.com/meridane/QimaTrade-MVP/actions/runs/43540736504) **SUCCESS**. La contradiction était limitée à l'étiquette de l'en-tête ; les preuves de clôture étaient déjà présentes.
+- Vérification indépendante de CI #1414 : Verify 132280449951, PostgreSQL 16 132280449936 et PostgreSQL 17.6 132280449919 ont tous terminé **SUCCESS**. Les deux journaux PostgreSQL contiennent explicitement QA397 PASS ; Verify rapporte AUDIT_OUTCOME=success et **347 passed**. CodeQL [#1361](https://github.com/meridane/QimaTrade-MVP/actions/runs/43536122403) a terminé **SUCCESS**.
+- Correction minimale : l'en-tête QA397 est maintenant **CLOSED — 14 novembre 2026**, cohérent avec la validation déjà consignée. Aucun test, code applicatif ou scénario SQL n'a été ajouté ou modifié.
+- Cette correction est documentaire uniquement et ne change pas MKT-1.3 : le scénario QA397 porte sur des valeurs textuelles et ne tranche pas la canonicalisation numérique.
+
+Portée : correction d'une étiquette documentaire uniquement. Aucun code applicatif, test, SQL, migration, donnée Supabase Production, secret, grant, politique RLS persistante ou configuration PostgreSQL n'est modifié ; aucun déploiement Production, merge, force-push ou changement des règles de protection.
