@@ -9664,7 +9664,7 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 
 ## QA428 — concurrent successful first request wins; queued changed-payload retry is rejected
 
-**Statut : IMPLEMENTED — GitHub Actions runtime validation pending on the current PR HEAD.**  
+**Statut initial : IMPLEMENTED — validation runtime en attente ; état supersédé par la validation finale QA428 ci-dessous (CLOSED sur CI #1494).**  
 **Target :** PR #26, branche `fix/create-offer-status-contract`.  
 **Base HEAD :** `9d911be0eea79c568491ac9aeb89736e7c184507`.
 
@@ -10028,3 +10028,15 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 - Les preuves runtime sont limitées aux fixtures PostgreSQL jetables de CI. Elles ne constituent ni une évaluation de Supabase Production ni une preuve de vulnérabilité. Les décisions métier MKT-1.1 (ownership `demand_id`/`tenant_id`), MKT-1.2 (idempotence des brouillons indépendants) et MKT-1.3 (canonicalisation numérique) restent non approuvées ; aucune règle n'est déduite.
 - Aucun code applicatif, SQL, migration, donnée Supabase Production, secret, grant, politique RLS persistante, configuration PostgreSQL, déploiement Production, fusion, force-push ou règle de protection n'est modifié.
 
+## Réconciliation finale — QIMA CI #1521 et CodeQL #1455 (16 novembre 2026 KST)
+
+- HEAD de code inspecté : `3061197fe29877ff1afcd28de2f4da16da87bf57`, branche `fix/create-offer-status-contract`. La comparaison GitHub `main...fix/create-offer-status-contract` indique **1 894 commits en avance**, **0 en retard** ; la PR #26 reste **OPEN**, **DRAFT**, **MERGEABLE** et **UNMERGED**, avec **262 fichiers modifiés**.
+- QIMA CI [#1521](https://github.com/meridane/QimaTrade-MVP/actions/runs/43807669490) a terminé **SUCCESS** sur ce HEAD exact. Verify `133102044286`, PostgreSQL 16 `133102044524` et PostgreSQL 17.6 `133102044353` ont tous terminé **SUCCESS**.
+- Verify a réussi le contrat statique QA370, le contrôle QA360 confirmant l'invocation unique de la caractérisation numérique QA315 dans le runner, le gate d'audit des dépendances (étapes audit et enforcement réussies), TypeScript, le build Next.js et Playwright **347 passed**.
+- Les journaux complets PostgreSQL 16 et 17.6 contiennent chacun exactement un marqueur runtime QA315, QA429, QA330, QA332, QA370, QA371 et QA372. Chaque journal contient aussi les résultats explicites QA391 PASS et QA403 PASS. QA330/QA332 restent des caractérisations RLS legacy transactionnelles avec rollback ; la politique SELECT de QA332 est synthétique.
+- Les jobs de simulation négative des transactions préparées `133102044111` et `133102044398` ont les conclusions `failure` attendues ; le job volontairement `skipped` `133102045287` est attendu. Les assertions `133102044489`, `133102076694` et `133102087650` ont terminé **SUCCESS**. La conclusion globale CI #1521 reste **SUCCESS**.
+- CodeQL [#1455](https://github.com/meridane/QimaTrade-MVP/actions/runs/43807669520) a terminé **SUCCESS** sur le même HEAD ; le statut combiné Vercel Preview du commit est **success**.
+- QA428 conserve sa validation finale **CLOSED** sur CI #1494 ; la mention d'attente dans son paragraphe d'ouverture est désormais explicitement étiquetée comme statut initial supersédé, sans modifier le scénario ni ses preuves.
+- Le présent commit est documentaire uniquement ; CI #1521, CodeQL #1455 et le statut Vercel cités valident le parent `3061197f`, pas ce nouveau commit. Les contrôles du nouveau HEAD sont suivis séparément.
+- Les preuves runtime proviennent exclusivement de fixtures PostgreSQL CI jetables. Elles ne constituent ni une évaluation de Supabase Production ni une preuve de vulnérabilité. Les décisions métier MKT-1.1 (ownership `demand_id`/`tenant_id`), MKT-1.2 (idempotence des brouillons indépendants) et MKT-1.3 (canonicalisation numérique) restent non approuvées ; aucune règle n'est déduite.
+- Aucun code applicatif, test, SQL, migration, donnée Supabase Production, secret, grant, politique RLS persistante, configuration PostgreSQL, déploiement Production, fusion, force-push ou règle de protection n'est modifié.
