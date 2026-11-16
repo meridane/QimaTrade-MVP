@@ -9000,8 +9000,11 @@ CI [#1349](https://github.com/meridane/QimaTrade-MVP/actions/runs/43282916852) f
 - Added a disposable PostgreSQL scenario with quantity 1 and price 0. It requires the existing public result contract (status: succeeded, objectType: Offer), exactly one persisted offer whose price is zero, one COMPLETED action execution, one COMPLETED idempotency row and one ACTION_SUCCEEDED event.
 - The scenario then repeats the identical request with the same tenant-scoped key and requires the exact original JSON result and unchanged counts across idempotency_keys, action_executions, offers and action_events.
 - Added tests/sql/test-create-offer-zero-price-contract.sh and integrated it into Verify. PostgreSQL 16 and 17.6 execute the shared runtime fixture.
-- QA391 is IMPLEMENTED; CI validation is pending. No acceptance behavior or migration is changed; the test only characterizes the existing non-negative price contract.
-- No Supabase Production data, migration, secret, persistent PostgreSQL setting, branch-protection rule, PR merge or Production deployment was modified. MKT-1.1, MKT-1.2 and MKT-1.3 remain unapproved.
+- QA391 is **CLOSED** after QIMA CI [#1405](https://github.com/meridane/QimaTrade-MVP/actions/runs/43502149788) completed SUCCESS on code HEAD `f0cb89b639f278d88cb23a373dda0f5874ca3296`; the full Verify and PostgreSQL 16/17.6 jobs each emitted the QA391 PASS marker. No acceptance behavior or migration is changed; the test only characterizes the existing non-negative price contract.
+- No Supabase Production data, migration, secret, persistent PostgreSQL setting, branch-protection rule, PR merge or Production deployment was modified.
+- Verify job `132150431865` emitted exactly one `QA391 PASS`; npm audit at the configured high threshold (`AUDIT_OUTCOME=success`), TypeScript, Next.js production build and Playwright **347 passed** all succeeded.
+- PostgreSQL 16 job `132150431935` and PostgreSQL 17.6 job `132150431934` each completed **SUCCESS** and each full log contains exactly one runtime `QA391 PASS` marker.
+- CodeQL [#1353](https://github.com/meridane/QimaTrade-MVP/actions/runs/43502149723) and the combined Vercel Preview status on the same code HEAD completed **SUCCESS**. MKT-1.1, MKT-1.2 and MKT-1.3 remain unapproved.
 
 
 ## QA392 — validation complète et clôture (14 novembre 2026)
