@@ -9993,3 +9993,11 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 - La comparaison GitHub `main...3b790505` indique **1 890 commits en avance**, **0 en retard**, statut `ahead`. La PR #26 reste **OPEN**, **DRAFT**, **MERGEABLE** et **UNMERGED**, avec 262 fichiers modifiés ; aucune review soumise ni thread inline n'est enregistré.
 - Cette note est un instantané des checks au moment de la lecture. Les conclusions définitives des jobs #1515/#1517 et les checks du HEAD documentaire créé par cette note devront être vérifiés séparément.
 - Portée : suivi documentaire uniquement. Aucun code applicatif, test, SQL, migration, donnée Supabase Production, secret, grant, policy RLS persistante, configuration PostgreSQL, déploiement Production, merge, force-push ou règle de protection n'est modifié.
+
+
+## Checks du HEAD documentaire f99c089 — QIMA CI #1518 (16 novembre 2026 KST)
+
+- HEAD inspecté : `f99c089b004982d613ee19a873ce9207dc028f3e`. QIMA CI [#1518](https://github.com/meridane/QimaTrade-MVP/actions/runs/43791446147) est **PENDING** au dernier contrôle et aucun job n'était encore provisionné ; CodeQL [#1452](https://github.com/meridane/QimaTrade-MVP/actions/runs/43791446183) est **IN PROGRESS** ; le statut combiné Vercel Preview est **PENDING**.
+- Le parent `3b790505d6411d75ddd30a73a8941fce21ef268b` a ses propres checks : QIMA CI #1517 **PENDING** (aucun job provisionné au dernier contrôle), CodeQL #1451 **IN PROGRESS**, Vercel Preview **PENDING**. Ces résultats ne sont pas attribués au HEAD courant.
+- Cette note consigne uniquement un instantané d'état ; aucune conclusion SUCCESS/FAILURE n'est revendiquée avant la fin des jobs. Les contrôles du commit documentaire créé par cette note devront être suivis séparément.
+- Portée : documentation uniquement. Aucun code applicatif, test, SQL, migration, donnée Supabase Production, secret, grant, policy RLS persistante, configuration PostgreSQL, déploiement Production, merge, force-push ou règle de protection n'est modifié.
