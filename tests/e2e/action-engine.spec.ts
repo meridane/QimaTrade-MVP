@@ -164,6 +164,17 @@ test("executeAction propagates a getDefinition rejection without invoking a hand
 
 const invalidActionDefinitions: Array<{ label: string; definition: ActionDefinition | null }> = [
   { label: "missing", definition: null },
+  { label: "undefined definition", definition: undefined as unknown as ActionDefinition },
+  { label: "primitive string definition", definition: "not-an-object" as unknown as ActionDefinition },
+  { label: "array definition", definition: [] as unknown as ActionDefinition },
+  {
+    label: "non-string action key",
+    definition: { actionKey: 42, version: 1, status: "published" } as unknown as ActionDefinition,
+  },
+  {
+    label: "unsupported status",
+    definition: { actionKey: "CREATE_OFFER", version: 1, status: "archived" } as unknown as ActionDefinition,
+  },
   {
     label: "draft",
     definition: { actionKey: "CREATE_OFFER", version: 1, status: "draft" },
