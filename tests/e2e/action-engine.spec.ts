@@ -2051,3 +2051,58 @@ test("executeAction normalizes descriptor mutability while preserving enumerabil
     writable: true,
   });
 });
+
+const accessorActionResultMetadataCases: Array<{ label: string; key: PropertyKey }> = [
+  { label: "extra SQL metadata", key: "objectType" },
+  { label: "non-enumerable symbol metadata", key: Symbol("resultMetadata") },
+];
+
+for (const scenario of accessorActionResultMetadataCases) {
+  test(`executeAction rejects accessor-backed ${scenario.label} on ActionResult without invoking its getter`, async () => {
+    const context: ActionContext = {
+      userId: "user-1",
+      tenantId: "tenant-1",
+      actionKey: "CREATE_OFFER",
+      actionVersion: 1,
+      objectType: "TestObject",
+      objectId: "object-1",
+      correlationId: "correlation-1",
+      idempotencyKey: "idempotency-1",
+    };
+    let definitionLookups = 0;
+    let handlerCalls = 0;
+    let getterCalls = 0;
+    const invalidResult: ActionResult = {
+      executionId: "execution-accessor-metadata",
+      status: "succeeded",
+    };
+
+    Object.defineProperty(invalidResult, scenario.key, {
+      configurable: true,
+      enumerable: false,
+      get: () => {
+        getterCalls += 1;
+        throw new Error("ACTION_RESULT_METADATA_GETTER_INVOKED");
+      },
+    });
+
+    await expect(
+      executeAction(context, { demandId: "demand-1" }, {
+        getDefinition: async (actionKey, version) => {
+          definitionLookups += 1;
+          return { actionKey, version, status: "published" };
+        },
+        handlers: {
+          CREATE_OFFER: async () => {
+            handlerCalls += 1;
+            return invalidResult;
+          },
+        },
+      }),
+    ).rejects.toThrow("ACTION_RESULT_INVALID");
+
+    expect(definitionLookups).toBe(1);
+    expect(handlerCalls).toBe(1);
+    expect(getterCalls).toBe(0);
+  });
+}
