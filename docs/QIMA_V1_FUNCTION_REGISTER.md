@@ -11114,3 +11114,17 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 - Aucun test local n'a été exécuté. Le résultat de 373 tests confirme le comportement couvert par la suite ; il ne constitue pas une preuve de vulnérabilité. Les tests PostgreSQL/RLS restent limités aux bases jetables et ne prouvent pas les politiques Supabase Production.
 - Les décisions MKT-1.1 (`demand_id`/`tenant_id`), MKT-1.2 (idempotence des brouillons indépendants) et MKT-1.3 (canonicalisation numérique) restent en attente d'approbation produit.
 - Aucun SQL, migration, donnée Supabase Production, secret, grant, politique RLS persistante, configuration PostgreSQL, déploiement Production, fusion, force-push ou règle de protection n'a été modifié.
+
+
+---
+
+## Checks du HEAD documentaire #547d2fec — 19 novembre 2026 KST
+
+- État GitHub vérifié : PR #26 **OPEN**, **DRAFT**, **UNMERGED**, `mergeable=true`, `mergeable_state=unstable` ; branche `fix/create-offer-status-contract`, base `main`, 1 985 commits devant `main`, 0 derrière et 265 fichiers modifiés. Le statut `unstable` reflète des contrôles encore en cours ; il n'est pas interprété comme une réussite globale.
+- Sur le commit de test `0e743228`, QIMA CI [#1608](https://github.com/meridane/QimaTrade-MVP/actions/runs/44368689346) : Verify **SUCCESS**, **373 passed (9,2 s)**, npm audit, TypeScript et build Next.js réussis. PostgreSQL 16 et PostgreSQL 17.6 restent **IN PROGRESS** au dernier contrôle ; le run complet n'est pas déclaré réussi. CodeQL [#1542](https://github.com/meridane/QimaTrade-MVP/actions/runs/44368689408) a terminé **SUCCESS**.
+- Sur le HEAD documentaire `547d2fec2640a3b5f34dd5fc30961da87f97a415`, QIMA CI [#1610](https://github.com/meridane/QimaTrade-MVP/actions/runs/44369049012) était **PENDING** et CodeQL [#1543](https://github.com/meridane/QimaTrade-MVP/actions/runs/44369049096) **IN PROGRESS**. Le statut combiné Vercel était **pending**. Le check-run CodeQL `Analyze JavaScript and TypeScript` était en cours ; aucun résultat final n'est anticipé.
+- Les checks #1608 et #1610 sont suivis séparément : #1608 valide le commit de test `0e743228` et ses jobs PostgreSQL ; #1610 cible le HEAD documentaire courant. Les conclusions attendues du harness (setup/cleanup négatifs et skipped volontaire) restent distinctes des résultats des jobs principaux.
+- Le commit documentaire `547d2fec` ne change pas le code ou les tests. Aucun test local n'a été exécuté.
+- Les tests synthétiques et CodeQL ne confirment pas seuls une vulnérabilité ; les tests PostgreSQL/RLS utilisent des ressources jetables et ne prouvent pas les politiques Supabase Production.
+- Les décisions MKT-1.1 (`demand_id`/`tenant_id`), MKT-1.2 (idempotence des brouillons indépendants) et MKT-1.3 (canonicalisation numérique) restent en attente d'approbation produit.
+- Aucun SQL, migration, donnée Supabase Production, secret, grant, politique RLS persistante, configuration PostgreSQL, déploiement Production, fusion, force-push ou règle de protection n'a été modifié.
