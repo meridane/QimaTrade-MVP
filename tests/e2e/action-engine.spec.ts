@@ -1771,6 +1771,77 @@ for (const scenario of actionResultReflectionTrapScenarios) {
   });
 }
 
+for (const optionalKey of ["objectId", "result"] as const) {
+  test(`executeAction rejects a Proxy that reports inherited ${optionalKey} without an own descriptor`, async () => {
+    const context: ActionContext = {
+      userId: "user-1",
+      tenantId: "tenant-1",
+      actionKey: "CREATE_OFFER",
+      actionVersion: 1,
+      objectType: "TestObject",
+      objectId: "object-1",
+      correlationId: "correlation-1",
+      idempotencyKey: "idempotency-1",
+    };
+    const input: ActionInput = { demandId: "demand-1" };
+    const target: ActionResult = {
+      executionId: `execution-spoofed-has-${optionalKey}`,
+      status: "succeeded",
+    };
+    let hasTrapCalls = 0;
+    let descriptorTrapCalls = 0;
+    let optionalGetCalls = 0;
+    let ownKeysCalls = 0;
+    let definitionLookups = 0;
+    let handlerCalls = 0;
+    const proxy = new Proxy(target, {
+      has(object, property) {
+        if (property === optionalKey) {
+          hasTrapCalls += 1;
+          return true;
+        }
+        return Reflect.has(object, property);
+      },
+      getOwnPropertyDescriptor(object, property) {
+        if (property === optionalKey) descriptorTrapCalls += 1;
+        return Reflect.getOwnPropertyDescriptor(object, property);
+      },
+      get(object, property, receiver) {
+        if (property === optionalKey) optionalGetCalls += 1;
+        return Reflect.get(object, property, receiver);
+      },
+      ownKeys(object) {
+        ownKeysCalls += 1;
+        return Reflect.ownKeys(object);
+      },
+    });
+    // Resolve while the Proxy is live; Promise assimilation reads only "then".
+    const handlerResult = Promise.resolve(proxy);
+
+    await expect(
+      executeAction(context, input, {
+        getDefinition: async (actionKey, version) => {
+          definitionLookups += 1;
+          return { actionKey, version, status: "published" };
+        },
+        handlers: {
+          CREATE_OFFER: async () => {
+            handlerCalls += 1;
+            return handlerResult;
+          },
+        },
+      }),
+    ).rejects.toThrow("ACTION_RESULT_INVALID");
+
+    expect(hasTrapCalls).toBe(1);
+    expect(descriptorTrapCalls).toBe(1);
+    expect(optionalGetCalls).toBe(0);
+    expect(ownKeysCalls).toBe(0);
+    expect(definitionLookups).toBe(1);
+    expect(handlerCalls).toBe(1);
+  });
+}
+
 
 test("executeAction awaits a custom handler thenable before normalizing its resolved result", async () => {
   const context: ActionContext = {
