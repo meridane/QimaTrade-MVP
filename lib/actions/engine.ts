@@ -24,6 +24,9 @@ export type ActionEngineDependencies = {
   handlers: Record<string, ActionHandler>;
 };
 
+const POSTGRES_INTEGER_MIN = -2_147_483_648;
+const POSTGRES_INTEGER_MAX = 2_147_483_647;
+
 function normalizeActionDefinition(value: unknown): ActionDefinition | null {
   if (value === null || typeof value !== "object") return null;
 
@@ -46,6 +49,8 @@ function normalizeActionDefinition(value: unknown): ActionDefinition | null {
       !Object.prototype.hasOwnProperty.call(version, "value") ||
       typeof version.value !== "number" ||
       !Number.isInteger(version.value) ||
+      version.value < POSTGRES_INTEGER_MIN ||
+      version.value > POSTGRES_INTEGER_MAX ||
       status === undefined ||
       !Object.prototype.hasOwnProperty.call(status, "value") ||
       (status.value !== "draft" &&
