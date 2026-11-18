@@ -11060,3 +11060,16 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 - Les tests PostgreSQL/RLS restent limités aux ressources jetables et ne prouvent pas les politiques Supabase Production. Les tests synthétiques et les analyses CodeQL ne confirment pas seuls une vulnérabilité.
 - Les décisions MKT-1.1 (`demand_id`/`tenant_id`), MKT-1.2 (idempotence des brouillons indépendants) et MKT-1.3 (canonicalisation numérique) restent en attente d'approbation produit.
 - Aucun SQL, migration, donnée Supabase Production, secret, grant, politique RLS persistante, configuration PostgreSQL, déploiement Production, fusion, force-push ou règle de protection n'a été modifié.
+
+
+---
+
+## Mise à jour des checks après CI #1605 et synchronisation documentaire — 19 novembre 2026 KST
+
+- Sur le commit de test `5bd1f423`, QIMA CI [#1605](https://github.com/meridane/QimaTrade-MVP/actions/runs/44356689535) : le job Verify a terminé **SUCCESS**, incluant npm audit, TypeScript, build Next.js et tests navigateur. PostgreSQL 16 et PostgreSQL 17.6 étaient encore **IN PROGRESS** au dernier contrôle, sur la caractérisation finale des privilèges du runner. Le run complet n'est donc pas déclaré réussi.
+- CodeQL [#1538](https://github.com/meridane/QimaTrade-MVP/actions/runs/44356689524) a depuis terminé **SUCCESS**.
+- Sur le commit documentaire précédent `518cced1`, CodeQL [#1539](https://github.com/meridane/QimaTrade-MVP/actions/runs/44356858309) a terminé **SUCCESS**. QIMA CI [#1606](https://github.com/meridane/QimaTrade-MVP/actions/runs/44356858417) a été **CANCELLED** après une nouvelle synchronisation de la PR ; cette annulation n'est pas un échec de test.
+- Sur le HEAD actuel `6bc5336a`, QIMA CI [#1607](https://github.com/meridane/QimaTrade-MVP/actions/runs/44357149843) était **PENDING**, CodeQL [#1540](https://github.com/meridane/QimaTrade-MVP/actions/runs/44357149787) **IN PROGRESS** et Vercel **PENDING** ([Preview](https://vercel.com/bmk1/qimatrade-mvp/EZDSo1wZax9XkEMo9dvudxgZf4Qq)). Aucun résultat de ces contrôles n'est anticipé.
+- La PR #26 reste **OPEN**, **DRAFT**, **UNMERGED**, **MERGEABLE** ; HEAD `6bc5336ae98791f24956b525dd6a53f70650bf58`, 1 980 commits devant `main`, 0 derrière et 265 fichiers modifiés.
+- Aucun test local n'a été exécuté. Aucun code applicatif, SQL, migration, donnée Supabase Production, secret, grant, politique RLS persistante, configuration PostgreSQL, déploiement Production, fusion, force-push ou règle de protection n'a été modifié par cette réconciliation documentaire.
+- Les tests synthétiques et CodeQL ne confirment pas seuls une vulnérabilité ; les tests PostgreSQL/RLS utilisent des ressources jetables et ne démontrent pas les politiques Supabase Production. Les décisions MKT-1.1 (`demand_id`/`tenant_id`), MKT-1.2 (idempotence des brouillons indépendants) et MKT-1.3 (canonicalisation numérique) restent en attente d'approbation produit.
