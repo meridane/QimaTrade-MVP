@@ -2527,3 +2527,38 @@ test("executeAction treats a non-callable own then property as ordinary ActionRe
     writable: true,
   });
 });
+
+
+test("executeAction propagates a synchronous handler throw without retrying", async () => {
+  const context: ActionContext = {
+    userId: "user-1",
+    tenantId: "tenant-1",
+    actionKey: "CREATE_OFFER",
+    actionVersion: 1,
+    objectType: "TestObject",
+    objectId: "object-1",
+    correlationId: "correlation-1",
+    idempotencyKey: "idempotency-1",
+  };
+  const input: ActionInput = { demandId: "demand-1" };
+  const expectedError = new Error("CREATE_OFFER synchronous handler failure");
+  let definitionLookups = 0;
+  let handlerCalls = 0;
+  const handler = (() => {
+    handlerCalls += 1;
+    throw expectedError;
+  }) as ActionHandler;
+
+  await expect(
+    executeAction(context, input, {
+      getDefinition: async (actionKey, version) => {
+        definitionLookups += 1;
+        return { actionKey, version, status: "published" };
+      },
+      handlers: { CREATE_OFFER: handler },
+    }),
+  ).rejects.toBe(expectedError);
+
+  expect(definitionLookups).toBe(1);
+  expect(handlerCalls).toBe(1);
+});
