@@ -11307,3 +11307,14 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 - QIMA CI [#1628](https://github.com/meridane/QimaTrade-MVP/actions/runs/44409569333) reste **IN PROGRESS** : Verify a terminé **FAILURE** sur les deux assertions incorrectes du compteur de lecture `get` (377 passés, 2 échoués) ; PostgreSQL 16 et 17.6 sont encore actifs sur la caractérisation des privilèges du runner CREATE_OFFER. Le correctif `3fe4d355` attend donc toujours une validation Playwright/CI sur un run non annulé.
 - Aucun test local n'a été exécuté. L'échec de Verify concerne l'attente du test vis-à-vis de l'assimilation Promise et non une défaillance du code applicatif. Les tests synthétiques ne prouvent pas une vulnérabilité ; les tests PostgreSQL/RLS sur bases jetables ne démontrent pas les politiques Supabase Production.
 - Aucun code applicatif, SQL, migration, donnée Supabase Production, secret, grant, politique RLS persistante, configuration PostgreSQL, déploiement Production, fusion, force-push ou règle de protection n'a été modifié.
+
+---
+
+## Checks du HEAD documentaire 43592a45 — CI #1632 et CodeQL #1564 — 19 novembre 2026 KST
+
+- Après publication du registre au HEAD `43592a452e9d088ce47e83d45dae8e9c7ef67c7b`, GitHub a associé QIMA CI [#1632](https://github.com/meridane/QimaTrade-MVP/actions/runs/44410282663), état **PENDING** sans jobs publiés au dernier contrôle, et CodeQL [#1564](https://github.com/meridane/QimaTrade-MVP/actions/runs/44410282650), état **IN PROGRESS**.
+- Le statut Vercel du HEAD documentaire `43592a45` reste **pending** ([Preview](https://vercel.com/bmk1/qimatrade-mvp/BYsxPQgZ1JVddJdkoGENWUooEUap)).
+- Le HEAD de la PR et la branche de travail `work/fix-action-result-proxy-then-observation-20261119-0712` sont identiques à `43592a45`. La PR #26 est **OPEN**, **DRAFT**, **UNMERGED**, `mergeable=true`, 2 005 commits en avance sur `main`, 0 derrière et 265 fichiers modifiés.
+- QIMA CI [#1628](https://github.com/meridane/QimaTrade-MVP/actions/runs/44409569333) sur le commit de test antérieur `e41fbce0` reste **IN PROGRESS** au dernier contrôle : Verify a échoué sur les deux assertions initiales du compteur `get` (377 passés, 2 échoués) ; les jobs PostgreSQL 16 et 17.6 restent actifs sur la caractérisation des privilèges. Le correctif `3fe4d355` attend toujours une exécution Verify non annulée.
+- Aucun résultat final n'est anticipé pour CI #1632, CodeQL #1564 ou Vercel. Aucun test local n'a été exécuté. Les cas Proxy sont synthétiques et ne prouvent pas une vulnérabilité ; les tests PostgreSQL/RLS sur bases jetables ne démontrent pas les politiques Supabase Production.
+- Aucun code applicatif, SQL, migration, donnée Supabase Production, secret, grant, politique RLS persistante, configuration PostgreSQL, déploiement Production, fusion, force-push ou règle de protection n'a été modifié.
