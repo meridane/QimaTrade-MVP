@@ -2562,3 +2562,50 @@ test("executeAction propagates a synchronous handler throw without retrying", as
   expect(definitionLookups).toBe(1);
   expect(handlerCalls).toBe(1);
 });
+
+
+test("executeAction rejects a Proxy ActionResult when its ownKeys trap throws without leaking reflection errors", async () => {
+  const context: ActionContext = {
+    userId: "user-1",
+    tenantId: "tenant-1",
+    actionKey: "CREATE_OFFER",
+    actionVersion: 1,
+    objectType: "TestObject",
+    objectId: "object-1",
+    correlationId: "correlation-1",
+    idempotencyKey: "idempotency-1",
+  };
+  const input: ActionInput = { demandId: "demand-1" };
+  const reflectionError = new Error("ACTION_RESULT_OWN_KEYS_TRAP");
+  const target: ActionResult = {
+    executionId: "execution-own-keys-trap",
+    status: "succeeded",
+  };
+  let ownKeysCalls = 0;
+  const resultProxy = new Proxy(target, {
+    ownKeys() {
+      ownKeysCalls += 1;
+      throw reflectionError;
+    },
+  });
+  let definitionLookups = 0;
+  let handlerCalls = 0;
+  const handler = (() => {
+    handlerCalls += 1;
+    return resultProxy;
+  }) as ActionHandler;
+
+  await expect(
+    executeAction(context, input, {
+      getDefinition: async (actionKey, version) => {
+        definitionLookups += 1;
+        return { actionKey, version, status: "published" };
+      },
+      handlers: { CREATE_OFFER: handler },
+    }),
+  ).rejects.toThrow("ACTION_RESULT_INVALID");
+
+  expect(ownKeysCalls).toBe(1);
+  expect(definitionLookups).toBe(1);
+  expect(handlerCalls).toBe(1);
+});
