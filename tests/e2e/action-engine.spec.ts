@@ -185,6 +185,14 @@ const invalidActionDefinitions: Array<{ label: string; definition: ActionDefinit
     definition: { actionKey: "CREATE_OFFER", version: Number.POSITIVE_INFINITY, status: "published" },
   },
   {
+    label: "numeric string version",
+    definition: { actionKey: "CREATE_OFFER", version: "1" as unknown as number, status: "published" },
+  },
+  {
+    label: "boxed number version",
+    definition: { actionKey: "CREATE_OFFER", version: Object(1) as unknown as number, status: "published" },
+  },
+  {
     label: "version below PostgreSQL integer minimum",
     definition: { actionKey: "CREATE_OFFER", version: -2_147_483_649, status: "published" },
   },
