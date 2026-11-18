@@ -55,9 +55,20 @@ docker run --detach \
   "$IMAGE" >/dev/null
 CONTAINER_STARTED=true
 
+# The official image briefly starts a temporary PostgreSQL server while
+# initializing an empty data directory. pg_isready can succeed against that
+# server immediately before the entrypoint shuts it down. Only accept readiness
+# after the entrypoint has exec'd the final postgres process as PID 1.
+container_is_ready() {
+  local pid1_comm
+  pid1_comm="$(docker exec "$CONTAINER_NAME" sh -c 'cat /proc/1/comm' 2>/dev/null || true)"
+  [[ "$pid1_comm" == "postgres" ]] &&
+    docker exec "$CONTAINER_NAME" pg_isready -U postgres -d postgres >/dev/null 2>&1
+}
+
 ready=false
 for attempt in $(seq 1 60); do
-  if docker exec "$CONTAINER_NAME" pg_isready -U postgres -d postgres >/dev/null 2>&1; then
+  if container_is_ready; then
     ready=true
     break
   fi

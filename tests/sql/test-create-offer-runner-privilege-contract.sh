@@ -44,6 +44,16 @@ if grep -Eiq '^[[:space:]]*(INSERT|UPDATE|DELETE|CREATE|ALTER|DROP|GRANT|REVOKE)
   fail "runner privilege preflight must remain read-only"
 fi
 
+readiness_helper_line="$(grep -nF 'container_is_ready()' "$RUNTIME" | head -n 1 | cut -d: -f1)"
+readiness_pid1_line="$(grep -nF 'cat /proc/1/comm' "$RUNTIME" | head -n 1 | cut -d: -f1)"
+readiness_pg_line="$(grep -nF 'pg_isready -U postgres -d postgres' "$RUNTIME" | head -n 1 | cut -d: -f1)"
+readiness_loop_line="$(grep -nF 'for attempt in $(seq 1 60)' "$RUNTIME" | head -n 1 | cut -d: -f1)"
+[[ -n "$readiness_helper_line" && -n "$readiness_pid1_line" && -n "$readiness_pg_line" && -n "$readiness_loop_line" &&
+   "$readiness_helper_line" -lt "$readiness_pid1_line" &&
+   "$readiness_pid1_line" -lt "$readiness_pg_line" &&
+   "$readiness_pg_line" -lt "$readiness_loop_line" ]] ||
+  fail "QA373 readiness must verify the final postgres PID 1 before pg_isready"
+
 for required in \
   "runner_role_membership" \
   "IF NOT COALESCE(v_runner_is_superuser, false)" \
@@ -59,6 +69,10 @@ for required in \
   "PG_RUNNER_PRIVILEGE_TEST_IMAGE" \
   "postgres:16" \
   "postgres:17.6" \
+  "container_is_ready()" \
+  "cat /proc/1/comm" \
+  '[[ "$pid1_comm" == "postgres" ]]' \
+  "pg_isready -U postgres -d postgres" \
   "run-create-offer-integration.sh" \
   "qa373_runner" \
   "CREATEROLE" \
