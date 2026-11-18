@@ -1012,6 +1012,67 @@ test("executeAction accepts a valid null-prototype ActionResult", async () => {
 });
 
 
+test("executeAction preserves a null-prototype result payload as a record", async () => {
+  const context: ActionContext = {
+    userId: "user-1",
+    tenantId: "tenant-1",
+    actionKey: "CREATE_OFFER",
+    actionVersion: 1,
+    objectType: "Demand",
+    objectId: "demand-1",
+    correlationId: "correlation-1",
+    idempotencyKey: "idempotency-1",
+  };
+  const payload = Object.create(null) as Record<string, unknown>;
+  Object.defineProperties(payload, {
+    offerId: {
+      configurable: false,
+      enumerable: true,
+      value: "offer-null-prototype-payload",
+      writable: false,
+    },
+    source: {
+      configurable: false,
+      enumerable: false,
+      value: "CREATE_OFFER",
+      writable: false,
+    },
+  });
+  const expectedResult: ActionResult = {
+    executionId: "execution-null-prototype-payload",
+    status: "succeeded",
+    result: payload,
+  };
+  let definitionLookups = 0;
+  let handlerCalls = 0;
+
+  const result = await executeAction(context, { demandId: "demand-1" }, {
+    getDefinition: async (actionKey, version) => {
+      definitionLookups += 1;
+      return { actionKey, version, status: "published" };
+    },
+    handlers: {
+      CREATE_OFFER: async () => {
+        handlerCalls += 1;
+        return expectedResult;
+      },
+    },
+  });
+
+  expect(definitionLookups).toBe(1);
+  expect(handlerCalls).toBe(1);
+  expect(result).not.toBe(expectedResult);
+  expect(result.result).toBe(payload);
+  expect(Object.getPrototypeOf(result.result!)).toBeNull();
+  expect(Object.keys(result.result!)).toEqual(["offerId"]);
+  expect(Object.getOwnPropertyDescriptor(result.result!, "source")).toMatchObject({
+    configurable: false,
+    enumerable: false,
+    value: "CREATE_OFFER",
+    writable: false,
+  });
+});
+
 test("executeAction accepts a valid failed ActionResult", async () => {
   const context: ActionContext = {
     userId: "user-1",
