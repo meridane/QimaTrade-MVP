@@ -854,6 +854,14 @@ test("executeAction preserves a string rejection from a handler without retrying
 
 const invalidActionResults: Array<{ label: string; result: unknown }> = [
   { label: "null", result: null },
+  { label: "top-level primitive", result: "not-an-action-result" },
+  {
+    label: "top-level array with valid-looking fields",
+    result: Object.assign([], {
+      executionId: "execution-array-result",
+      status: "succeeded",
+    }),
+  },
   { label: "missing executionId", result: { status: "succeeded" } },
   { label: "blank executionId", result: { executionId: "   ", status: "succeeded" } },
   { label: "unsupported status", result: { executionId: "execution-1", status: "running" } },
