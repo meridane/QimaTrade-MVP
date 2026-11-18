@@ -11142,3 +11142,25 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 - Aucun test local n'a été exécuté. Les échecs attendus du harness et les annulations de workflow sont distingués des échecs des jobs principaux. Aucun résultat synthétique ne suffit à confirmer une vulnérabilité.
 - Les décisions MKT-1.1 (`demand_id`/`tenant_id`), MKT-1.2 (idempotence des brouillons indépendants) et MKT-1.3 (canonicalisation numérique) restent en attente d'approbation produit.
 - Aucun SQL, migration, donnée Supabase Production, secret, grant, politique RLS persistante, configuration PostgreSQL, déploiement Production, fusion, force-push ou règle de protection n'a été modifié.
+
+
+---
+
+## Correction des numéros officiels GitHub Actions — 19 novembre 2026 KST
+
+- Vérification par l'API GitHub des `run_number` réels (les liens par ID restent les références canoniques) :
+  - QIMA CI run **#1605** — ID `44356689535` : **SUCCESS**, Verify **372 passed**, PostgreSQL 16/17.6 **SUCCESS**.
+  - QIMA CI run **#1608** — ID `44357332033` : **SUCCESS**, Verify **372 passed**, PostgreSQL 16/17.6 **SUCCESS**.
+  - QIMA CI run **#1609** — ID `44368689346` : Verify **SUCCESS**, **373 passed** ; PostgreSQL 16/17.6 encore **IN PROGRESS** au dernier contrôle.
+  - QIMA CI run **#1610** — ID `44368798187` : **CANCELLED** après synchronisation de la PR.
+  - QIMA CI run **#1612** — ID `44369049012` : **CANCELLED** après synchronisation de la PR.
+  - CodeQL run **#1541** — ID `44357332410` : **SUCCESS**.
+  - CodeQL run **#1542** — ID `44368689408` : **SUCCESS**.
+  - CodeQL run **#1543** — ID `44368797950` : **SUCCESS**.
+  - CodeQL run **#1545** — ID `44369049096` : **SUCCESS**.
+- Correction de traçabilité : certains titres intermédiaires de cette exécution utilisaient des numéros séquentiels approximatifs (`CI #1607/#1608/#1609/#1610`). Ils sont supersédés par les `run_number` officiels ci-dessus ; les IDs numériques et URLs GitHub sont conservés comme références.
+- HEAD PR au moment de cette correction : `6bd4c38aeca1c3109982ca808d531cc6a5060308`, PR **OPEN**, **DRAFT**, **UNMERGED**, `mergeable=true`, `mergeable_state=unstable`, 1 987 commits devant `main`, 0 derrière, 265 fichiers modifiés. Le HEAD documentaire ne modifie que le registre ; le test applicatif reste sur `0e743228`.
+- Le statut combiné Vercel du HEAD documentaire était **pending**. Aucun QIMA CI/CodeQL n'était associé à ce SHA documentaire au dernier contrôle ; les validations du commit de test `0e743228` restent suivies sous les runs #1609/#1542.
+- Aucun test local n'a été exécuté. Les annulations de workflow et les conclusions négatives attendues du harness ne sont pas comptées comme échecs des jobs principaux. Aucun test synthétique ou résultat CodeQL seul ne confirme une vulnérabilité.
+- Les décisions MKT-1.1 (`demand_id`/`tenant_id`), MKT-1.2 (idempotence des brouillons indépendants) et MKT-1.3 (canonicalisation numérique) restent en attente d'approbation produit.
+- Aucun SQL, migration, donnée Supabase Production, secret, grant, politique RLS persistante, configuration PostgreSQL, déploiement Production, fusion, force-push ou règle de protection n'a été modifié.
