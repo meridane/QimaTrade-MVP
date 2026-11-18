@@ -679,6 +679,67 @@ test("executeAction supports a valid null-prototype handler registry", async () 
   expect(result).toMatchObject({ executionId: "execution-1", status: "succeeded" });
 });
 
+test("executeAction resolves a frozen non-enumerable handler registry without invoking its get trap", async () => {
+  const context: ActionContext = {
+    userId: "user-1",
+    tenantId: "tenant-1",
+    actionKey: "CREATE_OFFER",
+    actionVersion: 1,
+    objectType: "TestObject",
+    objectId: "object-1",
+    correlationId: "correlation-1",
+    idempotencyKey: "idempotency-1",
+  };
+  const input: ActionInput = { demandId: "demand-1" };
+  const target = Object.create(null) as Record<string, ActionHandler>;
+  let handlerCalls = 0;
+  let getTrapCalls = 0;
+  const handler: ActionHandler = async () => {
+    handlerCalls += 1;
+    return { executionId: "execution-frozen-handler", status: "succeeded" };
+  };
+
+  Object.defineProperty(target, "CREATE_OFFER", {
+    configurable: false,
+    enumerable: false,
+    value: handler,
+    writable: false,
+  });
+  Object.freeze(target);
+  const handlers = new Proxy(target, {
+    get() {
+      getTrapCalls += 1;
+      throw new Error("ACTION_HANDLER_REGISTRY_GET_TRAP_INVOKED");
+    },
+  });
+
+  expect(Object.isFrozen(target)).toBe(true);
+  expect(Object.keys(target)).toEqual([]);
+  expect(Object.getOwnPropertyDescriptor(target, "CREATE_OFFER")).toMatchObject({
+    configurable: false,
+    enumerable: false,
+    value: handler,
+    writable: false,
+  });
+
+  const result = await executeAction(context, input, {
+    getDefinition: async (actionKey, version) => ({
+      actionKey,
+      version,
+      status: "published",
+    }),
+    handlers,
+  });
+
+  expect(getTrapCalls).toBe(0);
+  expect(handlerCalls).toBe(1);
+  expect(result).toMatchObject({
+    executionId: "execution-frozen-handler",
+    status: "succeeded",
+  });
+});
+
+
 
 test("executeAction rejects an inherited handler from a custom prototype", async () => {
   const context: ActionContext = {
