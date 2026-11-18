@@ -2407,3 +2407,62 @@ test("executeAction propagates a throwing custom handler then method without ret
   expect(handlerCalls).toBe(1);
   expect(thenCalls).toBe(1);
 });
+
+test("executeAction treats a non-callable own then property as ordinary ActionResult metadata", async () => {
+  const context: ActionContext = {
+    userId: "user-1",
+    tenantId: "tenant-1",
+    actionKey: "CREATE_OFFER",
+    actionVersion: 1,
+    objectType: "TestObject",
+    objectId: "object-1",
+    correlationId: "correlation-1",
+    idempotencyKey: "idempotency-1",
+  };
+  const input: ActionInput = { demandId: "demand-1" };
+  const expectedResult = Object.defineProperty(
+    {
+      executionId: "execution-non-callable-then",
+      status: "succeeded",
+    },
+    "then",
+    {
+      configurable: false,
+      enumerable: false,
+      value: 42,
+      writable: false,
+    },
+  ) as unknown as ActionResult & { then: number };
+  let definitionLookups = 0;
+  let handlerCalls = 0;
+  const handler = (() => {
+    handlerCalls += 1;
+    return expectedResult as unknown as Promise<ActionResult>;
+  }) as ActionHandler;
+
+  const result = await executeAction(context, input, {
+    getDefinition: async (actionKey, version) => {
+      definitionLookups += 1;
+      return { actionKey, version, status: "published" };
+    },
+    handlers: { CREATE_OFFER: handler },
+  });
+
+  expect(Object.getOwnPropertyDescriptor(expectedResult, "then")).toMatchObject({
+    configurable: false,
+    enumerable: false,
+    value: 42,
+    writable: false,
+  });
+  expect(definitionLookups).toBe(1);
+  expect(handlerCalls).toBe(1);
+  expect(result).not.toBe(expectedResult);
+  expect(result.executionId).toBe("execution-non-callable-then");
+  expect(result.status).toBe("succeeded");
+  expect(Object.getOwnPropertyDescriptor(result, "then")).toMatchObject({
+    configurable: true,
+    enumerable: false,
+    value: 42,
+    writable: true,
+  });
+});
