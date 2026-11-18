@@ -184,6 +184,14 @@ const invalidActionDefinitions: Array<{ label: string; definition: ActionDefinit
     label: "infinite version",
     definition: { actionKey: "CREATE_OFFER", version: Number.POSITIVE_INFINITY, status: "published" },
   },
+  {
+    label: "version below PostgreSQL integer minimum",
+    definition: { actionKey: "CREATE_OFFER", version: -2_147_483_649, status: "published" },
+  },
+  {
+    label: "version above PostgreSQL integer maximum",
+    definition: { actionKey: "CREATE_OFFER", version: 2_147_483_648, status: "published" },
+  },
 ];
 
 for (const invalidCase of invalidActionDefinitions) {
@@ -219,6 +227,41 @@ for (const invalidCase of invalidActionDefinitions) {
 
     expect(definitionLookups).toBe(1);
     expect(handlerCalls).toBe(0);
+  });
+}
+
+const validPostgresIntegerActionVersions = [-2_147_483_648, 2_147_483_647];
+
+for (const version of validPostgresIntegerActionVersions) {
+  test(`executeAction accepts PostgreSQL integer boundary version ${version}`, async () => {
+    const context: ActionContext = {
+      userId: "user-1",
+      tenantId: "tenant-1",
+      actionKey: "CREATE_OFFER",
+      actionVersion: version,
+      objectType: "TestObject",
+      objectId: "object-1",
+      correlationId: "correlation-1",
+      idempotencyKey: "idempotency-1",
+    };
+    let handlerCalls = 0;
+
+    const result = await executeAction(context, { demandId: "demand-1" }, {
+      getDefinition: async (actionKey, requestedVersion) => ({
+        actionKey,
+        version: requestedVersion,
+        status: "published",
+      }),
+      handlers: {
+        CREATE_OFFER: async () => {
+          handlerCalls += 1;
+          return { executionId: "execution-1", status: "succeeded" };
+        },
+      },
+    });
+
+    expect(result).toMatchObject({ executionId: "execution-1", status: "succeeded" });
+    expect(handlerCalls).toBe(1);
   });
 }
 
