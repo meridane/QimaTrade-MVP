@@ -2310,3 +2310,100 @@ test("executeAction accepts a frozen ActionResult with non-enumerable own data f
     });
   }
 });
+
+
+test("executeAction honors the first settlement from a custom handler thenable", async () => {
+  const context: ActionContext = {
+    userId: "user-1",
+    tenantId: "tenant-1",
+    actionKey: "CREATE_OFFER",
+    actionVersion: 1,
+    objectType: "TestObject",
+    objectId: "object-1",
+    correlationId: "correlation-1",
+    idempotencyKey: "idempotency-1",
+  };
+  const expectedResult: ActionResult = {
+    executionId: "execution-thenable-first-settlement",
+    status: "succeeded",
+    objectId: "offer-first-settlement",
+  };
+  const ignoredResult = {
+    executionId: "execution-thenable-ignored-settlement",
+    status: "failed",
+  } as ActionResult;
+  let definitionLookups = 0;
+  let handlerCalls = 0;
+  let thenCalls = 0;
+  const thenable = {
+    then(
+      resolve: (value: ActionResult) => void,
+      reject: (reason?: unknown) => void,
+    ) {
+      thenCalls += 1;
+      resolve(expectedResult);
+      resolve(ignoredResult);
+      reject(new Error("HANDLER_THENABLE_LATE_REJECTION"));
+      throw new Error("HANDLER_THENABLE_THROW_AFTER_RESOLVE");
+    },
+  };
+  const handler = (() => {
+    handlerCalls += 1;
+    return thenable as unknown as Promise<ActionResult>;
+  }) as ActionHandler;
+
+  const result = await executeAction(context, { demandId: "demand-1" }, {
+    getDefinition: async (actionKey, version) => {
+      definitionLookups += 1;
+      return { actionKey, version, status: "published" };
+    },
+    handlers: { CREATE_OFFER: handler },
+  });
+
+  expect(definitionLookups).toBe(1);
+  expect(handlerCalls).toBe(1);
+  expect(thenCalls).toBe(1);
+  expect(result).toEqual(expectedResult);
+  expect(result).not.toBe(expectedResult);
+});
+
+test("executeAction propagates a throwing custom handler then method without retrying", async () => {
+  const context: ActionContext = {
+    userId: "user-1",
+    tenantId: "tenant-1",
+    actionKey: "CREATE_OFFER",
+    actionVersion: 1,
+    objectType: "TestObject",
+    objectId: "object-1",
+    correlationId: "correlation-1",
+    idempotencyKey: "idempotency-1",
+  };
+  const expectedError = new Error("HANDLER_THENABLE_METHOD_THROWN");
+  let definitionLookups = 0;
+  let handlerCalls = 0;
+  let thenCalls = 0;
+  const thenable = {
+    then() {
+      thenCalls += 1;
+      throw expectedError;
+    },
+  };
+  const handler = (() => {
+    handlerCalls += 1;
+    return thenable as unknown as Promise<ActionResult>;
+  }) as ActionHandler;
+
+  await expect(
+    executeAction(context, { demandId: "demand-1" }, {
+      getDefinition: async (actionKey, version) => {
+        definitionLookups += 1;
+        return { actionKey, version, status: "published" };
+      },
+      handlers: { CREATE_OFFER: handler },
+    }),
+  ).rejects.toBe(expectedError);
+
+  expect(definitionLookups).toBe(1);
+  expect(handlerCalls).toBe(1);
+  expect(thenCalls).toBe(1);
+});
