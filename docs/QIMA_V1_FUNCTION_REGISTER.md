@@ -10830,3 +10830,13 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 - QIMA CI [#1582](https://github.com/meridane/QimaTrade-MVP/actions/runs/44279375142), sur `d755d77f`, a été **CANCELLED** alors qu'il était encore en attente ; l'endpoint jobs retourne **zéro job**, donc aucun test n'a échoué ou été exécuté dans ce run. Le run plus récent sur le HEAD `d01f4395` est QIMA CI [#1583](https://github.com/meridane/QimaTrade-MVP/actions/runs/44279534764), actuellement **PENDING**.
 - Sur `d01f4395`, CodeQL [#1516](https://github.com/meridane/QimaTrade-MVP/actions/runs/44279534760) est **IN PROGRESS** et Vercel Preview est **PENDING** ([Preview](https://vercel.com/bmk1/qimatrade-mvp/C9WQrzVan4PX9aVUy7VqLy41wcMy)). Ces contrôles ne sont pas anticipés.
 - Aucun test local n'a été exécuté. Aucun SQL, migration, donnée Supabase Production, secret, grant, politique RLS persistante, déploiement Production, fusion, force-push ou règle de protection n'a été modifié.
+
+---
+
+## Clôture des contrôles CodeQL/Vercel intermédiaires — HEAD `97b42426` — 18 novembre 2026 KST
+
+- CodeQL [#1516](https://github.com/meridane/QimaTrade-MVP/actions/runs/44279534760), job `134716247778`, sur le HEAD code `d01f4395`, a terminé **SUCCESS**. Le statut Vercel Preview du même commit est également **success** ([Preview](https://vercel.com/bmk1/qimatrade-mvp/susNwi3f9mH9wuKicNTHitHwi8wY)).
+- QIMA CI [#1581](https://github.com/meridane/QimaTrade-MVP/actions/runs/44279229628) reste **IN PROGRESS** : Verify `134715196778` exécute les tests navigateur ; PostgreSQL 16 `134715196363` et PostgreSQL 17.6 `134715196843` caractérisent encore les privilèges complets du runner. Aucun échec inattendu n'est observé parmi les étapes terminées.
+- QIMA CI [#1583](https://github.com/meridane/QimaTrade-MVP/actions/runs/44279534764) sur `d01f4395` reste **PENDING** et aucun job n'a encore été créé. Sur le HEAD documentaire `97b42426`, le statut Vercel Preview est **PENDING** ([Preview](https://vercel.com/bmk1/qimatrade-mvp/EtcveF7CCTKRD5e8vnFJnMySEfwF)).
+- Le commit `97b42426` ne modifie que `docs/QIMA_V1_FUNCTION_REGISTER.md`. Les workflows QIMA CI et CodeQL déclarent `paths-ignore: docs/**` ; aucun nouveau run CI/CodeQL n'est attendu pour cette modification documentaire.
+- Les tests locaux n'ont pas été exécutés. Aucun SQL, migration, donnée Supabase Production, secret, grant, politique RLS persistante, déploiement Production, fusion, force-push ou règle de protection n'a été modifié.
