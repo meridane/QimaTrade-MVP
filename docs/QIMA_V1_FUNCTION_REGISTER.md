@@ -11100,3 +11100,17 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 - Après publication documentaire du commit `d0b4cbb9`, le HEAD PR est `d0b4cbb9d94055111732175b17e7ec5e0c4df632`. QIMA CI [#1609](https://github.com/meridane/QimaTrade-MVP/actions/runs/44368798187) était **PENDING**, CodeQL [#1542](https://github.com/meridane/QimaTrade-MVP/actions/runs/44368797950) **IN PROGRESS** et le statut combiné Vercel **pending** ([Preview](https://vercel.com/bmk1/qimatrade-mvp/8AnLbCdbrgaCBBkFBdXTe2u4fDzo)). Aucun résultat final n'est anticipé.
 - La comparaison GitHub après synchronisation confirme 1 983 commits devant `main`, 0 derrière et 265 fichiers modifiés. La PR reste **OPEN**, **DRAFT** et **UNMERGED** ; GitHub indiquait temporairement `mergeable=false` pendant l'enregistrement des nouveaux checks, sans conclusion de conflit confirmée.
 - Cette section est un snapshot intermédiaire. Les résultats des runs #1608 et #1609 seront consignés seulement après lecture de leurs conclusions et journaux.
+
+
+---
+
+## Résultat Verify de CI #1608 et suivi du HEAD documentaire — 19 novembre 2026 KST
+
+- Sur le commit de test `0e743228`, QIMA CI [#1608](https://github.com/meridane/QimaTrade-MVP/actions/runs/44368689346) : le job Verify a terminé **SUCCESS** avec **373 passed (9,2 s)**. npm audit au seuil bloquant `high`, TypeScript et build Next.js ont réussi.
+- Les jobs PostgreSQL 16 et PostgreSQL 17.6 de CI #1608 étaient encore **IN PROGRESS** au dernier contrôle, respectivement pendant l'intégration/concurrence CREATE_OFFER. Les jobs harness setup-failure et cleanup-failure ont les conclusions **failure** attendues ; le job skipped est volontaire ; les assertions de nettoyage dédiées ont réussi. Le run complet n'est donc pas déclaré réussi.
+- CodeQL [#1542](https://github.com/meridane/QimaTrade-MVP/actions/runs/44368689408) a terminé **SUCCESS**.
+- Sur le HEAD documentaire `a0c4164b`, QIMA CI [#1609](https://github.com/meridane/QimaTrade-MVP/actions/runs/44368798187) était **PENDING** sans jobs encore publiés ; le statut combiné Vercel était **pending** ([Preview](https://vercel.com/bmk1/qimatrade-mvp/EpNJuEwHEFvCjNZsgFc9DjgdpW3g)). Le workflow #1608 reste attaché au commit de test précédent `0e743228` ; ses jobs PostgreSQL sont toujours suivis séparément. Aucun résultat n'est anticipé pour #1609 ou Vercel.
+- À ce contrôle, la PR #26 reste **OPEN**, **DRAFT**, **UNMERGED**, avec 1 984 commits devant `main`, 0 derrière et 265 fichiers modifiés. GitHub indiquait `mergeable=false` pendant les validations en cours ; aucun conflit n'a été diagnostiqué à partir de ce seul indicateur.
+- Aucun test local n'a été exécuté. Le résultat de 373 tests confirme le comportement couvert par la suite ; il ne constitue pas une preuve de vulnérabilité. Les tests PostgreSQL/RLS restent limités aux bases jetables et ne prouvent pas les politiques Supabase Production.
+- Les décisions MKT-1.1 (`demand_id`/`tenant_id`), MKT-1.2 (idempotence des brouillons indépendants) et MKT-1.3 (canonicalisation numérique) restent en attente d'approbation produit.
+- Aucun SQL, migration, donnée Supabase Production, secret, grant, politique RLS persistante, configuration PostgreSQL, déploiement Production, fusion, force-push ou règle de protection n'a été modifié.
