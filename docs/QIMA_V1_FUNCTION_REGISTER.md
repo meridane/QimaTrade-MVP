@@ -11090,3 +11090,13 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 - Aucun test local n'a été exécuté. Le test caractérise la propagation d'une exception synchrone dans le contrat du handler ; il ne constitue pas une preuve de vulnérabilité. Les tests PostgreSQL/RLS utilisent des ressources jetables et ne démontrent pas les politiques Supabase Production.
 - Les décisions MKT-1.1 (`demand_id`/`tenant_id`), MKT-1.2 (idempotence des brouillons indépendants) et MKT-1.3 (canonicalisation numérique) restent en attente d'approbation produit.
 - Aucun SQL, migration, donnée Supabase Production, secret, grant, politique RLS persistante, configuration PostgreSQL, déploiement Production, fusion, force-push ou règle de protection n'a été modifié.
+
+
+---
+
+## Suivi des checks déclenchés par le test synchrone — 19 novembre 2026 KST
+
+- Après publication du commit de test `0e743228`, QIMA CI [#1608](https://github.com/meridane/QimaTrade-MVP/actions/runs/44368689346) a démarré. Au contrôle, Verify était en cours à l'installation de Chromium ; PostgreSQL 16 était en cours à l'installation du client ; PostgreSQL 17.6 exécutait les tests d'intégration et de concurrence CREATE_OFFER. Les jobs setup/cleanup négatifs avaient leurs conclusions **failure** attendues, le job skipped était volontaire et les assertions dédiées avaient réussi. Aucun résultat final n'est anticipé.
+- Après publication documentaire du commit `d0b4cbb9`, le HEAD PR est `d0b4cbb9d94055111732175b17e7ec5e0c4df632`. QIMA CI [#1609](https://github.com/meridane/QimaTrade-MVP/actions/runs/44368798187) était **PENDING**, CodeQL [#1542](https://github.com/meridane/QimaTrade-MVP/actions/runs/44368797950) **IN PROGRESS** et le statut combiné Vercel **pending** ([Preview](https://vercel.com/bmk1/qimatrade-mvp/8AnLbCdbrgaCBBkFBdXTe2u4fDzo)). Aucun résultat final n'est anticipé.
+- La comparaison GitHub après synchronisation confirme 1 983 commits devant `main`, 0 derrière et 265 fichiers modifiés. La PR reste **OPEN**, **DRAFT** et **UNMERGED** ; GitHub indiquait temporairement `mergeable=false` pendant l'enregistrement des nouveaux checks, sans conclusion de conflit confirmée.
+- Cette section est un snapshot intermédiaire. Les résultats des runs #1608 et #1609 seront consignés seulement après lecture de leurs conclusions et journaux.
