@@ -2592,7 +2592,7 @@ test("executeAction rejects a Proxy ActionResult when its ownKeys trap throws wi
   let handlerCalls = 0;
   const handler = (() => {
     handlerCalls += 1;
-    return resultProxy;
+    return resultProxy as unknown as Promise<ActionResult>;
   }) as ActionHandler;
 
   await expect(
