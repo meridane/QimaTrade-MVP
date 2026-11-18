@@ -2235,3 +2235,78 @@ for (const scenario of accessorActionResultMetadataCases) {
     expect(getterCalls).toBe(0);
   });
 }
+
+test("executeAction accepts a frozen ActionResult with non-enumerable own data fields", async () => {
+  const context: ActionContext = {
+    userId: "user-1",
+    tenantId: "tenant-1",
+    actionKey: "CREATE_OFFER",
+    actionVersion: 1,
+    objectType: "TestObject",
+    objectId: "object-1",
+    correlationId: "correlation-1",
+    idempotencyKey: "idempotency-1",
+  };
+  const nestedPayload = { source: "frozen-action-result" };
+  const expectedResult = Object.create(null) as ActionResult;
+  Object.defineProperties(expectedResult, {
+    executionId: {
+      configurable: false,
+      enumerable: false,
+      value: "execution-frozen-result",
+      writable: false,
+    },
+    status: {
+      configurable: false,
+      enumerable: false,
+      value: "succeeded",
+      writable: false,
+    },
+    objectId: {
+      configurable: false,
+      enumerable: false,
+      value: "offer-frozen-result",
+      writable: false,
+    },
+    result: {
+      configurable: false,
+      enumerable: false,
+      value: nestedPayload,
+      writable: false,
+    },
+  });
+  Object.freeze(expectedResult);
+
+  let definitionLookups = 0;
+  let handlerCalls = 0;
+  const result = await executeAction(context, { demandId: "demand-1" }, {
+    getDefinition: async (actionKey, version) => {
+      definitionLookups += 1;
+      return { actionKey, version, status: "published" };
+    },
+    handlers: {
+      CREATE_OFFER: async () => {
+        handlerCalls += 1;
+        return expectedResult;
+      },
+    },
+  });
+
+  expect(Object.isFrozen(expectedResult)).toBe(true);
+  expect(Object.keys(expectedResult)).toEqual([]);
+  expect(definitionLookups).toBe(1);
+  expect(handlerCalls).toBe(1);
+  expect(result).not.toBe(expectedResult);
+  expect(Object.getPrototypeOf(result)).toBe(Object.prototype);
+  expect(result.executionId).toBe("execution-frozen-result");
+  expect(result.status).toBe("succeeded");
+  expect(result.objectId).toBe("offer-frozen-result");
+  expect(result.result).toBe(nestedPayload);
+  for (const key of ["executionId", "status", "objectId", "result"] as const) {
+    expect(Object.getOwnPropertyDescriptor(result, key)).toMatchObject({
+      configurable: true,
+      enumerable: false,
+      writable: true,
+    });
+  }
+});
