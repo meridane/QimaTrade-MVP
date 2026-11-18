@@ -11222,3 +11222,16 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 - Aucun test local n'a été exécuté. Le test Proxy caractérise la validation d'un descripteur accessoire et l'absence d'appel du getter ; il ne confirme pas une vulnérabilité. Les tests PostgreSQL/RLS utilisent des bases jetables et ne démontrent pas les politiques Supabase Production.
 - Les décisions MKT-1.1 (demand_id/tenant_id), MKT-1.2 (idempotence des brouillons indépendants) et MKT-1.3 (canonicalisation numérique) restent en attente d'approbation produit.
 - Aucun SQL, migration, donnée Supabase Production, secret, grant, politique RLS persistante, configuration PostgreSQL, déploiement Production, fusion, force-push ou règle de protection n'a été modifié.
+
+---
+
+## Checks du HEAD documentaire 77e048ab — 19 novembre 2026 KST
+
+- État PR vérifié après synchronisation : PR #26 **OPEN**, **DRAFT**, **UNMERGED**, mergeable=true ; branche fix/create-offer-status-contract, base main, **1 995 commits en avance**, 0 derrière et 265 fichiers modifiés. HEAD : 77e048ab759ca7bde9600241283e8c0044cb5d01.
+- QIMA CI [#1621](https://github.com/meridane/QimaTrade-MVP/actions/runs/44391466037) sur le commit de test 6ddb647c conserve Verify **SUCCESS**, **375 passed (10,1 s)**, avec le nouveau test de descripteur Proxy explicitement réussi. Les jobs PostgreSQL 16 et PostgreSQL 17.6 restent **IN PROGRESS**, tous deux sur la caractérisation des privilèges complets du runner CREATE_OFFER ; aucun résultat final n'est anticipé.
+- CodeQL [#1553](https://github.com/meridane/QimaTrade-MVP/actions/runs/44391466016) sur le commit de test est **SUCCESS** et le Preview Vercel du même commit est **SUCCESS**.
+- Sur le HEAD documentaire précédent 7ef8b504, QIMA CI [#1622](https://github.com/meridane/QimaTrade-MVP/actions/runs/44391623971) reste **PENDING** sans jobs publiés au dernier contrôle ; CodeQL [#1554](https://github.com/meridane/QimaTrade-MVP/actions/runs/44391623973) est **SUCCESS**.
+- Sur le HEAD documentaire courant 77e048ab, QIMA CI [#1623](https://github.com/meridane/QimaTrade-MVP/actions/runs/44391861886) est **PENDING** sans jobs publiés, CodeQL [#1555](https://github.com/meridane/QimaTrade-MVP/actions/runs/44391861875) est **IN PROGRESS** et Vercel est **PENDING** ([Preview](https://vercel.com/bmk1/qimatrade-mvp/7JBk3Swi9nkZxbGH3XMDhC6zpohG)). Le filtre paths-ignore docs/** n'empêche pas le workflow PR lorsque le diff cumulatif de la PR contient aussi les tests applicatifs ; les nouveaux runs sont donc suivis explicitement.
+- Aucun test local n'a été exécuté. Le scénario Proxy teste la validation d'un descripteur accessoire et l'absence d'invocation du getter ; il ne confirme pas une vulnérabilité. Les tests PostgreSQL/RLS utilisent des bases jetables et ne démontrent pas les politiques Supabase Production.
+- Les décisions MKT-1.1 (demand_id/tenant_id), MKT-1.2 (idempotence des brouillons indépendants) et MKT-1.3 (canonicalisation numérique) restent en attente d'approbation produit.
+- Aucun SQL, migration, donnée Supabase Production, secret, grant, politique RLS persistante, configuration PostgreSQL, déploiement Production, fusion, force-push ou règle de protection n'a été modifié.
