@@ -11128,3 +11128,17 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 - Les tests synthétiques et CodeQL ne confirment pas seuls une vulnérabilité ; les tests PostgreSQL/RLS utilisent des ressources jetables et ne prouvent pas les politiques Supabase Production.
 - Les décisions MKT-1.1 (`demand_id`/`tenant_id`), MKT-1.2 (idempotence des brouillons indépendants) et MKT-1.3 (canonicalisation numérique) restent en attente d'approbation produit.
 - Aucun SQL, migration, donnée Supabase Production, secret, grant, politique RLS persistante, configuration PostgreSQL, déploiement Production, fusion, force-push ou règle de protection n'a été modifié.
+
+
+---
+
+## Réconciliation après annulation de CI #1610 — 19 novembre 2026 KST
+
+- Le run QIMA CI [#1610](https://github.com/meridane/QimaTrade-MVP/actions/runs/44369049012), déclenché sur le HEAD documentaire précédent `547d2fec`, a finalement été **CANCELLED** après une nouvelle synchronisation de la PR. Cette annulation ne constitue pas un échec de test.
+- CodeQL [#1543](https://github.com/meridane/QimaTrade-MVP/actions/runs/44369049096) sur `547d2fec` était encore **IN PROGRESS** au dernier contrôle ; aucun résultat final n'est anticipé.
+- Sur le commit de test `0e743228`, QIMA CI [#1608](https://github.com/meridane/QimaTrade-MVP/actions/runs/44368689346) conserve Verify **SUCCESS** avec **373 passed (9,2 s)**, npm audit, TypeScript et build Next.js réussis. Les deux jobs PostgreSQL 16 et 17.6 restent **IN PROGRESS**, chacun sur la caractérisation finale des privilèges complets du runner CREATE_OFFER. Le run complet reste donc ouvert. CodeQL [#1542](https://github.com/meridane/QimaTrade-MVP/actions/runs/44368689408) est **SUCCESS**.
+- Le HEAD documentaire courant est maintenant `17abd8e0a4951dda1c4b01713f2bd4bbda796a42`. Aucun run QIMA CI ou CodeQL n'était associé à ce SHA au dernier contrôle, le commit ne modifiant que `docs/**`. Le statut combiné Vercel du HEAD courant était **pending** ([Preview](https://vercel.com/bmk1/qimatrade-mvp/DrAE473SZ9wk3GA4bX6SXvhE7Bj)).
+- GitHub confirme la PR #26 **OPEN**, **DRAFT**, **UNMERGED**, `mergeable=true`, `mergeable_state=unstable`, 1 986 commits devant `main`, 0 derrière et 265 fichiers modifiés. Le statut `unstable` est conservé tel quel pendant les checks actifs ; aucune fusion n'a été tentée.
+- Aucun test local n'a été exécuté. Les échecs attendus du harness et les annulations de workflow sont distingués des échecs des jobs principaux. Aucun résultat synthétique ne suffit à confirmer une vulnérabilité.
+- Les décisions MKT-1.1 (`demand_id`/`tenant_id`), MKT-1.2 (idempotence des brouillons indépendants) et MKT-1.3 (canonicalisation numérique) restent en attente d'approbation produit.
+- Aucun SQL, migration, donnée Supabase Production, secret, grant, politique RLS persistante, configuration PostgreSQL, déploiement Production, fusion, force-push ou règle de protection n'a été modifié.
