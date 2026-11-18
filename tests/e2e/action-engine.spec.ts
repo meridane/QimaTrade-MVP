@@ -2737,3 +2737,67 @@ test("executeAction rejects a Proxy ActionResult when its descriptor trap report
   expect(definitionLookups).toBe(1);
   expect(handlerCalls).toBe(1);
 });
+
+const missingRequiredActionResultDescriptors = ["executionId", "status"] as const;
+
+for (const missingKey of missingRequiredActionResultDescriptors) {
+  test(`executeAction rejects a Proxy ActionResult whose ${missingKey} descriptor is hidden`, async () => {
+    const context: ActionContext = {
+      userId: "user-1",
+      tenantId: "tenant-1",
+      actionKey: "CREATE_OFFER",
+      actionVersion: 1,
+      objectType: "TestObject",
+      objectId: "object-1",
+      correlationId: "correlation-1",
+      idempotencyKey: "idempotency-1",
+    };
+    const input: ActionInput = { demandId: "demand-1" };
+    const target: ActionResult = {
+      executionId: "execution-hidden-required-descriptor",
+      status: "succeeded",
+    };
+    let ownKeysCalls = 0;
+    let descriptorTrapCalls = 0;
+    let getTrapCalls = 0;
+    const resultProxy = new Proxy(target, {
+      ownKeys(object) {
+        ownKeysCalls += 1;
+        return Reflect.ownKeys(object);
+      },
+      getOwnPropertyDescriptor(object, property) {
+        if (property === missingKey) {
+          descriptorTrapCalls += 1;
+          return undefined;
+        }
+        return Reflect.getOwnPropertyDescriptor(object, property);
+      },
+      get(object, property, receiver) {
+        getTrapCalls += 1;
+        return Reflect.get(object, property, receiver);
+      },
+    });
+    let definitionLookups = 0;
+    let handlerCalls = 0;
+    const handler = (() => {
+      handlerCalls += 1;
+      return resultProxy as unknown as Promise<ActionResult>;
+    }) as ActionHandler;
+
+    await expect(
+      executeAction(context, input, {
+        getDefinition: async (actionKey, version) => {
+          definitionLookups += 1;
+          return { actionKey, version, status: "published" };
+        },
+        handlers: { CREATE_OFFER: handler },
+      }),
+    ).rejects.toThrow("ACTION_RESULT_INVALID");
+
+    expect(ownKeysCalls).toBe(1);
+    expect(descriptorTrapCalls).toBe(1);
+    expect(getTrapCalls).toBe(0);
+    expect(definitionLookups).toBe(1);
+    expect(handlerCalls).toBe(1);
+  });
+}
