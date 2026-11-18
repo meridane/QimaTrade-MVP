@@ -11179,3 +11179,17 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 - Aucun test local n'a été exécuté. Le test couvre la conversion d'une exception de réflexion en résultat d'action invalide ; il ne constitue pas une preuve de vulnérabilité. Les tests PostgreSQL/RLS sont exécutés sur des bases jetables et ne démontrent pas les politiques Supabase Production.
 - Les décisions MKT-1.1 (`demand_id`/`tenant_id`), MKT-1.2 (idempotence des brouillons indépendants) et MKT-1.3 (canonicalisation numérique) restent en attente d'approbation produit.
 - Aucun SQL, migration, donnée Supabase Production, secret, grant, politique RLS persistante, configuration PostgreSQL, déploiement Production, fusion, force-push ou règle de protection n'a été modifié.
+
+---
+
+## Réconciliation des checks après correction du cast ActionResult Proxy — 19 novembre 2026 KST
+
+- Le commit correctif `4d0f6dd4` a été suivi par CodeQL [#1550](https://github.com/meridane/QimaTrade-MVP/actions/runs/44385335794), désormais **SUCCESS**.
+- QIMA CI [#1618](https://github.com/meridane/QimaTrade-MVP/actions/runs/44385335587), attachée au commit de code corrigé `4d0f6dd4`, était encore **PENDING** sans jobs publiés au dernier contrôle.
+- Après publication du registre dans le commit `da30c8f6`, les contrôles associés au HEAD documentaire sont QIMA CI [#1619](https://github.com/meridane/QimaTrade-MVP/actions/runs/44385526309) **PENDING** sans jobs publiés, CodeQL [#1551](https://github.com/meridane/QimaTrade-MVP/actions/runs/44385526348) **IN PROGRESS**, et Vercel **PENDING** ([Preview](https://vercel.com/bmk1/qimatrade-mvp/5tcrqPi6iR7f6HTd2aXGzgWm8Ngu)). Aucun résultat final n'est anticipé.
+- QIMA CI [#1617](https://github.com/meridane/QimaTrade-MVP/actions/runs/44385174168) reste en échec sur Verify à cause de TS2352 dans le test avant correction ; npm audit avait réussi et build/Playwright ont été ignorés. Les jobs PostgreSQL 16 et 17.6 n'étaient pas encore terminés au dernier contrôle. Cette exécution est conservée comme échec de validation du commit intermédiaire, pas comme échec du code applicatif.
+- L'état GitHub après publication du registre : PR #26 **OPEN**, **DRAFT**, **UNMERGED**, `mergeable=true`, HEAD `da30c8f65746802a21ddf6f6e5a56e0736258462`, 1 991 commits devant `main`, 0 derrière et 265 fichiers modifiés. La branche de travail et la branche PR sont identiques.
+- Le test `ownKeys` reste non validé par Playwright tant que CI #1618/#1619 n'a pas exécuté Verify. Le nombre **373 passed** de CI #1615 correspond au commit antérieur `b7a8c783` et ne doit pas être présenté comme un résultat du nouveau test.
+- Aucun test local n'a été exécuté. Aucun résultat synthétique ou CodeQL seul ne confirme une vulnérabilité ; les tests PostgreSQL/RLS sont exécutés sur des bases jetables et ne démontrent pas les politiques Supabase Production.
+- Les décisions MKT-1.1 (`demand_id`/`tenant_id`), MKT-1.2 (idempotence des brouillons indépendants) et MKT-1.3 (canonicalisation numérique) restent en attente d'approbation produit.
+- Aucun SQL, migration, donnée Supabase Production, secret, grant, politique RLS persistante, configuration PostgreSQL, déploiement Production, fusion, force-push ou règle de protection n'a été modifié.
