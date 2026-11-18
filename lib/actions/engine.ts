@@ -45,6 +45,7 @@ function normalizeActionDefinition(value: unknown): ActionDefinition | null {
       version === undefined ||
       !Object.prototype.hasOwnProperty.call(version, "value") ||
       typeof version.value !== "number" ||
+      !Number.isInteger(version.value) ||
       status === undefined ||
       !Object.prototype.hasOwnProperty.call(status, "value") ||
       (status.value !== "draft" &&
