@@ -172,6 +172,18 @@ const invalidActionDefinitions: Array<{ label: string; definition: ActionDefinit
     label: "retired",
     definition: { actionKey: "CREATE_OFFER", version: 1, status: "retired" },
   },
+  {
+    label: "fractional version",
+    definition: { actionKey: "CREATE_OFFER", version: 1.5, status: "published" },
+  },
+  {
+    label: "NaN version",
+    definition: { actionKey: "CREATE_OFFER", version: Number.NaN, status: "published" },
+  },
+  {
+    label: "infinite version",
+    definition: { actionKey: "CREATE_OFFER", version: Number.POSITIVE_INFINITY, status: "published" },
+  },
 ];
 
 for (const invalidCase of invalidActionDefinitions) {
