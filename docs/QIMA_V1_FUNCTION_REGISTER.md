@@ -10949,3 +10949,17 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 - Le workflow `.github/workflows/ci.yml` et CodeQL déclarent `paths-ignore: docs/**` pour les événements push/pull_request ; cette mise à jour documentaire seule ne déclenche donc pas de nouvelle QIMA CI ou CodeQL. Le statut Vercel doit être vérifié séparément.
 - Aucun test local n'a été exécuté. Les tests synthétiques, les erreurs SQL négatives et les résultats CodeQL sont interprétés selon leurs assertions et ne confirment pas seuls une vulnérabilité. Les fixtures PostgreSQL/RLS jetables avec rollback ne démontrent pas les politiques Supabase Production.
 - Aucun SQL, migration, donnée Supabase Production, secret, grant, politique RLS persistante, configuration PostgreSQL, déploiement Production, fusion, force-push ou règle de protection n'a été modifié.
+
+
+---
+
+## Snapshot Verify #1595 et clôture CodeQL/Vercel — 18 novembre 2026 KST
+
+- Après le snapshot initial de CI #1595, le job Verify `134828043670` a terminé **SUCCESS**. Le journal complet confirme **367 passed (8,7 s)** ; les deux nouveaux cas `top-level primitive` et `top-level array with valid-looking fields` apparaissent dans l'exécution. npm audit (`AUDIT_OUTCOME=success`), TypeScript, build Next.js, contrats statiques et navigateur ont réussi.
+- CodeQL [#1528](https://github.com/meridane/QimaTrade-MVP/actions/runs/44311948415), job `134828041135`, a terminé **SUCCESS**.
+- Le statut Vercel du HEAD documentaire `6b3f7fc0` est **success** ([Preview](https://vercel.com/bmk1/qimatrade-mvp/34Fx6ihC8Hs81cLYT2iYGUUM8b85)).
+- QIMA CI [#1595](https://github.com/meridane/QimaTrade-MVP/actions/runs/44311948486) reste **IN PROGRESS** uniquement sur les deux jobs PostgreSQL au dernier contrôle : PostgreSQL 16 `134828043789` a terminé 25/47 étapes et exécute `Characterize full CREATE_OFFER runner write privileges on PostgreSQL 16` ; PostgreSQL 17.6 `134828043763` a terminé 25/32 étapes et exécute `Characterize full CREATE_OFFER runner write privileges on PostgreSQL 17.6`. Les étapes terminées visibles sont **SUCCESS** ; aucun résultat final n'est anticipé.
+- Les jobs setup-failure et cleanup-failure du harness ont les conclusions **failure** attendues ; le job skipped est volontaire ; les deux assertions dédiées ont terminé **SUCCESS**. Ils ne sont pas comptés comme des échecs inattendus de l'application.
+- Le HEAD de la PR au moment de ce snapshot est le commit documentaire `6b3f7fc0e84c45af8a76ecfdb4a151986a58104a` ; PR #26 **OPEN**, **DRAFT**, **UNMERGED**, **MERGEABLE**, 1 969 commits devant `main`, 0 derrière, 265 fichiers modifiés. Le commit de test validé par CI #1595 est son parent `d2249b26` ; le commit documentaire seul est exclu des déclencheurs CI et CodeQL par `paths-ignore: docs/**`.
+- Aucun test local n'a été exécuté. Les tests synthétiques, erreurs SQL négatives et analyses CodeQL ne confirment pas seuls une vulnérabilité ; les fixtures PostgreSQL/RLS jetables avec rollback ne démontrent pas les politiques Supabase Production.
+- Aucun code applicatif, SQL, migration, donnée Supabase Production, secret, grant, politique RLS persistante, configuration PostgreSQL, déploiement Production, fusion, force-push ou règle de protection n'a été modifié pendant cette réconciliation.
