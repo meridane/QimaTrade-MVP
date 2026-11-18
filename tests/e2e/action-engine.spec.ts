@@ -384,6 +384,66 @@ test("executeAction accepts an own-field ActionDefinition with a null prototype"
   expect(result).toMatchObject({ executionId: "execution-1", status: "succeeded" });
 });
 
+test("executeAction accepts a frozen ActionDefinition with non-enumerable own data fields", async () => {
+  const context: ActionContext = {
+    userId: "user-1",
+    tenantId: "tenant-1",
+    actionKey: "CREATE_OFFER",
+    actionVersion: 1,
+    objectType: "TestObject",
+    objectId: "object-1",
+    correlationId: "correlation-1",
+    idempotencyKey: "idempotency-1",
+  };
+  const input: ActionInput = { demandId: "demand-1" };
+  const definition = Object.create(null) as ActionDefinition;
+  Object.defineProperties(definition, {
+    actionKey: {
+      configurable: false,
+      enumerable: false,
+      value: "CREATE_OFFER",
+      writable: false,
+    },
+    version: {
+      configurable: false,
+      enumerable: false,
+      value: 1,
+      writable: false,
+    },
+    status: {
+      configurable: false,
+      enumerable: false,
+      value: "published",
+      writable: false,
+    },
+  });
+  Object.freeze(definition);
+
+  let definitionLookups = 0;
+  let handlerCalls = 0;
+  const result = await executeAction(context, input, {
+    getDefinition: async () => {
+      definitionLookups += 1;
+      return definition;
+    },
+    handlers: {
+      CREATE_OFFER: async () => {
+        handlerCalls += 1;
+        return { executionId: "execution-frozen-definition", status: "succeeded" };
+      },
+    },
+  });
+
+  expect(Object.keys(definition)).toEqual([]);
+  expect(Object.isFrozen(definition)).toBe(true);
+  expect(definitionLookups).toBe(1);
+  expect(handlerCalls).toBe(1);
+  expect(result).toMatchObject({
+    executionId: "execution-frozen-definition",
+    status: "succeeded",
+  });
+});
+
 
 const mismatchedActionDefinitions: Array<{ label: string; definition: ActionDefinition }> = [
   {
