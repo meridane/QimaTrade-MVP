@@ -11295,3 +11295,15 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 - Aucun test local n'a été exécuté. Le test Proxy est synthétique et caractérise la validation des descripteurs ainsi que la lecture `then` nécessaire à l'assimilation Promise ; il ne constitue pas une preuve de vulnérabilité. Les tests PostgreSQL/RLS utilisent des bases jetables et ne démontrent pas les politiques Supabase Production.
 - Les décisions MKT-1.1 (`demand_id`/`tenant_id`), MKT-1.2 (idempotence des brouillons indépendants) et MKT-1.3 (canonicalisation numérique) restent en attente d'approbation produit.
 - Aucun SQL, migration, donnée Supabase Production, secret, grant, politique RLS persistante, configuration PostgreSQL, déploiement Production, fusion, force-push ou règle de protection n'a été modifié.
+
+---
+
+## Réconciliation des checks après synchronisation vers le HEAD documentaire 2097fba3 — 19 novembre 2026 KST
+
+- Le push du correctif `3fe4d355` a déclenché QIMA CI [#1630](https://github.com/meridane/QimaTrade-MVP/actions/runs/44409974623), qui est restée **PENDING** sans jobs publiés puis a été **CANCELLED** après la synchronisation suivante de la PR. Cette annulation ne constitue pas un résultat de test.
+- Sur le HEAD documentaire actuel `2097fba327008902298a3dc993a9a933c5f52fbd`, QIMA CI [#1631](https://github.com/meridane/QimaTrade-MVP/actions/runs/44410139155) est **PENDING**, sans jobs publiés au dernier contrôle. Aucun résultat Verify, Playwright ou PostgreSQL n'est anticipé.
+- CodeQL [#1562](https://github.com/meridane/QimaTrade-MVP/actions/runs/44409974567) sur le correctif `3fe4d355` et CodeQL [#1563](https://github.com/meridane/QimaTrade-MVP/actions/runs/44410139025) sur le HEAD documentaire `2097fba3` sont **IN PROGRESS** au dernier contrôle.
+- Le statut Vercel des commits `3fe4d355` et `2097fba3` est **pending** au dernier contrôle. Le statut du commit de test `e41fbce0` reste **success**.
+- QIMA CI [#1628](https://github.com/meridane/QimaTrade-MVP/actions/runs/44409569333) reste **IN PROGRESS** : Verify a terminé **FAILURE** sur les deux assertions incorrectes du compteur de lecture `get` (377 passés, 2 échoués) ; PostgreSQL 16 et 17.6 sont encore actifs sur la caractérisation des privilèges du runner CREATE_OFFER. Le correctif `3fe4d355` attend donc toujours une validation Playwright/CI sur un run non annulé.
+- Aucun test local n'a été exécuté. L'échec de Verify concerne l'attente du test vis-à-vis de l'assimilation Promise et non une défaillance du code applicatif. Les tests synthétiques ne prouvent pas une vulnérabilité ; les tests PostgreSQL/RLS sur bases jetables ne démontrent pas les politiques Supabase Production.
+- Aucun code applicatif, SQL, migration, donnée Supabase Production, secret, grant, politique RLS persistante, configuration PostgreSQL, déploiement Production, fusion, force-push ou règle de protection n'a été modifié.
