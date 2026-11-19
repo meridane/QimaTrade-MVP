@@ -3084,3 +3084,73 @@ test("executeAction normalizes a revoked nested result payload without leaking r
   expect(definitionLookups).toBe(1);
   expect(handlerCalls).toBe(1);
 });
+
+
+const omittedOptionalActionResultOwnKeys = ["objectId", "result"] as const;
+
+for (const omittedKey of omittedOptionalActionResultOwnKeys) {
+  test("executeAction rejects a Proxy ActionResult whose ownKeys trap omits own optional " + omittedKey, async () => {
+    const context: ActionContext = {
+      userId: "user-1",
+      tenantId: "tenant-1",
+      actionKey: "CREATE_OFFER",
+      actionVersion: 1,
+      objectType: "TestObject",
+      objectId: "object-1",
+      correlationId: "correlation-1",
+      idempotencyKey: "idempotency-1",
+    };
+    const input: ActionInput = { demandId: "demand-1" };
+    const target: ActionResult = {
+      executionId: "execution-omitted-optional-own-key-" + omittedKey,
+      status: "succeeded",
+    };
+    if (omittedKey === "objectId") {
+      target.objectId = "offer-omitted-optional-own-key";
+    } else {
+      target.result = { source: "omitted-optional-own-key" };
+    }
+    expect(Object.getOwnPropertyDescriptor(target, omittedKey)?.configurable).toBe(true);
+
+    let ownKeysCalls = 0;
+    const descriptorTrapProperties: PropertyKey[] = [];
+    const getTrapProperties: PropertyKey[] = [];
+    const resultProxy = new Proxy(target, {
+      ownKeys(object) {
+        ownKeysCalls += 1;
+        // Omitting a configurable own key is permitted by the Proxy invariant.
+        return Reflect.ownKeys(object).filter((property) => property !== omittedKey);
+      },
+      getOwnPropertyDescriptor(object, property) {
+        if (property === omittedKey) descriptorTrapProperties.push(property);
+        return Reflect.getOwnPropertyDescriptor(object, property);
+      },
+      get(object, property, receiver) {
+        getTrapProperties.push(property);
+        return Reflect.get(object, property, receiver);
+      },
+    });
+    let definitionLookups = 0;
+    let handlerCalls = 0;
+    const handler = (() => {
+      handlerCalls += 1;
+      return resultProxy as unknown as Promise<ActionResult>;
+    }) as ActionHandler;
+
+    await expect(
+      executeAction(context, input, {
+        getDefinition: async (actionKey, version) => {
+          definitionLookups += 1;
+          return { actionKey, version, status: "published" };
+        },
+        handlers: { CREATE_OFFER: handler },
+      }),
+    ).rejects.toThrow("ACTION_RESULT_INVALID");
+
+    expect(ownKeysCalls).toBe(1);
+    expect(descriptorTrapProperties).toEqual([omittedKey]);
+    expect(getTrapProperties).toEqual(["then"]);
+    expect(definitionLookups).toBe(1);
+    expect(handlerCalls).toBe(1);
+  });
+}
