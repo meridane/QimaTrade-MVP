@@ -2580,6 +2580,36 @@ test("CREATE_OFFER route exposes only the allowlisted SQL error and never leaks 
   expect(domainConflict.requests.map((request) => request.path)).toEqual(expectedPaths);
   expect(domainConflict.requests.every((request) => request.authorization === bearer)).toBe(true);
 
+  const runningConflict = await postCreateOffer(
+    "USD",
+    {},
+    undefined,
+    undefined,
+    "succeeded",
+    bearer,
+    200,
+    200,
+    200,
+    "30000000-0000-4000-8000-000000000001",
+    false,
+    400,
+    200,
+    undefined,
+    "ACTION_ALREADY_RUNNING",
+    undefined,
+    "RUNNING_DETAILS_PRIVATE_SENTINEL",
+    "RUNNING_HINT_PRIVATE_SENTINEL",
+  );
+
+  expect(runningConflict.status).toBe(400);
+  expect(runningConflict.body).toEqual({ error: "ACTION_ALREADY_RUNNING" });
+  expect(runningConflict.wwwAuthenticate).toBeNull();
+  expect(JSON.stringify(runningConflict.body)).not.toMatch(
+    /RUNNING_(?:DETAILS|HINT)_PRIVATE_SENTINEL|XX000/i,
+  );
+  expect(runningConflict.requests.map((request) => request.path)).toEqual(expectedPaths);
+  expect(runningConflict.requests.every((request) => request.authorization === bearer)).toBe(true);
+
   const internalFailure = await postCreateOffer(
     "USD",
     {},
