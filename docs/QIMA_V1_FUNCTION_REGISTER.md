@@ -11443,3 +11443,14 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 - Les deux nouveaux cas et le correctif n'ont pas encore été exécutés par CI/Playwright. La réussite de #1643 valide uniquement le parent `594a5da3` et ne leur est pas attribuée. Une nouvelle validation sera suivie après publication.
 - Le test est synthétique et caractérise la préservation des champs optionnels ; il ne prouve pas une vulnérabilité exploitable. Aucun test local n'a été exécuté.
 - Aucun SQL, migration, donnée Supabase Production, secret, grant, politique RLS persistante, configuration PostgreSQL, déploiement Production, fusion, force-push ou règle de protection n'a été modifié.
+
+---
+
+## 19 novembre 2026 — diagnostic CI #1644 et correction de l'ordre des contrôles optionnels
+
+- QIMA CI [#1644](https://github.com/meridane/QimaTrade-MVP/actions/runs/44478036371) sur le HEAD `2b3aa128` : npm audit, TypeScript, build Next.js et installation Chromium **SUCCESS**. Verify/Playwright **FAILURE** : **387 passed, 1 failed**. L'échec est le test préexistant `executeAction rejects an ActionResult whose optional objectId descriptor is hidden by a Proxy` ; l'assertion de l'ordre des clés observées a reçu `objectId, result` au lieu de `objectId` seulement. Les deux nouveaux tests ownKeys ajoutés dans ce HEAD n'ont pas été identifiés comme la cause de cet échec.
+- Cause précise : le premier correctif calculait `Reflect.has` pour `objectId` et `result` avant de tester le résultat du premier contrôle. Cela supprimait le court-circuit historique : lorsque `objectId` est déjà rejeté, le contrôle `result` ne doit pas être exécuté. Il s'agit d'une régression de séquencement du test/contrat, pas d'un échec npm, TypeScript ou build.
+- Correctif préparé sur la branche de travail : restaurer le rejet immédiat après le contrôle `objectId`, puis contrôler `result` uniquement si le premier contrôle a réussi. La vérification `ownKeys` des champs optionnels propres reste après ces contrôles et continue de rejeter la perte silencieuse de `objectId` ou `result`.
+- CodeQL [#1576](https://github.com/meridane/QimaTrade-MVP/actions/runs/44478036387) a terminé **SUCCESS**. Vercel Preview du HEAD `2b3aa128` était encore **PENDING** au dernier contrôle. PostgreSQL 16 et PostgreSQL 17.6 de #1644 étaient encore **IN PROGRESS** ; leurs résultats ne sont pas anticipés ici.
+- La correction de séquencement et cette entrée documentaire sont sur la branche de travail et ne sont pas encore synchronisées vers la branche PR ; cela évite d'annuler les deux jobs PostgreSQL encore actifs de #1644. Une nouvelle validation sera déclenchée après leur clôture.
+- Aucun test local n'a été exécuté. Le scénario Proxy est synthétique et ne prouve pas une vulnérabilité exploitable. Aucun SQL, migration, donnée Supabase Production, secret, grant, politique RLS persistante, configuration PostgreSQL, déploiement Production, fusion, force-push ou règle de protection n'a été modifié.
