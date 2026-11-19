@@ -11430,3 +11430,16 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 
 ---
 
+
+---
+
+## 19 novembre 2026 — clôture de QIMA CI #1643 et régression ownKeys sur les champs optionnels
+
+- État relu avant modification : PR #26 **OPEN**, **DRAFT**, non fusionnée, `mergeable=true` ; branche `fix/create-offer-status-contract`, base `main`, HEAD `594a5da37dfb3c64331590344a9f2599c0abeb35`, 2 020 commits devant `main`, 0 derrière et 266 fichiers modifiés. Le dernier commit est `594a5da3` (`test(actions): cover revoked nested ActionResult payload`).
+- QIMA CI [#1643](https://github.com/meridane/QimaTrade-MVP/actions/runs/44463862889) sur le HEAD `594a5da3` a terminé **SUCCESS**. Verify : npm audit, TypeScript, build Next.js, installation Chromium et Playwright **386 passed (10,5 s)**. PostgreSQL 16 (job `135356822243`) et PostgreSQL 17.6 (job `135356822649`) ont terminé **SUCCESS**, y compris les tests d'intégration/concurrence CREATE_OFFER, les régressions de replay et la caractérisation des privilèges du runner. Les jobs de harness setup-failure/cleanup-failure ont leurs conclusions négatives simulées attendues ; les assertions qui les contrôlent ont **SUCCESS**. Le job cleanup volontairement skipped reste `skipped`.
+- CodeQL [#1575](https://github.com/meridane/QimaTrade-MVP/actions/runs/44463862977) a terminé **SUCCESS**. Le statut combiné Vercel du HEAD est **success** ([Preview](https://vercel.com/bmk1/qimatrade-mvp/5wXWbtoYq59P1RcNWDumLY5ho5q2)).
+- Nouvelle régression ajoutée dans `tests/e2e/action-engine.spec.ts` pour les champs optionnels `objectId` et `result` : un Proxy possède réellement le champ configurable, `Reflect.has` et `hasOwnProperty` le confirment, mais son piège `ownKeys` omet ce champ. Le comportement natif est permis pour une propriété configurable ; le contrat du normaliseur ne doit toutefois pas accepter silencieusement la perte de ce champ optionnel.
+- Correction ciblée dans `lib/actions/engine.ts` : mémoriser la présence propre des champs optionnels avant l'énumération, capturer une seule fois le tableau `Reflect.ownKeys`, puis rejeter si un champ optionnel propre confirmé n'est pas présent dans cette liste. Les contrôles hérités et la frontière `try/catch` restent conservés ; aucune propriété n'est lue via le piège `get` pendant la normalisation.
+- Les deux nouveaux cas et le correctif n'ont pas encore été exécutés par CI/Playwright. La réussite de #1643 valide uniquement le parent `594a5da3` et ne leur est pas attribuée. Une nouvelle validation sera suivie après publication.
+- Le test est synthétique et caractérise la préservation des champs optionnels ; il ne prouve pas une vulnérabilité exploitable. Aucun test local n'a été exécuté.
+- Aucun SQL, migration, donnée Supabase Production, secret, grant, politique RLS persistante, configuration PostgreSQL, déploiement Production, fusion, force-push ou règle de protection n'a été modifié.
