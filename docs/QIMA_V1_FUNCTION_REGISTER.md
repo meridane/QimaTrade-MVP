@@ -11670,3 +11670,9 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 - QIMA CI [#1666](https://github.com/meridane/QimaTrade-MVP/actions/runs/44634397617) reste **IN PROGRESS** : npm audit, TypeScript et build Next.js sont **SUCCESS** ; l'installation de Chromium est en cours ; Playwright n'a pas encore démarré ; les tests PostgreSQL 16 et 17.6 sont actifs. Les deux jobs de simulation setup-failure/cleanup-failure ont leurs échecs intentionnels attendus et leurs assertions de contrôle sont **SUCCESS** ; le job volontairement `skipped` est attendu.
 - Le statut Vercel du HEAD documentaire final est encore **PENDING** ([Preview](https://vercel.com/bmk1/qimatrade-mvp/7CNcCrhwov5EE47RxdBt69zEhZEC)). Le commit documentaire final ne change pas le code/test ; les workflows CI configurés avec `paths-ignore: docs/**` restent associés au commit de test `e74dcb69`.
 - Aucun résultat Playwright ou PostgreSQL final n'est anticipé à ce stade.
+
+### Résultat Verify — QIMA CI #1666
+
+- Le job Verify [#1666](https://github.com/meridane/QimaTrade-MVP/actions/runs/44634397617/job/135949067430) est maintenant **SUCCESS**. Son journal confirme **395 Playwright passed**, ainsi que npm audit, TypeScript, build Next.js et Chromium réussis. Le test de trimming avec tabulation et saut de ligne est donc inclus dans les 395 réussites.
+- PostgreSQL 16 (job `135949068072`) et PostgreSQL 17.6 (job `135949067897`) restent **IN PROGRESS** ; les tests d'intégration/concurrence et les caractérisations de catalogues/privilèges se poursuivent. La conclusion globale CI #1666 reste **IN PROGRESS**.
+- CodeQL #1597 reste **SUCCESS**. Vercel Preview du HEAD documentaire final reste **PENDING**. Les résultats PostgreSQL ne sont pas anticipés.
