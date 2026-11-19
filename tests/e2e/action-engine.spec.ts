@@ -2980,3 +2980,57 @@ for (const hiddenKey of hiddenOptionalActionResultDescriptorKeys) {
     expect(handlerCalls).toBe(1);
   });
 }
+
+test("executeAction normalizes duplicate keys returned by a Proxy ActionResult ownKeys trap", async () => {
+  const context: ActionContext = {
+    userId: "user-1",
+    tenantId: "tenant-1",
+    actionKey: "CREATE_OFFER",
+    actionVersion: 1,
+    objectType: "TestObject",
+    objectId: "object-1",
+    correlationId: "correlation-1",
+    idempotencyKey: "idempotency-1",
+  };
+  const input: ActionInput = { demandId: "demand-1" };
+  const target: ActionResult = {
+    executionId: "execution-duplicate-own-keys",
+    status: "succeeded",
+  };
+  Object.defineProperty(target, "executionId", { configurable: false });
+
+  let ownKeysCalls = 0;
+  const getTrapProperties: PropertyKey[] = [];
+  const resultProxy = new Proxy(target, {
+    ownKeys() {
+      ownKeysCalls += 1;
+      // Duplicate keys violate the native Proxy ownKeys invariant.
+      return ["executionId", "executionId", "status"];
+    },
+    get(object, property, receiver) {
+      getTrapProperties.push(property);
+      return Reflect.get(object, property, receiver);
+    },
+  });
+  let definitionLookups = 0;
+  let handlerCalls = 0;
+  const handler = (() => {
+    handlerCalls += 1;
+    return resultProxy as unknown as Promise<ActionResult>;
+  }) as ActionHandler;
+
+  await expect(
+    executeAction(context, input, {
+      getDefinition: async (actionKey, version) => {
+        definitionLookups += 1;
+        return { actionKey, version, status: "published" };
+      },
+      handlers: { CREATE_OFFER: handler },
+    }),
+  ).rejects.toThrow("ACTION_RESULT_INVALID");
+
+  expect(ownKeysCalls).toBe(1);
+  expect(getTrapProperties).toEqual(["then"]);
+  expect(definitionLookups).toBe(1);
+  expect(handlerCalls).toBe(1);
+});
