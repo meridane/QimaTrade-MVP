@@ -435,26 +435,73 @@ test("CREATE_OFFER route preserves the failed execution result and maps it to HT
   expect(executionCalls).toHaveLength(1);
 });
 
-test("CREATE_OFFER route preserves the stored FAILED idempotency replay payload and maps it to HTTP 409", async () => {
+test("CREATE_OFFER route replays the stored FAILED idempotency result unchanged and maps both attempts to HTTP 409", async () => {
+  const bearer = "Bearer qima-route-test-token";
+  const idempotencyKey = "qa429-failed-replay-http-contract";
   const failedReplayResult = {
     executionId: "10000000-0000-4000-8000-000000000063",
     status: "failed",
     error: "FIXTURE_FAILURE",
   };
-  const result = await postCreateOffer("USD", {
-    __rpcResultOverride: failedReplayResult,
-  });
-
-  expect(result.status, JSON.stringify({ body: result.body, requests: result.requests })).toBe(409);
-  expect(result.body).toEqual(failedReplayResult);
-  expect(result.wwwAuthenticate).toBeNull();
-  expect(result.requests.map((request) => request.path)).toEqual([
+  const expectedPaths = [
     "/auth/v1/user",
     "/rest/v1/profiles",
     "/rest/v1/dt_memberships",
     "/rest/v1/rpc/get_action_definition_v1",
     "/rest/v1/rpc/execute_create_offer_v1",
-  ]);
+  ];
+  const replayState: CreateOfferReplayState = {
+    committed: false,
+    result: null,
+    createCount: 0,
+    replayCount: 0,
+    firstRpcInput: null,
+    replayRpcInput: null,
+  };
+  const invoke = () =>
+    postCreateOffer(
+      "USD",
+      { idempotencyKey, __rpcResultOverride: failedReplayResult },
+      undefined,
+      undefined,
+      "failed",
+      bearer,
+      200,
+      200,
+      200,
+      undefined,
+      false,
+      200,
+      200,
+      undefined,
+      undefined,
+      undefined,
+      null,
+      null,
+      null,
+      null,
+      false,
+      false,
+      replayState,
+    );
+
+  const firstAttempt = await invoke();
+  expect(firstAttempt.status, JSON.stringify({ body: firstAttempt.body, requests: firstAttempt.requests })).toBe(409);
+  expect(firstAttempt.body).toEqual(failedReplayResult);
+  expect(firstAttempt.wwwAuthenticate).toBeNull();
+  expect(firstAttempt.requests.map((request) => request.path)).toEqual(expectedPaths);
+  expect(firstAttempt.requests.filter((request) => request.path === "/rest/v1/rpc/execute_create_offer_v1")).toHaveLength(1);
+  expect(replayState).toMatchObject({ committed: true, createCount: 1, replayCount: 0 });
+  expect(replayState.firstRpcInput).toMatchObject({ p_idempotency_key: idempotencyKey });
+
+  const replayAttempt = await invoke();
+  expect(replayAttempt.status, JSON.stringify({ body: replayAttempt.body, requests: replayAttempt.requests })).toBe(409);
+  expect(replayAttempt.body).toEqual(failedReplayResult);
+  expect(replayAttempt.wwwAuthenticate).toBeNull();
+  expect(replayAttempt.requests.map((request) => request.path)).toEqual(expectedPaths);
+  expect(replayAttempt.requests.filter((request) => request.path === "/rest/v1/rpc/execute_create_offer_v1")).toHaveLength(1);
+  expect(replayState).toMatchObject({ committed: true, createCount: 1, replayCount: 1 });
+  expect(replayState.replayRpcInput).toEqual(replayState.firstRpcInput);
 });
 
 
