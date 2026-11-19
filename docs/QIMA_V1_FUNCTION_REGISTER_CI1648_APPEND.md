@@ -31,3 +31,14 @@ This is a contract/regression test for the implementation's stated metadata-pres
 - CodeQL and Vercel checks for the new commit must be read from GitHub after publication.
 - No local Playwright or TypeScript command was run in this execution; CI is the validation source.
 - No Supabase Production data, migrations, secrets, grants, persistent RLS policies, production deployment, merge, force-push, or branch-protection settings were changed.
+
+## First post-push check — 2026-11-19 19:33 KST
+
+The test commit `d950c489404a587040f298c18b859ee456e1c599` was fast-forwarded to the PR branch after confirming the PR head still matched the expected parent `41106e37`.
+
+- QIMA CI [#1648](https://github.com/meridane/QimaTrade-MVP/actions/runs/44506935597): **IN PROGRESS**. Verify completed workflow preflight checks, dependency installation, npm audit, TypeScript and Next.js production build successfully; Chromium and Playwright were still pending at this check. PostgreSQL 16 and 17.6 jobs were active.
+- CodeQL [#1580](https://github.com/meridane/QimaTrade-MVP/actions/runs/44506935629): **IN PROGRESS**.
+- Vercel status for the test commit: **PENDING**.
+- The prepared-transaction setup-failure and cleanup-failure jobs report their intentional simulated failures; the dedicated assertion jobs succeeded. The intentionally skipped harness assertion also succeeded.
+- No final Playwright or PostgreSQL result is claimed here. The test count is not inferred until the browser job finishes.
+- The canonical register file is too large for the connected file reader to return its content (the reader returned an empty body with a valid blob SHA). This append-only companion is used rather than attempting an unsafe whole-file replacement. CI and CodeQL ignore `docs/**`, so this documentation-only update does not invalidate the active code validation.
