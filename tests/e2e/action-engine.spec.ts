@@ -2801,3 +2801,52 @@ for (const missingKey of missingRequiredActionResultDescriptors) {
     expect(handlerCalls).toBe(1);
   });
 }
+
+test("executeAction normalizes a throwing required ActionResult descriptor trap", async () => {
+  const context: ActionContext = {
+    userId: "user-1",
+    tenantId: "tenant-1",
+    actionKey: "CREATE_OFFER",
+    actionVersion: 1,
+    objectType: "TestObject",
+    objectId: "object-1",
+    correlationId: "correlation-1",
+    idempotencyKey: "idempotency-1",
+  };
+  const input: ActionInput = { demandId: "demand-1" };
+  const reflectionError = new Error("ACTION_RESULT_DESCRIPTOR_TRAP");
+  const target: ActionResult = {
+    executionId: "execution-descriptor-trap",
+    status: "succeeded",
+  };
+  let descriptorTrapCalls = 0;
+  let definitionLookups = 0;
+  let handlerCalls = 0;
+  const resultProxy = new Proxy(target, {
+    getOwnPropertyDescriptor(object, property) {
+      if (property === "executionId") {
+        descriptorTrapCalls += 1;
+        throw reflectionError;
+      }
+      return Reflect.getOwnPropertyDescriptor(object, property);
+    },
+  });
+  const handler = (() => {
+    handlerCalls += 1;
+    return resultProxy as unknown as Promise<ActionResult>;
+  }) as ActionHandler;
+
+  await expect(
+    executeAction(context, input, {
+      getDefinition: async (actionKey, version) => {
+        definitionLookups += 1;
+        return { actionKey, version, status: "published" };
+      },
+      handlers: { CREATE_OFFER: handler },
+    }),
+  ).rejects.toThrow("ACTION_RESULT_INVALID");
+
+  expect(descriptorTrapCalls).toBe(1);
+  expect(definitionLookups).toBe(1);
+  expect(handlerCalls).toBe(1);
+});
