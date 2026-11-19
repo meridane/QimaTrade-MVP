@@ -18,7 +18,7 @@ async function postCreateOffer(
   currency: unknown,
   overrides: Record<string, unknown> = {},
   rawBody?: string,
-  membershipRows: Array<{ tenant_id: string | null }> = [{ tenant_id: "20000000-0000-4000-8000-000000000001" }],
+  membershipRows: Array<{ tenant_id?: unknown }> = [{ tenant_id: "20000000-0000-4000-8000-000000000001" }],
   rpcStatus = "succeeded",
   authorizationHeader: string | null = "Bearer qima-route-test-token",
   authStatus: number | "network-error" = 200,
@@ -1241,7 +1241,22 @@ test("CREATE_OFFER route rejects membership rows without a non-empty tenant ID",
     { label: "null-only", rows: [{ tenant_id: null }] },
     { label: "blank-only", rows: [{ tenant_id: "" }] },
     { label: "whitespace-only", rows: [{ tenant_id: "   " }] },
-    { label: "null-blank-and-whitespace", rows: [{ tenant_id: null }, { tenant_id: "" }, { tenant_id: "   " }] },
+    { label: "numeric-only", rows: [{ tenant_id: 42 }] },
+    { label: "boolean-only", rows: [{ tenant_id: false }] },
+    { label: "object-only", rows: [{ tenant_id: { id: "20000000-0000-4000-8000-000000000001" } }] },
+    { label: "array-only", rows: [{ tenant_id: ["20000000-0000-4000-8000-000000000001"] }] },
+    { label: "missing-tenant-id-only", rows: [{}] },
+    {
+      label: "mixed-invalid-values",
+      rows: [
+        { tenant_id: null },
+        { tenant_id: "" },
+        { tenant_id: "   " },
+        { tenant_id: 42 },
+        { tenant_id: false },
+        { tenant_id: { id: "20000000-0000-4000-8000-000000000001" } },
+      ],
+    },
   ];
 
   for (const { label, rows } of invalidMembershipSets) {
@@ -1366,6 +1381,25 @@ test("CREATE_OFFER route ignores whitespace-only membership rows when one valid 
     { tenant_id: "   " },
     { tenant_id: tenantId },
     { tenant_id: "\t" },
+  ]);
+
+  expect(result.status, JSON.stringify({ body: result.body, requests: result.requests })).toBe(200);
+  const executionCalls = result.requests.filter(
+    (request) => request.path === "/rest/v1/rpc/execute_create_offer_v1",
+  );
+  expect(executionCalls).toHaveLength(1);
+  expect(executionCalls[0].body?.p_tenant_id).toBe(tenantId);
+});
+
+test("CREATE_OFFER route ignores non-string membership tenant IDs when one valid tenant remains", async () => {
+  const tenantId = "20000000-0000-4000-8000-000000000001";
+  const result = await postCreateOffer("USD", {}, undefined, [
+    { tenant_id: 42 },
+    { tenant_id: false },
+    { tenant_id: { id: tenantId } },
+    { tenant_id: [tenantId] },
+    { tenant_id: tenantId },
+    {},
   ]);
 
   expect(result.status, JSON.stringify({ body: result.body, requests: result.requests })).toBe(200);
