@@ -1293,9 +1293,17 @@ test("CREATE_OFFER route requires explicit tenant selection even when the client
   ]);
 
   expect(result.status).toBe(409);
-  expect(result.body).toMatchObject({ error: "TENANT_SELECTION_REQUIRED" });
-  expect(result.requests.some((request) => request.path === "/rest/v1/dt_memberships")).toBe(true);
-  expect(result.requests.some((request) => request.path.startsWith("/rest/v1/rpc/"))).toBe(false);
+  expect(result.body).toEqual({
+    error: "TENANT_SELECTION_REQUIRED",
+    message: "Select an active tenant before creating an offer.",
+  });
+  expect(result.wwwAuthenticate).toBeNull();
+  expect(result.requests.map((request) => request.path)).toEqual([
+    "/auth/v1/user",
+    "/rest/v1/profiles",
+    "/rest/v1/dt_memberships",
+  ]);
+  expect(result.requests.every((request) => request.authorization === "Bearer qima-route-test-token")).toBe(true);
 });
 
 test("CREATE_OFFER route ignores a client-supplied tenantId when exactly one membership exists", async () => {
