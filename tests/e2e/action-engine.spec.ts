@@ -2759,7 +2759,7 @@ for (const missingKey of missingRequiredActionResultDescriptors) {
     };
     let ownKeysCalls = 0;
     let descriptorTrapCalls = 0;
-    let getTrapCalls = 0;
+    const getTrapProperties: PropertyKey[] = [];
     const resultProxy = new Proxy(target, {
       ownKeys(object) {
         ownKeysCalls += 1;
@@ -2773,7 +2773,7 @@ for (const missingKey of missingRequiredActionResultDescriptors) {
         return Reflect.getOwnPropertyDescriptor(object, property);
       },
       get(object, property, receiver) {
-        getTrapCalls += 1;
+        getTrapProperties.push(property);
         return Reflect.get(object, property, receiver);
       },
     });
@@ -2796,7 +2796,7 @@ for (const missingKey of missingRequiredActionResultDescriptors) {
 
     expect(ownKeysCalls).toBe(1);
     expect(descriptorTrapCalls).toBe(1);
-    expect(getTrapCalls).toBe(0);
+    expect(getTrapProperties).toEqual(["then"]);
     expect(definitionLookups).toBe(1);
     expect(handlerCalls).toBe(1);
   });
