@@ -2850,3 +2850,56 @@ test("executeAction normalizes a throwing required ActionResult descriptor trap"
   expect(definitionLookups).toBe(1);
   expect(handlerCalls).toBe(1);
 });
+
+const throwingOptionalActionResultPresenceKeys = ["objectId", "result"] as const;
+
+for (const throwingKey of throwingOptionalActionResultPresenceKeys) {
+  test("executeAction normalizes a throwing ActionResult has trap for optional " + throwingKey, async () => {
+    const context: ActionContext = {
+      userId: "user-1",
+      tenantId: "tenant-1",
+      actionKey: "CREATE_OFFER",
+      actionVersion: 1,
+      objectType: "TestObject",
+      objectId: "object-1",
+      correlationId: "correlation-1",
+      idempotencyKey: "idempotency-1",
+    };
+    const input: ActionInput = { demandId: "demand-1" };
+    const reflectionError = new Error("ACTION_RESULT_HAS_TRAP");
+    const target: ActionResult = {
+      executionId: "execution-has-trap",
+      status: "succeeded",
+    };
+    const hasTrapProperties: PropertyKey[] = [];
+    const resultProxy = new Proxy(target, {
+      has(object, property) {
+        hasTrapProperties.push(property);
+        if (property === throwingKey) throw reflectionError;
+        return Reflect.has(object, property);
+      },
+    });
+    let definitionLookups = 0;
+    let handlerCalls = 0;
+    const handler = (() => {
+      handlerCalls += 1;
+      return resultProxy as unknown as Promise<ActionResult>;
+    }) as ActionHandler;
+
+    await expect(
+      executeAction(context, input, {
+        getDefinition: async (actionKey, version) => {
+          definitionLookups += 1;
+          return { actionKey, version, status: "published" };
+        },
+        handlers: { CREATE_OFFER: handler },
+      }),
+    ).rejects.toThrow("ACTION_RESULT_INVALID");
+
+    expect(hasTrapProperties).toEqual(
+      throwingKey === "objectId" ? ["objectId"] : ["objectId", "result"],
+    );
+    expect(definitionLookups).toBe(1);
+    expect(handlerCalls).toBe(1);
+  });
+}
