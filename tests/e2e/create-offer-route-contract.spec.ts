@@ -1346,18 +1346,21 @@ test("CREATE_OFFER route ignores a client-supplied tenantId when exactly one mem
 });
 
 
-test("CREATE_OFFER route treats duplicate membership rows for the same tenant as one tenant", async () => {
+test("CREATE_OFFER route trims membership tenant IDs before deduplicating the same tenant", async () => {
   const tenantId = "20000000-0000-4000-8000-000000000001";
   const result = await postCreateOffer("USD", {}, undefined, [
     { tenant_id: tenantId },
-    { tenant_id: tenantId },
+    { tenant_id: ` ${tenantId} ` },
+    { tenant_id: `\t${tenantId}\n` },
   ]);
 
   expect(result.status, JSON.stringify({ body: result.body, requests: result.requests })).toBe(200);
   expect(result.body).toMatchObject({ status: "succeeded" });
-  expect(
-    result.requests.some((request) => request.path === "/rest/v1/rpc/execute_create_offer_v1"),
-  ).toBe(true);
+  const executionCalls = result.requests.filter(
+    (request) => request.path === "/rest/v1/rpc/execute_create_offer_v1",
+  );
+  expect(executionCalls).toHaveLength(1);
+  expect(executionCalls[0].body?.p_tenant_id).toBe(tenantId);
 });
 
 test("CREATE_OFFER route ignores null membership rows when one valid tenant remains", async () => {
