@@ -707,7 +707,7 @@ test("executeAction resolves a frozen non-enumerable handler registry without in
   });
   Object.freeze(target);
   const handlers = new Proxy(target, {
-    get() {
+    get(_target, property) {
       getTrapProperties.push(property);
       throw new Error("ACTION_HANDLER_REGISTRY_GET_TRAP_INVOKED");
     },
@@ -731,7 +731,7 @@ test("executeAction resolves a frozen non-enumerable handler registry without in
     handlers,
   });
 
-  expect(getTrapProperties).toEqual(["then"]);
+  expect(getTrapProperties).toEqual([]);
   expect(handlerCalls).toBe(1);
   expect(result).toMatchObject({
     executionId: "execution-frozen-handler",
