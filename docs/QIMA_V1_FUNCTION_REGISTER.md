@@ -11385,3 +11385,15 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 - Au moment de ce snapshot, ces deux nouveaux cas n'ont pas encore été exécutés par CI. Le résultat de #1638 valide le parent et ne doit pas être attribué à cette nouvelle modification. La nouvelle validation sera demandée après publication du commit de test.
 - Les tests Proxy sont synthétiques et caractérisent la normalisation des erreurs de réflexion ; ils ne prouvent pas une vulnérabilité exploitable. Aucun test local n'a été exécuté.
 - Aucun SQL, migration, donnée Supabase Production, secret, grant, politique RLS persistante, configuration PostgreSQL, déploiement Production, fusion, force-push ou règle de protection n'a été modifié.
+
+
+---
+
+## 19 novembre 2026 — clôture de QIMA CI #1639 et contrôle des descripteurs optionnels ActionResult — 12:43 KST
+
+- État relu avant modification : PR #26 OPEN, DRAFT, non fusionnée, mergeable=true ; branche fix/create-offer-status-contract, base main, HEAD 460bf30e5d8a7c8203351ae59d833ef231ef0f40, 2 016 commits devant main, 0 derrière et 266 fichiers modifiés. Le commit HEAD couvre les pièges Proxy `has` qui lèvent pour les champs optionnels `objectId` et `result`.
+- QIMA CI #1639 (https://github.com/meridane/QimaTrade-MVP/actions/runs/44449110538) sur le HEAD 460bf30e a terminé SUCCESS. Verify : npm audit, TypeScript, build Next.js et Chromium SUCCESS ; Playwright 382 passed (14,6 s). CREATE_OFFER PostgreSQL 16 et PostgreSQL 17.6 SUCCESS. Les deux jobs de harness qui simulent volontairement un échec setup/cleanup ont la conclusion failure attendue ; les assertions de contrôle ont réussi. CodeQL #1571 (https://github.com/meridane/QimaTrade-MVP/actions/runs/44449110426) SUCCESS ; Preview Vercel du HEAD SUCCESS (https://vercel.com/bmk1/qimatrade-mvp/8wsSz21r7K536b7w1kbViR5E7azG).
+- Nouvelle tâche non bloquante préparée sur la branche de travail work/action-result-optional-descriptor-hidden-20261119-1243 : deux cas paramétrés dans tests/e2e/action-engine.spec.ts vérifient que le piège Proxy `getOwnPropertyDescriptor` peut masquer un champ optionnel propre configurable (`objectId` ou `result`) alors que `Reflect.has` le voit toujours. Le contrat attendu est `ACTION_RESULT_INVALID` avant l'énumération des clés ; le test vérifie l'ordre des contrôles, l'absence d'appel à `ownKeys`, la seule lecture native `then`, un lookup de définition et un appel du handler.
+- Les deux nouveaux cas n'ont pas encore été exécutés par CI. Les 382 tests de #1639 valident uniquement le parent 460bf30e et ne sont pas attribués à ces modifications. Une nouvelle validation sera demandée après fast-forward de la branche de travail vers la branche PR.
+- Les tests Proxy restent synthétiques et ne prouvent pas une vulnérabilité exploitable. Aucun test local n'a été exécuté. Les validations PostgreSQL utilisent des environnements de test et ne démontrent pas les données ou politiques Supabase Production.
+- Aucun code applicatif, SQL, migration, donnée Supabase Production, secret, grant, politique RLS persistante, configuration PostgreSQL, déploiement Production, fusion, force-push ou règle de protection n'a été modifié.

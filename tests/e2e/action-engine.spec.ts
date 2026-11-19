@@ -2903,3 +2903,80 @@ for (const throwingKey of throwingOptionalActionResultPresenceKeys) {
     expect(handlerCalls).toBe(1);
   });
 }
+
+
+const hiddenOptionalActionResultDescriptorKeys = ["objectId", "result"] as const;
+
+for (const hiddenKey of hiddenOptionalActionResultDescriptorKeys) {
+  test(`executeAction rejects an ActionResult whose optional ${hiddenKey} descriptor is hidden by a Proxy`, async () => {
+    const context: ActionContext = {
+      userId: "user-1",
+      tenantId: "tenant-1",
+      actionKey: "CREATE_OFFER",
+      actionVersion: 1,
+      objectType: "TestObject",
+      objectId: "object-1",
+      correlationId: "correlation-1",
+      idempotencyKey: "idempotency-1",
+    };
+    const input: ActionInput = { demandId: "demand-1" };
+    const target: ActionResult = {
+      executionId: `execution-hidden-optional-descriptor-${hiddenKey}`,
+      status: "succeeded",
+      objectId: "offer-hidden-optional-descriptor",
+      result: { source: "hidden-optional-descriptor" },
+    };
+    expect(Object.getOwnPropertyDescriptor(target, hiddenKey)?.configurable).toBe(true);
+
+    const hasTrapProperties: PropertyKey[] = [];
+    const descriptorTrapProperties: PropertyKey[] = [];
+    const getTrapProperties: PropertyKey[] = [];
+    let ownKeysCalls = 0;
+    let definitionLookups = 0;
+    let handlerCalls = 0;
+    const resultProxy = new Proxy(target, {
+      has(object, property) {
+        hasTrapProperties.push(property);
+        return Reflect.has(object, property);
+      },
+      getOwnPropertyDescriptor(object, property) {
+        if (property === "objectId" || property === "result") {
+          descriptorTrapProperties.push(property);
+        }
+        if (property === hiddenKey) return undefined;
+        return Reflect.getOwnPropertyDescriptor(object, property);
+      },
+      get(object, property, receiver) {
+        getTrapProperties.push(property);
+        return Reflect.get(object, property, receiver);
+      },
+      ownKeys(object) {
+        ownKeysCalls += 1;
+        return Reflect.ownKeys(object);
+      },
+    });
+    const handler = (() => {
+      handlerCalls += 1;
+      return resultProxy as unknown as Promise<ActionResult>;
+    }) as ActionHandler;
+
+    await expect(
+      executeAction(context, input, {
+        getDefinition: async (actionKey, version) => {
+          definitionLookups += 1;
+          return { actionKey, version, status: "published" };
+        },
+        handlers: { CREATE_OFFER: handler },
+      }),
+    ).rejects.toThrow("ACTION_RESULT_INVALID");
+
+    const expectedCheckedKeys =
+      hiddenKey === "objectId" ? ["objectId"] : ["objectId", "result"];
+    expect(hasTrapProperties).toEqual(expectedCheckedKeys);
+    expect(descriptorTrapProperties).toEqual(expectedCheckedKeys);
+    expect(getTrapProperties).toEqual(["then"]);
+    expect(ownKeysCalls).toBe(0);
+    expect(definitionLookups).toBe(1);
+    expect(handlerCalls).toBe(1);
+  });
+}
