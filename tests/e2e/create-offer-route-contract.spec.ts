@@ -435,6 +435,29 @@ test("CREATE_OFFER route preserves the failed execution result and maps it to HT
   expect(executionCalls).toHaveLength(1);
 });
 
+test("CREATE_OFFER route preserves the stored FAILED idempotency replay payload and maps it to HTTP 409", async () => {
+  const failedReplayResult = {
+    executionId: "10000000-0000-4000-8000-000000000063",
+    status: "failed",
+    error: "FIXTURE_FAILURE",
+  };
+  const result = await postCreateOffer("USD", {
+    __rpcResultOverride: failedReplayResult,
+  });
+
+  expect(result.status, JSON.stringify({ body: result.body, requests: result.requests })).toBe(409);
+  expect(result.body).toEqual(failedReplayResult);
+  expect(result.wwwAuthenticate).toBeNull();
+  expect(result.requests.map((request) => request.path)).toEqual([
+    "/auth/v1/user",
+    "/rest/v1/profiles",
+    "/rest/v1/dt_memberships",
+    "/rest/v1/rpc/get_action_definition_v1",
+    "/rest/v1/rpc/execute_create_offer_v1",
+  ]);
+});
+
+
 test("CREATE_OFFER route masks unsupported execution statuses as generic internal failures", async () => {
   for (const unsupportedStatus of ["pending", "running", "completed", ""]) {
     const result = await postCreateOffer("USD", {}, undefined, undefined, unsupportedStatus);
