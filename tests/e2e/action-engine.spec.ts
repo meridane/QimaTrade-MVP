@@ -3034,3 +3034,53 @@ test("executeAction normalizes duplicate keys returned by a Proxy ActionResult o
   expect(definitionLookups).toBe(1);
   expect(handlerCalls).toBe(1);
 });
+
+
+test("executeAction normalizes a revoked nested result payload without leaking reflection errors", async () => {
+  const context: ActionContext = {
+    userId: "user-1",
+    tenantId: "tenant-1",
+    actionKey: "CREATE_OFFER",
+    actionVersion: 1,
+    objectType: "TestObject",
+    objectId: "object-1",
+    correlationId: "correlation-1",
+    idempotencyKey: "idempotency-1",
+  };
+  const input: ActionInput = { demandId: "demand-1" };
+  let nestedGetTrapCalls = 0;
+  const revocablePayload = Proxy.revocable([], {
+    get(object, property, receiver) {
+      nestedGetTrapCalls += 1;
+      return Reflect.get(object, property, receiver);
+    },
+  });
+  revocablePayload.revoke();
+
+  const handlerResult = {
+    executionId: "execution-revoked-nested-result",
+    status: "succeeded",
+    result: revocablePayload.proxy as unknown as Record<string, unknown>,
+  } as ActionResult;
+  let definitionLookups = 0;
+  let handlerCalls = 0;
+
+  await expect(
+    executeAction(context, input, {
+      getDefinition: async (actionKey, version) => {
+        definitionLookups += 1;
+        return { actionKey, version, status: "published" };
+      },
+      handlers: {
+        CREATE_OFFER: async () => {
+          handlerCalls += 1;
+          return handlerResult;
+        },
+      },
+    }),
+  ).rejects.toThrow("ACTION_RESULT_INVALID");
+
+  expect(nestedGetTrapCalls).toBe(0);
+  expect(definitionLookups).toBe(1);
+  expect(handlerCalls).toBe(1);
+});

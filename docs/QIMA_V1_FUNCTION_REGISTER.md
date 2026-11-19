@@ -11418,3 +11418,15 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 - Ce nouveau test n'a pas encore de résultat Playwright ; les 384 tests de CI #1641 valident uniquement le parent 5ea96351898b5bc3e190f18cfd2facd9a8f3d4b1. Une nouvelle CI sera suivie après publication du commit. Le test est synthétique et ne prouve pas une vulnérabilité exploitable.
 - Aucun test local n'a été exécuté. Aucun code applicatif, SQL, migration, donnée Supabase Production, secret, grant, politique RLS persistante, configuration PostgreSQL, déploiement Production, fusion, force-push ou règle de protection n'a été modifié.
 
+## 19 novembre 2026 — clôture de QIMA CI #1642 et régression sur un payload result Proxy révoqué
+
+- État relu avant modification : PR #26 OPEN, DRAFT, non fusionnée ; branche fix/create-offer-status-contract, base main, HEAD 3ddc0d324f027de5ab9b55534933aa4d9343ee06, 2 019 commits devant main, 0 derrière, 266 fichiers modifiés ; mergeable=true au dernier calcul GitHub.
+- QIMA CI #1642 (https://github.com/meridane/QimaTrade-MVP/actions/runs/44459016656) sur le HEAD 3ddc0d324f027de5ab9b55534933aa4d9343ee06 a terminé SUCCESS. Le job Verify a réussi npm audit, TypeScript, build Next.js et Playwright (385 passed dans le journal). PostgreSQL 16 et PostgreSQL 17.6 ont terminé SUCCESS, incluant les tests CREATE_OFFER et la caractérisation des privilèges du runner. Les jobs de harness setup-failure/cleanup-failure ont leurs échecs simulés attendus et les assertions correspondantes ont SUCCESS ; le job de cleanup skipped est volontairement skipped.
+- CodeQL #1574 (https://github.com/meridane/QimaTrade-MVP/actions/runs/44459016604) a terminé SUCCESS ; le statut Vercel du HEAD est success (https://vercel.com/bmk1/qimatrade-mvp/rJLnHKadFhqr7tJzX9DjCLnjo7ok).
+- Nouvelle régression ajoutée dans tests/e2e/action-engine.spec.ts : le champ optionnel result contient un Proxy révocable dont la cible est un tableau, révoqué avant le retour du handler. L'assimilation Promise ne touche pas ce champ imbriqué ; normalizeActionResult atteint ensuite Array.isArray sur le Proxy révoqué, ce qui lève nativement. Le contrat attendu est ACTION_RESULT_INVALID, sans fuite de l'exception de réflexion, sans invocation du piège get imbriqué, avec un seul lookup de définition et un seul appel du handler.
+- Ce cas complète les tests de payload null/primitive/array et le test de Proxy ActionResult révoqué au niveau supérieur : il couvre précisément la vérification Array.isArray du payload result imbriqué. Il caractérise un contrat synthétique et ne prouve pas une vulnérabilité exploitable.
+- Le nouveau test n'a pas encore de résultat CI/Playwright ; CI #1642 valide uniquement le parent 3ddc0d324f027de5ab9b55534933aa4d9343ee06. La nouvelle exécution sera suivie après publication.
+- Aucun test local n'a été exécuté. Aucun code applicatif, SQL, migration, donnée Supabase Production, secret, grant, politique RLS persistante, configuration PostgreSQL, déploiement Production, fusion, force-push ou règle de protection n'a été modifié.
+
+---
+
