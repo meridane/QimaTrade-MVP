@@ -11454,3 +11454,10 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 - CodeQL [#1576](https://github.com/meridane/QimaTrade-MVP/actions/runs/44478036387) a terminé **SUCCESS**. Vercel Preview du HEAD `2b3aa128` était encore **PENDING** au dernier contrôle. PostgreSQL 16 et PostgreSQL 17.6 de #1644 étaient encore **IN PROGRESS** ; leurs résultats ne sont pas anticipés ici.
 - La correction de séquencement et cette entrée documentaire sont sur la branche de travail et ne sont pas encore synchronisées vers la branche PR ; cela évite d'annuler les deux jobs PostgreSQL encore actifs de #1644. Une nouvelle validation sera déclenchée après leur clôture.
 - Aucun test local n'a été exécuté. Le scénario Proxy est synthétique et ne prouve pas une vulnérabilité exploitable. Aucun SQL, migration, donnée Supabase Production, secret, grant, politique RLS persistante, configuration PostgreSQL, déploiement Production, fusion, force-push ou règle de protection n'a été modifié.
+---
+
+## 19 novembre 2026 — relecture détaillée de Verify #1644
+
+- Le journal Playwright confirme explicitement que les deux nouveaux cas `ownKeys` passent : test 110 (`objectId`) **PASS** et test 111 (`result`) **PASS**. Le seul échec est le test préexistant 106 sur le masquage du descripteur `objectId`, ainsi que sa nouvelle tentative ; le bilan final reste **387 passed, 1 failed**.
+- Le Preview Vercel du HEAD `2b3aa128` a depuis évolué de **PENDING** à **SUCCESS** ([Preview](https://vercel.com/bmk1/qimatrade-mvp/E8PjaXjj6dEZvju3ZUJuNFFsuXFR)). CodeQL #1576 reste **SUCCESS**.
+- PostgreSQL 16 et PostgreSQL 17.6 de CI #1644 sont toujours **IN PROGRESS** au dernier contrôle, sur la caractérisation finale des privilèges d'écriture du runner CREATE_OFFER. Aucun résultat final n'est anticipé.
