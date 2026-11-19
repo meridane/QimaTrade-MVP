@@ -3218,3 +3218,68 @@ for (const omittedKey of omittedRequiredActionResultOwnKeys) {
     expect(handlerCalls).toBe(1);
   });
 }
+
+test("executeAction rejects a Proxy ActionResult that hides an own extra metadata descriptor after ownKeys", async () => {
+  const context: ActionContext = {
+    userId: "user-1",
+    tenantId: "tenant-1",
+    actionKey: "CREATE_OFFER",
+    actionVersion: 1,
+    objectType: "TestObject",
+    objectId: "object-1",
+    correlationId: "correlation-1",
+    idempotencyKey: "idempotency-1",
+  };
+  const input: ActionInput = { demandId: "demand-1" };
+  const target: ActionResult & { objectType: string } = {
+    executionId: "execution-hidden-extra-metadata-descriptor",
+    status: "succeeded",
+    objectType: "Offer",
+  };
+
+  let ownKeysCalls = 0;
+  const descriptorTrapProperties: PropertyKey[] = [];
+  const getTrapProperties: PropertyKey[] = [];
+  const resultProxy = new Proxy(target, {
+    ownKeys(object) {
+      ownKeysCalls += 1;
+      return Reflect.ownKeys(object);
+    },
+    getOwnPropertyDescriptor(object, property) {
+      if (property === "objectType") {
+        descriptorTrapProperties.push(property);
+        // The target is extensible and this own property is configurable,
+        // so hiding its descriptor is permitted by the Proxy invariant.
+        return undefined;
+      }
+      return Reflect.getOwnPropertyDescriptor(object, property);
+    },
+    get(object, property, receiver) {
+      getTrapProperties.push(property);
+      return Reflect.get(object, property, receiver);
+    },
+  });
+  let definitionLookups = 0;
+  let handlerCalls = 0;
+  const handler = (() => {
+    handlerCalls += 1;
+    return resultProxy as unknown as Promise<ActionResult>;
+  }) as ActionHandler;
+
+  await expect(
+    executeAction(context, input, {
+      getDefinition: async (actionKey, version) => {
+        definitionLookups += 1;
+        return { actionKey, version, status: "published" };
+      },
+      handlers: { CREATE_OFFER: handler },
+    }),
+  ).rejects.toThrow("ACTION_RESULT_INVALID");
+
+  expect(ownKeysCalls).toBe(1);
+  expect(descriptorTrapProperties).toEqual(["objectType"]);
+  expect(getTrapProperties).toEqual(["then"]);
+  expect(definitionLookups).toBe(1);
+  expect(handlerCalls).toBe(1);
+});
+
