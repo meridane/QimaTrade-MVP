@@ -11397,3 +11397,14 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 - Les deux nouveaux cas n'ont pas encore été exécutés par CI. Les 382 tests de #1639 valident uniquement le parent 460bf30e et ne sont pas attribués à ces modifications. Une nouvelle validation sera demandée après fast-forward de la branche de travail vers la branche PR.
 - Les tests Proxy restent synthétiques et ne prouvent pas une vulnérabilité exploitable. Aucun test local n'a été exécuté. Les validations PostgreSQL utilisent des environnements de test et ne démontrent pas les données ou politiques Supabase Production.
 - Aucun code applicatif, SQL, migration, donnée Supabase Production, secret, grant, politique RLS persistante, configuration PostgreSQL, déploiement Production, fusion, force-push ou règle de protection n'a été modifié.
+
+
+---
+
+## 19 novembre 2026 — résultats Verify/CodeQL/Vercel de CI #1640 — 12:43 KST
+
+- QIMA CI #1640 (https://github.com/meridane/QimaTrade-MVP/actions/runs/44453703923) sur le HEAD bb59cb43 : le job Verify a terminé SUCCESS. npm audit, TypeScript, build Next.js et installation Chromium ont réussi ; Playwright confirme **384 passed (9,6 s)**. Les deux nouveaux tests `executeAction rejects an ActionResult whose optional objectId descriptor is hidden by a Proxy` et `...` pour `result` sont explicitement **PASS** dans le journal (tests 107 et 106).
+- Les jobs CREATE_OFFER PostgreSQL 16 (job `135323532111`) et PostgreSQL 17.6 (job `135323532013`) sont encore **IN PROGRESS** au dernier contrôle, tous deux sur la caractérisation des privilèges complets du runner. Aucun résultat final de ces deux jobs n'est anticipé. Les jobs de harness setup-failure et cleanup-failure ont les échecs simulés attendus ; leurs assertions de contrôle ont SUCCESS. Le job de cleanup volontairement skipped reste skipped.
+- CodeQL [#1572](https://github.com/meridane/QimaTrade-MVP/actions/runs/44453703905) a terminé **SUCCESS**. Le Preview Vercel du HEAD bb59cb43 est **SUCCESS** (https://vercel.com/bmk1/qimatrade-mvp/3pHNWM8Wo2NP8kiSeKXEFq381x4R).
+- Le test couvre un décalage synthétique entre `Reflect.has` et `getOwnPropertyDescriptor` pour un champ optionnel configurable. Il caractérise le contrat de normalisation et ne prouve pas une vulnérabilité exploitable.
+- Aucun test local n'a été exécuté. Aucun code applicatif, SQL, migration, donnée Supabase Production, secret, grant, politique RLS persistante, configuration PostgreSQL, déploiement Production, fusion, force-push ou règle de protection n'a été modifié.
