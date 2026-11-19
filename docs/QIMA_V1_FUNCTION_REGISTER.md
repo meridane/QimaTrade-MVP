@@ -11318,3 +11318,17 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 - QIMA CI [#1628](https://github.com/meridane/QimaTrade-MVP/actions/runs/44409569333) sur le commit de test antérieur `e41fbce0` reste **IN PROGRESS** au dernier contrôle : Verify a échoué sur les deux assertions initiales du compteur `get` (377 passés, 2 échoués) ; les jobs PostgreSQL 16 et 17.6 restent actifs sur la caractérisation des privilèges. Le correctif `3fe4d355` attend toujours une exécution Verify non annulée.
 - Aucun résultat final n'est anticipé pour CI #1632, CodeQL #1564 ou Vercel. Aucun test local n'a été exécuté. Les cas Proxy sont synthétiques et ne prouvent pas une vulnérabilité ; les tests PostgreSQL/RLS sur bases jetables ne démontrent pas les politiques Supabase Production.
 - Aucun code applicatif, SQL, migration, donnée Supabase Production, secret, grant, politique RLS persistante, configuration PostgreSQL, déploiement Production, fusion, force-push ou règle de protection n'a été modifié.
+
+---
+
+## 19 novembre 2026 — correction du Proxy de registre de handlers après CI #1633
+
+- État relu avant modification : PR #26 **OPEN**, **DRAFT**, non fusionnée, branche `fix/create-offer-status-contract`, HEAD `61d0ddbc01fc21abdd88bbb5cced04d3bec9a6a1`, base `main`. GitHub indiquait `mergeable=true`, 2 006 commits dans la PR et 265 fichiers modifiés.
+- QIMA CI [#1633](https://github.com/meridane/QimaTrade-MVP/actions/runs/44410405800) a terminé **FAILURE**. Le job Verify `135178276976` a échoué à l'étape TypeScript après un `npm audit` réussi (0 vulnérabilité signalée par cet audit). Erreur exacte : `tests/e2e/action-engine.spec.ts(711,30): TS2304 Cannot find name 'property'`. Build Next.js et Playwright ont été ignorés à la suite de cet échec de typage.
+- Les jobs PostgreSQL 16 (`135178276921`) et PostgreSQL 17.6 (`135178277018`) du même run ont terminé **SUCCESS**. Les jobs de harness de setup/cleanup avec conclusion `failure` et le job cleanup volontairement `skipped` sont les scénarios négatifs attendus ; les jobs d'assertion de contrôle correspondants ont terminé **SUCCESS**.
+- CodeQL [#1565](https://github.com/meridane/QimaTrade-MVP/actions/runs/44410405673) et le statut Vercel Preview du HEAD `61d0ddbc` ont terminé **SUCCESS**. Aucun résultat Playwright n'est disponible pour #1633, car cette étape a été ignorée.
+- Correctif préparé sur la branche de travail `work/fix-handler-registry-get-trap-20261119-0904`, commit `bb3a931b05d1e5aa309e66c5cafa2919f8a8c7d0`, fichier `tests/e2e/action-engine.spec.ts`. Le piège Proxy du registre de handlers déclare désormais explicitement ses paramètres `(_target, property)`, et l'assertion attend `[]` : le contrat testé est que la propriété `get` du Proxy du registre de handlers n'est jamais lue. La lecture de `then` par `await` concerne un objet thenable retourné par un handler, pas ce Proxy de registre ; elle ne doit donc pas être comptée ici.
+- Le correctif ne modifie aucun code de production. Il doit encore être validé par TypeScript et Playwright dans une exécution CI non annulée après publication sur la branche de la PR. Aucun test local n'a été exécuté.
+- Les tests de réflexion JavaScript restent synthétiques et ne prouvent pas une vulnérabilité. Les validations PostgreSQL sur runners CI ne démontrent pas les politiques ou données Supabase Production.
+- Aucun SQL, migration, donnée Supabase Production, secret, grant, politique RLS persistante, configuration PostgreSQL, déploiement Production, fusion, force-push ou règle de protection n'a été modifié.
+
