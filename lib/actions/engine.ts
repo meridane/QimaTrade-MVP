@@ -84,9 +84,23 @@ function normalizeActionResult(value: unknown): ActionResult | null {
     // remains inside this exception boundary.
     const hasOwnOriginal = (key: string) =>
       Object.prototype.hasOwnProperty.call(value, key);
+    const hasObjectId = Reflect.has(value, "objectId");
+    const hasOwnObjectId = hasObjectId && hasOwnOriginal("objectId");
+    const hasResult = Reflect.has(value, "result");
+    const hasOwnResult = hasResult && hasOwnOriginal("result");
     if (
-      (Reflect.has(value, "objectId") && !hasOwnOriginal("objectId")) ||
-      (Reflect.has(value, "result") && !hasOwnOriginal("result"))
+      (hasObjectId && !hasOwnObjectId) ||
+      (hasResult && !hasOwnResult)
+    ) {
+      return null;
+    }
+
+    // A Proxy may legally omit configurable own keys from ownKeys. Reject an
+    // omitted optional field rather than silently dropping handler metadata.
+    const ownKeys = Reflect.ownKeys(value);
+    if (
+      (hasOwnObjectId && !ownKeys.includes("objectId")) ||
+      (hasOwnResult && !ownKeys.includes("result"))
     ) {
       return null;
     }
@@ -95,7 +109,7 @@ function normalizeActionResult(value: unknown): ActionResult | null {
     // the handler's getters or Proxy get trap. Preserve extra SQL result fields
     // such as objectType, plus non-enumerable and symbol data properties.
     const normalized: Record<PropertyKey, unknown> = {};
-    for (const key of Reflect.ownKeys(value)) {
+    for (const key of ownKeys) {
       const descriptor = Object.getOwnPropertyDescriptor(value, key);
       if (
         descriptor === undefined ||
