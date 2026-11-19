@@ -1,6 +1,6 @@
 # QIMA Trade — Registre des fonctionnalités V1 et audit de départ
 
-Dernière vérification : 18 novembre 2026 (KST)
+Dernière vérification : 19 novembre 2026 (KST)
 Dépôt : meridane/QimaTrade-MVP — branche fix/create-offer-status-contract (PR #26, brouillon)
 Projet Supabase : `QIMA` (`yyulzlnrfcbaxovzjbnh`)
 
@@ -11360,3 +11360,16 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 - QIMA CI [#1634](https://github.com/meridane/QimaTrade-MVP/actions/runs/44426388088) sur `8a52c8ec` reste **IN PROGRESS** : Verify a terminé **FAILURE** sur les deux assertions Proxy décrites ci-dessus, alors que npm audit, TypeScript, build et installation Chromium ont réussi ; 377 tests Playwright ont réussi et 2 échoué. PostgreSQL 16 et PostgreSQL 17.6 restent actifs au dernier contrôle. CodeQL [#1566](https://github.com/meridane/QimaTrade-MVP/actions/runs/44426388063) a terminé **SUCCESS**.
 - Le HEAD `7a585e6d` contient le correctif de test `ea5b51c4` et le snapshot documentaire précédent. Le correctif attend toujours une validation Playwright non annulée ; aucun résultat positif n'est anticipé. Aucun test local n'a été exécuté.
 - Les tests Proxy sont synthétiques et ne prouvent pas une vulnérabilité ; les tests PostgreSQL de CI ne démontrent pas les politiques Supabase Production. Aucun code applicatif de production, SQL, migration, donnée Supabase Production, secret, grant, politique RLS persistante, déploiement Production, fusion, force-push ou règle de protection n'a été modifié.
+
+
+---
+
+## 19 novembre 2026 — clôture de QIMA CI #1637 et ajout du test de descripteur requis
+
+- État de départ vérifié avant synchronisation : PR #26 **OPEN**, **DRAFT**, non fusionnée ; HEAD officiel `c9ac7675`, branche `fix/create-offer-status-contract`, base `main`, 2 012 commits devant `main`, 0 derrière et 265 fichiers modifiés. GitHub indiquait `mergeable=true`.
+- QIMA CI [#1637](https://github.com/meridane/QimaTrade-MVP/actions/runs/44426871666) sur le HEAD parent `c9ac7675` a maintenant terminé **SUCCESS**. Verify (job `135235719520`) : npm audit, TypeScript, build Next.js et installation Chromium **SUCCESS** ; Playwright **379 passed (14,6 s)**. PostgreSQL 16 (job `135235719508`) et PostgreSQL 17.6 (job `135235719423`) **SUCCESS**. Les jobs de harness setup-failure et cleanup-failure ont les échecs contrôlés attendus ; le job cleanup volontairement skipped reste `skipped`, et les assertions qui vérifient ces résultats ont **SUCCESS**.
+- CodeQL [#1569](https://github.com/meridane/QimaTrade-MVP/actions/runs/44426871671) a terminé **SUCCESS**. Le statut combiné Vercel du HEAD parent est **success** ([Preview](https://vercel.com/bmk1/qimatrade-mvp/DGkmaLm3Wznc2psdLbJqQCqh4558)).
+- La branche de travail `work/action-result-descriptor-trap-throw-20261119-0914` était 2 commits devant et 0 derrière la branche PR : commit applicatif [`54171b51`](https://github.com/meridane/QimaTrade-MVP/commit/54171b517d128b8e77193c1e078b56528ddceb01) (49 insertions dans `tests/e2e/action-engine.spec.ts`) et supplément documentaire [`e725c713`](https://github.com/meridane/QimaTrade-MVP/commit/e725c713327bf78c389af5eb2ba50e1a58632651) (58 lignes dans `docs/QIMA_V1_FUNCTION_REGISTER_SUPPLEMENT_2026-11-19_0914_KST.md`). Le test `executeAction normalizes a throwing required ActionResult descriptor trap` vérifie qu'une exception levée par le piège `getOwnPropertyDescriptor` pour `executionId` est normalisée en `ACTION_RESULT_INVALID`, avec un appel du piège, une consultation de définition et un appel du handler. Il n'avait pas encore été exécuté par CI #1637, qui valide le parent sans ce nouveau test.
+- Le présent snapshot ajoute les résultats définitifs de CI #1637 au registre canonique. Après la publication du nouveau HEAD contenant le test et ce snapshot, une nouvelle QIMA CI/CodeQL/Preview est attendue ; aucun résultat de ces nouvelles exécutions n'est anticipé ici.
+- Aucun test local n'a été exécuté. Le test Proxy est synthétique et ne prouve pas une vulnérabilité. Les tests PostgreSQL/RLS CI utilisent des environnements de test et ne démontrent pas l'état des politiques ou données Supabase Production.
+- Aucun code applicatif de production, SQL, migration, donnée Supabase Production, secret, grant, politique RLS persistante, configuration PostgreSQL, déploiement Production, fusion, force-push ou règle de protection n'a été modifié.
