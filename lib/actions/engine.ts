@@ -86,12 +86,15 @@ function normalizeActionResult(value: unknown): ActionResult | null {
       Object.prototype.hasOwnProperty.call(value, key);
     const hasObjectId = Reflect.has(value, "objectId");
     const hasOwnObjectId = hasObjectId && hasOwnOriginal("objectId");
+    if (hasObjectId && !hasOwnObjectId) {
+      return null;
+    }
+
+    // Preserve the original short-circuit order: do not inspect result when
+    // objectId is already known to be inherited or descriptor-hidden.
     const hasResult = Reflect.has(value, "result");
     const hasOwnResult = hasResult && hasOwnOriginal("result");
-    if (
-      (hasObjectId && !hasOwnObjectId) ||
-      (hasResult && !hasOwnResult)
-    ) {
+    if (hasResult && !hasOwnResult) {
       return null;
     }
 
