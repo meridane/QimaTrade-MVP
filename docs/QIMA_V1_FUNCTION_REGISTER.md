@@ -11810,3 +11810,16 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 - Le statut Vercel du HEAD documentaire final `fec0c365` est **PENDING** ([Preview](https://vercel.com/bmk1/qimatrade-mvp/8YyJ4pxTU6TuuvH4ZHNHXz7PVgJW)). Le lien du premier snapshot post-push se rapportait à l'état précédent `ac5b3ad0`.
 - La branche de travail `work/create-offer-product-master-unicode-trim-20261120-1518` et la branche PR sont identiques après fast-forward avec `force=false` (**0 ahead / 0 behind**).
 - Le test Unicode productMasterId reste en attente de résultat Playwright. Aucun test local n'a été exécuté. Aucun code applicatif, SQL, migration, donnée Supabase Production, secret, grant, politique RLS persistante, workflow, déploiement Production, merge, force-push ou règle de protection n'a été modifié.
+
+
+### Résultats du test et état des contrôles — 20 novembre 2026, 15:21 KST
+
+- Le job Verify de QIMA CI **#1690** ([run 44687175014](https://github.com/meridane/QimaTrade-MVP/actions/runs/44687175014)) est maintenant **SUCCESS**. Le journal confirme explicitement le passage de `CREATE_OFFER route trims product-master IDs before action execution` et **397 Playwright passed (11,1 s)**. npm audit, TypeScript et build Next.js sont **SUCCESS**.
+- Le rapport npm audit de #1690 reste à **1 moderate, 0 high, 0 critical** ; le build indique Next.js **15.5.28**. Le seuil `high` passe, mais l'audit n'est pas sans finding.
+- Dans le même run #1690, PostgreSQL 16 et PostgreSQL 17.6 sont encore **IN PROGRESS** au dernier contrôle. La CI globale n'est donc pas déclarée terminée.
+- CodeQL **#1621** ([run 44687175082](https://github.com/meridane/QimaTrade-MVP/actions/runs/44687175082)) est **SUCCESS** pour le commit de test `ac5b3ad0` / son parent de code `45afb53d`.
+- Le HEAD documentaire courant avant cette entrée est `45a1b8765c2b0a066128100cdbd90daddf778290`, PR #26 **OPEN / DRAFT / non fusionnée**, `mergeable=true`, **2 081 commits devant / 0 derrière**, 270 fichiers (87 275 insertions / 261 suppressions). Le commit `45a1b876` ne modifie que le registre.
+- Sur le HEAD documentaire `45a1b876`, QIMA CI **#1692** ([run 44687310610](https://github.com/meridane/QimaTrade-MVP/actions/runs/44687310610)) est **PENDING** au dernier contrôle ; CodeQL **#1623** ([run 44687310489](https://github.com/meridane/QimaTrade-MVP/actions/runs/44687310489)) est **IN PROGRESS**. Ces runs sont distincts de #1690/#1621.
+- Le statut combiné Vercel du HEAD documentaire `45a1b876` est **FAILURE** et son lien de diagnostic pointe vers la limite de déploiements du plan ([détail de limite](https://vercel.com/bmk1?upgradeToPro=build-rate-limit)). Les commentaires bot antérieurs du dépôt documentent le code `api-deployments-free-per-day`; il s'agit d'un blocage de quota de Preview, pas d'un échec Playwright ou TypeScript. Aucun déploiement Production n'a été effectué.
+- La branche de travail et la branche PR sont identiques (**0 ahead / 0 behind**). Le test Unicode est validé par Verify #1690 ; les validations PostgreSQL et le workflow global restent ouverts.
+- Aucun test local n'a été exécuté. Aucun code applicatif, SQL, migration, donnée Supabase Production, secret, grant, politique RLS persistante, workflow, déploiement Production, merge, force-push ou règle de protection n'a été modifié.
