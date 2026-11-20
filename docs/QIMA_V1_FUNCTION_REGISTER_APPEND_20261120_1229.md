@@ -34,3 +34,12 @@ This supplement records the current run without rewriting the oversized canonica
 
 - No application code, SQL, migrations, Supabase Production data, secrets, grants, persistent RLS policies, production deployment, merge, force-push, workflow, or branch-protection rule was changed.
 - Next: verify the new commit's Playwright/TypeScript/build and PostgreSQL 16/17.6 checks, then update this note with final results. Continue the Next.js 15.5.28 advisory triage separately; only update the lockfile after a real reproducible dependency install and full CI validation.
+
+
+## Post-push snapshot — 2026-11-20 12:29 KST
+
+- The PR branch now points to documentation commit `dc2eb78f633ef4428fef92a13fb7648fd7a469ac`; its parent code/test commit is `b75a45f2b9f9fb7f42f6fc3d276247b14168784a`.
+- QIMA CI [run 44668369118](https://github.com/meridane/QimaTrade-MVP/actions/runs/44668369118) is **IN PROGRESS**. At the latest job snapshot, npm audit had **SUCCESS**; TypeScript was **IN PROGRESS**, build and Playwright were pending; PostgreSQL 16 and 17.6 integration jobs were **IN PROGRESS**. The two expected setup/cleanup failure simulation jobs had their intentional failure conclusions, while the corresponding assertion jobs succeeded; the skipped-job assertion succeeded.
+- CodeQL run [44668369217](https://github.com/meridane/QimaTrade-MVP/actions/runs/44668369217) is **IN PROGRESS**. Vercel Preview for the new test commit is **PENDING**.
+- The starting HEAD's 397/397 Playwright result from CI #1679 is a baseline only; it is not attributed to the new Unicode-whitespace test. Await CI #1680's own Playwright result before marking this regression PASS.
+- No unexpected failed test is recorded at this snapshot. No local tests were run.
