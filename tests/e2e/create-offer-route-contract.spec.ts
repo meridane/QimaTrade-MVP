@@ -2214,6 +2214,62 @@ test("CREATE_OFFER route preserves non-disclosing profile and membership errors 
     expect(membershipFailure.requests.every((request) => request.authorization === bearer)).toBe(true);
   }
 });
+test("CREATE_OFFER route treats retried upstream HTTP 503 profile and membership reads as generic server errors", async () => {
+  const bearer = "Bearer qima-route-test-token";
+
+  const profileFailure = await postCreateOffer(
+    "USD",
+    {},
+    undefined,
+    undefined,
+    "succeeded",
+    bearer,
+    200,
+    200,
+    503,
+  );
+
+  expect(profileFailure.status).toBe(500);
+  expect(profileFailure.body).toEqual({ error: "PROFILE_LOOKUP_FAILED" });
+  expect(JSON.stringify(profileFailure.body)).not.toMatch(
+    /PROFILE_(?:LOOKUP|DETAILS|HINT)_PRIVATE_SENTINEL|XX000|Profile lookup failed/i,
+  );
+  const profilePaths = profileFailure.requests.map((request) => request.path);
+  expect(profilePaths[0]).toBe("/auth/v1/user");
+  expect(profilePaths.slice(1).length).toBeGreaterThan(0);
+  expect(profilePaths.slice(1).every((path) => path === "/rest/v1/profiles")).toBe(true);
+  expect(profilePaths).not.toContain("/rest/v1/dt_memberships");
+  expect(profilePaths.some((path) => path.startsWith("/rest/v1/rpc/"))).toBe(false);
+  expect(profileFailure.requests.every((request) => request.authorization === bearer)).toBe(true);
+
+  const membershipFailure = await postCreateOffer(
+    "USD",
+    {},
+    undefined,
+    undefined,
+    "succeeded",
+    bearer,
+    200,
+    503,
+    200,
+  );
+
+  expect(membershipFailure.status).toBe(500);
+  expect(membershipFailure.body).toEqual({ error: "TENANT_MEMBERSHIP_LOOKUP_FAILED" });
+  expect(JSON.stringify(membershipFailure.body)).not.toMatch(
+    /MEMBERSHIP_(?:LOOKUP|DETAILS|HINT)_PRIVATE_SENTINEL|XX000|Membership lookup failed/i,
+  );
+  const membershipPaths = membershipFailure.requests.map((request) => request.path);
+  expect(membershipPaths.slice(0, 2)).toEqual([
+    "/auth/v1/user",
+    "/rest/v1/profiles",
+  ]);
+  expect(membershipPaths.slice(2).length).toBeGreaterThan(0);
+  expect(membershipPaths.slice(2).every((path) => path === "/rest/v1/dt_memberships")).toBe(true);
+  expect(membershipPaths.some((path) => path.startsWith("/rest/v1/rpc/"))).toBe(false);
+  expect(membershipFailure.requests.every((request) => request.authorization === bearer)).toBe(true);
+});
+
 test("CREATE_OFFER route masks action-definition RPC errors across upstream HTTP statuses", async () => {
   const bearer = "Bearer qima-route-test-token";
 
