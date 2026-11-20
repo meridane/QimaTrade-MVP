@@ -74,8 +74,13 @@ grep -Fq 'fixture-same-key-two-tenants' "$RUNTIME" ||
 grep -Fq 'count(DISTINCT request_hash)' "$RUNTIME" ||
   fail "runtime must retain the request-hash scope assertion"
 
-grep -Fq '"${PSQL[@]}" -f "$ROOT/tests/sql/create-offer-uuid-case-replay.sql"' "$RUNNER" ||
-  fail "disposable PostgreSQL runner must execute the UUID-case replay regression"
+qa430_runner_invocations="$(grep -Fc '"${PSQL[@]}" -f "$ROOT/tests/sql/create-offer-uuid-case-replay.sql"' "$RUNNER" || true)"
+[[ "$qa430_runner_invocations" -eq 1 ]] ||
+  fail "disposable PostgreSQL runner must execute the UUID-case replay regression exactly once (found $qa430_runner_invocations)"
+
+integration_runner_invocations="$(grep -Fc 'run: bash tests/sql/run-create-offer-integration.sh' "$WORKFLOW" || true)"
+[[ "$integration_runner_invocations" -eq 2 ]] ||
+  fail "CI must invoke the CREATE_OFFER integration runner once in each PostgreSQL 16 and 17.6 job (found $integration_runner_invocations)"
 grep -Fq 'upper(v_demand_id::text)::uuid' "$UUID_CASE_REPLAY" ||
   fail "UUID-case replay must exercise uppercase typed demand UUID input"
 grep -Fq 'upper(v_product_master_id::text)::uuid' "$UUID_CASE_REPLAY" ||
@@ -92,4 +97,4 @@ verify_job="$(awk '
 [[ "$(grep -Fc 'run: bash tests/sql/test-create-offer-request-hash-contract.sh' <<< "$verify_job" || true)" -eq 1 ]] ||
   fail "Verify job must execute the request-hash field-coverage contract exactly once"
 
-echo "QA382 PASS: the effective CREATE_OFFER request hash maps all 16 business inputs exactly once, keeps tenant/idempotency scope separate, and runs the disposable UUID-case replay regression."
+echo "QA382 PASS: the effective CREATE_OFFER request hash maps all 16 business inputs exactly once, keeps tenant/idempotency scope separate, and runs the UUID-case replay exactly once in both PostgreSQL 16 and 17.6 jobs."
