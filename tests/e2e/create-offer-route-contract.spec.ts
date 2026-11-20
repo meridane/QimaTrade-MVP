@@ -656,8 +656,9 @@ test("CREATE_OFFER route trims required name and demand IDs before action execut
   const name = "Industrial pump offer";
   const demandId = "50000000-0000-4000-8000-000000000001";
   const result = await postCreateOffer("USD", {
-    name: ` \t${name}\n `,
-    demandId: `\n ${demandId} \t`,
+    // Exercise ECMAScript trim for ASCII, non-breaking-space, and BOM whitespace.
+    name: ` \t\u00A0\uFEFF${name}\n `,
+    demandId: `\n\uFEFF ${demandId} \u00A0\t`,
   });
 
   expect(result.status, JSON.stringify({ body: result.body, requests: result.requests })).toBe(200);
