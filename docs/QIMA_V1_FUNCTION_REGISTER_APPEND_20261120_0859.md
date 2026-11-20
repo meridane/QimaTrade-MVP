@@ -102,3 +102,38 @@ The current route receives or generates `correlationId` and passes it in `Action
 ### Guardrails
 
 No application code, SQL, migration, Supabase Production data, grant, RLS policy, secret, production deployment, merge, force-push, or branch-protection rule was changed. The only code change in this update is a regression test; this document is an append-only companion because the canonical register body remains unavailable.
+
+
+---
+
+## Validation refresh — 2026-11-20 09:38 KST
+
+### Results for the new regression commit
+
+- QIMA CI #1671 was created for test commit `fd131c2b3adbc8c09c315d22422935cfc1b0a6b9`.
+- Verify job: **SUCCESS**.
+  - npm audit: SUCCESS (audit threshold is `high`; the workflow log reports the audit step completed).
+  - TypeScript: SUCCESS.
+  - Next.js production build: SUCCESS.
+  - Chromium installation: SUCCESS.
+  - Playwright: **396 passed (8.6s)**.
+  - The new test `CREATE_OFFER route trims required name and demand IDs before action execution` is explicitly shown as passed in the log.
+- PostgreSQL 16 integration and PostgreSQL 17.6 compatibility jobs were still **IN PROGRESS** at the latest check. The active PostgreSQL 16 step was the attributes-default replay regression; PostgreSQL 17.6 was still in its integration/concurrency tests. No final result is claimed for either job.
+- CodeQL #1602: **SUCCESS**.
+- Vercel Preview for the current documentation HEAD at the time of the check: **SUCCESS**.
+- The push of the append-only documentation commit also caused a separate QIMA CI #1672 (PENDING, no jobs published at the latest check) and CodeQL #1603 (IN PROGRESS). These are checks for the documentation HEAD, not a second execution of the new Playwright test.
+
+### PR coordination note
+
+PR #25 (`chore/qima-free-autopilot-review`) is also open and changes `app/api/actions/create-offer/route.ts`. This execution did not modify that route and did not duplicate its application-code work; the new regression is isolated to `tests/e2e/create-offer-route-contract.spec.ts`. Review the route diff across PRs before any future integration.
+
+### Current branch snapshot before this documentation refresh
+
+- PR #26: OPEN, DRAFT, not merged; `mergeable=true`.
+- Base: `main` at `0d35c13db81019867fe9929420b0a6916285fbf6`.
+- Test commit: `fd131c2b3adbc8c09c315d22422935cfc1b0a6b9`.
+- Documentation commit then at PR HEAD: `69bb6fd4286159da4b37f1f36e192b318974cf43`.
+- PR comparison: 2,060 commits ahead, 0 behind; 269 changed files.
+- The work branch and PR branch were identical (0 ahead / 0 behind) before this documentation refresh.
+
+No application source, SQL, migration, Supabase Production data, grant, RLS policy, secret, workflow, or production deployment was changed. No merge, force-push, or branch-protection change was made.
