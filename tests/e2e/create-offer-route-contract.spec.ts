@@ -778,6 +778,85 @@ test("CREATE_OFFER route lowercases UUID identifiers before constructing the ide
   });
 });
 
+test("CREATE_OFFER route replays case-equivalent UUID identifiers with one canonical idempotency payload", async () => {
+  const bearer = "Bearer qima-route-test-token";
+  const idempotencyKey = "qa403-case-equivalent-uuid-replay";
+  const correlationId = "qa403-stable-correlation-id";
+  const uppercaseDemandId = "ABCDEF12-3456-4ABC-8DEF-ABCDEF123456";
+  const uppercaseProductMasterId = "FEDCBA98-7654-4FED-9CBA-FEDCBA987654";
+  const expectedPaths = [
+    "/auth/v1/user",
+    "/rest/v1/profiles",
+    "/rest/v1/dt_memberships",
+    "/rest/v1/rpc/get_action_definition_v1",
+    "/rest/v1/rpc/execute_create_offer_v1",
+  ];
+  const replayState: CreateOfferReplayState = {
+    committed: false,
+    result: null,
+    createCount: 0,
+    replayCount: 0,
+    firstRpcInput: null,
+    replayRpcInput: null,
+  };
+  const invoke = (demandId: string, productMasterId: string) =>
+    postCreateOffer(
+      "USD",
+      { idempotencyKey, correlationId, demandId, productMasterId },
+      undefined,
+      undefined,
+      "succeeded",
+      bearer,
+      200,
+      200,
+      200,
+      undefined,
+      false,
+      200,
+      200,
+      undefined,
+      undefined,
+      undefined,
+      null,
+      null,
+      null,
+      null,
+      false,
+      false,
+      replayState,
+    );
+
+  // First request uses uppercase UUID text; the retry uses the same UUID values in lowercase.
+  const firstAttempt = await invoke(uppercaseDemandId, uppercaseProductMasterId);
+  const replayAttempt = await invoke(
+    uppercaseDemandId.toLowerCase(),
+    uppercaseProductMasterId.toLowerCase(),
+  );
+
+  expect(firstAttempt.status).toBe(200);
+  expect(replayAttempt.status).toBe(200);
+  expect(replayAttempt.body).toEqual(firstAttempt.body);
+  expect(firstAttempt.requests.map((request) => request.path)).toEqual(expectedPaths);
+  expect(replayAttempt.requests.map((request) => request.path)).toEqual(expectedPaths);
+  expect(firstAttempt.requests.every((request) => request.authorization === bearer)).toBe(true);
+  expect(replayAttempt.requests.every((request) => request.authorization === bearer)).toBe(true);
+  expect(replayState.firstRpcInput).toMatchObject({
+    p_idempotency_key: idempotencyKey,
+    p_demand_id: uppercaseDemandId.toLowerCase(),
+    p_product_master_id: uppercaseProductMasterId.toLowerCase(),
+    p_input: expect.objectContaining({
+      demandId: uppercaseDemandId.toLowerCase(),
+      productMasterId: uppercaseProductMasterId.toLowerCase(),
+    }),
+  });
+  expect(replayState.replayRpcInput).toEqual(replayState.firstRpcInput);
+  expect(replayState).toMatchObject({
+    committed: true,
+    createCount: 1,
+    replayCount: 1,
+  });
+});
+
 test("CREATE_OFFER route rejects invalid quantity and price before database access", async () => {
   const invalidCases = [
     { label: "zero quantity", overrides: { quantity: 0 }, expectedError: "INVALID_QUANTITY" },
