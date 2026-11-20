@@ -80,7 +80,21 @@ qa430_runner_invocations="$(grep -Fc '"${PSQL[@]}" -f "$ROOT/tests/sql/create-of
 
 integration_runner_invocations="$(grep -Fc 'run: bash tests/sql/run-create-offer-integration.sh' "$WORKFLOW" || true)"
 [[ "$integration_runner_invocations" -eq 2 ]] ||
-  fail "CI must invoke the CREATE_OFFER integration runner once in each PostgreSQL 16 and 17.6 job (found $integration_runner_invocations)"
+  fail "CI must invoke the CREATE_OFFER integration runner exactly twice overall (found $integration_runner_invocations)"
+
+for job_name in postgres-integration postgres17-create-offer-compatibility; do
+  job_block="$(awk -v target="  ${job_name}:" '
+    $0 == target { inside = 1; found = 1; next }
+    inside && /^  [[:alnum:]_-]+:$/ { inside = 0 }
+    inside { print }
+    END { if (!found) exit 2 }
+  ' "$WORKFLOW")" ||
+    fail "CI workflow must define the $job_name job"
+
+  job_runner_invocations="$(grep -Fc 'run: bash tests/sql/run-create-offer-integration.sh' <<< "$job_block" || true)"
+  [[ "$job_runner_invocations" -eq 1 ]] ||
+    fail "$job_name must invoke the CREATE_OFFER integration runner exactly once (found $job_runner_invocations)"
+done
 grep -Fq 'upper(v_demand_id::text)::uuid' "$UUID_CASE_REPLAY" ||
   fail "UUID-case replay must exercise uppercase typed demand UUID input"
 grep -Fq 'upper(v_product_master_id::text)::uuid' "$UUID_CASE_REPLAY" ||
