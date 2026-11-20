@@ -683,6 +683,34 @@ test("CREATE_OFFER route trims required name and demand IDs before action execut
   ).toBe(true);
 });
 
+test("CREATE_OFFER route trims product-master IDs before action execution", async () => {
+  const productMasterId = "60000000-0000-4000-8000-000000000001";
+  const result = await postCreateOffer("USD", {
+    productMasterId: ` \t${productMasterId}\n `,
+  });
+
+  expect(result.status, JSON.stringify({ body: result.body, requests: result.requests })).toBe(200);
+  const executionCalls = result.requests.filter(
+    (request) => request.path === "/rest/v1/rpc/execute_create_offer_v1",
+  );
+  expect(executionCalls).toHaveLength(1);
+
+  const rpcBody = executionCalls[0].body;
+  expect(rpcBody?.p_product_master_id).toBe(productMasterId);
+  expect(rpcBody?.p_input).toMatchObject({ productMasterId });
+
+  expect(result.requests.map((request) => request.path)).toEqual([
+    "/auth/v1/user",
+    "/rest/v1/profiles",
+    "/rest/v1/dt_memberships",
+    "/rest/v1/rpc/get_action_definition_v1",
+    "/rest/v1/rpc/execute_create_offer_v1",
+  ]);
+  expect(
+    result.requests.every((request) => request.authorization === "Bearer qima-route-test-token"),
+  ).toBe(true);
+});
+
 test("CREATE_OFFER route rejects invalid quantity and price before database access", async () => {
   const invalidCases = [
     { label: "zero quantity", overrides: { quantity: 0 }, expectedError: "INVALID_QUANTITY" },
