@@ -11908,3 +11908,34 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 - Aucun avis de review ni thread de review inline n'est retourné pour la PR au moment du contrôle. Aucun test local n'a été exécuté ; les 398 réussites proviennent de GitHub Actions.
 - **Point de contrat non résolu :** la route construit `ActionContext.correlationId`, mais le handler `CREATE_OFFER` de `lib/actions/runtime.ts` ne transmet pas cette valeur à `execute_create_offer_v1`. La suite de l'évolution dépend d'une décision produit sur la portée de cette corrélation (traçabilité applicative, persistance SQL ou correspondance avec l'identifiant d'exécution). Aucun changement de handler ou SQL n'est effectué sans cette décision.
 - Aucun changement de code, de test, de dépendance, de migration ou de donnée Supabase Production n'est effectué dans cette actualisation documentaire. Aucun secret, grant, policy RLS persistante, déploiement Production, merge, force-push ou règle de protection n'a été modifié.
+
+
+## Revue de contrat CREATE_OFFER — HEAD `8b01cebb` (20 novembre 2026, 20:24 KST)
+
+- État GitHub relu avant cette actualisation : PR #26 **OPEN / DRAFT / non fusionnée**, `mergeable=true`, branche `fix/create-offer-status-contract`, base `main`, HEAD `8b01cebb3e93c46d2d33b7fd35e48effdf20152b`, **2 094 commits** dans la PR, **270 fichiers modifiés** (**87 410 insertions / 261 suppressions**). Le commit HEAD précédent est documentaire uniquement.
+- QIMA CI [#1704](https://github.com/meridane/QimaTrade-MVP/actions/runs/44724981427) est **SUCCESS** : Verify **398/398 Playwright**, npm ci, npm audit au seuil `high`, TypeScript, build Next.js, Chromium, PostgreSQL 16 et PostgreSQL 17.6 réussis. Les jobs setup-failure et cleanup-failure ont leurs conclusions négatives intentionnelles, avec assertions de contrôle **SUCCESS** ; le job skipped est attendu et son assertion est **SUCCESS**.
+- CodeQL [#1635](https://github.com/meridane/QimaTrade-MVP/actions/runs/44724981450) est **SUCCESS**. Le statut Vercel du HEAD `8b01cebb3e93c46d2d33b7fd35e48effdf20152b` est **FAILURE** avec diagnostic `build-rate-limit` / `api-deployments-free-per-day`. Le Preview **SUCCESS** consigné pour le parent `89dbf98b` n'est pas reporté sur ce HEAD documentaire. Le build GitHub Actions reste réussi.
+- L'audit npm de #1704 rapporte **1 finding moderate, 0 high, 0 critical**. La réussite au seuil `high` ne signifie pas absence de finding et ne démontre pas l'exploitabilité dans QimaTrade.
+
+### Constat vérifié : corrélation applicative et corrélation SQL
+
+- `app/api/actions/create-offer/route.ts` normalise `body.correlationId` (ou génère un UUID) et le place dans `ActionContext.correlationId`.
+- `lib/actions/types.ts` déclare ce champ obligatoire dans `ActionContext`.
+- Le handler `CREATE_OFFER` de `lib/actions/runtime.ts` ne transmet pas `actionContext.correlationId` à `execute_create_offer_v1`.
+- La signature SQL de `execute_create_offer_v1` ne contient aucun paramètre de corrélation ; la fonction crée son propre `v_correlation_id := gen_random_uuid()`, puis persiste cette valeur dans `action_executions.correlation_id` et `action_events.correlation_id`. Le résultat public expose `executionId`, pas le `correlationId` fourni par la route.
+- Le handler `PUBLISH_PRODUCT_REQUEST` utilise au contraire `actionContext.correlationId` comme `executionId`. Les deux handlers n'appliquent donc pas actuellement la même sémantique de corrélation.
+- **Décision requise avant correction :** choisir si le correlation ID entrant est (a) une trace de requête séparée, (b) l'identifiant à persister dans les lignes SQL, ou (c) doit être retiré du contexte CREATE_OFFER au profit de l'identifiant généré par SQL. Ne pas ajouter un paramètre SQL ni changer le handler avant cette décision. Ce décalage est un constat de contrat, pas une preuve de vulnérabilité.
+
+### Constat vérifié : autorisation de répondre à une demande
+
+- La migration vérifie l'appartenance de l'utilisateur au tenant demandé, l'égalité de `p_provider_actor_id` avec l'acteur du profil authentifié, et l'existence de `p_demand_id`.
+- Le contrôle SQL visible ne définit pas à lui seul si un fournisseur est autorisé à répondre à cette demande. Le schéma documenté ne fournit pas de `tenant_id` sur `demands`; le contrôle de participation existant ne suffit pas à autoriser le premier fournisseur à répondre.
+- **Décision métier requise :** définir le prédicat de visibilité/éligibilité d'une demande pour un nouveau fournisseur, notamment les cas demandeur, fournisseur non lié, fournisseur déjà participant et fournisseur d'un autre tenant. Ne pas inventer une comparaison `demands.tenant_id` ni réutiliser un helper de participation sans validation produit.
+
+### Couverture et prochaine étape
+
+- Les tests E2E couvrent déjà l'authentification, l'absence/ambiguïté de membership, la normalisation des clés d'idempotence, les rejouabilités et les erreurs publiques.
+- Les tests PostgreSQL isolés couvrent le verrou tenant/clé, les appels concurrents, les rejeux identiques, les rejeux à payload modifié, les scopes inter-tenants de clé et les rejets sans écriture.
+- Les tests ne remplacent pas les deux décisions de contrat ci-dessus. Prochaine étape sûre : obtenir les décisions produit, puis écrire les cas négatifs/positifs dans une base PostgreSQL jetable avant toute proposition de migration. Aucun accès ou changement de production n'est nécessaire pour cette phase documentaire.
+
+- Aucun test local n'a été exécuté dans cette actualisation. Aucune donnée ou migration Supabase Production, aucun secret, grant, politique RLS persistante, déploiement Production, merge, force-push ou règle de protection n'a été modifié. Les tests synthétiques caractérisent les contrats et ne prouvent pas une vulnérabilité exploitable.
