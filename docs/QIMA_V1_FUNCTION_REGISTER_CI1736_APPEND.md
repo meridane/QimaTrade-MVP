@@ -27,8 +27,8 @@ Date: 2026-11-21 (KST)
 
 ## CI status for the new test
 
-- The test commit is currently on the isolated work branch. No PR-triggered QIMA CI result has yet been returned for it.
-- The next verification must run after fast-forwarding the work branch to PR #26, then report the exact Playwright and PostgreSQL results. The 401/401 result above belongs only to the parent baseline `3ea03ba`, not to the new 503 test.
+- The test and companion record were fast-forwarded to PR #26; the PR branch and work branch now point to the same HEAD. At the post-push check, no PR-triggered QIMA CI or CodeQL run had yet been returned for the new HEAD. The Vercel combined status was PENDING.
+- Continue polling the new PR HEAD and report exact Playwright/PostgreSQL results only when the corresponding runs appear. The 401/401 result above belongs only to the parent baseline `3ea03ba`, not to the new 503 test.
 
 ## Canonical register retrieval limitation
 
