@@ -12067,3 +12067,10 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 - La version Next.js verrouillée reste \`15.5.28\`. Une tentative de consultation du registre npm depuis l'environnement de travail (\`npm view next@15.5.29\`) a expiré ; aucun \`package.json\` ni \`package-lock.json\` n'a été modifié. La mise à jour 15.5.29 reste une tâche distincte à effectuer avec accès npm et régénération vérifiable du lockfile.
 - Aucun test local n'a été exécuté. QA430 n'a pas encore de résultat CI. Les seules écritures de données définies par ce nouveau test ciblent la base jetable \`qima_test\` créée par le runner CI ; aucune donnée Supabase Production, migration, secret, grant ou policy RLS persistante n'a été modifié. Aucun déploiement Production, merge, force-push ou changement de règle de protection n'a été effectué.
 
+### Suivi post-publication — QA430, QIMA CI #1721 et CodeQL #1652 (21 novembre 2026)
+
+- Après le fast-forward du code et du test QA430, GitHub a créé QIMA CI #1721 (https://github.com/meridane/QimaTrade-MVP/actions/runs/44774641835), associé au HEAD de code/test \`81ac6df0fa5d92661ab034c9c0a625136f9915b5\`. Au dernier contrôle, le run est **PENDING** et aucun job n'a encore été publié ; aucun résultat de Verify ou PostgreSQL n'est anticipé.
+- CodeQL #1652 (https://github.com/meridane/QimaTrade-MVP/actions/runs/44774642116) sur le même HEAD est **IN PROGRESS** ; le job \`Analyze JavaScript and TypeScript\` est actif.
+- Le statut Vercel du HEAD \`81ac6df0\` reste **FAILURE** avec \`api-deployments-free-per-day\` / \`build-rate-limit\`. Ce statut n'est pas assimilé à un échec de compilation GitHub Actions.
+- Après recalcul GitHub, la PR #26 reste **OPEN / DRAFT / non fusionnée** et \`mergeable=true\`. La branche de travail et la branche PR sont identiques au code/test HEAD avant cette actualisation documentaire. Le présent commit ne change que le registre ; aucune validation QA430 n'est déduite de ce snapshot en attente.
+
