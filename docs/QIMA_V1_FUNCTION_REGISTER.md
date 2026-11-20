@@ -12182,3 +12182,13 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 - Ce changement clarifie le classement d'une erreur d'infrastructure par rapport à une absence d'identité métier ; il ne change ni la résolution du tenant, ni l'autorisation fournisseur, ni le SQL/RLS. Il ne constitue pas une conclusion de vulnérabilité.
 - La nouvelle CI du commit de correction n'a pas encore fourni de résultat au moment de la publication. Les résultats #1733/#1663 sont ceux du parent et ne sont pas attribués à cette modification. Aucun test local n'a été exécuté.
 - Aucun SQL, migration, donnée Supabase Production, secret, grant ou policy RLS persistante n'a été modifié. Aucun déploiement Production, merge, force-push ou changement de protection n'a été effectué.
+
+
+### Suivi des checks après publication du correctif profil — 21 novembre 2026, 06:18 KST
+
+- Le commit de code/test/documentation `c32ffdde` a été publié par fast-forward sur la branche PR après vérification du HEAD précédent. La branche de travail `work/create-offer-profile-lookup-error-contract-20261121-0615` et la branche PR étaient identiques (0 ahead / 0 behind).
+- QIMA CI [#1734](https://github.com/meridane/QimaTrade-MVP/actions/runs/44818984278) a démarré sur `c32ffdde`. Au contrôle : job Verify **IN PROGRESS** au début de TypeScript après la réussite de l'audit npm ; PostgreSQL 17.6 **IN PROGRESS** dans les tests d'intégration/concurrence ; PostgreSQL 16 **IN PROGRESS** pendant l'installation du client. Aucun résultat Playwright final ni résultat PostgreSQL final n'est encore attribué.
+- CodeQL [#1664](https://github.com/meridane/QimaTrade-MVP/actions/runs/44818984199) est **IN PROGRESS**, à l'initialisation de l'analyse.
+- Le statut combiné Vercel du HEAD `c32ffdde` est **PENDING**. Il ne s'agit pas d'un résultat de build GitHub Actions.
+- La validation de référence du parent `d5360b8a` reste CI [#1733](https://github.com/meridane/QimaTrade-MVP/actions/runs/44812452669) **SUCCESS** (401/401 Playwright, TypeScript, audit, build, PostgreSQL 16/17.6) et CodeQL [#1663](https://github.com/meridane/QimaTrade-MVP/actions/runs/44812452674) **SUCCESS**. Ces résultats ne valident pas le nouveau mapping `PROFILE_LOOKUP_FAILED`.
+- Aucun test local n'a été exécuté. Aucun SQL, migration, donnée Supabase Production, secret, grant ou policy RLS persistante n'a été modifié. Aucun déploiement Production, merge, force-push ou changement de protection n'a été effectué.
