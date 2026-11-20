@@ -723,7 +723,7 @@ test("CREATE_OFFER route trims product-master IDs before action execution", asyn
   ).toBe(true);
 });
 
-test("CREATE_OFFER route normalizes non-string product-master IDs to an empty value before action execution", async () => {
+test("CREATE_OFFER route rejects missing or non-string product-master IDs before profile lookup", async () => {
   const invalidValues: Array<{ label: string; value: unknown }> = [
     { label: "omitted productMasterId", value: undefined },
     { label: "blank string", value: " \t\n " },
@@ -737,15 +737,25 @@ test("CREATE_OFFER route normalizes non-string product-master IDs to an empty va
   for (const { label, value } of invalidValues) {
     const result = await postCreateOffer("USD", { productMasterId: value });
 
-    expect(result.status, label).toBe(200);
-    const executionCalls = result.requests.filter(
-      (request) => request.path === "/rest/v1/rpc/execute_create_offer_v1",
-    );
-    expect(executionCalls, label).toHaveLength(1);
+    expect(result.status, label).toBe(400);
+    expect(result.body, label).toEqual({ error: "INVALID_PRODUCT_MASTER_ID" });
+    expect(result.requests.map((request) => request.path), label).toEqual(["/auth/v1/user"]);
+  }
+});
 
-    const rpcBody = executionCalls[0].body;
-    expect(rpcBody?.p_product_master_id, label).toBe("");
-    expect(rpcBody?.p_input, label).toMatchObject({ productMasterId: "" });
+test("CREATE_OFFER route rejects malformed UUID demand and product-master IDs before profile lookup", async () => {
+  const invalidCases = [
+    { label: "malformed demandId", overrides: { demandId: "not-a-uuid" }, expectedError: "INVALID_DEMAND_ID" },
+    { label: "malformed productMasterId", overrides: { productMasterId: "not-a-uuid" }, expectedError: "INVALID_PRODUCT_MASTER_ID" },
+    { label: "wrong demand UUID group lengths", overrides: { demandId: "50000000-0000-4000-8000-00000000000" }, expectedError: "INVALID_DEMAND_ID" },
+  ];
+
+  for (const { label, overrides, expectedError } of invalidCases) {
+    const result = await postCreateOffer("USD", overrides);
+
+    expect(result.status, label).toBe(400);
+    expect(result.body, label).toEqual({ error: expectedError });
+    expect(result.requests.map((request) => request.path), label).toEqual(["/auth/v1/user"]);
   }
 });
 
