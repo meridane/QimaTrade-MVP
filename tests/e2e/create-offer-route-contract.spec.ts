@@ -687,7 +687,8 @@ test("CREATE_OFFER route trims required name and demand IDs before action execut
 test("CREATE_OFFER route trims product-master IDs before action execution", async () => {
   const productMasterId = "60000000-0000-4000-8000-000000000001";
   const result = await postCreateOffer("USD", {
-    productMasterId: ` \t${productMasterId}\n `,
+    // Exercise ECMAScript trim for ASCII, non-breaking-space, and BOM whitespace.
+    productMasterId: ` \t\u00A0\uFEFF${productMasterId}\u00A0\n `,
   });
 
   expect(result.status, JSON.stringify({ body: result.body, requests: result.requests })).toBe(200);
