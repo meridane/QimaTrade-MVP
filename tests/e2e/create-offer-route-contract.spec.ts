@@ -1072,7 +1072,9 @@ test("CREATE_OFFER route preserves empty optional business strings and keeps the
 });
 
 test("CREATE_OFFER route trims an explicit idempotency key before the RPC", async () => {
-  const result = await postCreateOffer("USD", { idempotencyKey: "\t client-key-123 \n" });
+  const result = await postCreateOffer("USD", {
+    idempotencyKey: "\t\u00A0\uFEFFclient-key-123\u00A0 \n",
+  });
 
   expect(result.status, JSON.stringify({ body: result.body, requests: result.requests })).toBe(200);
   const executionCall = result.requests.find(
@@ -1082,7 +1084,7 @@ test("CREATE_OFFER route trims an explicit idempotency key before the RPC", asyn
 });
 
 test("CREATE_OFFER route generates an idempotency UUID when the supplied key is blank", async () => {
-  const result = await postCreateOffer("USD", { idempotencyKey: "   " });
+  const result = await postCreateOffer("USD", { idempotencyKey: "\u00A0\uFEFF\t\n" });
 
   expect(result.status, JSON.stringify({ body: result.body, requests: result.requests })).toBe(200);
   const executionCall = result.requests.find(
