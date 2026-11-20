@@ -1444,6 +1444,7 @@ test("CREATE_OFFER route trims membership tenant IDs before deduplicating the sa
     { tenant_id: tenantId },
     { tenant_id: ` ${tenantId} ` },
     { tenant_id: `\t${tenantId}\n` },
+    { tenant_id: `\u00A0\uFEFF${tenantId}\u00A0` },
   ]);
 
   expect(result.status, JSON.stringify({ body: result.body, requests: result.requests })).toBe(200);
