@@ -643,8 +643,10 @@ test("CREATE_OFFER route rejects non-string currency values without calling data
 test("CREATE_OFFER route rejects blank or non-string name/demandId before database access", async () => {
   const invalidCases = [
     { label: "blank name", overrides: { name: "   " } },
+    { label: "Unicode-whitespace-only name", overrides: { name: "\u00A0\uFEFF\u2003\t\n" } },
     { label: "non-string name", overrides: { name: { value: "offer" } } },
     { label: "blank demandId", overrides: { demandId: "   " } },
+    { label: "Unicode-whitespace-only demandId", overrides: { demandId: "\u00A0\uFEFF\u2003\t\n" } },
     { label: "non-string demandId", overrides: { demandId: 42 } },
   ];
 
