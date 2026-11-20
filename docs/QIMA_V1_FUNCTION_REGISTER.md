@@ -11841,3 +11841,14 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 - Vercel Preview pour le commit de test 7c41221f est maintenant **SUCCESS**. Ce succès est distinct de l'ancien échec de quota Vercel observé sur le HEAD initial b2d9c7b0.
 - Sur le HEAD documentaire 9c15f4fe, CodeQL #1626 (run 44696898294) est **IN PROGRESS**, QIMA CI #1695 (run 44696898299) est **PENDING**, et Vercel Preview est **PENDING** au dernier contrôle. Le commit 9c15f4fe ne change que le registre ; la validation du test reste celle de #1694/#1625.
 - Les validations Playwright et PostgreSQL du nouveau test ne sont pas encore déclarées réussies. Aucun test local n'a été exécuté.
+
+
+## État vérifié — normalisation Unicode de la devise CREATE_OFFER (20 novembre 2026, 17:27 KST)
+
+- PR #26 reste **OPEN / DRAFT / non fusionnée**, base `main`, branche `fix/create-offer-status-contract`. Le HEAD de test publié est `ea9d03028ed3eabdc7edb8f35c1aa58014d1156b`, enfant direct du HEAD documentaire précédent `74ca889e`; le changement applicatif est limité au fichier E2E.
+- Dans `tests/e2e/create-offer-route-contract.spec.ts`, le test existant sur les quantités/prix numériques sous forme de chaînes est renforcé pour envoyer une devise avec espace insécable U+00A0 et BOM U+FEFF autour de `USD`. Les assertions vérifient la normalisation de `p_currency` et de `p_input.currency` en `USD`, tout en conservant `p_quantity=2` et `p_price=12.5`.
+- Le changement caractérise le `.trim()` déjà présent dans la route et la validation de la devise allowlistée ; aucun code applicatif, contrat SQL, migration ou règle métier n'a été modifié. Le nombre de déclarations de tests reste inchangé.
+- Validation de référence du HEAD précédent `74ca889e` : QIMA CI #1696 (run 44697000521) **SUCCESS**. Le job Verify a terminé avec **397 Playwright passed (8,5 s)** ; npm audit, TypeScript, build Next.js et installation Chromium sont **SUCCESS**. PostgreSQL 16 et PostgreSQL 17.6 sont également **SUCCESS**. L'artefact npm audit rapporte 1 finding moderate, 0 high et 0 critical ; le workflow bloque au seuil high. Les jobs de simulation setup-failure et cleanup-failure ont leurs conclusions négatives intentionnelles, avec assertions de contrôle réussies ; le job skipped est contrôlé.
+- CodeQL #1627 (run 44697000514) sur le HEAD précédent : **SUCCESS**. Le statut Vercel du HEAD précédent est **SUCCESS**.
+- Après publication du test `ea9d0302`, QIMA CI #1697 (run 44702904258) est **QUEUED**, CodeQL #1628 (run 44702904296) est **IN PROGRESS**, et le statut Vercel est **PENDING** au relevé de 17:27 KST. Aucun résultat de validation n'est attribué au nouveau test tant que ces contrôles n'ont pas terminé.
+- Aucun test local n'a été exécuté. Aucun accès, donnée ou migration Supabase Production, secret, grant, politique RLS persistante, déploiement Production, merge, force-push ou règle de protection n'a été modifié.
