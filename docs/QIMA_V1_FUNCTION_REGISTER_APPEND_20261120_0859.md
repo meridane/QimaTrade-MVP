@@ -137,3 +137,18 @@ PR #25 (`chore/qima-free-autopilot-review`) is also open and changes `app/api/ac
 - The work branch and PR branch were identical (0 ahead / 0 behind) before this documentation refresh.
 
 No application source, SQL, migration, Supabase Production data, grant, RLS policy, secret, workflow, or production deployment was changed. No merge, force-push, or branch-protection change was made.
+
+
+---
+
+## Post-publication status correction — 2026-11-20 09:38 KST
+
+- Current PR HEAD before this final note: `0496fe9cff9278232101229e9ea7e30e6e885b37`; PR #26 OPEN / DRAFT / not merged, `mergeable=true`, 2,061 commits ahead of `main`, 0 behind, 269 changed files (87,042 additions / 261 deletions). Base remains `main` at `0d35c13db81019867fe9929420b0a6916285fbf6`.
+- Work branch `work/create-offer-required-field-trimming-20261120-0938` and PR branch were identical at that HEAD (0 ahead / 0 behind).
+- QIMA CI #1671: Verify job **SUCCESS**, including **396/396 Playwright**; the new required-field trimming test is explicitly PASS. npm audit, TypeScript, production build, and Chromium installation completed successfully.
+- PostgreSQL 16 and PostgreSQL 17.6 jobs in CI #1671 remain **IN PROGRESS**, each at the full CREATE_OFFER runner write-privilege characterization. No final database-job conclusion is claimed.
+- CodeQL #1602: **SUCCESS**.
+- The earlier documentation-head QIMA CI #1672 was **CANCELLED before jobs were published** after the next push; this is not a test failure. CodeQL #1603: **SUCCESS**.
+- The then-current final documentation HEAD had QIMA CI #1673 **PENDING** and CodeQL #1604 **IN PROGRESS**. Vercel Preview for that HEAD was **PENDING**. A further documentation-only commit follows this snapshot; verify the resulting HEAD checks separately.
+- PR #25 also changes `app/api/actions/create-offer/route.ts`; this execution changes only the E2E contract test and this append-only note. No application-route changes were made.
+- No local test suite was run. No production data, migration, RLS policy, grant, secret, workflow, deployment, merge, force-push, or protection rule was changed.
