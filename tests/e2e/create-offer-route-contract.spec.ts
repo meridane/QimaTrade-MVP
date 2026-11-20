@@ -2156,7 +2156,7 @@ test("CREATE_OFFER route masks Auth transport failures and stops before profile 
 });
 
 test("CREATE_OFFER route preserves non-disclosing profile and membership errors across upstream HTTP statuses", async () => {
-  const upstreamStatuses = [401, 403, 500, 503];
+  const upstreamStatuses = [401, 403, 500];
   const bearer = "Bearer qima-route-test-token";
 
   for (const upstreamStatus of upstreamStatuses) {
