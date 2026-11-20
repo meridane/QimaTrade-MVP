@@ -11939,3 +11939,12 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 - Les tests ne remplacent pas les deux décisions de contrat ci-dessus. Prochaine étape sûre : obtenir les décisions produit, puis écrire les cas négatifs/positifs dans une base PostgreSQL jetable avant toute proposition de migration. Aucun accès ou changement de production n'est nécessaire pour cette phase documentaire.
 
 - Aucun test local n'a été exécuté dans cette actualisation. Aucune donnée ou migration Supabase Production, aucun secret, grant, politique RLS persistante, déploiement Production, merge, force-push ou règle de protection n'a été modifié. Les tests synthétiques caractérisent les contrats et ne prouvent pas une vulnérabilité exploitable.
+
+
+### Vérification post-publication — HEAD documentaire `1b4e0e86` (20 novembre 2026, 20:24 KST)
+
+- Le commit `1b4e0e86b4f1e9793048ad05eb7120fc50402973` ajoute uniquement 31 lignes à `docs/QIMA_V1_FUNCTION_REGISTER.md`. Le diff Git confirme **1 fichier modifié, 31 insertions, 0 suppression** ; son parent est le HEAD précédemment vérifié `8b01cebb).
+- Après fast-forward, GitHub confirme PR #26 **OPEN / DRAFT / non fusionnée**, `mergeable=true`, HEAD `1b4e0e86`, **2 095 commits devant `main`, 0 derrière**, 270 fichiers modifiés (**87 441 insertions / 261 suppressions**). La branche de travail et la branche PR sont identiques (0 ahead / 0 behind).
+- Aucun nouveau workflow QIMA CI ou CodeQL n'est retourné pour le commit documentaire ; les chemins `docs/**` sont ignorés par les workflows. La dernière validation du code/test inchangé reste QIMA CI [#1704](https://github.com/meridane/QimaTrade-MVP/actions/runs/44724981427) **SUCCESS** (398/398 Playwright, PostgreSQL 16/17.6, audit, TypeScript et build) et CodeQL [#1635](https://github.com/meridane/QimaTrade-MVP/actions/runs/44724981450) **SUCCESS** sur le commit parent vérifié.
+- Le statut combiné du nouveau HEAD conserve Vercel **FAILURE** avec le lien de quota `build-rate-limit` / `api-deployments-free-per-day`. Aucun contournement du quota ni déploiement Production n'a été tenté.
+- Aucun code, test, dépendance, migration ou donnée Supabase Production n'a été modifié dans cette vérification.
