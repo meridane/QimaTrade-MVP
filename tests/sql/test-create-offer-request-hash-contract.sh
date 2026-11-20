@@ -5,13 +5,15 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 MIGRATION="$ROOT/supabase/migrations/20261027090000_fix_create_offer_action_status_contract.sql"
 RUNTIME="$ROOT/tests/sql/create-offer-runtime.sql"
 WORKFLOW="$ROOT/.github/workflows/ci.yml"
+UUID_CASE_REPLAY="$ROOT/tests/sql/create-offer-uuid-case-replay.sql"
+RUNNER="$ROOT/tests/sql/run-create-offer-integration.sh"
 
 fail() {
   echo "ERROR: $*" >&2
   exit 1
 }
 
-for file in "$MIGRATION" "$RUNTIME" "$WORKFLOW"; do
+for file in "$MIGRATION" "$RUNTIME" "$WORKFLOW" "$UUID_CASE_REPLAY" "$RUNNER"; do
   [[ -f "$file" ]] || fail "required request-hash contract file is missing: $file"
 done
 
@@ -72,6 +74,15 @@ grep -Fq 'fixture-same-key-two-tenants' "$RUNTIME" ||
 grep -Fq 'count(DISTINCT request_hash)' "$RUNTIME" ||
   fail "runtime must retain the request-hash scope assertion"
 
+grep -Fq '"${PSQL[@]}" -f "$ROOT/tests/sql/create-offer-uuid-case-replay.sql"' "$RUNNER" ||
+  fail "disposable PostgreSQL runner must execute the UUID-case replay regression"
+grep -Fq 'upper(v_demand_id::text)::uuid' "$UUID_CASE_REPLAY" ||
+  fail "UUID-case replay must exercise uppercase typed demand UUID input"
+grep -Fq 'upper(v_product_master_id::text)::uuid' "$UUID_CASE_REPLAY" ||
+  fail "UUID-case replay must exercise uppercase typed product-master UUID input"
+grep -Fq 'v_retry_result IS DISTINCT FROM v_first_result' "$UUID_CASE_REPLAY" ||
+  fail "UUID-case replay must compare the persisted replay result with the first result"
+
 verify_job="$(awk '
   $0 == "  verify:" { inside = 1; next }
   inside && /^  [[:alnum:]_-]+:$/ { exit }
@@ -81,4 +92,4 @@ verify_job="$(awk '
 [[ "$(grep -Fc 'run: bash tests/sql/test-create-offer-request-hash-contract.sh' <<< "$verify_job" || true)" -eq 1 ]] ||
   fail "Verify job must execute the request-hash field-coverage contract exactly once"
 
-echo "QA382 PASS: the effective CREATE_OFFER request hash maps all 16 business inputs exactly once, keeps tenant/idempotency scope separate, and retains the existing disposable replay assertions."
+echo "QA382 PASS: the effective CREATE_OFFER request hash maps all 16 business inputs exactly once, keeps tenant/idempotency scope separate, and runs the disposable UUID-case replay regression."
