@@ -720,6 +720,8 @@ test("CREATE_OFFER route rejects invalid quantity and price before database acce
     { label: "nonnumeric quantity", overrides: { quantity: "not-a-number" }, expectedError: "INVALID_QUANTITY" },
     { label: "boolean quantity", overrides: { quantity: true }, expectedError: "INVALID_QUANTITY" },
     { label: "array quantity", overrides: { quantity: [2] }, expectedError: "INVALID_QUANTITY" },
+    { label: "blank quantity", overrides: { quantity: " \t\n " }, expectedError: "INVALID_QUANTITY" },
+    { label: "object quantity", overrides: { quantity: { value: 2 } }, expectedError: "INVALID_QUANTITY" },
     { label: "non-finite numeric-string quantity", overrides: { quantity: "Infinity" }, expectedError: "INVALID_QUANTITY" },
     { label: "omitted price", overrides: { price: undefined }, expectedError: "INVALID_PRICE" },
     { label: "null price", overrides: { price: null }, expectedError: "INVALID_PRICE" },
@@ -728,6 +730,7 @@ test("CREATE_OFFER route rejects invalid quantity and price before database acce
     { label: "blank price", overrides: { price: "   " }, expectedError: "INVALID_PRICE" },
     { label: "boolean price", overrides: { price: true }, expectedError: "INVALID_PRICE" },
     { label: "array price", overrides: { price: [] }, expectedError: "INVALID_PRICE" },
+    { label: "object price", overrides: { price: { value: 10 } }, expectedError: "INVALID_PRICE" },
   ];
 
   for (const invalidCase of invalidCases) {
