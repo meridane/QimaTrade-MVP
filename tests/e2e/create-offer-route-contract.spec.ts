@@ -1396,7 +1396,7 @@ test("CREATE_OFFER route fails closed when the profile has no actor_id", async (
   expect(result.requests.some((request) => request.path.startsWith("/rest/v1/rpc/"))).toBe(false);
 });
 
-test("CREATE_OFFER route masks profile lookup diagnostics and stops before tenant or RPC access", async () => {
+test("CREATE_OFFER route returns a generic server error for profile lookup failures and stops before tenant or RPC access", async () => {
   const result = await postCreateOffer(
     "USD",
     {},
@@ -1409,8 +1409,8 @@ test("CREATE_OFFER route masks profile lookup diagnostics and stops before tenan
     500,
   );
 
-  expect(result.status).toBe(403);
-  expect(result.body).toEqual({ error: "PROFILE_ACTOR_NOT_FOUND" });
+  expect(result.status).toBe(500);
+  expect(result.body).toEqual({ error: "PROFILE_LOOKUP_FAILED" });
   expect(JSON.stringify(result.body)).not.toMatch(/PROFILE_(?:LOOKUP|DETAILS|HINT)_PRIVATE_SENTINEL|XX000|Profile lookup failed/i);
   expect(result.wwwAuthenticate).toBeNull();
   expect(result.requests.map((request) => request.path)).toEqual([
@@ -2172,9 +2172,9 @@ test("CREATE_OFFER route preserves non-disclosing profile and membership errors 
       upstreamStatus,
     );
 
-    expect(profileFailure.status, `profile upstream HTTP ${upstreamStatus}`).toBe(403);
+    expect(profileFailure.status, `profile upstream HTTP ${upstreamStatus}`).toBe(500);
     expect(profileFailure.body, `profile upstream HTTP ${upstreamStatus}`).toEqual({
-      error: "PROFILE_ACTOR_NOT_FOUND",
+      error: "PROFILE_LOOKUP_FAILED",
     });
     expect(JSON.stringify(profileFailure.body)).not.toMatch(
       /PROFILE_(?:LOOKUP|DETAILS|HINT)_PRIVATE_SENTINEL|XX000|Profile lookup failed/i,

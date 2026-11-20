@@ -95,7 +95,10 @@ export async function POST(request: Request) {
     if (!currencies.has(currency)) return NextResponse.json({ error: "INVALID_CURRENCY" }, { status: 400 });
 
     const { data: profile, error: profileError } = await supabase.from("profiles").select("actor_id").eq("auth_user_id", user.id).maybeSingle();
-    if (profileError || !profile?.actor_id) return NextResponse.json({ error: "PROFILE_ACTOR_NOT_FOUND" }, { status: 403 });
+    if (profileError) {
+      return NextResponse.json({ error: "PROFILE_LOOKUP_FAILED" }, { status: 500 });
+    }
+    if (!profile?.actor_id) return NextResponse.json({ error: "PROFILE_ACTOR_NOT_FOUND" }, { status: 403 });
 
     const { data: memberships, error: membershipError } = await supabase.from("dt_memberships").select("tenant_id").eq("user_id", user.id);
     if (membershipError) {
