@@ -98,7 +98,10 @@ export async function POST(request: Request) {
     if (profileError || !profile?.actor_id) return NextResponse.json({ error: "PROFILE_ACTOR_NOT_FOUND" }, { status: 403 });
 
     const { data: memberships, error: membershipError } = await supabase.from("dt_memberships").select("tenant_id").eq("user_id", user.id);
-    if (membershipError || !memberships?.length) return NextResponse.json({ error: "TENANT_MEMBERSHIP_REQUIRED" }, { status: 403 });
+    if (membershipError) {
+      return NextResponse.json({ error: "TENANT_MEMBERSHIP_LOOKUP_FAILED" }, { status: 500 });
+    }
+    if (!memberships?.length) return NextResponse.json({ error: "TENANT_MEMBERSHIP_REQUIRED" }, { status: 403 });
 
     const tenantIds = [...new Set(
       memberships

@@ -1490,7 +1490,7 @@ test("CREATE_OFFER route rejects membership rows without a non-empty tenant ID",
   }
 });
 
-test("CREATE_OFFER route masks tenant membership lookup diagnostics and stops before RPC access", async () => {
+test("CREATE_OFFER route returns a generic server error for tenant membership lookup failures and stops before RPC access", async () => {
   const result = await postCreateOffer(
     "USD",
     {},
@@ -1502,8 +1502,8 @@ test("CREATE_OFFER route masks tenant membership lookup diagnostics and stops be
     500,
   );
 
-  expect(result.status).toBe(403);
-  expect(result.body).toEqual({ error: "TENANT_MEMBERSHIP_REQUIRED" });
+  expect(result.status).toBe(500);
+  expect(result.body).toEqual({ error: "TENANT_MEMBERSHIP_LOOKUP_FAILED" });
   expect(JSON.stringify(result.body)).not.toMatch(/MEMBERSHIP_(?:LOOKUP|DETAILS|HINT)_PRIVATE_SENTINEL|XX000|Membership lookup failed/i);
   expect(result.wwwAuthenticate).toBeNull();
   expect(result.requests.map((request) => request.path)).toEqual([
@@ -2156,7 +2156,7 @@ test("CREATE_OFFER route masks Auth transport failures and stops before profile 
 });
 
 test("CREATE_OFFER route preserves non-disclosing profile and membership errors across upstream HTTP statuses", async () => {
-  const upstreamStatuses = [401, 403, 500];
+  const upstreamStatuses = [401, 403, 500, 503];
   const bearer = "Bearer qima-route-test-token";
 
   for (const upstreamStatus of upstreamStatuses) {
@@ -2198,9 +2198,9 @@ test("CREATE_OFFER route preserves non-disclosing profile and membership errors 
       200,
     );
 
-    expect(membershipFailure.status, `membership upstream HTTP ${upstreamStatus}`).toBe(403);
+    expect(membershipFailure.status, `membership upstream HTTP ${upstreamStatus}`).toBe(500);
     expect(membershipFailure.body, `membership upstream HTTP ${upstreamStatus}`).toEqual({
-      error: "TENANT_MEMBERSHIP_REQUIRED",
+      error: "TENANT_MEMBERSHIP_LOOKUP_FAILED",
     });
     expect(JSON.stringify(membershipFailure.body)).not.toMatch(
       /MEMBERSHIP_(?:LOOKUP|DETAILS|HINT)_PRIVATE_SENTINEL|XX000|Membership lookup failed/i,
