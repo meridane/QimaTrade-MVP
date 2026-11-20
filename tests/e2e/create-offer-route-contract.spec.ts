@@ -714,10 +714,14 @@ test("CREATE_OFFER route trims product-master IDs before action execution", asyn
 test("CREATE_OFFER route rejects invalid quantity and price before database access", async () => {
   const invalidCases = [
     { label: "zero quantity", overrides: { quantity: 0 }, expectedError: "INVALID_QUANTITY" },
+    { label: "omitted quantity", overrides: { quantity: undefined }, expectedError: "INVALID_QUANTITY" },
+    { label: "null quantity", overrides: { quantity: null }, expectedError: "INVALID_QUANTITY" },
     { label: "nonnumeric quantity", overrides: { quantity: "not-a-number" }, expectedError: "INVALID_QUANTITY" },
     { label: "boolean quantity", overrides: { quantity: true }, expectedError: "INVALID_QUANTITY" },
     { label: "array quantity", overrides: { quantity: [2] }, expectedError: "INVALID_QUANTITY" },
     { label: "non-finite numeric-string quantity", overrides: { quantity: "Infinity" }, expectedError: "INVALID_QUANTITY" },
+    { label: "omitted price", overrides: { price: undefined }, expectedError: "INVALID_PRICE" },
+    { label: "null price", overrides: { price: null }, expectedError: "INVALID_PRICE" },
     { label: "negative price", overrides: { price: -1 }, expectedError: "INVALID_PRICE" },
     { label: "overflowing numeric-string price", overrides: { price: "1e309" }, expectedError: "INVALID_PRICE" },
     { label: "blank price", overrides: { price: "   " }, expectedError: "INVALID_PRICE" },
