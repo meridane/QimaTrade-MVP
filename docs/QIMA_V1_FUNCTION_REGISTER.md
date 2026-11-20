@@ -11833,3 +11833,11 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 - Après le push du commit de test, GitHub confirme PR #26 OPEN / DRAFT / non fusionnée, HEAD 7c41221f, 2 083 commits devant / 0 derrière, 270 fichiers (87 289 insertions / 261 suppressions), mergeable=true. Au dernier contrôle, aucun workflow GitHub Actions associé au nouveau SHA n’était encore visible ; le statut Vercel Preview est PENDING. Aucun résultat Playwright n’est attribué au nouveau test à ce stade.
 - Le registre canonique a été récupéré intégralement par son blob Git (contenu de 2 398 657 caractères) avant cet ajout. Cette section est append-only ; le contenu historique est conservé.
 - Aucun test local n’a été exécuté. Aucun changement de comportement métier, donnée ou migration Supabase Production, secret, grant, politique RLS persistante, workflow, déploiement Production, merge, force-push ou règle de protection n’a été effectué. Le test synthétique caractérise la normalisation et la déduplication des memberships ; il ne prouve pas une vulnérabilité exploitable.
+
+### Post-push validation update — 20 novembre 2026, 16:39 KST
+
+- QIMA CI #1694 (run 44696797145) pour le commit de test 7c41221f est **IN PROGRESS** au dernier contrôle. Les jobs Verify (navigateur Playwright) et les intégrations PostgreSQL 16 et 17.6 sont encore actifs. Les assertions des harnesses de simulation setup/cleanup déjà terminées sont réussies malgré leurs conclusions négatives intentionnelles ; le contrôle du job skipped est réussi.
+- CodeQL #1625 (run 44696797204) pour le commit de test 7c41221f est maintenant **SUCCESS**.
+- Vercel Preview pour le commit de test 7c41221f est maintenant **SUCCESS**. Ce succès est distinct de l'ancien échec de quota Vercel observé sur le HEAD initial b2d9c7b0.
+- Sur le HEAD documentaire 9c15f4fe, CodeQL #1626 (run 44696898294) est **IN PROGRESS**, QIMA CI #1695 (run 44696898299) est **PENDING**, et Vercel Preview est **PENDING** au dernier contrôle. Le commit 9c15f4fe ne change que le registre ; la validation du test reste celle de #1694/#1625.
+- Les validations Playwright et PostgreSQL du nouveau test ne sont pas encore déclarées réussies. Aucun test local n'a été exécuté.
