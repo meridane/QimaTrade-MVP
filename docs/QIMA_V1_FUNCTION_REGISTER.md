@@ -11852,3 +11852,13 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 - CodeQL #1627 (run 44697000514) sur le HEAD précédent : **SUCCESS**. Le statut Vercel du HEAD précédent est **SUCCESS**.
 - Après publication du test `ea9d0302`, QIMA CI #1697 (run 44702904258) est **QUEUED**, CodeQL #1628 (run 44702904296) est **IN PROGRESS**, et le statut Vercel est **PENDING** au relevé de 17:27 KST. Aucun résultat de validation n'est attribué au nouveau test tant que ces contrôles n'ont pas terminé.
 - Aucun test local n'a été exécuté. Aucun accès, donnée ou migration Supabase Production, secret, grant, politique RLS persistante, déploiement Production, merge, force-push ou règle de protection n'a été modifié.
+
+
+### Post-push validation update — 20 novembre 2026
+
+- QIMA CI #1697 (run 44702904258), déclenchée sur le commit de test `ea9d0302`, est **IN PROGRESS** au dernier relevé. Le job Verify est **SUCCESS** : **397 Playwright passed (11,1 s)** ; npm audit, TypeScript, build Next.js et installation Chromium sont **SUCCESS**. L'audit rapporte 1 finding moderate, 0 high et 0 critical ; le seuil bloquant du workflow est high.
+- Les jobs d'intégration PostgreSQL 16 et PostgreSQL 17.6 de #1697 sont encore **IN PROGRESS**. Les étapes actives portent sur les régressions de replay des champs optionnels ; aucune conclusion n'est anticipée pour ces jobs.
+- Les deux jobs de simulation setup-failure et cleanup-failure ont leurs conclusions négatives intentionnelles ; les assertions de contrôle sont **SUCCESS**. Le job de simulation skipped reste **SKIPPED**, avec son assertion de contrôle **SUCCESS**.
+- CodeQL #1628 (run 44702904296) pour `ea9d0302` est maintenant **SUCCESS**. Le statut Vercel Preview du commit de test est **SUCCESS**.
+- Le HEAD documentaire courant `1c33fbe6` ajoute uniquement cette entrée au registre. Aucun nouveau workflow QIMA CI ou CodeQL n'est associé à ce commit documentaire au moment du relevé. Le statut Vercel de ce HEAD documentaire est **FAILURE** avec le message de quota `api-deployments-free-per-day`; ce blocage de Preview est distinct du Preview **SUCCESS** du commit de test `ea9d0302`.
+- Le test Unicode de devise est donc validé par Playwright sur le commit de test. Les intégrations PostgreSQL restent à clôturer avant de déclarer la CI globale #1697 terminée. Aucun test local n'a été exécuté.
