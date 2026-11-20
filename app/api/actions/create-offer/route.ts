@@ -94,14 +94,22 @@ export async function POST(request: Request) {
     if (!Number.isFinite(price) || price < 0) return NextResponse.json({ error: "INVALID_PRICE" }, { status: 400 });
     if (!currencies.has(currency)) return NextResponse.json({ error: "INVALID_CURRENCY" }, { status: 400 });
 
-    const { data: profile, error: profileError } = await supabase.from("profiles").select("actor_id").eq("auth_user_id", user.id).maybeSingle();
-    if (profileError) {
+    let profile: { actor_id?: string | null } | null = null;
+    try {
+      const { data, error } = await supabase.from("profiles").select("actor_id").eq("auth_user_id", user.id).maybeSingle();
+      if (error) return NextResponse.json({ error: "PROFILE_LOOKUP_FAILED" }, { status: 500 });
+      profile = data;
+    } catch {
       return NextResponse.json({ error: "PROFILE_LOOKUP_FAILED" }, { status: 500 });
     }
     if (!profile?.actor_id) return NextResponse.json({ error: "PROFILE_ACTOR_NOT_FOUND" }, { status: 403 });
 
-    const { data: memberships, error: membershipError } = await supabase.from("dt_memberships").select("tenant_id").eq("user_id", user.id);
-    if (membershipError) {
+    let memberships: Array<{ tenant_id?: unknown }> | null = null;
+    try {
+      const { data, error } = await supabase.from("dt_memberships").select("tenant_id").eq("user_id", user.id);
+      if (error) return NextResponse.json({ error: "TENANT_MEMBERSHIP_LOOKUP_FAILED" }, { status: 500 });
+      memberships = data;
+    } catch {
       return NextResponse.json({ error: "TENANT_MEMBERSHIP_LOOKUP_FAILED" }, { status: 500 });
     }
     if (!memberships?.length) return NextResponse.json({ error: "TENANT_MEMBERSHIP_REQUIRED" }, { status: 403 });
