@@ -5,6 +5,7 @@ import { executeUniversalAction } from "../../../../lib/actions/runtime";
 
 export const dynamic = "force-dynamic";
 const currencies = new Set(["USD", "EUR", "KRW", "MAD", "CNY"]);
+const canonicalUuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function unauthenticatedResponse(invalidToken = false) {
   const challenge = invalidToken
@@ -70,6 +71,7 @@ export async function POST(request: Request) {
 
     const name = typeof body.name === "string" ? body.name.trim() : "";
     const demandId = typeof body.demandId === "string" ? body.demandId.trim() : "";
+    const productMasterId = typeof body.productMasterId === "string" ? body.productMasterId.trim() : "";
     const quantity =
       typeof body.quantity === "number"
         ? body.quantity
@@ -86,6 +88,8 @@ export async function POST(request: Request) {
     const currency = typeof body.currency === "string" ? body.currency.trim() : "";
 
     if (!name || !demandId) return NextResponse.json({ error: "NAME_AND_DEMAND_REQUIRED" }, { status: 400 });
+    if (!canonicalUuidPattern.test(demandId)) return NextResponse.json({ error: "INVALID_DEMAND_ID" }, { status: 400 });
+    if (!canonicalUuidPattern.test(productMasterId)) return NextResponse.json({ error: "INVALID_PRODUCT_MASTER_ID" }, { status: 400 });
     if (!Number.isFinite(quantity) || quantity <= 0) return NextResponse.json({ error: "INVALID_QUANTITY" }, { status: 400 });
     if (!Number.isFinite(price) || price < 0) return NextResponse.json({ error: "INVALID_PRICE" }, { status: 400 });
     if (!currencies.has(currency)) return NextResponse.json({ error: "INVALID_CURRENCY" }, { status: 400 });
@@ -112,7 +116,7 @@ export async function POST(request: Request) {
     const input = {
       name,
       demandId,
-      productMasterId: typeof body.productMasterId === "string" ? body.productMasterId.trim() : "",
+      productMasterId,
       providerActorId: profile.actor_id,
       quantity,
       price,
