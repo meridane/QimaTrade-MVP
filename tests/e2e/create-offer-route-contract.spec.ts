@@ -721,6 +721,32 @@ test("CREATE_OFFER route trims product-master IDs before action execution", asyn
   ).toBe(true);
 });
 
+test("CREATE_OFFER route normalizes non-string product-master IDs to an empty value before action execution", async () => {
+  const invalidValues: Array<{ label: string; value: unknown }> = [
+    { label: "omitted productMasterId", value: undefined },
+    { label: "blank string", value: " \t\n " },
+    { label: "JSON null", value: null },
+    { label: "number", value: 42 },
+    { label: "boolean", value: false },
+    { label: "array", value: ["60000000-0000-4000-8000-000000000001"] },
+    { label: "object", value: { id: "60000000-0000-4000-8000-000000000001" } },
+  ];
+
+  for (const { label, value } of invalidValues) {
+    const result = await postCreateOffer("USD", { productMasterId: value });
+
+    expect(result.status, label).toBe(200);
+    const executionCalls = result.requests.filter(
+      (request) => request.path === "/rest/v1/rpc/execute_create_offer_v1",
+    );
+    expect(executionCalls, label).toHaveLength(1);
+
+    const rpcBody = executionCalls[0].body;
+    expect(rpcBody?.p_product_master_id, label).toBe("");
+    expect(rpcBody?.p_input, label).toMatchObject({ productMasterId: "" });
+  }
+});
+
 test("CREATE_OFFER route rejects invalid quantity and price before database access", async () => {
   const invalidCases = [
     { label: "zero quantity", overrides: { quantity: 0 }, expectedError: "INVALID_QUANTITY" },
