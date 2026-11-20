@@ -115,8 +115,9 @@ export async function POST(request: Request) {
 
     const input = {
       name,
-      demandId,
-      productMasterId,
+      // Keep JSONB p_input and typed UUID RPC arguments in one canonical form for idempotency hashing.
+      demandId: demandId.toLowerCase(),
+      productMasterId: productMasterId.toLowerCase(),
       providerActorId: profile.actor_id,
       quantity,
       price,

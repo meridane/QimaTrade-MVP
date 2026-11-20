@@ -759,6 +759,25 @@ test("CREATE_OFFER route rejects malformed UUID demand and product-master IDs be
   }
 });
 
+test("CREATE_OFFER route lowercases UUID identifiers before constructing the idempotency payload", async () => {
+  const demandId = "ABCDEF12-3456-4ABC-8DEF-ABCDEF123456";
+  const productMasterId = "FEDCBA98-7654-4FED-9CBA-FEDCBA987654";
+  const result = await postCreateOffer("USD", { demandId, productMasterId });
+
+  expect(result.status, JSON.stringify({ body: result.body, requests: result.requests })).toBe(200);
+  const executionCall = result.requests.find(
+    (request) => request.path === "/rest/v1/rpc/execute_create_offer_v1",
+  );
+  expect(executionCall?.body).toMatchObject({
+    p_demand_id: demandId.toLowerCase(),
+    p_product_master_id: productMasterId.toLowerCase(),
+    p_input: expect.objectContaining({
+      demandId: demandId.toLowerCase(),
+      productMasterId: productMasterId.toLowerCase(),
+    }),
+  });
+});
+
 test("CREATE_OFFER route rejects invalid quantity and price before database access", async () => {
   const invalidCases = [
     { label: "zero quantity", overrides: { quantity: 0 }, expectedError: "INVALID_QUANTITY" },
