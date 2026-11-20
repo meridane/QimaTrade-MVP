@@ -1300,26 +1300,48 @@ test("CREATE_OFFER route masks tenant membership lookup diagnostics and stops be
   expect(result.requests.every((request) => request.authorization === "Bearer qima-route-test-token")).toBe(true);
 });
 
-test("CREATE_OFFER route requires explicit tenant selection even when the client supplies one of multiple tenant IDs", async () => {
+test("CREATE_OFFER route requires explicit tenant selection regardless of membership order", async () => {
   const firstTenantId = "20000000-0000-4000-8000-000000000001";
   const secondTenantId = "20000000-0000-4000-8000-000000000002";
-  const result = await postCreateOffer("USD", { tenantId: firstTenantId }, undefined, [
-    { tenant_id: firstTenantId },
-    { tenant_id: secondTenantId },
-  ]);
+  const membershipOrders = [
+    {
+      label: "first tenant listed first",
+      memberships: [{ tenant_id: firstTenantId }, { tenant_id: secondTenantId }],
+    },
+    {
+      label: "second tenant listed first",
+      memberships: [{ tenant_id: secondTenantId }, { tenant_id: firstTenantId }],
+    },
+  ];
 
-  expect(result.status).toBe(409);
-  expect(result.body).toEqual({
-    error: "TENANT_SELECTION_REQUIRED",
-    message: "Select an active tenant before creating an offer.",
-  });
-  expect(result.wwwAuthenticate).toBeNull();
-  expect(result.requests.map((request) => request.path)).toEqual([
-    "/auth/v1/user",
-    "/rest/v1/profiles",
-    "/rest/v1/dt_memberships",
-  ]);
-  expect(result.requests.every((request) => request.authorization === "Bearer qima-route-test-token")).toBe(true);
+  for (const { label, memberships } of membershipOrders) {
+    const result = await postCreateOffer(
+      "USD",
+      { tenantId: firstTenantId },
+      undefined,
+      memberships,
+    );
+
+    expect(result.status, label).toBe(409);
+    expect(result.body, label).toEqual({
+      error: "TENANT_SELECTION_REQUIRED",
+      message: "Select an active tenant before creating an offer.",
+    });
+    expect(result.wwwAuthenticate, label).toBeNull();
+    expect(result.requests.map((request) => request.path), label).toEqual([
+      "/auth/v1/user",
+      "/rest/v1/profiles",
+      "/rest/v1/dt_memberships",
+    ]);
+    expect(
+      result.requests.every((request) => request.authorization === "Bearer qima-route-test-token"),
+      label,
+    ).toBe(true);
+    expect(
+      result.requests.some((request) => request.path === "/rest/v1/rpc/execute_create_offer_v1"),
+      label,
+    ).toBe(false);
+  }
 });
 
 test("CREATE_OFFER route ignores a client-supplied tenantId when exactly one membership exists", async () => {
