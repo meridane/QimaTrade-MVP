@@ -11800,3 +11800,13 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 - La CI de référence #1689 et CodeQL #1620 restent **SUCCESS** sur le HEAD précédent ; ils ne valident pas le nouveau changement. Le nouveau run #1690 doit fournir cette validation.
 - Le commit documentaire ajouté après le test ne modifie que le registre canonique ; les workflows QIMA CI et CodeQL ignorent `docs/**`. Aucune validation de code supplémentaire ne lui est attribuée.
 - Aucun test local n'a été exécuté. Aucun code applicatif, SQL, migration, donnée Supabase Production, secret, grant, politique RLS persistante, workflow, déploiement Production, merge, force-push ou règle de protection n'a été modifié.
+
+
+### Correction du snapshot post-publication — 20 novembre 2026, 15:20 KST
+
+- Après le premier relevé post-push, le commit documentaire final a été publié : HEAD PR #26 = `fec0c3658db3cc75d9f461cf0d066d5741fc7695`. PR **OPEN / DRAFT / non fusionnée**, `mergeable=true`, **2 080 commits devant / 0 derrière**, 270 fichiers modifiés (87 265 insertions / 261 suppressions). Le snapshot `ac5b3ad0` ci-dessus décrit l'état intermédiaire immédiatement après le commit de test ; il n'est pas le HEAD documentaire final.
+- Le commit `fec0c365` ne modifie que `docs/QIMA_V1_FUNCTION_REGISTER.md`. Le commit de test `45afb53d` reste le changement de code/test ; `ac5b3ad0` est son premier commit documentaire parent.
+- QIMA CI **#1690** ([run 44687175014](https://github.com/meridane/QimaTrade-MVP/actions/runs/44687175014)) est **IN PROGRESS** sur le commit de test / son parent documentaire `ac5b3ad0` : npm audit et TypeScript **SUCCESS**, build Next.js **IN PROGRESS**, Playwright **PENDING**, PostgreSQL 16 et 17.6 **IN PROGRESS**. CodeQL **#1621** ([run 44687175082](https://github.com/meridane/QimaTrade-MVP/actions/runs/44687175082)) est **IN PROGRESS**. Le run #1690 est le contrôle de code attendu ; le commit final `fec0c365` étant documentaire uniquement, aucune validation de code distincte ne lui est attribuée.
+- Le statut Vercel du HEAD documentaire final `fec0c365` est **PENDING** ([Preview](https://vercel.com/bmk1/qimatrade-mvp/8YyJ4pxTU6TuuvH4ZHNHXz7PVgJW)). Le lien du premier snapshot post-push se rapportait à l'état précédent `ac5b3ad0`.
+- La branche de travail `work/create-offer-product-master-unicode-trim-20261120-1518` et la branche PR sont identiques après fast-forward avec `force=false` (**0 ahead / 0 behind**).
+- Le test Unicode productMasterId reste en attente de résultat Playwright. Aucun test local n'a été exécuté. Aucun code applicatif, SQL, migration, donnée Supabase Production, secret, grant, politique RLS persistante, workflow, déploiement Production, merge, force-push ou règle de protection n'a été modifié.
