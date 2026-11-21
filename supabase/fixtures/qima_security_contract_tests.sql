@@ -25,6 +25,16 @@ end
 $qima_auth_uid_fallback$;
 
 select set_config('request.jwt.claim.sub', '', true);
+select set_config('request.jwt.claims', '{"sub":""}', true);
+do $qima_auth_uid_empty_json_sub$
+begin
+  if auth.uid() is not null then
+    raise exception 'auth.uid() must return NULL when the JSON subject is empty';
+  end if;
+end
+$qima_auth_uid_empty_json_sub$;
+
+select set_config('request.jwt.claim.sub', '', true);
 select set_config('request.jwt.claims', '{"role":"authenticated"}', true);
 do $qima_auth_uid_missing$
 begin
