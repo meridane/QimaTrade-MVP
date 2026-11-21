@@ -8,8 +8,20 @@ begin
   if not exists (select 1 from pg_namespace where nspname = 'qima_security_fixture') then
     raise exception 'Fixture missing: apply qima_security_contract.sql to LOCAL database first';
   end if;
-  if (select count(*) from qima_security_fixture.memberships) < 2 then
-    raise exception 'Expected synthetic tenant memberships A/B';
+  if (select count(*) from qima_security_fixture.memberships) <> 2 then
+    raise exception 'Expected exactly two synthetic tenant memberships A/B';
+  end if;
+  if (select count(*) from qima_security_fixture.sessions) <> 2 then
+    raise exception 'Expected exactly two synthetic tenant sessions A/B';
+  end if;
+  if (select count(*) from qima_security_fixture.observations) <> 2 then
+    raise exception 'Expected exactly two synthetic tenant observations A/B';
+  end if;
+  if (select count(*) from qima_security_fixture.transitions) <> 2 then
+    raise exception 'Expected exactly two synthetic tenant transitions A/B';
+  end if;
+  if (select count(*) from qima_security_fixture.product_requests) <> 2 then
+    raise exception 'Expected exactly two synthetic tenant product requests A/B';
   end if;
   if has_schema_privilege('anon', 'qima_security_fixture', 'USAGE') then
     raise exception 'Anonymous role unexpectedly has fixture schema access';
