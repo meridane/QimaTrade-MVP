@@ -14,6 +14,18 @@ begin
 end
 $qima_auth_uid_precedence$;
 
+-- A valid legacy subject must short-circuit the JSON fallback entirely.
+-- This proves malformed fallback JSON is not parsed when the preferred claim exists.
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', true);
+select set_config('request.jwt.claims', 'not-json', true);
+do $qima_auth_uid_legacy_short_circuit$
+begin
+  if auth.uid() is distinct from 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'::uuid then
+    raise exception 'auth.uid() must return the preferred legacy subject without evaluating malformed fallback JSON';
+  end if;
+end
+$qima_auth_uid_legacy_short_circuit$;
+
 select set_config('request.jwt.claim.sub', '', true);
 select set_config('request.jwt.claims', '{"sub":"bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb","role":"authenticated"}', true);
 do $qima_auth_uid_fallback$
@@ -33,6 +45,16 @@ begin
   end if;
 end
 $qima_auth_uid_empty_json_sub$;
+
+select set_config('request.jwt.claim.sub', '', true);
+select set_config('request.jwt.claims', '', true);
+do $qima_auth_uid_empty_claims_setting$
+begin
+  if auth.uid() is not null then
+    raise exception 'auth.uid() must return NULL when the entire JSON claims setting is empty';
+  end if;
+end
+$qima_auth_uid_empty_claims_setting$;
 
 select set_config('request.jwt.claim.sub', '', true);
 select set_config('request.jwt.claims', '{"role":"authenticated"}', true);
