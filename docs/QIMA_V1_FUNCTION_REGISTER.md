@@ -12324,3 +12324,9 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 - Le nouveau HEAD `a82e29f6826be9a5db87bf4a6336d19c56f31adf` a déclenché QIMA CI [#1752](https://github.com/meridane/QimaTrade-MVP/actions/runs/44879140580) et CodeQL [#1682](https://github.com/meridane/QimaTrade-MVP/actions/runs/44879140628). Au moment de cette entrée, les deux workflows sont **IN PROGRESS** ; dans Verify, npm/TypeScript/build/Playwright et le fixture n'ont pas encore tous de résultat final, et les jobs PostgreSQL 16/17.6 sont actifs. Vercel est **PENDING**. Aucun résultat futur n'est anticipé.
 - **Limite de preuve :** les assertions utilisent uniquement des UUID, identités et données synthétiques dans un PostgreSQL jetable. Elles vérifient le modèle RLS local déclaré ; elles ne prouvent pas les grants, policies ou comportements effectifs de Supabase Production et ne confirment aucune vulnérabilité exploitable.
 - Aucun test local n'a été exécuté. Aucune donnée ou migration Supabase Production, aucun secret, grant ou policy RLS persistante n'a été modifié. Aucun déploiement Production, merge, force-push ou changement des protections GitHub n'a été effectué.
+
+
+### Non-vacuous fixture seed preflight — follow-up on the same work branch
+
+- The SQL fixture assertion preflight now requires exactly two seeded rows in each of `memberships`, `sessions`, `observations`, `transitions` and `product_requests` before changing to User A or User B. This makes each opposite-tenant absence assertion non-vacuous and catches accidental loss of either synthetic seed row.
+- The preflight was added after QIMA CI #1752 started; it is **not** claimed as validated by #1752. It will be included in the next CI after the completed work branch is fast-forwarded to PR #26.
