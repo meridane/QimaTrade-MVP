@@ -14,11 +14,17 @@ begin
   if has_schema_privilege('anon', 'qima_security_fixture', 'USAGE') then
     raise exception 'Anonymous role unexpectedly has fixture schema access';
   end if;
-  if has_table_privilege('anon', 'qima_security_fixture.sessions', 'SELECT')
+  if has_table_privilege('anon', 'qima_security_fixture.memberships', 'SELECT')
+     or has_table_privilege('anon', 'qima_security_fixture.sessions', 'SELECT')
      or has_table_privilege('anon', 'qima_security_fixture.observations', 'SELECT')
      or has_table_privilege('anon', 'qima_security_fixture.transitions', 'SELECT')
      or has_table_privilege('anon', 'qima_security_fixture.product_requests', 'SELECT') then
     raise exception 'Anonymous role unexpectedly has fixture table read privileges';
+  end if;
+  if has_table_privilege('authenticated', 'qima_security_fixture.memberships', 'INSERT')
+     or has_table_privilege('authenticated', 'qima_security_fixture.memberships', 'UPDATE')
+     or has_table_privilege('authenticated', 'qima_security_fixture.memberships', 'DELETE') then
+    raise exception 'Authenticated role unexpectedly has direct membership write privileges';
   end if;
   if has_table_privilege('authenticated', 'qima_security_fixture.sessions', 'INSERT')
      or has_table_privilege('authenticated', 'qima_security_fixture.sessions', 'UPDATE')
@@ -50,6 +56,8 @@ select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaa
 do $$
 declare n integer;
 begin
+  select count(*) into n from qima_security_fixture.memberships;
+  if n <> 1 then raise exception 'User A expected exactly 1 visible membership, got %', n; end if;
   select count(*) into n from qima_security_fixture.sessions;
   if n <> 1 then raise exception 'User A expected exactly 1 visible session, got %', n; end if;
   select count(*) into n from qima_security_fixture.observations;
@@ -68,6 +76,8 @@ set local role authenticated;
 do $$
 declare n integer;
 begin
+  select count(*) into n from qima_security_fixture.memberships;
+  if n <> 1 then raise exception 'User B expected exactly 1 visible membership, got %', n; end if;
   select count(*) into n from qima_security_fixture.sessions;
   if n <> 1 then raise exception 'User B expected exactly 1 visible session, got %', n; end if;
   select count(*) into n from qima_security_fixture.observations;
