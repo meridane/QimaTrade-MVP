@@ -64,6 +64,7 @@ export async function POST(request: Request) {
       return authServiceUnavailableResponse();
     }
     const { data: { user }, error: userError } = authResult;
+    // auth-js reports network fetch failures as AuthRetryableFetchError with status 0.
     if (typeof userError?.status === "number" && (userError.status === 0 || userError.status >= 500)) {
       return authServiceUnavailableResponse();
     }
