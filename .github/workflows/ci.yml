@@ -699,7 +699,7 @@ jobs:
           const fs = require("node:fs");
           const lock = JSON.parse(fs.readFileSync("package-lock.json", "utf8"));
           const required = lock.packages["node_modules/next"]?.version !== "15.5.29";
-          fs.appendFileSync(process.env.GITHUB_OUTPUT, "required=" + String(required) + "\\n");
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, "required=" + String(required) + "\n");
           console.log("Next.js lockfile update required:", required);
           NODE
       - name: Regenerate package lock for Next.js 15.5.29
@@ -725,7 +725,7 @@ jobs:
             throw new Error("Expected every locked @next/swc package to be exactly " + expected);
           }
           const sharp = lock.packages["node_modules/sharp"]?.version;
-          if (!sharp || !/^0\\.35\\./.test(sharp)) {
+          if (!sharp || !/^0\.35\./.test(sharp)) {
             throw new Error("Expected sharp 0.35.x to remain locked; found " + sharp);
           }
           console.log(JSON.stringify({ next, env, swc, sharp }, null, 2));
