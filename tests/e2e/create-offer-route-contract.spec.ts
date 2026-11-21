@@ -51,9 +51,9 @@ async function postCreateOffer(
   const requests: MockRequest[] = [];
   const demandId = "50000000-0000-4000-8000-000000000001";
   const requestOverrides = { ...overrides };
-  const authUserMissingOverrideKey = "__authUserMissing";
-  const authUserMissing = requestOverrides[authUserMissingOverrideKey] === true;
-  delete requestOverrides[authUserMissingOverrideKey];
+  const authNullPayloadOverrideKey = "__authNullPayload";
+  const authNullPayload = requestOverrides[authNullPayloadOverrideKey] === true;
+  delete requestOverrides[authNullPayloadOverrideKey];
   const rpcResultOverrideKey = "__rpcResultOverride";
   const hasRpcResultOverride = Object.prototype.hasOwnProperty.call(requestOverrides, rpcResultOverrideKey);
   const rpcResultOverride = requestOverrides[rpcResultOverrideKey];
@@ -92,7 +92,7 @@ async function postCreateOffer(
           : { message: "Auth service unavailable", code: "server_error" };
         return Response.json(authError, { status: authStatus });
       }
-      if (authUserMissing) return Response.json(null);
+      if (authNullPayload) return Response.json(null);
       return Response.json({
         id: "40000000-0000-4000-8000-000000000001",
         aud: "authenticated",
@@ -271,12 +271,12 @@ test("CREATE_OFFER route fails closed after Auth rejects a normalized mixed-case
   expect(result.requests).toHaveLength(1);
 });
 
-test("CREATE_OFFER route fails closed when Auth returns no user without an error", async () => {
-  const result = await postCreateOffer("USD", { __authUserMissing: true });
+test("CREATE_OFFER route masks a null Auth user payload as an Auth service failure", async () => {
+  const result = await postCreateOffer("USD", { __authNullPayload: true });
 
-  expect(result.status).toBe(401);
-  expect(result.body).toEqual({ error: "UNAUTHENTICATED" });
-  expect(result.wwwAuthenticate).toBe('Bearer realm="qimatrade", error="invalid_token"');
+  expect(result.status).toBe(503);
+  expect(result.body).toEqual({ error: "AUTH_SERVICE_UNAVAILABLE" });
+  expect(result.wwwAuthenticate).toBeNull();
   expect(result.requests.map((request) => request.path)).toEqual(["/auth/v1/user"]);
 });
 
