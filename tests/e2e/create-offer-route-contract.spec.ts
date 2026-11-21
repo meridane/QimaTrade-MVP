@@ -483,7 +483,7 @@ test("CREATE_OFFER 401 responses include an RFC 6750 challenge without changing 
 test("CREATE_OFFER route maps Auth upstream outages and transport exceptions to a generic 503", async () => {
   const bearer = "Bearer syntactically-valid-token";
 
-  for (const authStatus of [500, 503, "network-error"] as const) {
+  for (const authStatus of [429, 500, 503, "network-error"] as const) {
     const result = await postCreateOffer(
       "USD",
       {},
