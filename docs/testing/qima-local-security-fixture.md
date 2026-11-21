@@ -35,3 +35,5 @@ sh scripts/test-qima-security-fixture.sh
 The script fails if Docker/Compose or fixture inputs are missing. It runs both SQL files with ON_ERROR_STOP=1, then removes the uniquely named Compose project and its volume. Cleanup is checked; a cleanup failure makes the script fail.
 
 No production migration, production credential, remote database URL, or production data is used.
+
+- Under `SET ROLE authenticated`, runtime INSERT/UPDATE/DELETE probes exercise all five fixture tables (15 statements total) and require `insufficient_privilege`; a statement that completes, even if it affects zero rows, fails the fixture. The probes execute inside the outer transaction, which is rolled back.
