@@ -45,5 +45,14 @@ The GitHub file reader returned a valid blob SHA but an empty content payload fo
 
 ### Static review correction before PR validation
 
-- A pre-publication SQL review caught that the first draft nested a `DO` block inside the fixture's initial `DO` block, which is invalid PL/pgSQL. The role-attribute checks have been inlined into the existing block with explicit declarations and a distinct outer dollar-quote tag. This intermediate draft was not pushed to the PR and no CI result is attributed to it.
+- A pre-publication SQL review caught that the first draft nested a `DO` block inside the fixture's initial `DO` block, which is invalid PL/pgSQL. The role-attribute checks have been inlined into the existing block with explicit declarations and a distinct outer dollar-quote tag. The intermediate draft commit is present only as an earlier ancestor in the fast-forwarded work-branch history; it was corrected before the final PR HEAD was published, and no CI result is attributed to the intermediate commit.
 - The documentation typo around the `insufficient_privilege` SQLSTATE has also been corrected. The next CI run is the first execution of the corrected role-attribute assertions.
+
+
+### Post-push validation state — 21 November 2026, 19:35 KST
+
+- The corrected role-attribute guard was fast-forwarded to PR #26. Final HEAD: `30d99d17bdffa7c8e48899ef77c6d168c501fd0b`; work branch and PR branch compare identical (0 ahead / 0 behind).
+- The work branch contains six commits after parent `7205c06d`: `7bc737d2` (initial role-guard draft), `cd86061f` (fixture documentation), `e8619274` (initial register append), `7bf18e05` (inline PL/pgSQL correction), `7b81c300` (SQLSTATE wording correction), and `30d99d17` (review-history correction). The initial draft is not the final tree; the final SQL has one outer `DO $qima_initial$` block and no nested `DO` block.
+- QIMA CI [#1763](https://github.com/meridane/QimaTrade-MVP/actions/runs/44895316455) is **IN PROGRESS**. At the latest inspection, Verify and both PostgreSQL compatibility jobs are running; the role-attribute assertions have not yet produced a final result.
+- CodeQL [#1693](https://github.com/meridane/QimaTrade-MVP/actions/runs/44895316434) is **IN PROGRESS**. Vercel remains **FAILURE** with the free-tier `build-rate-limit` target.
+- No local PostgreSQL test was run. No Supabase Production data, migration, secret, grant or persistent RLS policy was changed. No Production deployment, merge, force-push or protection-rule change occurred.
