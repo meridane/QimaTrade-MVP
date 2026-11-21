@@ -18,6 +18,10 @@ function unauthenticatedResponse(invalidToken = false) {
   );
 }
 
+function authServiceUnavailableResponse() {
+  return NextResponse.json({ error: "AUTH_SERVICE_UNAVAILABLE" }, { status: 503 });
+}
+
 // Only exact, documented CREATE_OFFER domain codes may cross the API boundary.
 // Supabase/PostgREST messages and unexpected exception text remain server-side.
 const publicCreateOfferErrorCodes = new Set([
@@ -53,7 +57,16 @@ export async function POST(request: Request) {
       { auth: { autoRefreshToken: false, persistSession: false }, global: { headers: { Authorization: `Bearer ${token}` } } },
     );
 
-    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+    let authResult: Awaited<ReturnType<typeof supabase.auth.getUser>>;
+    try {
+      authResult = await supabase.auth.getUser(token);
+    } catch {
+      return authServiceUnavailableResponse();
+    }
+    const { data: { user }, error: userError } = authResult;
+    if (typeof userError?.status === "number" && userError.status >= 500) {
+      return authServiceUnavailableResponse();
+    }
     if (userError || !user) {
       return unauthenticatedResponse(userError ? userError.status === 401 : !user);
     }
