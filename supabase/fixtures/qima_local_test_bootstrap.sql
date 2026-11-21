@@ -17,12 +17,9 @@ RETURNS uuid
 LANGUAGE sql
 STABLE
 AS $$
-  SELECT NULLIF(
-    COALESCE(
-      current_setting('request.jwt.claim.sub', true),
-      current_setting('request.jwt.claims', true)::jsonb ->> 'sub'
-    ),
-    ''
+  SELECT COALESCE(
+    NULLIF(current_setting('request.jwt.claim.sub', true), ''),
+    NULLIF(current_setting('request.jwt.claims', true), '')::jsonb ->> 'sub'
   )::uuid
 $$;
 
