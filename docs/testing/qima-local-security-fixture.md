@@ -14,6 +14,7 @@ Status: wired into the QIMA CI Verify job; validation is reported only from the 
 ## Contracts represented
 
 - Tenant A/B synthetic memberships, sessions, observations, transitions, and product requests.
+- The local `auth.uid()` compatibility shim prefers a non-empty `request.jwt.claim.sub` and falls back to the JSON `sub` in `request.jwt.claims` when the legacy setting is empty; assertions cover precedence, fallback, and a missing subject.
 - RLS-enabled tables with authenticated subject/tenant visibility, including self-only membership reads for User A and User B.
 - Anonymous users have no membership read grant; authenticated users have no direct membership INSERT/UPDATE/DELETE grants.
 - No direct client DML grants for the other modeled tables.
