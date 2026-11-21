@@ -12457,3 +12457,14 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 - QIMA CI [#1777](https://github.com/meridane/QimaTrade-MVP/actions/runs/44925502506) et CodeQL [#1707](https://github.com/meridane/QimaTrade-MVP/actions/runs/44925502491) sont **IN PROGRESS** sur le nouveau HEAD. Les jobs Verify, PostgreSQL 16 et PostgreSQL 17.6 sont actifs. Les deux jobs de simulation setup/cleanup ont leurs conclusions négatives intentionnelles et les jobs d'assertion séparés sont **SUCCESS** ; le job de harness skipped reste **SKIPPED**.
 - Vercel Preview du nouveau HEAD est **PENDING**. Aucun résultat Playwright ou PostgreSQL final n'est anticipé pour #1777 à ce stade.
 - Le test « malformed Auth JSON » est donc publié mais **pas encore validé**. Le résultat **405 passed** de #1776 concerne le HEAD précédent et ne valide pas ce nouveau cas.
+
+
+## Régression de forme UUID Auth — 22 novembre 2026, 05:00 KST
+
+- Baseline PR #26 avant changement : HEAD `517a8f7089eb2cb531f0afe9422916dd7f56a9b2`, PR **OPEN / DRAFT / mergeable / non fusionnée**, 2 220 commits ahead / 0 behind, 282 fichiers.
+- CI [#1781](https://github.com/meridane/QimaTrade-MVP/actions/runs/44935068502) est **SUCCESS** : **408/408 Playwright**, npm audit 1 modéré / 0 élevé / 0 critique, TypeScript, build Next.js et fixture QIMA **SUCCESS**, PostgreSQL 16 et 17.6 **SUCCESS**. CodeQL [#1709](https://github.com/meridane/QimaTrade-MVP/actions/runs/44935068529) **SUCCESS** ; Vercel Preview **SUCCESS**.
+- Le test Auth positif couvre UUID v1, v7 et UUID canonique en majuscules. Le test négatif rejette désormais également les UUID avec espaces, sans tirets, entre accolades, avec groupe de longueur incorrecte ou caractère non hexadécimal. Tous les cas invalides doivent être rejetés avant toute lecture de profil ou d'appartenance.
+- Les fixtures sont synthétiques et ne démontrent pas de vulnérabilité de Supabase Production. Aucun code applicatif, SQL, migration, donnée, secret, grant ou policy RLS persistante n'a été modifié.
+- Après publication du code, QIMA CI [#1782](https://github.com/meridane/QimaTrade-MVP/actions/runs/44944014584) est **IN PROGRESS** : npm audit et TypeScript **SUCCESS** au dernier contrôle ; build en cours ; Playwright et fixture en attente ; PostgreSQL 16 et 17.6 en cours. CodeQL [#1711](https://github.com/meridane/QimaTrade-MVP/actions/runs/44944014559) **SUCCESS**. Vercel Preview du HEAD suivant **PENDING**.
+- Le détail du changement et le suivi des jobs sont conservés dans `docs/QIMA_V1_FUNCTION_REGISTER_APPEND_20261122_0459.md`. Aucun résultat de test n'est anticipé pour les nouveaux cas avant la clôture de CI.
+
