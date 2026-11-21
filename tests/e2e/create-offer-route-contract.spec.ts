@@ -330,6 +330,36 @@ test("CREATE_OFFER route rejects Auth user payloads without a canonical UUID bef
   }
 });
 
+test("CREATE_OFFER route accepts canonical UUIDs across UUID versions", async () => {
+  const validUserIds = [
+    { label: "UUID v1", value: "6ba7b810-9dad-11d1-80b4-00c04fd430c8" },
+    { label: "UUID v7", value: "018f47a2-7c00-7abc-8def-0123456789ab" },
+  ];
+  const expectedPaths = [
+    "/auth/v1/user",
+    "/rest/v1/profiles",
+    "/rest/v1/dt_memberships",
+    "/rest/v1/rpc/get_action_definition_v1",
+    "/rest/v1/rpc/execute_create_offer_v1",
+  ];
+
+  for (const fixture of validUserIds) {
+    const result = await postCreateOffer("USD", { __authUserIdOverride: fixture.value });
+
+    expect(result.status, fixture.label).toBe(200);
+    expect(result.requests.map((request) => request.path), fixture.label).toEqual(expectedPaths);
+    expect(
+      result.requests.find((request) => request.path === "/rest/v1/profiles")?.query,
+      fixture.label,
+    ).toContain(`auth_user_id=eq.${fixture.value}`);
+    expect(
+      result.requests.find((request) => request.path === "/rest/v1/dt_memberships")?.query,
+      fixture.label,
+    ).toContain(`user_id=eq.${fixture.value}`);
+    expect(result.requests.every((request) => request.authorization === "Bearer qima-route-test-token"), fixture.label).toBe(true);
+  }
+});
+
 test("CREATE_OFFER 401 responses include an RFC 6750 challenge without changing the JSON contract", async () => {
   const missingCredential = await postCreateOffer("USD", {}, undefined, undefined, "succeeded", null);
   expect(missingCredential.status).toBe(401);
