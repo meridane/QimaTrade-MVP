@@ -32,3 +32,14 @@
 - No local tests were executed.
 - No Supabase Production data, migration, secret, grant, or persistent RLS policy was accessed or changed. No production deployment, PR merge, force-push, or branch-protection change was performed.
 - The regression uses a synthetic Auth 429 response and characterizes route behavior only; it does not establish a production outage or vulnerability.
+
+
+### Post-publication snapshot — 22 November 2026, 07:31 KST
+
+- The work branch was fast-forwarded to the PR head with `force=false` and an expected-old-SHA guard. The PR head is now `3a45ee8dfe852410884b9b1e5537808fe1c8b622`; PR #26 remains OPEN, DRAFT, not merged, and GitHub reports `mergeable=true`. Compare against `main`: 2,234 commits ahead / 0 behind; 284 changed files (89,866 additions / 264 deletions).
+- The final PR branch was re-read: the route contains the explicit HTTP 429 service-unavailable branch and the existing Auth-outage regression loop includes `429`.
+- GitHub Actions lookup for PR-triggered runs associated with the new HEAD returned no runs at the time of the final check. Therefore the new 429 case is **not yet CI-validated**. No result from baseline CI #1790 is attributed to the new code.
+- Baseline CI #1790 logs were inspected: **409 Playwright passed**, TypeScript/audit/build/browser job SUCCESS, PostgreSQL 16 SUCCESS, PostgreSQL 17.6 SUCCESS, and the cleanup-contract assertion jobs SUCCESS. The two simulated cleanup/setup jobs have expected job-level FAILURE; the dedicated assertions passed. CodeQL #1719 SUCCESS.
+- The new HEAD's combined status currently shows Vercel FAILURE with `api-deployments-free-per-day` / free-tier build-rate limit. This is a Preview quota issue, not a production deployment or an application test result.
+- The standalone work branch and PR branch compare as identical (0 ahead / 0 behind).
+- Next action: obtain a visible PR-triggered QIMA CI run for `3a45ee8d` and verify Playwright plus PostgreSQL jobs before claiming the new regression passes. If no run appears, use an authorized GitHub Actions dispatch path or repository maintainer intervention; do not rerun the old baseline and call it validation of the new code.
