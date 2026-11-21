@@ -12468,3 +12468,16 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 - Après publication du code, QIMA CI [#1782](https://github.com/meridane/QimaTrade-MVP/actions/runs/44944014584) est **IN PROGRESS** : npm audit et TypeScript **SUCCESS** au dernier contrôle ; build en cours ; Playwright et fixture en attente ; PostgreSQL 16 et 17.6 en cours. CodeQL [#1711](https://github.com/meridane/QimaTrade-MVP/actions/runs/44944014559) **SUCCESS**. Vercel Preview du HEAD suivant **PENDING**.
 - Le détail du changement et le suivi des jobs sont conservés dans `docs/QIMA_V1_FUNCTION_REGISTER_APPEND_20261122_0459.md`. Aucun résultat de test n'est anticipé pour les nouveaux cas avant la clôture de CI.
 
+
+
+## Clôture partielle CI #1782 — 22 novembre 2026, 05:05 KST
+
+- Le job Verify de QIMA CI [#1782](https://github.com/meridane/QimaTrade-MVP/actions/runs/44944014584) est **SUCCESS**. Le journal confirme **408 Playwright passed (37,3 s)**, npm audit `moderate=1, high=0, critical=0`, TypeScript **SUCCESS**, build Next.js **SUCCESS**, Chromium **SUCCESS** et `PASS: local QIMA security-contract fixture assertions completed.`
+- Ce résultat inclut l'exécution du test existant étendu pour l'UUID en majuscules et les cinq formes textuelles UUID malformées. Le total Playwright reste 408, car les fixtures supplémentaires sont des cas paramétrés dans deux tests existants, pas de nouveaux tests top-level.
+- Les jobs PostgreSQL 16 et PostgreSQL 17.6 de #1782 restent **IN PROGRESS** au dernier contrôle ; aucune réussite finale PostgreSQL n'est encore déclarée pour ce run.
+- Les deux jobs de harness setup/cleanup ont leurs échecs intentionnels ; les assertions séparées de nettoyage et de préservation de l'échec sont **SUCCESS**. Le harness explicitement ignoré est **SKIPPED**.
+- CodeQL [#1711](https://github.com/meridane/QimaTrade-MVP/actions/runs/44944014559) est **SUCCESS**.
+- Le push documentaire intermédiaire a déclenché QIMA CI #1783, ensuite **CANCELLED** avant publication de jobs ; aucun résultat de test ne lui est attribué. Sur le HEAD documentaire actuel avant cette entrée, QIMA CI #1784 est **PENDING** sans jobs publiés et CodeQL #1713 est **IN PROGRESS**.
+- Vercel Preview du HEAD documentaire actuel est **FAILURE** avec `api-deployments-free-per-day` / `build-rate-limit`. Il s'agit d'une limite de quota Preview, pas d'un déploiement Production.
+- Aucun test local n'a été exécuté. Aucun changement Supabase Production, déploiement Production, merge, force-push ou changement des règles de protection n'a été effectué.
+
