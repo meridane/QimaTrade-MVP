@@ -30,3 +30,13 @@
 - UUID values are synthetic fixtures.
 - No Supabase Production connection or write was performed.
 - No production deployment, PR merge, force-push, or branch-protection change was performed.
+
+### Post-publication CI snapshot — 22 November 2026, 05:00 KST
+
+- Test commit: `4408791307bdc3213710d08722da910501a4b329`; documentation HEAD before this snapshot: `d9b3a47ed54b3d7d11d674b794fe05e3997c4928`.
+- QIMA CI run [44944014584](https://github.com/meridane/QimaTrade-MVP/actions/runs/44944014584) is **IN PROGRESS** on the new PR HEAD. At the last job-step inspection, npm audit and TypeScript were **SUCCESS**, the production build was **IN PROGRESS**, and Playwright plus the QIMA fixture were **PENDING**. PostgreSQL 16 and PostgreSQL 17.6 integration jobs were still **IN PROGRESS**.
+- The two prepared-transaction failure harness jobs have their expected job-level **FAILURE** outcomes; the separate assertions that verify cleanup and preserve the failure are **SUCCESS**. The deliberately skipped harness remains **SKIPPED**.
+- CodeQL run [44944014559](https://github.com/meridane/QimaTrade-MVP/actions/runs/44944014559) is **IN PROGRESS**.
+- Vercel Preview combined status for the new PR HEAD is **PENDING**.
+- No Playwright or PostgreSQL success is claimed for the newly added UUID cases until these jobs finish.
+- This snapshot is documentation-only; it does not change the test code or production behavior.
