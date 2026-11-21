@@ -36,3 +36,8 @@ The new SQL assertions and documentation are being committed on an isolated work
 These checks use only synthetic UUIDs and a disposable PostgreSQL container. They characterize the fixture's declared policy model; they do not prove deployed Supabase Production grants or RLS behavior and do not establish a vulnerability.
 
 No local test was run in this execution. No Supabase Production data, migration, secret, grant, or persistent RLS policy was changed. No production deployment, PR merge, force-push, or protection-rule change was performed.
+
+
+## Additional non-vacuous fixture preflight — 21 November 2026, 16:10 KST
+
+Before switching to either authenticated synthetic identity, the SQL assertion script now requires exactly two seeded rows in each of the five modeled tables. This ensures that the opposite-tenant row checked by each negative visibility assertion is present; the test cannot pass simply because its counterpart seed row is missing. This additional preflight was added after CI #1752 had started, so it is not covered by that run and awaits the next PR-head CI.
