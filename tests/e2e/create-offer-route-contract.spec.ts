@@ -2178,9 +2178,9 @@ test("CREATE_OFFER route masks Auth transport failures and stops before profile 
     "network-error",
   );
 
-  expect(result.status).toBe(401);
-  expect(result.body).toEqual({ error: "UNAUTHENTICATED" });
-  expect(result.wwwAuthenticate).toBe('Bearer realm="qimatrade"');
+  expect(result.status).toBe(503);
+  expect(result.body).toEqual({ error: "AUTH_SERVICE_UNAVAILABLE" });
+  expect(result.wwwAuthenticate).toBeNull();
   expect(JSON.stringify(result.body)).not.toContain("ECONNRESET");
   expect(result.requests.length).toBeGreaterThan(0);
   expect(result.requests.every((request) => request.path === "/auth/v1/user")).toBe(true);
