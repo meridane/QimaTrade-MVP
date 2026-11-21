@@ -12380,3 +12380,11 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 - The new TRUNCATE assertions are **not covered by CI #1757** and await the next PR-triggered CI run. No pass is claimed before that run completes.
 - **Evidence boundary:** all fixture identities, tables and rows are synthetic in a disposable standalone PostgreSQL container. This validates only the declared local fixture contract; it does not prove deployed Supabase Production grants or RLS behavior and does not establish a production vulnerability.
 - No local test was run. No Supabase Production data, migration, credential, grant or persistent RLS policy was changed. No Production deployment, PR merge, force-push or protection-rule change occurred.
+
+
+### Follow-up correction before CI execution — 21 November 2026, 18:47 KST
+
+- Post-push diff review of commit `c5b58aa8` caught a malformed PL/pgSQL anonymous-block terminator (`end $;`) in the new catalog-privilege preflight. The new runtime TRUNCATE block itself used its distinct named dollar quote.
+- Corrected the single terminator to `end $$;` before treating any CI result as validation. QIMA CI [#1758](https://github.com/meridane/QimaTrade-MVP/actions/runs/44891000253) had only reached **QUEUED** and CodeQL [#1688](https://github.com/meridane/QimaTrade-MVP/actions/runs/44891000283) was **IN PROGRESS** at the correction point; no fixture result is attributed to the malformed intermediate commit.
+- The corrected SQL and this note are published in a follow-up commit. The next PR-triggered CI run must validate the corrected SQL and all five runtime TRUNCATE denials.
+- No local test was run; no Supabase Production data, migration, credential, grant or persistent RLS policy was changed. No Production deployment, merge, force-push or protection-rule change occurred.
