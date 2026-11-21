@@ -80,6 +80,15 @@ begin
   if has_schema_privilege('anon', 'qima_security_fixture', 'USAGE') then
     raise exception 'Anonymous role unexpectedly has fixture schema access';
   end if;
+  if has_schema_privilege('anon', 'qima_security_fixture', 'CREATE') then
+    raise exception 'Anonymous role unexpectedly has fixture schema CREATE privilege';
+  end if;
+  if not has_schema_privilege('authenticated', 'qima_security_fixture', 'USAGE') then
+    raise exception 'Authenticated role must retain fixture schema USAGE';
+  end if;
+  if has_schema_privilege('authenticated', 'qima_security_fixture', 'CREATE') then
+    raise exception 'Authenticated role unexpectedly has fixture schema CREATE privilege';
+  end if;
   if has_table_privilege('anon', 'qima_security_fixture.memberships', 'SELECT')
      or has_table_privilege('anon', 'qima_security_fixture.sessions', 'SELECT')
      or has_table_privilege('anon', 'qima_security_fixture.observations', 'SELECT')
@@ -143,6 +152,14 @@ begin
         null;
     end;
   end loop;
+
+  begin
+    execute 'create table qima_security_fixture.__qima_anon_create_probe (id integer)';
+    raise exception 'Anonymous CREATE TABLE unexpectedly succeeded';
+  exception
+    when insufficient_privilege then
+      null;
+  end;
 end $qima$;
 reset role;
 
@@ -178,6 +195,14 @@ begin
         null;
     end;
   end loop;
+
+  begin
+    execute 'create table qima_security_fixture.__qima_authenticated_create_probe (id integer)';
+    raise exception 'Authenticated CREATE TABLE unexpectedly succeeded';
+  exception
+    when insufficient_privilege then
+      null;
+  end;
 end $qima_dml$;
 reset role;
 
