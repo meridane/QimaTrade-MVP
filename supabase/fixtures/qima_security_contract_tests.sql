@@ -85,6 +85,41 @@ begin
 end $qima$;
 reset role;
 
+-- Exercise actual authenticated client writes, not only ACL catalog metadata.
+-- Every operation must be rejected; the surrounding transaction is rolled back below.
+set local role authenticated;
+do $qima_dml$
+declare
+  v_query text;
+begin
+  foreach v_query in array array[
+    'insert into qima_security_fixture.memberships (user_id, tenant_id, role) values (''cccccccc-cccc-4ccc-8ccc-cccccccccccc'', ''33333333-3333-4333-8333-333333333333'', ''member'')',
+    'update qima_security_fixture.memberships set role = role where user_id = ''aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa''::uuid',
+    'delete from qima_security_fixture.memberships where user_id = ''aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa''::uuid',
+    'insert into qima_security_fixture.sessions (id, tenant_id, owner_user_id) values (''cccccccc-0000-4000-8000-000000000001'', ''11111111-1111-4111-8111-111111111111'', ''aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'')',
+    'update qima_security_fixture.sessions set status = status where id = ''aaaaaaaa-0000-4000-8000-000000000001''::uuid',
+    'delete from qima_security_fixture.sessions where id = ''aaaaaaaa-0000-4000-8000-000000000001''::uuid',
+    'insert into qima_security_fixture.observations (id, tenant_id, session_id, actor_user_id, payload) values (''cccccccc-0000-4000-8000-000000000011'', ''11111111-1111-4111-8111-111111111111'', ''aaaaaaaa-0000-4000-8000-000000000001'', ''aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'', ''{}''::jsonb)',
+    'update qima_security_fixture.observations set payload = payload where id = ''aaaaaaaa-0000-4000-8000-000000000011''::uuid',
+    'delete from qima_security_fixture.observations where id = ''aaaaaaaa-0000-4000-8000-000000000011''::uuid',
+    'insert into qima_security_fixture.transitions (id, tenant_id, session_id, from_node, to_node) values (''cccccccc-0000-4000-8000-000000000111'', ''11111111-1111-4111-8111-111111111111'', ''aaaaaaaa-0000-4000-8000-000000000001'', ''start'', ''next'')',
+    'update qima_security_fixture.transitions set to_node = to_node where id = ''aaaaaaaa-0000-4000-8000-000000000111''::uuid',
+    'delete from qima_security_fixture.transitions where id = ''aaaaaaaa-0000-4000-8000-000000000111''::uuid',
+    'insert into qima_security_fixture.product_requests (id, tenant_id, requester_user_id) values (''cccccccc-0000-4000-8000-000000000222'', ''11111111-1111-4111-8111-111111111111'', ''aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'')',
+    'update qima_security_fixture.product_requests set status = status where id = ''aaaaaaaa-0000-4000-8000-000000000111''::uuid',
+    'delete from qima_security_fixture.product_requests where id = ''aaaaaaaa-0000-4000-8000-000000000111''::uuid'
+  ] loop
+    begin
+      execute v_query;
+      raise exception 'Authenticated direct DML unexpectedly succeeded: %', v_query;
+    exception
+      when insufficient_privilege then
+        null;
+    end;
+  end loop;
+end $qima_dml$;
+reset role;
+
 -- Test RLS visibility as User A.
 set local role authenticated;
 select set_config('request.jwt.claim.sub', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', true);
