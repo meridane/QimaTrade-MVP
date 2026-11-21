@@ -296,19 +296,21 @@ test("CREATE_OFFER 401 responses include an RFC 6750 challenge without changing 
   );
   expect(rejectedCredential.requests.map((request) => request.path)).toEqual(["/auth/v1/user"]);
 
-  const forbiddenCredential = await postCreateOffer(
-    "USD",
-    {},
-    undefined,
-    undefined,
-    "succeeded",
-    "Bearer syntactically-valid-but-forbidden-token",
-    403,
-  );
-  expect(forbiddenCredential.status).toBe(401);
-  expect(forbiddenCredential.body).toEqual({ error: "UNAUTHENTICATED" });
-  expect(forbiddenCredential.wwwAuthenticate).toBe('Bearer realm="qimatrade"');
-  expect(forbiddenCredential.requests.map((request) => request.path)).toEqual(["/auth/v1/user"]);
+  for (const authStatus of [400, 403]) {
+    const rejectedClientCredential = await postCreateOffer(
+      "USD",
+      {},
+      undefined,
+      undefined,
+      "succeeded",
+      "Bearer syntactically-valid-but-forbidden-token",
+      authStatus,
+    );
+    expect(rejectedClientCredential.status, String(authStatus)).toBe(401);
+    expect(rejectedClientCredential.body, String(authStatus)).toEqual({ error: "UNAUTHENTICATED" });
+    expect(rejectedClientCredential.wwwAuthenticate, String(authStatus)).toBe('Bearer realm="qimatrade"');
+    expect(rejectedClientCredential.requests.map((request) => request.path), String(authStatus)).toEqual(["/auth/v1/user"]);
+  }
 
 });
 
