@@ -3,7 +3,10 @@
 -- This file is a test script, not a production migration. It rolls back all changes.
 begin;
 
-do $$
+do $qima_initial$
+declare
+  v_role record;
+  v_role_count integer := 0;
 begin
   if not exists (select 1 from pg_namespace where nspname = 'qima_security_fixture') then
     raise exception 'Fixture missing: apply qima_security_contract.sql to LOCAL database first';
@@ -24,62 +27,55 @@ begin
     raise exception 'Expected exactly two synthetic tenant product requests A/B';
   end if;
   -- Client roles must not bypass RLS through elevated attributes, memberships, or ownership.
-  do $qima_role_contract$
-  declare
-    v_role record;
-    v_role_count integer := 0;
-  begin
-    for v_role in
-      select rolname, rolsuper, rolcreatedb, rolcreaterole, rolreplication, rolbypassrls, rolcanlogin
-      from pg_roles
-      where rolname in ('anon', 'authenticated')
-      order by rolname
-    loop
-      v_role_count := v_role_count + 1;
-      if v_role.rolsuper
-         or v_role.rolcreatedb
-         or v_role.rolcreaterole
-         or v_role.rolreplication
-         or v_role.rolbypassrls
-         or v_role.rolcanlogin then
-        raise exception 'Client role % has an elevated or login-capable attribute', v_role.rolname;
-      end if;
-    end loop;
-
-    if v_role_count <> 2 then
-      raise exception 'Expected both anon and authenticated fixture roles, found %', v_role_count;
+  for v_role in
+    select rolname, rolsuper, rolcreatedb, rolcreaterole, rolreplication, rolbypassrls, rolcanlogin
+    from pg_roles
+    where rolname in ('anon', 'authenticated')
+    order by rolname
+  loop
+    v_role_count := v_role_count + 1;
+    if v_role.rolsuper
+       or v_role.rolcreatedb
+       or v_role.rolcreaterole
+       or v_role.rolreplication
+       or v_role.rolbypassrls
+       or v_role.rolcanlogin then
+      raise exception 'Client role % has an elevated or login-capable attribute', v_role.rolname;
     end if;
+  end loop;
 
-    if exists (
-      select 1
-      from pg_auth_members m
-      join pg_roles member_role on member_role.oid = m.member
-      where member_role.rolname in ('anon', 'authenticated')
-    ) then
-      raise exception 'A client role unexpectedly inherits privileges through role membership';
-    end if;
+  if v_role_count <> 2 then
+    raise exception 'Expected both anon and authenticated fixture roles, found %', v_role_count;
+  end if;
 
-    if exists (
-      select 1
-      from pg_namespace n
-      where n.nspname = 'qima_security_fixture'
-        and pg_get_userbyid(n.nspowner) in ('anon', 'authenticated')
-    ) then
-      raise exception 'A client role unexpectedly owns the fixture schema';
-    end if;
+  if exists (
+    select 1
+    from pg_auth_members m
+    join pg_roles member_role on member_role.oid = m.member
+    where member_role.rolname in ('anon', 'authenticated')
+  ) then
+    raise exception 'A client role unexpectedly inherits privileges through role membership';
+  end if;
 
-    if exists (
-      select 1
-      from pg_class c
-      join pg_namespace n on n.oid = c.relnamespace
-      where n.nspname = 'qima_security_fixture'
-        and c.relkind in ('r', 'p', 'S', 'v', 'm', 'f')
-        and pg_get_userbyid(c.relowner) in ('anon', 'authenticated')
-    ) then
-      raise exception 'A client role unexpectedly owns a fixture relation';
-    end if;
-  end
-  $qima_role_contract$;
+  if exists (
+    select 1
+    from pg_namespace n
+    where n.nspname = 'qima_security_fixture'
+      and pg_get_userbyid(n.nspowner) in ('anon', 'authenticated')
+  ) then
+    raise exception 'A client role unexpectedly owns the fixture schema';
+  end if;
+
+  if exists (
+    select 1
+    from pg_class c
+    join pg_namespace n on n.oid = c.relnamespace
+    where n.nspname = 'qima_security_fixture'
+      and c.relkind in ('r', 'p', 'S', 'v', 'm', 'f')
+      and pg_get_userbyid(c.relowner) in ('anon', 'authenticated')
+  ) then
+    raise exception 'A client role unexpectedly owns a fixture relation';
+  end if;
 
   if has_schema_privilege('anon', 'qima_security_fixture', 'USAGE') then
     raise exception 'Anonymous role unexpectedly has fixture schema access';
@@ -123,7 +119,7 @@ begin
      or has_table_privilege('authenticated', 'qima_security_fixture.product_requests', 'TRUNCATE') then
     raise exception 'Authenticated role unexpectedly has direct TRUNCATE privileges';
   end if;
-end $$;
+end $qima_initial$;
 
 -- Exercise real anonymous reads, not only catalog privilege metadata.
 -- A successful zero-row SELECT is not sufficient: each statement must be denied.
