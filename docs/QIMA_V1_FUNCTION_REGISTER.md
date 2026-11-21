@@ -12448,3 +12448,12 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 - Le commit de test sur la branche de travail est `9e9299c4fdb6e9bcef0bafb4aa48fb457db8112b`. La validation CI de ce changement ne démarrera qu'après sa publication fast-forward sur la branche PR.
 - Le lockfile conserve Next.js **15.5.28**. Aucune mise à jour de dépendance n'est tentée dans ce changement ; la mise à jour vers 15.5.29 reste en attente d'une génération de lockfile reproductible et vérifiable.
 - Aucun test local n'a été exécuté. Aucune donnée ou migration Supabase Production, aucun secret, grant, fonction Auth ou politique RLS persistante n'a été modifié. Aucun déploiement Production, merge, force-push ou changement de protection GitHub n'a été effectué. Les tests PostgreSQL RLS demeurent synthétiques et ne prouvent pas une vulnérabilité de Production.
+
+
+### État post-publication du test Auth JSON malformé — 22 novembre 2026, 01:35 KST
+
+- Les deux commits de travail ont été publiés sur `fix/create-offer-status-contract` par fast-forward sans force, avec le SHA attendu `a423a99c99176bf14fdcd2424047d133cdc81619`. Le nouveau HEAD est `0d87c60c1ed8c1a0ea4582f1604d7c480c71cc2b`; la branche de travail et la branche PR sont identiques (**0 ahead / 0 behind**). Le diff PR contre `main` est maintenant **2 214 commits ahead / 0 behind**, toujours **280 fichiers**.
+- La recherche GitHub retrouve toujours la PR #26 ouverte. Le connecteur de recherche ne renvoie pas les champs `draft` et `mergeable` dans cette réponse ; aucune valeur actuelle n'est inventée.
+- QIMA CI [#1777](https://github.com/meridane/QimaTrade-MVP/actions/runs/44925502506) et CodeQL [#1707](https://github.com/meridane/QimaTrade-MVP/actions/runs/44925502491) sont **IN PROGRESS** sur le nouveau HEAD. Les jobs Verify, PostgreSQL 16 et PostgreSQL 17.6 sont actifs. Les deux jobs de simulation setup/cleanup ont leurs conclusions négatives intentionnelles et les jobs d'assertion séparés sont **SUCCESS** ; le job de harness skipped reste **SKIPPED**.
+- Vercel Preview du nouveau HEAD est **PENDING**. Aucun résultat Playwright ou PostgreSQL final n'est anticipé pour #1777 à ce stade.
+- Le test « malformed Auth JSON » est donc publié mais **pas encore validé**. Le résultat **405 passed** de #1776 concerne le HEAD précédent et ne valide pas ce nouveau cas.
