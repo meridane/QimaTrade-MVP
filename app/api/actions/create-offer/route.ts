@@ -64,7 +64,7 @@ export async function POST(request: Request) {
       return authServiceUnavailableResponse();
     }
     const { data: { user }, error: userError } = authResult;
-    if (typeof userError?.status === "number" && userError.status >= 500) {
+    if (typeof userError?.status === "number" && (userError.status === 0 || userError.status >= 500)) {
       return authServiceUnavailableResponse();
     }
     if (userError || !user) {
