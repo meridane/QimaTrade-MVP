@@ -71,6 +71,11 @@ export async function POST(request: Request) {
     if (userError || !user) {
       return unauthenticatedResponse(userError ? userError.status === 401 : !user);
     }
+    // A successful Auth response must still carry a canonical Supabase user UUID.
+    // Treat malformed upstream identity data as an Auth service failure before any profile lookup.
+    if (typeof user.id !== "string" || !canonicalUuidPattern.test(user.id)) {
+      return authServiceUnavailableResponse();
+    }
 
     let body: Record<string, unknown>;
     try {
