@@ -12358,3 +12358,14 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 - The new runtime DML probes and documentation are **not covered by CI #1755**; they require the next PR-triggered CI run. No pass is claimed in advance.
 - **Evidence boundary:** all identities, UUIDs, tables and rows are synthetic in a disposable standalone PostgreSQL container. This verifies only the declared local fixture contract; it does not prove deployed Supabase Production grants or RLS behavior and does not establish a production vulnerability.
 - No local test was run in this automation environment. No Supabase Production data, migration, credential, grant or persistent RLS policy was changed. No Production deployment, PR merge, force-push or protection-rule change occurred.
+
+
+### Post-push snapshot — authenticated runtime DML regression, 21 novembre 2026, 17:26 KST
+
+- The three-commit work branch was fast-forwarded to PR #26 at HEAD `93d7275aedf8dc167737da90e55c4e755ae70050`; PR is **OPEN / DRAFT / not merged**, `mergeable=true`, 2,170 commits ahead of `main`, 0 behind. The work branch and PR branch compare identical.
+- QIMA CI [#1756](https://github.com/meridane/QimaTrade-MVP/actions/runs/44885051283) has started on this HEAD. At the latest job inspection, Verify is still running its PostgreSQL runner privilege-contract step; PostgreSQL 16 and 17.6 jobs are initializing/running. The isolated security fixture step has not yet executed, so the 15 authenticated runtime DML probes have **no result yet**. The setup/cleanup harness's expected cleanup-failure job has its intentional failure outcome; its separate blocking assertion is still running. The intentionally skipped harness is skipped as designed.
+- CodeQL [#1686](https://github.com/meridane/QimaTrade-MVP/actions/runs/44885051284) is **IN PROGRESS** at initialization. Vercel status for this HEAD is **FAILURE** with the free-tier `build-rate-limit` target; this is separate from GitHub Actions.
+- The new SQL block runs 15 INSERT/UPDATE/DELETE statements as the synthetic `authenticated` role across the five fixture tables. Each statement must be rejected; a completed zero-row UPDATE/DELETE is treated as a failure. The outer transaction rolls back. These assertions are pending the #1756 fixture step.
+- CI #1755 on the parent code/test HEAD completed **SUCCESS**: 404/404 Playwright passed, npm audit 1 moderate / 0 high / 0 critical, TypeScript, build, fixture, PostgreSQL 16.16 and 17.6 passed; CodeQL #1685 **SUCCESS**. Those results do not validate the new DML probes.
+- **Evidence boundary:** all fixture identities and data are synthetic in disposable PostgreSQL. No conclusion about deployed Supabase Production grants, policies, or vulnerabilities is drawn.
+- No local test was run. No Supabase Production data, migration, secret, grant, or persistent RLS policy was changed. No Production deployment, merge, force-push, or protection-rule change occurred.
