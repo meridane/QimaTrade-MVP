@@ -3,6 +3,37 @@
 -- This file is a test script, not a production migration. It rolls back all changes.
 begin;
 
+-- Characterize auth.uid() claim-source precedence and empty legacy-setting fallback.
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', true);
+select set_config('request.jwt.claims', '{"sub":"bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb","role":"authenticated"}', true);
+do $qima_auth_uid_precedence$
+begin
+  if auth.uid() is distinct from 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'::uuid then
+    raise exception 'auth.uid() must prefer a non-empty legacy subject claim';
+  end if;
+end
+$qima_auth_uid_precedence$;
+
+select set_config('request.jwt.claim.sub', '', true);
+select set_config('request.jwt.claims', '{"sub":"bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb","role":"authenticated"}', true);
+do $qima_auth_uid_fallback$
+begin
+  if auth.uid() is distinct from 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'::uuid then
+    raise exception 'auth.uid() must fall back to JWT claims JSON when the legacy subject is empty';
+  end if;
+end
+$qima_auth_uid_fallback$;
+
+select set_config('request.jwt.claim.sub', '', true);
+select set_config('request.jwt.claims', '{"role":"authenticated"}', true);
+do $qima_auth_uid_missing$
+begin
+  if auth.uid() is not null then
+    raise exception 'auth.uid() must return NULL when neither claim source contains a subject';
+  end if;
+end
+$qima_auth_uid_missing$;
+
 do $qima_initial$
 declare
   v_role record;
