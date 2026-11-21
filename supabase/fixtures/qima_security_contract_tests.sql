@@ -65,7 +65,7 @@ begin
      or has_table_privilege('authenticated', 'qima_security_fixture.product_requests', 'TRUNCATE') then
     raise exception 'Authenticated role unexpectedly has direct TRUNCATE privileges';
   end if;
-end $;
+end $$;
 
 -- Exercise real anonymous reads, not only catalog privilege metadata.
 -- A successful zero-row SELECT is not sufficient: each statement must be denied.

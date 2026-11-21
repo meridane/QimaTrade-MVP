@@ -12388,3 +12388,11 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 - Corrected the single terminator to `end $$;` before treating any CI result as validation. QIMA CI [#1758](https://github.com/meridane/QimaTrade-MVP/actions/runs/44891000253) had only reached **QUEUED** and CodeQL [#1688](https://github.com/meridane/QimaTrade-MVP/actions/runs/44891000283) was **IN PROGRESS** at the correction point; no fixture result is attributed to the malformed intermediate commit.
 - The corrected SQL and this note are published in a follow-up commit. The next PR-triggered CI run must validate the corrected SQL and all five runtime TRUNCATE denials.
 - No local test was run; no Supabase Production data, migration, credential, grant or persistent RLS policy was changed. No Production deployment, merge, force-push or protection-rule change occurred.
+
+
+### Literal-safe SQL delimiter verification — 21 November 2026, 18:50 KST
+
+- A follow-up review found that the first attempted replacement of `end $;` used a JavaScript replacement string containing `$$`; JavaScript interprets that token as a single literal dollar sign. The intermediate commit therefore still contained the malformed terminator, and no CI result is claimed for that SQL.
+- Replaced the terminator using a callback (literal-safe replacement) and verified before publishing that the malformed `end $;` count is zero and every anonymous `DO $$` block has a matching `end $$;` terminator.
+- The five authenticated runtime TRUNCATE probes and their catalog privilege checks are unchanged. The corrected SQL must be validated by the next QIMA CI fixture run.
+- This correction is test-fixture-only, uses disposable synthetic PostgreSQL, and does not touch Supabase Production. No local test was run; no Production data, migration, credential, grant, or persistent RLS policy was changed. No Production deployment, merge, force-push, or protection-rule change occurred.
