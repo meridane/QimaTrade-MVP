@@ -296,19 +296,34 @@ test("CREATE_OFFER 401 responses include an RFC 6750 challenge without changing 
   );
   expect(rejectedCredential.requests.map((request) => request.path)).toEqual(["/auth/v1/user"]);
 
-  const authServiceFailure = await postCreateOffer(
-    "USD",
-    {},
-    undefined,
-    undefined,
-    "succeeded",
-    "Bearer syntactically-valid-token",
-    503,
-  );
-  expect(authServiceFailure.status).toBe(401);
-  expect(authServiceFailure.body).toEqual({ error: "UNAUTHENTICATED" });
-  expect(authServiceFailure.wwwAuthenticate).toBe('Bearer realm="qimatrade"');
-  expect(authServiceFailure.requests.map((request) => request.path)).toEqual(["/auth/v1/user"]);
+});
+
+test("CREATE_OFFER route maps Auth upstream outages and transport exceptions to a generic 503", async () => {
+  const bearer = "Bearer syntactically-valid-token";
+
+  for (const authStatus of [500, 503, "network-error"] as const) {
+    const result = await postCreateOffer(
+      "USD",
+      {},
+      undefined,
+      undefined,
+      "succeeded",
+      bearer,
+      authStatus,
+    );
+
+    expect(result.status, String(authStatus)).toBe(503);
+    expect(result.body, String(authStatus)).toEqual({ error: "AUTH_SERVICE_UNAVAILABLE" });
+    expect(result.wwwAuthenticate, String(authStatus)).toBeNull();
+    expect(JSON.stringify(result.body), String(authStatus)).not.toMatch(
+      /ECONNRESET|Auth service unavailable|PRIVATE_SENTINEL/i,
+    );
+
+    const authRequests = result.requests.filter((request) => request.path === "/auth/v1/user");
+    expect(authRequests.length, String(authStatus)).toBeGreaterThan(0);
+    expect(result.requests.every((request) => request.path === "/auth/v1/user"), String(authStatus)).toBe(true);
+    expect(result.requests.every((request) => request.authorization === bearer), String(authStatus)).toBe(true);
+  }
 });
 
 test("CREATE_OFFER route accepts case-insensitive Bearer schemes", async () => {
