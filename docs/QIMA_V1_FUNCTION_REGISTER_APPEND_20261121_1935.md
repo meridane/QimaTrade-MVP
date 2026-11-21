@@ -72,3 +72,13 @@ The GitHub file reader returned a valid blob SHA but an empty content payload fo
 - Added runtime `CREATE TABLE` probes under both client roles. Each statement must raise `insufficient_privilege`; if either DDL statement succeeds, the fixture raises an uncaught assertion exception. The surrounding transaction rolls back all fixture-test changes.
 - The change is limited to the disposable synthetic fixture. It does not alter production grants, policies, migrations, data or credentials.
 - Static source checks confirm exactly two runtime CREATE TABLE probes and the authenticated USAGE precondition. PostgreSQL execution and regression status remain pending the next PR CI run.
+
+
+### Post-push validation state — 21 November 2026, 21:08 KST
+
+- Final code/test HEAD `a5c7c277` adds two runtime `CREATE TABLE` denial probes to the disposable fixture; the documentation and append-only register follow-ups are included through HEAD `eeac041c`.
+- QIMA CI [#1766](https://github.com/meridane/QimaTrade-MVP/actions/runs/44902581876) is **IN PROGRESS**. At inspection, the Verify job is running its dependency audit; TypeScript, build, Playwright and the isolated QIMA fixture have not yet completed. The PostgreSQL 16 and 17.6 compatibility jobs are running.
+- CodeQL [#1696](https://github.com/meridane/QimaTrade-MVP/actions/runs/44902581846) is **IN PROGRESS**. Vercel Preview is **PENDING** for the exact HEAD.
+- The prior HEAD `9814c99f` is validated by QIMA CI [#1765](https://github.com/meridane/QimaTrade-MVP/actions/runs/44895423434): Verify **404/404 Playwright**, npm audit, TypeScript, Next.js build and the isolated QIMA fixture succeeded; PostgreSQL 16 and 17.6 compatibility jobs succeeded. CodeQL [#1695](https://github.com/meridane/QimaTrade-MVP/actions/runs/44895423397) succeeded. Those results do not validate the new schema-CREATE probes.
+- The canonical `docs/QIMA_V1_FUNCTION_REGISTER.md` still returns an empty content payload despite a valid blob SHA. It was not overwritten; this append-only companion preserves the new record without risking loss of the canonical file history.
+- No local PostgreSQL execution was performed. The new SQL has static source checks only; the runtime assertions remain pending CI. No Supabase Production data, migration, secret, grant or persistent RLS policy was changed. No Production deployment, merge, force-push or protection-rule change occurred.
