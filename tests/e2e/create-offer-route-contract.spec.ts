@@ -296,6 +296,20 @@ test("CREATE_OFFER 401 responses include an RFC 6750 challenge without changing 
   );
   expect(rejectedCredential.requests.map((request) => request.path)).toEqual(["/auth/v1/user"]);
 
+  const forbiddenCredential = await postCreateOffer(
+    "USD",
+    {},
+    undefined,
+    undefined,
+    "succeeded",
+    "Bearer syntactically-valid-but-forbidden-token",
+    403,
+  );
+  expect(forbiddenCredential.status).toBe(401);
+  expect(forbiddenCredential.body).toEqual({ error: "UNAUTHENTICATED" });
+  expect(forbiddenCredential.wwwAuthenticate).toBe('Bearer realm="qimatrade"');
+  expect(forbiddenCredential.requests.map((request) => request.path)).toEqual(["/auth/v1/user"]);
+
 });
 
 test("CREATE_OFFER route maps Auth upstream outages and transport exceptions to a generic 503", async () => {
