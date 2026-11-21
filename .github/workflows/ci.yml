@@ -672,3 +672,105 @@ jobs:
           CLEANUP_EXIT_CODE: ${{ needs.prepared_transactions_cleanup_skipped_contract.outputs.cleanup_exit_code }}
           CLEANUP_FAILURE_OBSERVED: ${{ needs.prepared_transactions_cleanup_skipped_contract.outputs.cleanup_failure_observed }}
         run: bash tests/ci/assert-prepared-transactions-cleanup-contract.sh skipped
+
+  temporary_next_patch_lockfile:
+    name: Temporary Next.js 15.5.29 lockfile regeneration
+    if: ${{ github.event_name == 'pull_request' && github.head_ref == 'fix/create-offer-status-contract' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout PR head branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 20
+          cache: npm
+      - name: Check whether the lockfile needs the patch update
+        id: lockfile_check
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require("node:fs");
+          const lock = JSON.parse(fs.readFileSync("package-lock.json", "utf8"));
+          const required = lock.packages["node_modules/next"]?.version !== "15.5.29";
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, "required=" + String(required) + "\\n");
+          console.log("Next.js lockfile update required:", required);
+          NODE
+      - name: Regenerate package lock for Next.js 15.5.29
+        if: steps.lockfile_check.outputs.required == 'true'
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Verify exact Next.js, env and SWC versions
+        if: steps.lockfile_check.outputs.required == 'true'
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require("node:fs");
+          const lock = JSON.parse(fs.readFileSync("package-lock.json", "utf8"));
+          const expected = "15.5.29";
+          const next = lock.packages["node_modules/next"]?.version;
+          const env = lock.packages["node_modules/@next/env"]?.version;
+          const swc = Object.entries(lock.packages)
+            .filter(([name]) => name.startsWith("node_modules/@next/swc-"))
+            .map(([name, value]) => ({ name, version: value.version }));
+          if (lock.packages[""]?.dependencies?.next !== expected || next !== expected || env !== expected) {
+            throw new Error("Expected package.json/lock Next.js and @next/env to be exactly " + expected);
+          }
+          if (swc.length === 0 || swc.some((item) => item.version !== expected)) {
+            throw new Error("Expected every locked @next/swc package to be exactly " + expected);
+          }
+          const sharp = lock.packages["node_modules/sharp"]?.version;
+          if (!sharp || !/^0\\.35\\./.test(sharp)) {
+            throw new Error("Expected sharp 0.35.x to remain locked; found " + sharp);
+          }
+          console.log(JSON.stringify({ next, env, swc, sharp }, null, 2));
+          NODE
+          git diff --exit-code -- package.json
+      - name: Install from the regenerated lockfile
+        if: steps.lockfile_check.outputs.required == 'true'
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Verify npm audit no longer reports Next.js
+        if: steps.lockfile_check.outputs.required == 'true'
+        shell: bash
+        run: |
+          set +e
+          npm audit --json > npm-audit.json
+          set -e
+          node <<'NODE'
+          const fs = require("node:fs");
+          const report = JSON.parse(fs.readFileSync("npm-audit.json", "utf8"));
+          const counts = report.metadata?.vulnerabilities ?? {};
+          console.log("npm audit counts:", JSON.stringify(counts));
+          if (report.vulnerabilities?.next) {
+            throw new Error("Next.js remains in npm audit after the 15.5.29 update");
+          }
+          if ((counts.high ?? 0) > 0 || (counts.critical ?? 0) > 0) {
+            throw new Error("High or critical dependency findings remain");
+          }
+          NODE
+      - name: Upload generated lockfile recovery artifact
+        if: steps.lockfile_check.outputs.required == 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: next-15-5-29-package-lock
+          path: package-lock.json
+          if-no-files-found: error
+          retention-days: 7
+      - name: Commit generated lockfile to PR branch
+        if: steps.lockfile_check.outputs.required == 'true'
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          if git diff --cached --quiet; then
+            echo "ERROR: lockfile regeneration produced no package-lock change." >&2
+            exit 1
+          fi
+          git commit -m "chore(deps): lock Next.js 15.5.29 security patch"
+          git push origin "HEAD:${GITHUB_HEAD_REF}"
