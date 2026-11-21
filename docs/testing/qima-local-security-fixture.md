@@ -39,6 +39,6 @@ No production migration, production credential, remote database URL, or producti
 
 - Under `SET ROLE authenticated`, runtime INSERT/UPDATE/DELETE probes exercise all five fixture tables (15 statements total) and require `insufficient_privilege`; a statement that completes, even if it affects zero rows, fails the fixture. The probes execute inside the outer transaction, which is rolled back.
 
-- Under `SET ROLE authenticated`, runtime `TRUNCATE` probes cover all five fixture tables because `TRUNCATE` has a separate privilege and bypasses row-level security; every attempt must raise `insufficient_privilege. The fixture also checks the corresponding catalog privileges, and the outer transaction is rolled back.
+- Under `SET ROLE authenticated`, runtime `TRUNCATE` probes cover all five fixture tables because `TRUNCATE` has a separate privilege and bypasses row-level security; every attempt must raise `insufficient_privilege`. The fixture also checks the corresponding catalog privileges, and the outer transaction is rolled back.
 
 - A role-attribute guard verifies both client roles cannot log in, bypass RLS, become superusers, create databases or roles, replicate, inherit another role, or own fixture schema/relations. This prevents the synthetic test roles from passing row-level checks through owner or elevated-role behavior.
