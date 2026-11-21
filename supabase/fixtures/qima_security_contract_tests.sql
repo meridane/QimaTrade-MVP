@@ -63,7 +63,7 @@ end $$;
 -- Exercise real anonymous reads, not only catalog privilege metadata.
 -- A successful zero-row SELECT is not sufficient: each statement must be denied.
 set local role anon;
-do $
+do $qima$
 declare
   v_query text;
 begin
@@ -82,7 +82,7 @@ begin
         null;
     end;
   end loop;
-end $;
+end $qima$;
 reset role;
 
 -- Test RLS visibility as User A.
