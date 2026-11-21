@@ -54,6 +54,9 @@ async function postCreateOffer(
   const authNullPayloadOverrideKey = "__authNullPayload";
   const authNullPayload = requestOverrides[authNullPayloadOverrideKey] === true;
   delete requestOverrides[authNullPayloadOverrideKey];
+  const authMalformedPayloadOverrideKey = "__authMalformedPayload";
+  const authMalformedPayload = requestOverrides[authMalformedPayloadOverrideKey] === true;
+  delete requestOverrides[authMalformedPayloadOverrideKey];
   const rpcResultOverrideKey = "__rpcResultOverride";
   const hasRpcResultOverride = Object.prototype.hasOwnProperty.call(requestOverrides, rpcResultOverrideKey);
   const rpcResultOverride = requestOverrides[rpcResultOverrideKey];
@@ -93,6 +96,12 @@ async function postCreateOffer(
         return Response.json(authError, { status: authStatus });
       }
       if (authNullPayload) return Response.json(null);
+      if (authMalformedPayload) {
+        return new Response("AUTH_MALFORMED_JSON_PRIVATE_SENTINEL", {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
       return Response.json({
         id: "40000000-0000-4000-8000-000000000001",
         aud: "authenticated",
@@ -278,6 +287,17 @@ test("CREATE_OFFER route masks a null Auth user payload as an Auth service failu
   expect(result.body).toEqual({ error: "AUTH_SERVICE_UNAVAILABLE" });
   expect(result.wwwAuthenticate).toBeNull();
   expect(result.requests.map((request) => request.path)).toEqual(["/auth/v1/user"]);
+});
+
+test("CREATE_OFFER route masks malformed Auth JSON as an Auth service failure", async () => {
+  const result = await postCreateOffer("USD", { __authMalformedPayload: true });
+
+  expect(result.status).toBe(503);
+  expect(result.body).toEqual({ error: "AUTH_SERVICE_UNAVAILABLE" });
+  expect(JSON.stringify(result.body)).not.toContain("AUTH_MALFORMED_JSON_PRIVATE_SENTINEL");
+  expect(result.wwwAuthenticate).toBeNull();
+  expect(result.requests.map((request) => request.path)).toEqual(["/auth/v1/user"]);
+  expect(result.requests[0].authorization).toBe("Bearer qima-route-test-token");
 });
 
 test("CREATE_OFFER 401 responses include an RFC 6750 challenge without changing the JSON contract", async () => {
