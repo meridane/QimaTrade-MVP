@@ -316,6 +316,11 @@ test("CREATE_OFFER route rejects Auth user payloads without a canonical UUID bef
     { label: "empty user id", value: "" },
     { label: "non-UUID user id", value: "AUTH_USER_ID_PRIVATE_SENTINEL" },
     { label: "numeric user id", value: 123 },
+    { label: "UUID with surrounding whitespace", value: " 6ba7b810-9dad-11d1-80b4-00c04fd430c8 " },
+    { label: "UUID without hyphens", value: "6ba7b8109dad11d180b400c04fd430c8" },
+    { label: "braced UUID", value: "{6ba7b810-9dad-11d1-80b4-00c04fd430c8}" },
+    { label: "UUID with incorrect group length", value: "6ba7b810-9dad-11d1-80b4-00c04fd430c" },
+    { label: "UUID with non-hex character", value: "550e8400-e29b-41d4-a716-44665544000g" },
   ];
 
   for (const fixture of invalidUserIds) {
@@ -330,10 +335,11 @@ test("CREATE_OFFER route rejects Auth user payloads without a canonical UUID bef
   }
 });
 
-test("CREATE_OFFER route accepts canonical UUIDs across UUID versions", async () => {
+test("CREATE_OFFER route accepts canonical UUIDs across versions and hex casing", async () => {
   const validUserIds = [
     { label: "UUID v1", value: "6ba7b810-9dad-11d1-80b4-00c04fd430c8" },
     { label: "UUID v7", value: "018f47a2-7c00-7abc-8def-0123456789ab" },
+    { label: "uppercase canonical UUID", value: "550E8400-E29B-41D4-A716-446655440000" },
   ];
   const expectedPaths = [
     "/auth/v1/user",
