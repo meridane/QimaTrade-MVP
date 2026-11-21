@@ -29,7 +29,7 @@ This is a test-only strengthening of the disposable PostgreSQL fixture. The fixt
 
 ## Validation status
 
-The new SQL assertions and documentation are being committed on an isolated work branch based on the verified PR HEAD. Their CI result is **not yet available** at the time this supplement is created; no pass is claimed for the new assertions. The next PR-head push is expected to trigger QIMA CI and CodeQL.
+The new SQL assertions and documentation are committed on an isolated work branch based on the verified PR HEAD. QIMA CI [#1752](https://github.com/meridane/QimaTrade-MVP/actions/runs/44879140580) is **IN PROGRESS** on the first exact-row test version; its Verify fixture step and PostgreSQL 16/17.6 jobs have not yet completed. CodeQL [#1682](https://github.com/meridane/QimaTrade-MVP/actions/runs/44879140628) is **SUCCESS**, and the Vercel status is **SUCCESS**. A second, non-vacuous seed-count preflight was added after CI #1752 started, so it is not covered by that run and awaits the next PR-head CI.
 
 ## Evidence boundary and safety
 
