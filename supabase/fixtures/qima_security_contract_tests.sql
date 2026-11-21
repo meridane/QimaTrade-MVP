@@ -58,7 +58,14 @@ begin
      or has_table_privilege('authenticated', 'qima_security_fixture.product_requests', 'DELETE') then
     raise exception 'Authenticated role unexpectedly has direct product-request write privileges';
   end if;
-end $$;
+  if has_table_privilege('authenticated', 'qima_security_fixture.memberships', 'TRUNCATE')
+     or has_table_privilege('authenticated', 'qima_security_fixture.sessions', 'TRUNCATE')
+     or has_table_privilege('authenticated', 'qima_security_fixture.observations', 'TRUNCATE')
+     or has_table_privilege('authenticated', 'qima_security_fixture.transitions', 'TRUNCATE')
+     or has_table_privilege('authenticated', 'qima_security_fixture.product_requests', 'TRUNCATE') then
+    raise exception 'Authenticated role unexpectedly has direct TRUNCATE privileges';
+  end if;
+end $;
 
 -- Exercise real anonymous reads, not only catalog privilege metadata.
 -- A successful zero-row SELECT is not sufficient: each statement must be denied.
@@ -118,6 +125,31 @@ begin
     end;
   end loop;
 end $qima_dml$;
+reset role;
+
+-- TRUNCATE is a separate privilege and bypasses row-level security.
+-- Each authenticated attempt must be denied; the outer transaction is rolled back.
+set local role authenticated;
+do $qima_truncate$
+declare
+  v_query text;
+begin
+  foreach v_query in array array[
+    'truncate table qima_security_fixture.memberships',
+    'truncate table qima_security_fixture.sessions',
+    'truncate table qima_security_fixture.observations',
+    'truncate table qima_security_fixture.transitions',
+    'truncate table qima_security_fixture.product_requests'
+  ] loop
+    begin
+      execute v_query;
+      raise exception 'Authenticated direct TRUNCATE unexpectedly succeeded: %', v_query;
+    exception
+      when insufficient_privilege then
+        null;
+    end;
+  end loop;
+end $qima_truncate$;
 reset role;
 
 -- Test RLS visibility as User A.
