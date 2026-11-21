@@ -57,6 +57,10 @@ async function postCreateOffer(
   const authMalformedPayloadOverrideKey = "__authMalformedPayload";
   const authMalformedPayload = requestOverrides[authMalformedPayloadOverrideKey] === true;
   delete requestOverrides[authMalformedPayloadOverrideKey];
+  const authUserIdOverrideKey = "__authUserIdOverride";
+  const hasAuthUserIdOverride = Object.prototype.hasOwnProperty.call(requestOverrides, authUserIdOverrideKey);
+  const authUserIdOverride = requestOverrides[authUserIdOverrideKey];
+  delete requestOverrides[authUserIdOverrideKey];
   const rpcResultOverrideKey = "__rpcResultOverride";
   const hasRpcResultOverride = Object.prototype.hasOwnProperty.call(requestOverrides, rpcResultOverrideKey);
   const rpcResultOverride = requestOverrides[rpcResultOverrideKey];
@@ -102,12 +106,17 @@ async function postCreateOffer(
           headers: { "Content-Type": "application/json" },
         });
       }
-      return Response.json({
+      const authUser: Record<string, unknown> = {
         id: "40000000-0000-4000-8000-000000000001",
         aud: "authenticated",
         role: "authenticated",
         email: "qima-route-test@example.invalid",
-      });
+      };
+      if (hasAuthUserIdOverride) {
+        if (authUserIdOverride === undefined) delete authUser.id;
+        else authUser.id = authUserIdOverride;
+      }
+      return Response.json(authUser);
     }
     if (url.pathname === "/rest/v1/profiles") {
       if (profileStatus === "network-error") {
@@ -298,6 +307,27 @@ test("CREATE_OFFER route masks malformed Auth JSON as an Auth service failure", 
   expect(result.wwwAuthenticate).toBeNull();
   expect(result.requests.map((request) => request.path)).toEqual(["/auth/v1/user"]);
   expect(result.requests[0].authorization).toBe("Bearer qima-route-test-token");
+});
+
+test("CREATE_OFFER route rejects Auth user payloads without a canonical UUID before profile lookup", async () => {
+  const invalidUserIds: Array<{ label: string; value: unknown }> = [
+    { label: "missing user id", value: undefined },
+    { label: "null user id", value: null },
+    { label: "empty user id", value: "" },
+    { label: "non-UUID user id", value: "AUTH_USER_ID_PRIVATE_SENTINEL" },
+    { label: "numeric user id", value: 123 },
+  ];
+
+  for (const fixture of invalidUserIds) {
+    const result = await postCreateOffer("USD", { __authUserIdOverride: fixture.value });
+
+    expect(result.status, fixture.label).toBe(503);
+    expect(result.body, fixture.label).toEqual({ error: "AUTH_SERVICE_UNAVAILABLE" });
+    expect(JSON.stringify(result.body), fixture.label).not.toContain("AUTH_USER_ID_PRIVATE_SENTINEL");
+    expect(result.wwwAuthenticate, fixture.label).toBeNull();
+    expect(result.requests.map((request) => request.path), fixture.label).toEqual(["/auth/v1/user"]);
+    expect(result.requests[0].authorization, fixture.label).toBe("Bearer qima-route-test-token");
+  }
 });
 
 test("CREATE_OFFER 401 responses include an RFC 6750 challenge without changing the JSON contract", async () => {
