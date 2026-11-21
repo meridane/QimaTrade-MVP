@@ -261,6 +261,73 @@ test("CREATE_OFFER route rejects missing or non-Bearer authorization before data
   }
 });
 
+test("CREATE_OFFER route enforces the RFC 6750 b64token grammar before Auth", async () => {
+  const expectedPaths = [
+    "/auth/v1/user",
+    "/rest/v1/profiles",
+    "/rest/v1/dt_memberships",
+    "/rest/v1/rpc/get_action_definition_v1",
+    "/rest/v1/rpc/execute_create_offer_v1",
+  ];
+  const validHeaders = [
+    {
+      label: "mixed-case scheme, multiple SP separators, allowed token characters and trailing padding",
+      header: "bEaReR    QIMA-token._~+/==",
+      forwarded: "Bearer QIMA-token._~+/==",
+    },
+    {
+      label: "single SP separator and trailing padding",
+      header: "Bearer qima-token=",
+      forwarded: "Bearer qima-token=",
+    },
+  ];
+
+  for (const fixture of validHeaders) {
+    const result = await postCreateOffer(
+      "USD",
+      {},
+      undefined,
+      undefined,
+      "succeeded",
+      fixture.header,
+    );
+
+    expect(result.status, fixture.label).toBe(200);
+    expect(result.requests.map((request) => request.path), fixture.label).toEqual(expectedPaths);
+    expect(result.requests[0].authorization, fixture.label).toBe(fixture.forwarded);
+    expect(
+      result.requests.every((request) => request.authorization === fixture.forwarded),
+      fixture.label,
+    ).toBe(true);
+  }
+
+  const invalidHeaders = [
+    { label: "padding before the end of the token", header: "Bearer qima=token" },
+    { label: "comma outside the token grammar", header: "Bearer qima,token" },
+    { label: "colon outside the token grammar", header: "Bearer qima:token" },
+    { label: "percent escape outside the token grammar", header: "Bearer qima%20token" },
+    { label: "embedded whitespace in the token", header: "Bearer qima token" },
+    { label: "empty credential", header: "Bearer" },
+    { label: "padding without a token", header: "Bearer =" },
+  ];
+
+  for (const fixture of invalidHeaders) {
+    const result = await postCreateOffer(
+      "USD",
+      {},
+      undefined,
+      undefined,
+      "succeeded",
+      fixture.header,
+    );
+
+    expect(result.status, fixture.label).toBe(401);
+    expect(result.body, fixture.label).toEqual({ error: "UNAUTHENTICATED" });
+    expect(result.wwwAuthenticate, fixture.label).toBe('Bearer realm="qimatrade"');
+    expect(result.requests, fixture.label).toEqual([]);
+  }
+});
+
 test("CREATE_OFFER route fails closed after Auth rejects a normalized mixed-case Bearer token", async () => {
   const rejectedToken = "syntactically-valid-but-rejected-token";
   const result = await postCreateOffer(
