@@ -12330,3 +12330,11 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 
 - The SQL fixture assertion preflight now requires exactly two seeded rows in each of `memberships`, `sessions`, `observations`, `transitions` and `product_requests` before changing to User A or User B. This makes each opposite-tenant absence assertion non-vacuous and catches accidental loss of either synthetic seed row.
 - The preflight was added after QIMA CI #1752 started; it is **not** claimed as validated by #1752. It will be included in the next CI after the completed work branch is fast-forwarded to PR #26.
+
+
+### CI update after the exact-row assertions reached the PR — 21 November 2026, 16:10 KST
+
+- The exact-row version at HEAD `a82e29f6826be9a5db87bf4a6336d19c56f31adf` has Verify job **SUCCESS** in QIMA CI [#1752](https://github.com/meridane/QimaTrade-MVP/actions/runs/44879140580): npm audit (1 moderate, 0 high, 0 critical), TypeScript, Next.js build, Chromium and **404/404 Playwright** succeeded; the isolated fixture step reported `PASS: local QIMA security-contract fixture assertions completed.` The two PostgreSQL integration jobs were still running at the latest check, so CI #1752 is not yet globally closed.
+- CodeQL [#1682](https://github.com/meridane/QimaTrade-MVP/actions/runs/44879140628) completed **SUCCESS**. Vercel Preview for the intermediate HEAD completed **SUCCESS**.
+- The complete work branch, including the non-vacuous two-row-per-table seed preflight, was fast-forwarded to PR #26 at HEAD `8743189ad5ccb6b05385a6b7d0b405cf3669d6cd`. QIMA CI [#1753](https://github.com/meridane/QimaTrade-MVP/actions/runs/44879388917) is **PENDING** with no jobs published at this check; CodeQL [#1683](https://github.com/meridane/QimaTrade-MVP/actions/runs/44879388935) is **IN PROGRESS**. Vercel Preview reports the free-tier `build-rate-limit` failure; this is separate from GitHub Actions and no deployment workaround was attempted.
+- CI #1753 is the first run that includes the seed preflight requiring exactly two rows in all five fixture tables. No pass is claimed for those five preflight assertions until that run executes them.
