@@ -41,3 +41,9 @@ These checks protect the meaning of the RLS assertions: a client role must not p
 ## Canonical register handling
 
 The GitHub file reader returned a valid blob SHA but an empty content payload for the very large `docs/QIMA_V1_FUNCTION_REGISTER.md` (both UTF-8 and base64 reads). Replacing that file without its complete contents would risk destroying its history. This snapshot is therefore stored as a clearly named append-only companion; the canonical register was not overwritten.
+
+
+### Static review correction before PR validation
+
+- A pre-publication SQL review caught that the first draft nested a `DO` block inside the fixture's initial `DO` block, which is invalid PL/pgSQL. The role-attribute checks have been inlined into the existing block with explicit declarations and a distinct outer dollar-quote tag. This intermediate draft was not pushed to the PR and no CI result is attributed to it.
+- The documentation typo around the `insufficient_privilege` SQLSTATE has also been corrected. The next CI run is the first execution of the corrected role-attribute assertions.
