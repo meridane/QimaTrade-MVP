@@ -18,6 +18,7 @@ Status: wired into the QIMA CI Verify job; validation is reported only from the 
 - Anonymous users have no membership read grant; authenticated users have no direct membership INSERT/UPDATE/DELETE grants.
 - No direct client DML grants for the other modeled tables.
 - Anonymous role has no schema/table access in this fixture.
+- Under SET ROLE anon, a runtime probe executes SELECT against all five fixture tables and requires insufficient_privilege; a successful zero-row query is not accepted as denial.
 - Under each synthetic authenticated identity, assertions verify the exact expected row identifiers and tenant/actor ownership for memberships, sessions, observations, transitions, and product requests; the opposite tenant's fixture row must remain invisible. Count-only checks are retained as an additional cardinality assertion.
 - Before changing roles, the assertion script requires exactly two seeded rows in each modeled table so the opposite-tenant visibility checks cannot pass merely because the counterpart fixture row is absent.
 

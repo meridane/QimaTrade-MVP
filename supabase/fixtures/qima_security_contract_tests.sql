@@ -60,6 +60,31 @@ begin
   end if;
 end $$;
 
+-- Exercise real anonymous reads, not only catalog privilege metadata.
+-- A successful zero-row SELECT is not sufficient: each statement must be denied.
+set local role anon;
+do $
+declare
+  v_query text;
+begin
+  foreach v_query in array array[
+    'select * from qima_security_fixture.memberships',
+    'select * from qima_security_fixture.sessions',
+    'select * from qima_security_fixture.observations',
+    'select * from qima_security_fixture.transitions',
+    'select * from qima_security_fixture.product_requests'
+  ] loop
+    begin
+      execute v_query;
+      raise exception 'Anonymous SELECT unexpectedly succeeded: %', v_query;
+    exception
+      when insufficient_privilege then
+        null;
+    end;
+  end loop;
+end $;
+reset role;
+
 -- Test RLS visibility as User A.
 set local role authenticated;
 select set_config('request.jwt.claim.sub', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', true);
