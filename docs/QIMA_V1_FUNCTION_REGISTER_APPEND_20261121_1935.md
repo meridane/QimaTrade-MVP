@@ -56,3 +56,11 @@ The GitHub file reader returned a valid blob SHA but an empty content payload fo
 - QIMA CI [#1763](https://github.com/meridane/QimaTrade-MVP/actions/runs/44895316455) is **IN PROGRESS**. At the latest inspection, Verify and both PostgreSQL compatibility jobs are running; the role-attribute assertions have not yet produced a final result.
 - CodeQL [#1693](https://github.com/meridane/QimaTrade-MVP/actions/runs/44895316434) is **IN PROGRESS**. Vercel remains **FAILURE** with the free-tier `build-rate-limit` target.
 - No local PostgreSQL test was run. No Supabase Production data, migration, secret, grant or persistent RLS policy was changed. No Production deployment, merge, force-push or protection-rule change occurred.
+
+
+### Documentation-head workflow follow-up — 21 November 2026, 19:36 KST
+
+- The register-append commit `f0de958f` is documentation-only and does not change the SQL fixture. Because the pull request still contains non-documentation changes, the cumulative PR path filter triggered another validation pair.
+- QIMA CI [#1764](https://github.com/meridane/QimaTrade-MVP/actions/runs/44895390696) is **PENDING** at this inspection; no jobs have been published yet. CodeQL [#1694](https://github.com/meridane/QimaTrade-MVP/actions/runs/44895390713) is **IN PROGRESS**.
+- QIMA CI [#1763](https://github.com/meridane/QimaTrade-MVP/actions/runs/44895316455) remains **IN PROGRESS** on the SQL-changing parent `30d99d17`; Verify and PostgreSQL 16/17.6 jobs are still running. This is the first run that can validate the new role-attribute guard.
+- No result is inferred from the pending #1764 run, and no pass is claimed for the role-attribute assertions until #1763 reaches its fixture step and completes.
