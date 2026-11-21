@@ -19,6 +19,7 @@ Status: wired into the QIMA CI Verify job; validation is reported only from the 
 - No direct client DML grants for the other modeled tables.
 - Anonymous role has no schema/table access in this fixture.
 - Under each synthetic authenticated identity, assertions verify the exact expected row identifiers and tenant/actor ownership for memberships, sessions, observations, transitions, and product requests; the opposite tenant's fixture row must remain invisible. Count-only checks are retained as an additional cardinality assertion.
+- Before changing roles, the assertion script requires exactly two seeded rows in each modeled table so the opposite-tenant visibility checks cannot pass merely because the counterpart fixture row is absent.
 
 These are explicit assumptions for the isolated test model. They must not be reported as verified production properties.
 
