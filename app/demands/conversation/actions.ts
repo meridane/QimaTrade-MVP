@@ -26,13 +26,15 @@ export async function loadConversation(demandId: string, requestedOfferId?: stri
 
   let offerId = requestedOfferId ?? null;
   if (offerId) {
-    const { data: offer, error: offerError } = await supabase.from("offers").select("id").eq("id", offerId).maybeSingle();
-    if (offerError) return { ok: false, error: offerError.message };
-    if (!offer) return { ok: false, error: "Offer not found or unavailable." };
+    const { data: offer, error: offerError } = await supabase.from("offers").select("id, demand_id").eq("id", offerId).maybeSingle();
+    if (offerError) return { ok: false, error: "Unable to verify offer access." };
+    if (!offer || offer.demand_id !== demandId) {
+      return { ok: false, error: "Offer not found or does not belong to this demand." };
+    }
     offerId = offer.id;
   } else {
     const { data: offer, error: offerError } = await supabase.from("offers").select("id").eq("demand_id", demandId).order("created_at", { ascending: false }).limit(1).maybeSingle();
-    if (offerError) return { ok: false, error: offerError.message };
+    if (offerError) return { ok: false, error: "Unable to load an offer for this demand." };
     offerId = offer?.id ?? null;
   }
 
@@ -50,6 +52,16 @@ export async function sendConversationMessage(input: { demandId: string; offerId
   if (body.length > 5000) return { ok: false as const, error: "Message is too long." };
   const { supabase, actorId, error } = await getActorId();
   if (!actorId) return { ok: false as const, error: error ?? "Unauthorized." };
+
+  // Defense in depth: never accept a valid offer ID paired with a different demand ID.
+  // RLS remains responsible for deciding whether this actor may access the matching pair.
+  if (input.offerId) {
+    const { data: offer, error: offerError } = await supabase.from("offers").select("id, demand_id").eq("id", input.offerId).maybeSingle();
+    if (offerError) return { ok: false as const, error: "Unable to verify offer access." };
+    if (!offer || offer.demand_id !== input.demandId) {
+      return { ok: false as const, error: "Offer not found or does not belong to this demand." };
+    }
+  }
 
   const { data, error: insertError } = await supabase.from("messages").insert({ demand_id: input.demandId, offer_id: input.offerId, sender_actor_id: actorId, body }).select("id, body, sender_actor_id, created_at").single();
   if (insertError || !data) return { ok: false as const, error: insertError?.message ?? "Unable to send message." };

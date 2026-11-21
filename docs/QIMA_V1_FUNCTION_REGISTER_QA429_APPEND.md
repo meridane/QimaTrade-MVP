@@ -1,0 +1,88 @@
+# QIMA V1 Function Register — QA429
+
+## QA429 — concurrent identical same-key requests both return one committed success result
+
+**Statut : CLOSED — validation complète sur le HEAD exact `3a054654efd5dbfa9bb498eb1a72d95ac5a39dc9`.**  
+**Target :** PR #26, branche fix/create-offer-status-contract.  
+**HEAD validé :** `3a054654efd5dbfa9bb498eb1a72d95ac5a39dc9`.  
+**Branche de travail :** work/qa429-concurrent-identical-success-20261115-2301.
+
+## Constat et portée
+
+- QA103 couvre déjà le cas où le premier appel identique échoue volontairement puis où le second appel identique réussit après rollback.
+- QA288 et QA428 couvrent des requêtes concurrentes utilisant la même tenant/key avec des payloads différents ; la requête en attente est rejetée.
+- Les tests de replay séquentiel vérifient le retour du résultat après COMMIT, mais ne caractérisent pas directement deux requêtes identiques simultanées dont les deux clients reçoivent un succès.
+- QA429 ajoute ce cas complémentaire : la première requête détient le verrou advisory tenant/key pendant le délai fixture ; la deuxième requête strictement identique attend le même verrou ; après le COMMIT de la première, la deuxième doit réussir en rejouant le résultat persisté.
+- Les deux appels utilisent le même tenant, la même clé d'idempotence, le même input JSONB et les mêmes paramètres métier. Les noms de session PostgreSQL sont distincts pour prouver l'attente concurrente.
+- Le test compare byte-for-byte les résultats des deux appels, le résultat stocké dans idempotency_keys et un replay séquentiel ultérieur.
+- Les assertions vérifient le hash canonique, un seul enregistrement dans chacune des tables idempotency_keys, action_executions, offers et action_events, ainsi que le résultat de succès identique.
+
+## Contrôles et intégration
+
+- Nouveau scénario runtime : bloc QA429 dans `tests/sql/run-create-offer-integration.sh`.
+- Nouveau contrôle statique : `tests/sql/test-create-offer-concurrent-identical-success-contract.sh`.
+- Le contrôle statique est intégré au job Verify.
+- Le runner partagé existant exécute le scénario sur PostgreSQL 16 et PostgreSQL 17.6.
+- QIMA CI [#1495](https://github.com/meridane/QimaTrade-MVP/actions/runs/43722522458) a terminé avec le résultat global `SUCCESS` sur le HEAD validé.
+
+## Validation finale — QIMA CI #1495 (2026-11-15 KST)
+
+- QA429 est `CLOSED` sur le HEAD exact `3a054654efd5dbfa9bb498eb1a72d95ac5a39dc9`.
+- Le job Verify `132837370358` a terminé `SUCCESS`, ce qui valide le contrôle statique QA429 ainsi que les étapes d'audit des dépendances, TypeScript, build et tests navigateur exécutées dans ce job.
+- Le job d'intégration PostgreSQL 16 `132837370304` a terminé `SUCCESS`. Le runner partagé contient le bloc QA429 en fin de script ; son succès confirme que le scénario runtime a terminé sans erreur.
+- Le job de compatibilité PostgreSQL 17.6 `132837370287` a terminé `SUCCESS` avec le même runner et le même bloc QA429.
+- Les deux connexions concurrentes ont le même tenant, la même clé et le même payload effectif ; le second appel attend le verrou advisory détenu par le premier. Les deux appels doivent réussir et produire des sorties identiques, conformes au résultat stocké ; le replay séquentiel ultérieur doit également correspondre.
+- Les assertions runtime vérifient le hash canonique et exactement une ligne dans `idempotency_keys`, `action_executions`, `offers` et `action_events`.
+- CodeQL [#1430](https://github.com/meridane/QimaTrade-MVP/actions/runs/43722522469) a terminé `SUCCESS`. Le check Vercel Preview sur ce HEAD est également `SUCCESS`.
+- Les jobs de simulation de nettoyage qui terminent en `failure` sont des scénarios d'échec attendus ; leurs jobs d'assertion ont terminé `SUCCESS`. Le job volontairement skipped a aussi été vérifié. Le résultat global de CI #1495 reste `SUCCESS`.
+- Cette limitation de preuve concernait la consultation des seuls résumés de jobs de CI #1495 ; une lecture directe des journaux complets a ensuite été effectuée sur CI #1500, comme consigné ci-dessous.
+
+## Sécurité et limites
+
+- Le runner commun refuse toute URL DATABASE_URL qui ne cible pas le service PostgreSQL jetable qima_test sur loopback.
+- QA429 n'effectue aucun DML direct ni changement de schéma, de rôle, de grant ou de policy. Les écritures applicatives passent uniquement par execute_create_offer_v1 ; les assertions sont en lecture seule.
+- Le test caractérise le comportement du wrapper et des fixtures synthétiques de CI, pas la fonction basse couche dans Supabase Production.
+- Il ne constitue pas un constat de vulnérabilité.
+- Aucun déploiement Production, merge, force-push ou changement des règles de protection.
+
+
+## Portée et décision de suite
+
+- La couverture de concurrence existante inclut aussi l'indépendance inter-tenant avec une même clé (bloc intertenant antérieur), les clés distinctes dans un même tenant (QA105), le premier appel qui échoue puis le suivant qui réussit (QA103), le payload concurrent modifié après succès (QA428) et les deux appels identiques réussis (QA429).
+- Aucun QA430 de concurrence redondant n'est ouvert. La prochaine revue doit cibler une lacune indépendante dans le contrat CREATE_OFFER ou la documentation, sans modifier le modèle métier `demand_id`/`tenant_id` qui reste explicitement soumis à une décision d'ownership.
+
+
+## Vérification directe des journaux CI #1500 — 16 novembre 2026 (KST)
+
+- QIMA CI [#1500](https://github.com/meridane/QimaTrade-MVP/actions/runs/43737904552) a terminé avec la conclusion globale `SUCCESS` sur le HEAD `1b463af2e7677d51bd6ab0460172d3f615a89abe`.
+- Verify job `132884464473` : `SUCCESS`. Son journal contient exactement un marqueur `QA429 static contract PASS`, confirme npm audit au seuil high, TypeScript, le build Next.js et Playwright avec `347 passed`.
+- PostgreSQL 16 job `132884464551` : `SUCCESS`. Le journal complet contient exactement un marqueur `QA429 PASS`.
+- PostgreSQL 17.6 job `132884464486` : `SUCCESS`. Le journal complet contient exactement un marqueur `QA429 PASS`.
+- Les deux journaux runtime confirment deux requêtes simultanées identiques de même tenant/clé, deux résultats de succès commité identiques et un replay ultérieur correspondant. Une seule ligne subsiste dans chacune des tables `idempotency_keys`, `action_executions`, `offers` et `action_events`.
+- CodeQL [#1434](https://github.com/meridane/QimaTrade-MVP/actions/runs/43737904467) : `SUCCESS`. Le statut combiné Vercel sur le HEAD `1b463af2` : `success`.
+- Les jobs de simulation de nettoyage qui terminent en `failure` sont les résultats négatifs attendus ; les jobs d'assertion correspondants ont terminé `SUCCESS`. Le job volontairement `skipped` a également été reconnu par son assertion. La conclusion globale CI #1500 reste `SUCCESS`.
+- Cette vérification porte sur les journaux des fixtures PostgreSQL jetables de CI. Elle ne constitue ni une preuve d'exécution sur Supabase Production ni un constat de vulnérabilité.
+- Le commit documentaire ultérieur `b38d8ed286ff7fd1b2c57c1d475cdd2e4ee55d3f` met à jour le registre canonique ; CI #1500 valide le HEAD antérieur `1b463af2`, pas ce commit documentaire.
+
+## Vérification directe des journaux CI #1501 et #1502 — 16 novembre 2026 (KST)
+
+- QIMA CI [#1501](https://github.com/meridane/QimaTrade-MVP/actions/runs/43742089435) : conclusion globale `SUCCESS` sur le HEAD `b38d8ed286ff7fd1b2c57c1d475cdd2e4ee55d3f`. Verify `132897255508`, PostgreSQL 16 `132897255145` et PostgreSQL 17.6 `132897255432` sont tous terminés avec `SUCCESS`.
+- Le job Verify #1501 confirme les étapes d'audit des dépendances (gate high), TypeScript, build Next.js et navigateur réussies ; Playwright rapporte `347 passed`.
+- Le journal complet PostgreSQL 16 #1501 contient exactement un `QA429 PASS` ; le journal PostgreSQL 17.6 #1501 contient exactement un `QA429 PASS`.
+- QIMA CI [#1502](https://github.com/meridane/QimaTrade-MVP/actions/runs/43742163550) : conclusion globale `SUCCESS` sur le HEAD exact `3d5750f94394eb5df5c0223a49fb9043ff649f34`. Verify `132899378193`, PostgreSQL 16 `132899378045` et PostgreSQL 17.6 `132899378323` sont tous terminés avec `SUCCESS`.
+- Le job Verify #1502 confirme les étapes d'audit des dépendances (gate high), TypeScript, build Next.js et navigateur réussies ; Playwright rapporte `347 passed`.
+- Le journal complet PostgreSQL 16 #1502 contient exactement un `QA429 PASS` ; le journal PostgreSQL 17.6 #1502 contient exactement un `QA429 PASS`. Chaque marqueur confirme deux requêtes concurrentes identiques, un résultat de succès commité commun, un replay ultérieur identique et une seule ligne dans chacune des quatre tables de persistance.
+- CodeQL #1435 sur `b38d8ed` et CodeQL #1436 sur `3d5750f` sont `SUCCESS`. Le statut combiné Vercel sur `3d5750f` est `success`.
+- Les jobs de simulation négative de nettoyage ont les échecs attendus et leurs assertions ont réussi ; le job volontairement skipped est aussi vérifié. Les deux conclusions globales restent `SUCCESS`.
+- La vérification concerne uniquement les bases jetables de CI ; elle ne prouve rien sur l'état de Supabase Production et ne constitue pas un constat de vulnérabilité.
+
+## Vérification directe des journaux CI #1503 — 16 novembre 2026 (KST)
+
+- QIMA CI [#1503](https://github.com/meridane/QimaTrade-MVP/actions/runs/43751211590) a terminé avec la conclusion globale `SUCCESS` sur le HEAD exact `7e87c7815df9fa6414cd11383c224cbb973f5bd5`.
+- Verify `132925349616`, PostgreSQL 16 `132925350017` et PostgreSQL 17.6 `132925349551` sont terminés avec `SUCCESS`.
+- Le job Verify confirme l'audit des dépendances au seuil high, TypeScript, le build Next.js et Playwright avec `347 passed`.
+- Le journal PostgreSQL 16 #1503 contient exactement un marqueur `QA429 PASS`, et le journal PostgreSQL 17.6 #1503 en contient exactement un. Les deux journaux confirment le même résultat de succès commité pour les requêtes concurrentes identiques et le replay ultérieur, avec une seule ligne dans chacune des quatre tables de persistance.
+- CodeQL [#1437](https://github.com/meridane/QimaTrade-MVP/actions/runs/43751211589) et le statut combiné Vercel sur le HEAD `7e87c78` sont `SUCCESS`.
+- Les simulations négatives de nettoyage préparé ont leurs échecs attendus et leurs assertions ont réussi ; le job volontairement skipped est également couvert par une assertion réussie. La conclusion globale CI #1503 reste `SUCCESS`.
+- Cette preuve concerne exclusivement les bases PostgreSQL jetables de CI ; elle ne constitue ni une validation de Supabase Production ni un constat de vulnérabilité.
+- Le nouveau commit documentaire qui ajoute cette section n'est pas validé par CI #1503 ; ses propres checks doivent être lus séparément.

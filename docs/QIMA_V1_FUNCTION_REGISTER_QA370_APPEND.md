@@ -1,0 +1,119 @@
+# QA370 — database-scoped role settings and default ACL bootstrap state
+
+Date: 2026-11-13 (KST)  
+Repository: meridane/QimaTrade-MVP  
+Pull request: #26 — fix/create-offer-status-contract  
+Work branch: work/qa370-role-settings-default-acl-20261113-0100
+
+## Decision
+
+The CREATE_OFFER bootstrap preflight now treats these as database-local residue:
+
+- Any pg_db_role_setting row whose setdatabase equals the OID of current_database().
+- Any row in the current database's pg_default_acl catalog.
+
+It deliberately does not reject:
+
+- pg_db_role_setting rows with setdatabase = 0, which represent role defaults applying across databases.
+- Settings owned by another database.
+- Default-ACL rows in another database, because pg_default_acl is database-local.
+
+No extension-membership exclusion is applied to pg_default_acl: these rows represent default privilege policy for future objects in the current database, not extension-owned catalog members.
+
+## Runtime characterization
+
+The runtime test creates two unique databases from template0 and two unique NOLOGIN roles. It verifies:
+
+1. Both databases start with an empty preflight.
+2. A cluster-wide role default (ALTER ROLE ... SET, setdatabase = 0) does not poison either database.
+3. ALTER DATABASE and ALTER ROLE ... IN DATABASE settings in the other database are detected only in that database.
+4. Equivalent database and role-in-database settings in the current database are detected and their reset returns the preflight to empty.
+5. A database-wide default ACL (defaclnamespace = 0) is detected without creating a table.
+6. A schema-specific default ACL is also detected without creating a table.
+7. A default ACL in the other database does not poison the current database.
+8. Reset/revoke operations return each disposable database to empty.
+9. EXIT cleanup removes both databases and both roles and verifies that no test resources remain.
+
+The script accepts only the existing loopback qima_test:5432 service URL as an administrative entry point. It never drops or modifies qima_test itself. All mutations are confined to generated databases and roles, and cleanup uses DROP DATABASE ... WITH (FORCE).
+
+## Files
+
+- .github/workflows/ci.yml
+- tests/sql/create-offer-bootstrap-preflight.sql
+- tests/sql/run-create-offer-integration.sh
+- tests/sql/test-create-offer-integration-repeat-guard.sh
+- tests/sql/test-create-offer-bootstrap-preflight.sh
+- tests/sql/test-create-offer-database-settings-acl-preflight.sh
+- tests/sql/test-create-offer-database-settings-acl-runtime.sh
+- docs/QIMA_V1_FUNCTION_REGISTER.md
+- docs/QIMA_V1_FUNCTION_REGISTER_QA370_APPEND.md
+
+## Validation
+
+- QIMA CI #1329 on code HEAD cf8de05b62bb6e31eeade08cd152cf8ed84bbac1: **SUCCESS** — https://github.com/meridane/QimaTrade-MVP/actions/runs/43255145302.
+- PostgreSQL 16 integration job: **SUCCESS**; QA370 runtime marker observed.
+- PostgreSQL 17.6 integration job: **SUCCESS**; QA370 runtime marker observed and the existing server-version guard passed.
+- Runtime assertions: current-database ALTER DATABASE and ALTER ROLE IN DATABASE settings were detected; settings owned by another database were isolated; setdatabase=0 global role defaults did not poison either database; database-wide and schema-specific default ACLs were detected; a default ACL in another database did not poison the current database.
+- Cleanup: both disposable databases and both disposable roles were removed and absence was verified.
+- Static preflight contract: **PASS**; the preflight remains read-only.
+- npm audit at the configured high-severity threshold: **SUCCESS**.
+- TypeScript: **SUCCESS**.
+- Next.js production build: **SUCCESS** (compiled in 11.4 seconds).
+- Chromium installation and audit enforcement: **SUCCESS**.
+- Playwright: **347 passed in 13.0 seconds**.
+- CodeQL #1279: **SUCCESS** — https://github.com/meridane/QimaTrade-MVP/actions/runs/43255145050.
+- Vercel Preview: **SUCCESS** — https://vercel.com/bmk1/qimatrade-mvp/ENqGsAFmxHcALQBrJQPPThBp5jnt.
+- QA353/QA354 intentional failure conclusions and the skipped-harness conclusion retained their expected semantics; independent blocking assertions passed.
+
+### Follow-up validation and correction
+
+- QIMA CI #1330: **FAILURE** — https://github.com/meridane/QimaTrade-MVP/actions/runs/43255657971.
+- The failure was isolated to the new documentation-evidence assertion: its extended regular expression treated Markdown asterisks as regex quantifiers and did not match the valid recorded line containing "on code HEAD" before the SUCCESS marker.
+- The PostgreSQL 16 and PostgreSQL 17.6 integration jobs both completed **SUCCESS** in #1330 and both emitted the QA370 runtime PASS marker. The Verify job stopped at the documentation matcher before npm audit, TypeScript, build, or Playwright; those checks are not classified as failed by this run.
+- CodeQL #1280: **SUCCESS** — https://github.com/meridane/QimaTrade-MVP/actions/runs/43255658193.
+- Vercel Preview on the documentation HEAD: **SUCCESS** — https://vercel.com/bmk1/qimatrade-mvp/8mK3SyJZHktuWpkXeSMnSwJDR9tz.
+- Corrected the evidence assertion to use fixed-string matching on the CI/CodeQL lines. The initial code validation in CI #1329 remains successful.
+
+## Safety boundary
+
+No Supabase Production data, schema, migration, SQL function, RLS policy, grant, secret, or persistent PostgreSQL configuration was modified. No Production deployment, PR merge, force update, or branch-protection change occurred. The tests do not establish a Production vulnerability or incident.
+
+MKT-1.2 remains unapproved and MKT-1.3 remains decision-required.
+
+## PostgreSQL documentation
+
+- PostgreSQL 16 pg_db_role_setting: https://www.postgresql.org/docs/16/catalog-pg-db-role-setting.html
+- PostgreSQL 17 pg_db_role_setting: https://www.postgresql.org/docs/17/catalog-pg-db-role-setting.html
+- PostgreSQL 16 pg_default_acl: https://www.postgresql.org/docs/16/catalog-pg-default-acl.html
+- PostgreSQL 17 pg_default_acl: https://www.postgresql.org/docs/17/catalog-pg-default-acl.html
+
+## Evidence boundary
+
+The CI and CodeQL results validate the disposable test implementation and repository checks. They do not establish a Production vulnerability, incident, or misconfiguration. No Supabase Production data or migration was accessed or modified. No Production deployment occurred.
+
+### Corrected final validation
+
+- QIMA CI #1331 on corrected documentation HEAD 61f2e707a089c0bdeff33a9d257ef37165a52a55: **SUCCESS** — https://github.com/meridane/QimaTrade-MVP/actions/runs/43256171073.
+- The fixed-string QA370 evidence matcher passed in Verify.
+- PostgreSQL 16 integration job: **SUCCESS**; QA370 runtime marker observed.
+- PostgreSQL 17.6 integration job: **SUCCESS**; QA370 runtime marker observed and server_version_num=170006 confirmed.
+- Both runtime probes again detected current-database ALTER DATABASE and ALTER ROLE IN DATABASE settings, database-wide and schema-specific default ACLs, and ignored other-database settings/default ACLs plus setdatabase=0 global role defaults. Both disposable databases and roles were removed.
+- npm audit at the configured high-severity threshold: **SUCCESS**.
+- TypeScript: **SUCCESS**.
+- Next.js production build: **SUCCESS** (compiled in 10.6 seconds).
+- Chromium installation and audit enforcement: **SUCCESS**.
+- Playwright: **347 passed in 12.6 seconds**.
+- CodeQL #1281: **SUCCESS** — https://github.com/meridane/QimaTrade-MVP/actions/runs/43256170823.
+- Vercel Preview: **SUCCESS** — https://vercel.com/bmk1/qimatrade-mvp/8gbrRBEiTYTH4pxY8HMkfrBhnYBj.
+- QA353/QA354 intentional failure conclusions and the skipped-harness conclusion retained their expected semantics; independent blocking assertions passed.
+
+## Final-register verification
+
+- QIMA CI #1332 on final QA370 documentation HEAD c002a43226789f322bd4d31072529f6468380c13: **SUCCESS** — https://github.com/meridane/QimaTrade-MVP/actions/runs/43256688888.
+- PostgreSQL 16 and PostgreSQL 17.6 integration jobs: **SUCCESS**; both emitted the QA370 runtime PASS marker. PostgreSQL 17.6 reported server_version_num=170006.
+- The fixed-string documentation-evidence matcher passed.
+- npm audit at the configured high-severity threshold, TypeScript, Next.js production build, Chromium, and audit enforcement: **SUCCESS**.
+- Next.js compiled in 11.1 seconds. Playwright: **347 passed in 14.5 seconds**.
+- CodeQL #1282: **SUCCESS** — https://github.com/meridane/QimaTrade-MVP/actions/runs/43256688938.
+- Vercel Preview: **SUCCESS** — https://vercel.com/bmk1/qimatrade-mvp/G6yTSCLuWBajnLsH28MLAR1VCasB.
+- The deliberate QA353/QA354 failure harness conclusions and skipped-harness conclusion retained their expected semantics; independent blocking assertions passed.

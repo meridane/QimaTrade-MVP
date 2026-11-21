@@ -1,0 +1,18 @@
+services:
+  qima-security-db:
+    image: postgres:17.6
+    environment:
+      POSTGRES_DB: qima_security_test
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: local-only-fixture-password
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d qima_security_test"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+    volumes:
+      - qima-security-data:/var/lib/postgresql/data
+      - ./supabase/fixtures/qima_local_test_bootstrap.sql:/docker-entrypoint-initdb.d/00-bootstrap.sql:ro
+
+volumes:
+  qima-security-data:

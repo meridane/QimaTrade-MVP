@@ -1,0 +1,13 @@
+
+
+### QA351 — résultat ambigu après ALTER SYSTEM RESET — 12 novembre 2026
+
+- **État initial vérifié :** PR #26 OPEN, DRAFT, non fusionnée ; HEAD `1f37ee1f5fcf3f467accfcacbcccd0b3c418f927`, 1 456 commits en avance sur `main`, zéro en retard. QIMA CI #1263 et CodeQL #1213 étaient SUCCESS.
+- **Priorité :** compléter QA350 par un scénario où `ALTER SYSTEM RESET max_prepared_transactions` produit son effet simulé, mais où `docker exec` retourne néanmoins le code 42 (résultat de commande ambigu, par exemple réponse perdue après exécution).
+- **Modification :** `tests/sql/test-prepared-transactions-config-restore.sh` ajoute un marqueur temporaire `reset-applied`. Le mock `docker exec` écrit ce marqueur avant de retourner 42. `run_restore` nettoie ce marqueur entre les cas et le transmet au mock.
+- **Assertions :** le test exige le code 42, le marqueur d'effet simulé, le diagnostic exact d'échec RESET, et la séquence limitée à `docker-ps`, `pg-isready`, `docker-exec-reset`. Il interdit tout redémarrage, toute requête SHOW/postcondition et tout message de restauration réussie.
+- **Interprétation :** ce scénario synthétique vérifie que le script ne transforme pas un résultat ambigu en succès confirmé. Il n'établit ni qu'un RESET réel a été exécuté dans Production, ni qu'une vulnérabilité ou un incident s'y est produit. Le script de restauration n'a pas été modifié.
+- **Validation du code QA351 :** le commit `29dc3113163cfa94007c646beb2a42e9e395f2d2` a été poussé sur la branche de travail puis fast-forwardé sur la branche de la PR avec vérification du HEAD précédent. QIMA CI #1264 (https://github.com/meridane/QimaTrade-MVP/actions/runs/43097384666) et CodeQL #1214 (https://github.com/meridane/QimaTrade-MVP/actions/runs/43097384648) ont été créés pour ce HEAD ; ils étaient **QUEUED** lors de la dernière vérification. Aucun résultat PASS/FAIL n'est revendiqué pour ces deux workflows.
+- **Vercel :** le statut combiné du commit QA351 a ensuite atteint **SUCCESS** et pointe vers le Preview https://vercel.com/bmk1/qimatrade-mvp/36vJJHnowj8qrqdhf7CvdUtsoV9U. Ce Preview n'est pas un déploiement Production.
+- **Fichiers :** seul `tests/sql/test-prepared-transactions-config-restore.sh` est modifié dans le commit de code QA351. Aucun changement du workflow CI, du SQL applicatif, ni des scripts de configuration/restauration.
+- **Sécurité :** aucun accès en écriture à Supabase Production, aucune donnée, migration, fonction, schéma, politique RLS, grant, secret ou configuration persistante modifié. Aucun déploiement Production, aucune fusion, aucun force-push et aucune modification des protections de branche.
