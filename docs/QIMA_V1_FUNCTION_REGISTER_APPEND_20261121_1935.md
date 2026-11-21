@@ -88,7 +88,7 @@ The GitHub file reader returned a valid blob SHA but an empty content payload fo
 
 - Code review found that the local compatibility shim applied `NULLIF(..., '')` after `COALESCE`. An empty `request.jwt.claim.sub` therefore masked a valid `sub` in `request.jwt.claims`.
 - The shim now normalizes each source with `NULLIF` before `COALESCE`, preserving the legacy-claim preference while correctly falling back to the JSON claims setting.
-- Added three runtime assertions: a non-empty legacy subject wins over a different JSON subject; an empty legacy subject falls back to the JSON subject; and no subject in either source returns NULL.
+- Added four runtime assertions: a non-empty legacy subject wins over a different JSON subject; an empty legacy subject falls back to the JSON subject; an empty JSON subject returns NULL; and a missing subject returns NULL.
 - Scope is limited to the disposable local fixture and its test script. No production auth function, migration, grant, RLS policy or data was changed.
 
 ### Validation and dependency maintenance findings — 21 November 2026, 21:25 KST
