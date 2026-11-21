@@ -18,6 +18,7 @@ Status: wired into the QIMA CI Verify job; validation is reported only from the 
 - Anonymous users have no membership read grant; authenticated users have no direct membership INSERT/UPDATE/DELETE grants.
 - No direct client DML grants for the other modeled tables.
 - Anonymous role has no schema/table access in this fixture.
+- Under each synthetic authenticated identity, assertions verify the exact expected row identifiers and tenant/actor ownership for memberships, sessions, observations, transitions, and product requests; the opposite tenant's fixture row must remain invisible. Count-only checks are retained as an additional cardinality assertion.
 
 These are explicit assumptions for the isolated test model. They must not be reported as verified production properties.
 
