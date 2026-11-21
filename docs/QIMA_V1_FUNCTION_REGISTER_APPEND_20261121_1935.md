@@ -64,3 +64,11 @@ The GitHub file reader returned a valid blob SHA but an empty content payload fo
 - QIMA CI [#1764](https://github.com/meridane/QimaTrade-MVP/actions/runs/44895390696) is **PENDING** at this inspection; no jobs have been published yet. CodeQL [#1694](https://github.com/meridane/QimaTrade-MVP/actions/runs/44895390713) is **IN PROGRESS**.
 - QIMA CI [#1763](https://github.com/meridane/QimaTrade-MVP/actions/runs/44895316455) remains **IN PROGRESS** on the SQL-changing parent `30d99d17`; Verify and PostgreSQL 16/17.6 jobs are still running. This is the first run that can validate the new role-attribute guard.
 - No result is inferred from the pending #1764 run, and no pass is claimed for the role-attribute assertions until #1763 reaches its fixture step and completes.
+
+
+### Schema CREATE boundary regression — 21 November 2026, 21:08 KST
+
+- Added catalog assertions that `anon` has neither schema `USAGE` nor `CREATE`, while `authenticated` retains `USAGE` but has no `CREATE` on `qima_security_fixture`.
+- Added runtime `CREATE TABLE` probes under both client roles. Each statement must raise `insufficient_privilege`; if either DDL statement succeeds, the fixture raises an uncaught assertion exception. The surrounding transaction rolls back all fixture-test changes.
+- The change is limited to the disposable synthetic fixture. It does not alter production grants, policies, migrations, data or credentials.
+- Static source checks confirm exactly two runtime CREATE TABLE probes and the authenticated USAGE precondition. PostgreSQL execution and regression status remain pending the next PR CI run.
