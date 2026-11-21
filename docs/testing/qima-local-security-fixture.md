@@ -14,8 +14,9 @@ Status: wired into the QIMA CI Verify job; validation is reported only from the 
 ## Contracts represented
 
 - Tenant A/B synthetic memberships, sessions, observations, transitions, and product requests.
-- RLS-enabled tables with authenticated subject/tenant visibility.
-- No direct client DML grants for the modeled tables.
+- RLS-enabled tables with authenticated subject/tenant visibility, including self-only membership reads for User A and User B.
+- Anonymous users have no membership read grant; authenticated users have no direct membership INSERT/UPDATE/DELETE grants.
+- No direct client DML grants for the other modeled tables.
 - Anonymous role has no schema/table access in this fixture.
 
 These are explicit assumptions for the isolated test model. They must not be reported as verified production properties.
