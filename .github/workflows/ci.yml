@@ -28,6 +28,7 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Checkout repository
+        id: checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Configure apt retries for transient mirror failures
         shell: bash
@@ -209,6 +210,11 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder-anon-key
           PLAYWRIGHT_BASE_URL: http://127.0.0.1:3000
+      - name: Run isolated QIMA security-contract fixture
+        id: qima_security_fixture
+        if: always() && steps.checkout.outcome == 'success'
+        timeout-minutes: 5
+        run: sh scripts/test-qima-security-fixture.sh
       - name: Enforce dependency audit result
         if: always()
         env:
@@ -256,6 +262,7 @@ jobs:
             echo "| Build production | ${{ steps.build.outcome || 'non exécuté' }} |"
             echo "| Installation navigateur | ${{ steps.browser_install.outcome || 'non exécuté' }} |"
             echo "| Tests navigateur | ${{ steps.e2e.outcome || 'non exécuté' }} |"
+            echo "| Fixture sécurité QIMA isolée | ${{ steps.qima_security_fixture.outcome || 'non exécuté' }} |"
             echo
             echo "L'audit npm est bloquant au seuil high : tout résultat non nul de npm audit --audit-level=high fait échouer ce job via l'étape d'application dédiée. Les niveaux sous le seuil sont reportés dans le tableau et l'artefact JSON sans bloquer ce contrôle. Toute correction de dépendance doit être revue avant fusion."
           } >> "$GITHUB_STEP_SUMMARY"
