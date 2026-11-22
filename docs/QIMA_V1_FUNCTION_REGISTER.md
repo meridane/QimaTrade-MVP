@@ -13225,3 +13225,27 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 - Aucun résultat Playwright, PostgreSQL, CodeQL ou Preview final n'est anticipé dans cette section. Les résultats 415/415 de #1829 restent ceux du commit parent, pas des nouveaux contrôles d'en-têtes.
 - Aucun test local n'a été exécuté. Le serveur HTTP de test est un fixture local contrôlé et ne prouve pas une vulnérabilité exploitable dans Supabase Production.
 - Aucune donnée ou migration Supabase Production, aucun secret, grant ou policy RLS persistante n'a été modifié. Aucun déploiement Production, merge, force-push ou changement des protections GitHub n'a été effectué.
+
+
+## Clôture de la validation des en-têtes RPC et correction de l'assertion — 23 novembre 2026, 04:12 KST
+
+### État initial vérifié
+
+- PR #26 **OPEN / DRAFT / non fusionnée**, branche `fix/create-offer-status-contract`, base `main`, HEAD `5ce3bfa9174cf4c855e3c01e184448700a707105`, **2 289 commits devant `main`, 0 derrière**, 286 fichiers modifiés (+91 328 / -265), `mergeable=true`.
+- Le dernier commit `5ce3bfa9` (`test(qima): match auth header count to RPC path`) corrige les attentes de cardinalité du helper `expectRuntimeRpcAuthorizationHeaders` : quatre requêtes sur le chemin qui échoue pendant `get_action_definition_v1`, cinq sur le chemin qui atteint `execute_create_offer_v1` et cinq sur le parcours positif complet.
+- Le commit précédent `8989f5fe` ajoute la capture et les assertions des en-têtes `Authorization` et `apikey` pour les appels Auth, Profiles, Membership et RPC. Les valeurs de bearer et de clé sont des fixtures CI locales, pas des secrets de production.
+
+### Résultats de validation
+
+- QIMA CI [#1830](https://github.com/meridane/QimaTrade-MVP/actions/runs/45054464497), sur le commit précédant la correction, a terminé avec Verify **FAILURE** : **412 Playwright réussis et 1 échoué**. L'unique échec était l'attente erronée de cinq en-têtes dans le scénario Action Definition, dont le parcours s'arrête après quatre requêtes. npm ci, audit au seuil configuré, TypeScript, build Next.js, Chromium et fixture QIMA étaient réussis. Les intégrations PostgreSQL 16 et 17.6 ont terminé **SUCCESS**.
+- Le commit correctif `5ce3bfa9` a été validé par QIMA CI [#1832](https://github.com/meridane/QimaTrade-MVP/actions/runs/45054685001) : workflow global **SUCCESS** ; Verify **SUCCESS**, **415 Playwright passed (37,7 s)**, installation depuis le lockfile, audit npm au seuil configuré, TypeScript, build Next.js, Chromium et fixture QIMA réussis ; intégration PostgreSQL 16 **SUCCESS** ; compatibilité PostgreSQL 17.6 **SUCCESS**.
+- Les jobs de simulation prepared-transaction setup/cleanup ont leurs conclusions `failure` intentionnelles. Les jobs d'assertion correspondants sont **SUCCESS** ; le job explicitement attendu en `skipped` est **SKIPPED**. Ces états contrôlés ne sont pas confondus avec un échec de la validation globale.
+- QIMA CodeQL [#1760](https://github.com/meridane/QimaTrade-MVP/actions/runs/45054685000) sur le HEAD `5ce3bfa9` est **SUCCESS**.
+- Le statut combiné GitHub du HEAD rapporte Vercel **FAILURE** avec la cible `build-rate-limit` / `api-deployments-free-per-day`. Il s'agit d'une limite de quota Preview ; aucun échec de build applicatif n'est établi par ce statut. Le build Next.js Verify #1832 est **SUCCESS**. Aucun contournement du quota n'a été effectué.
+
+### Conclusion et périmètre
+
+- La correction du nombre attendu de requêtes est validée par les 415 tests Playwright du nouveau HEAD. Aucun changement runtime, contrat métier, SQL, migration ou lockfile n'a été nécessaire dans cette correction.
+- Le rapport npm audit est publié comme artefact du run #1832 ; le contrôle configuré au seuil `high` est **SUCCESS**. Aucun nombre de vulnérabilités sous ce seuil n'est affirmé sans lecture du rapport détaillé.
+- Aucun test local n'a été exécuté. Les fixtures HTTP utilisent un serveur local éphémère et caractérisent le comportement du client ; elles ne prouvent pas une vulnérabilité exploitable dans Supabase Production.
+- Aucune donnée ou migration Supabase Production, aucun secret, grant ou policy RLS persistante n'a été modifié. Aucun déploiement Production, merge, force-push ou changement des protections GitHub n'a été effectué.
