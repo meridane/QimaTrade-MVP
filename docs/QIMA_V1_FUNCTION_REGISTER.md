@@ -13237,3 +13237,16 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 - Au moment de ce relevé, aucun run QIMA CI/CodeQL n'est encore retourné pour le nouveau HEAD `5ce3bfa9`. Aucun résultat de test n'est anticipé pour ce commit.
 - Aucun test local n'a été exécuté. Le fixture HTTP est un test de contrat local et ne prouve pas une vulnérabilité exploitable dans Supabase Production.
 - Aucune donnée ou migration Supabase Production, aucun secret, grant ou policy RLS persistante n'a été modifié. Aucun déploiement Production, merge, force-push ou changement des protections GitHub n'a été effectué.
+
+
+### Résultat intermédiaire et correction de l'assertion — 23 novembre 2026
+
+- Verify du run QIMA CI #1830 (run `45054464497`), attaché au commit `8989f5fe`, a terminé **FAILURE** : npm ci, audit npm, TypeScript, build Next.js, Chromium et fixture QIMA sont **SUCCESS** ; Playwright rapporte **412 passed, 1 failed**, les deux cas suivants ayant été arrêtés après l'échec.
+- L'unique échec est l'assertion de nombre de requêtes dans `CREATE_OFFER runtime does not follow real Supabase action-definition RPC redirects` : le parcours s'arrête après quatre requêtes (Auth, Profiles, Membership, Action Definition), mais le helper attendait cinq. Les en-têtes observés dans les quatre requêtes contiennent bien le bearer utilisateur et `ci-placeholder-anon-key`. Le journal npm audit rapporte explicitement `total: 0` (0 info, low, moderate, high, critical).
+- Le correctif ciblé est le commit `5ce3bfa9174cf4c855e3c01e184448700a707105` : le helper reçoit maintenant le nombre attendu par scénario, 4 pour la redirection Action Definition et 5 pour la redirection Execution ainsi que le parcours positif. Le code runtime n'a pas été modifié.
+- PostgreSQL 16 et PostgreSQL 17.6 de #1830 sont encore **IN PROGRESS** au dernier contrôle ; le workflow global #1830 n'a donc pas encore de conclusion finale. CodeQL #1758 sur `8989f5fe` est **SUCCESS**.
+- QIMA CI #1831 (run `45054617529`), déclenchée sur le commit documentaire `b6db11bd`, a été **CANCELLED** lors du push correctif suivant avant publication de jobs ; aucun résultat de test ne lui est attribué. CodeQL #1759 sur `b6db11bd` est **SUCCESS**.
+- Le nouveau HEAD PR est `5ce3bfa9174cf4c855e3c01e184448700a707105`, PR #26 **OPEN / DRAFT / non fusionnée**, 2 289 commits devant `main`, 0 derrière, 286 fichiers modifiés (+91 328 / -265), `mergeable=true`.
+- QIMA CI #1832 (run `45054685001`) est **PENDING** au dernier contrôle, sans jobs publiés. CodeQL #1760 (run `45054685000`) est **IN PROGRESS**. Le statut Vercel du commit `5ce3bfa9` est **FAILURE** avec `api-deployments-free-per-day / build-rate-limit` ; il s'agit de la limite de création de déploiements Preview, pas d'un échec de build démontré. Le build Next.js du run #1830 est **SUCCESS**.
+- Aucun résultat Playwright ou PostgreSQL final n'est anticipé pour #1832. Aucun test local n'a été exécuté. Les fixtures HTTP sont des tests de contrat en environnement contrôlé et ne démontrent pas une vulnérabilité exploitable dans Supabase Production.
+- Aucune donnée ou migration Supabase Production, aucun secret, grant ou policy RLS persistante n'a été modifié. Aucun déploiement Production, merge, force-push ou changement des protections GitHub n'a été effectué.
