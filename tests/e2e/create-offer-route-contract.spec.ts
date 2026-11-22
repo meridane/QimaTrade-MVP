@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { readFileSync } from "node:fs";
+import { createServer } from "node:http";
 import { POST } from "../../app/api/actions/create-offer/route";
 
 type MockRequest = { path: string; query: string; body?: Record<string, unknown>; authorization?: string; redirect?: RequestRedirect };
@@ -481,6 +482,105 @@ test("CREATE_OFFER 401 responses include an RFC 6750 challenge without changing 
     expect(rejectedClientCredential.requests.map((request) => request.path), String(authStatus)).toEqual(["/auth/v1/user"]);
   }
 
+});
+
+test("CREATE_OFFER route does not follow real Supabase Auth redirects", async () => {
+  const serverRequests: string[] = [];
+  let redirectTargetHits = 0;
+  let redirectStatus: 302 | 307 | 308 = 302;
+  const server = createServer((request, response) => {
+    const path = request.url ?? "/";
+    serverRequests.push(path);
+
+    if (path === "/auth/v1/user") {
+      response.writeHead(redirectStatus, {
+        Location: "/redirect-target",
+        "Content-Type": "application/json",
+      });
+      response.end(JSON.stringify({ message: "Auth redirect fixture" }));
+      return;
+    }
+
+    if (path === "/redirect-target") {
+      redirectTargetHits += 1;
+      response.writeHead(200, { "Content-Type": "application/json" });
+      response.end(JSON.stringify({
+        id: "40000000-0000-4000-8000-000000000001",
+        aud: "authenticated",
+        role: "authenticated",
+        email: "redirect-target@example.invalid",
+      }));
+      return;
+    }
+
+    response.writeHead(404, { "Content-Type": "application/json" });
+    response.end(JSON.stringify({ message: "Unexpected local fixture request" }));
+  });
+
+  await new Promise<void>((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", resolve);
+  });
+
+  const address = server.address();
+  if (!address || typeof address === "string") {
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+    throw new Error("Could not resolve the local Auth redirect fixture address");
+  }
+
+  const originalSupabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const originalAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const originalWebSocket = globalThis.WebSocket;
+
+  if (typeof globalThis.WebSocket === "undefined") {
+    globalThis.WebSocket = class MockWebSocket {} as unknown as typeof WebSocket;
+  }
+  process.env.NEXT_PUBLIC_SUPABASE_URL = `http://127.0.0.1:${address.port}`;
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "ci-placeholder-anon-key";
+
+  try {
+    for (const status of [302, 307, 308] as const) {
+      redirectStatus = status;
+      serverRequests.length = 0;
+      redirectTargetHits = 0;
+
+      const response = await POST(
+        new Request("http://qima.test/api/actions/create-offer", {
+          method: "POST",
+          headers: {
+            authorization: "Bearer qima-native-redirect-test-token",
+            "content-type": "application/json",
+          },
+          body: JSON.stringify({
+            name: "Native Auth redirect fixture",
+            demandId: "50000000-0000-4000-8000-000000000001",
+            productMasterId: "60000000-0000-4000-8000-000000000001",
+            quantity: 1,
+            price: 10,
+            currency: "USD",
+          }),
+        }),
+      );
+
+      expect(response.status, `Auth HTTP ${status}`).toBe(503);
+      expect(await response.json(), `Auth HTTP ${status}`).toEqual({
+        error: "AUTH_SERVICE_UNAVAILABLE",
+      });
+      expect(serverRequests, `Auth HTTP ${status}`).toEqual(["/auth/v1/user"]);
+      expect(redirectTargetHits, `Auth HTTP ${status}`).toBe(0);
+    }
+  } finally {
+    if (originalSupabaseUrl === undefined) delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+    else process.env.NEXT_PUBLIC_SUPABASE_URL = originalSupabaseUrl;
+
+    if (originalAnonKey === undefined) delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    else process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = originalAnonKey;
+
+    globalThis.WebSocket = originalWebSocket;
+    await new Promise<void>((resolve, reject) => {
+      server.close((error) => (error ? reject(error) : resolve()));
+    });
+  }
 });
 
 test("CREATE_OFFER route maps non-credential Auth upstream failures and transport exceptions to a generic 503", async () => {
