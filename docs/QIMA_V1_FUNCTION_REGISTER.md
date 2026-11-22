@@ -12992,3 +12992,56 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 - Les conditions d'applicabilité des avis Next.js restent dépendantes des fonctionnalités et du mode d'hébergement. Aucun exploit ni vulnérabilité QimaTrade en production n'est déduit de ces tests.
 - Aucune donnée, migration, credential, grant, policy RLS persistante ou configuration Supabase Production n'a été consulté ou modifié.
 - Aucun déploiement Production, merge, force-push ou changement des protections GitHub n'a été effectué.
+
+
+## Clôture QIMA CI #1817 et validation Next.js 15.5.29 — 22 novembre 2026, 21:39 KST
+
+### État GitHub vérifié avant réconciliation documentaire
+
+- PR #26 : **OPEN / DRAFT / non fusionnée**, branche `fix/create-offer-status-contract`, base `main`, HEAD `9fc3191f5a6810ebbaf0c71b9dd05bd0192666f9`, **2 273 commits devant `main`, 0 derrière**, 286 fichiers modifiés (+90 599 / -264), `mergeable=true`.
+- Le commit courant `9fc3191f` supprime uniquement le workflow temporaire `.github/workflows/qima-nextjs-lockfile-refresh.yml`. Il ne modifie ni le code applicatif ni les tests.
+- Le commit de lockfile `0abb0b7f49989510d1b926afcca245850a2f9183` ne modifie que `package-lock.json` (+39 / -39). `package.json` est inchangé et conserve `next: ^15.5.0`.
+- Le lockfile fixe `next` et `@next/env` à **15.5.29** ainsi que les huit variantes optionnelles `@next/swc-*` à **15.5.29**. `sharp` reste en **0.35.5**. Les URLs et intégrités ont été produites par npm sur le runner, pas saisies manuellement.
+
+### QIMA CI #1817 — validation complète du HEAD avec lockfile 15.5.29
+
+- QIMA CI [#1817](https://github.com/meridane/QimaTrade-MVP/actions/runs/45016631741) : workflow **SUCCESS**.
+- Job Verify `Typecheck, audit, build and browser tests` : **SUCCESS**.
+- `npm ci --no-audit --no-fund` : **SUCCESS** (Node 20.20.2 / npm 10.8.2).
+- `npm audit --audit-level=high --json` : **0 total**, 0 info, 0 low, 0 moderate, 0 high, 0 critical ; le journal du job imprime explicitement ces compteurs.
+- TypeScript : **SUCCESS**.
+- Build Next.js : **SUCCESS**.
+- Installation Chromium : **SUCCESS**.
+- Playwright : **410 passed (37,2 s)** ; le journal du job contient la ligne finale `410 passed (37.2s)`.
+- Fixture de contrat de sécurité QIMA et application du seuil d'audit : **SUCCESS**.
+- PostgreSQL 16 — job `CREATE_OFFER PostgreSQL integration tests` : **SUCCESS**, y compris caractérisation des privilèges du runner, RLS, ACL et régressions CREATE_OFFER.
+- PostgreSQL 17.6 — job `CREATE_OFFER PostgreSQL 17.6 compatibility` : **SUCCESS**, y compris caractérisation des privilèges du runner et régressions CREATE_OFFER.
+- Les deux jobs de simulation de panne prepared-transaction setup/cleanup terminent avec la conclusion de job `failure` intentionnelle ; les jobs d'assertion qui vérifient l'exécution du cleanup et la propagation de l'échec sont **SUCCESS**. Le job explicitement attendu en `skipped` reste **SKIPPED**. Le workflow global est **SUCCESS**.
+- CodeQL [#1746](https://github.com/meridane/QimaTrade-MVP/actions/runs/45016631745) : **SUCCESS**.
+
+### Vercel Preview — limite de quota, pas échec de build établi
+
+- Le statut combiné du HEAD `9fc3191f` renvoie `Vercel: failure` avec la cible `https://vercel.com/bmk1?upgradeToPro=build-rate-limit`.
+- Ce statut correspond à la limite de déploiements Preview `build-rate-limit`. Il ne constitue pas un résultat de compilation du code et ne contredit pas le build GitHub Actions **SUCCESS**.
+- Aucun déploiement Production n'a été demandé ou effectué.
+
+### Contrat correlationId — clarification architecturale requise, aucun changement de comportement
+
+- La route CREATE_OFFER accepte un `correlationId` non vide, le `trim()`, puis le place dans `ActionContext`; si le champ est absent ou vide, elle génère un UUID.
+- `ActionContext` déclare `correlationId: string` et `executeAction` transmet le contexte au handler.
+- Le handler CREATE_OFFER de `lib/actions/runtime.ts` ne transmet actuellement pas `correlationId` à `execute_create_offer_v1` ; les arguments RPC visibles comprennent tenant, idempotency key et données métier, mais aucun paramètre de corrélation. Le test de replay existant fournit un correlationId mais ne vérifie pas de persistance/propagation observable de celui-ci.
+- Il n'est pas possible de déduire si ce champ est destiné au tracing uniquement, à une colonne persistée, ou à une corrélation avec l'identifiant d'exécution. Cette décision relève du contrat d'architecture/produit. Aucun changement de code, SQL ou test qui figerait une sémantique non approuvée n'est effectué. À reprendre après clarification.
+
+### Prochaine étape
+
+1. Vérifier les checks associés au HEAD documentaire après cette réconciliation ; les résultats #1817 et #1746 valident le code et le lockfile.
+2. Résoudre la limite Vercel Preview avec le propriétaire du compte si un aperçu du nouveau HEAD est requis ; ne pas contourner le quota.
+3. Obtenir la décision d'architecture sur `correlationId` avant de modifier sa persistance ou son contrat observable.
+4. Continuer ensuite les petites régressions non métier sur le contrat CREATE_OFFER, sans élargir les permissions ni toucher aux données Production.
+
+### Sécurité et limites
+
+- L'audit npm à zéro est le résultat du graphe de dépendances installé et audité sur CI #1817 ; ce n'est pas une garantie générale d'absence de vulnérabilité.
+- Aucun SQL, migration, donnée, credential, grant, policy RLS persistante ou configuration Supabase Production n'a été consulté ou modifié.
+- Aucun déploiement Production, merge, force-push ou changement des protections GitHub n'a été effectué.
+- Aucun test local n'a été exécuté pendant cette réconciliation.
