@@ -10,6 +10,7 @@ type CapturedRequest = {
   method: string;
   authorization: string | undefined;
   apikey: string | undefined;
+  contentType: string | undefined;
   body: unknown;
 };
 
@@ -48,6 +49,7 @@ async function executePublishProductRequestRuntime(redirectStatus: RedirectStatu
         method: request.method ?? "GET",
         authorization: request.headers.authorization,
         apikey: typeof request.headers.apikey === "string" ? request.headers.apikey : undefined,
+        contentType: typeof request.headers["content-type"] === "string" ? request.headers["content-type"] : undefined,
         body,
       });
 
@@ -154,9 +156,10 @@ test("PUBLISH_PRODUCT_REQUEST runtime does not follow real Supabase RPC redirect
       { path: "/rest/v1/rpc/dt_publish_product_request", method: "POST" },
     ]);
     expect(outcome.requests.every(
-      ({ authorization, apikey }) =>
+      ({ authorization, apikey, contentType }) =>
         authorization === "Bearer " + outcome.accessToken &&
-        apikey === "ci-placeholder-anon-key",
+        apikey === "ci-placeholder-anon-key" &&
+        typeof contentType === "string" && contentType.toLowerCase().includes("application/json"),
     ), "HTTP " + status).toBe(true);
     expect(outcome.redirectTargetHits, "HTTP " + status).toBe(0);
     expect(outcome.requests[0].body).toEqual({
@@ -189,9 +192,10 @@ test("PUBLISH_PRODUCT_REQUEST runtime preserves successful execution without a r
     { path: "/rest/v1/rpc/dt_publish_product_request", method: "POST" },
   ]);
   expect(outcome.requests.every(
-    ({ authorization, apikey }) =>
+    ({ authorization, apikey, contentType }) =>
       authorization === "Bearer " + outcome.accessToken &&
-      apikey === "ci-placeholder-anon-key",
+      apikey === "ci-placeholder-anon-key" &&
+      typeof contentType === "string" && contentType.toLowerCase().includes("application/json"),
   )).toBe(true);
   expect(outcome.redirectTargetHits).toBe(0);
   expect(outcome.requests[0].body).toEqual({
