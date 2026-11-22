@@ -13088,7 +13088,7 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 
 ### Snapshot post-publication — HEAD code/test `484be08f` — 22 novembre 2026
 
-- Le commit `484be08fdfb13bfade03840a1d9d146bad5e78b7` a été publié sur `fix/create-offer-status-contract` par fast-forward depuis `67bfc33312b6696499ee6164f5fb90acbf5ae379`. La branche de travail `work/qima-rest-redirect-regression-20261122-2226` pointe sur le même commit.
+- Le commit code/test `484be08fdfb13bfade03840a1d9d146bad5e78b7` a été publié sur `fix/create-offer-status-contract` par fast-forward depuis `67bfc33312b6696499ee6164f5fb90acbf5ae379`. Le commit documentaire `dd849f142dda77f17817e2670332b169d1370621` a ensuite actualisé ce registre ; les branches de travail et PR pointent maintenant sur `dd849f14`.
 - PR #26 reste **OPEN / DRAFT / non fusionnée**, HEAD `484be08fdfb13bfade03840a1d9d146bad5e78b7`, **2 276 commits devant `main`, 0 derrière**, 286 fichiers modifiés (+90 800 / -264). GitHub retourne `mergeable=true`.
 - QIMA CI [#1820](https://github.com/meridane/QimaTrade-MVP/actions/runs/45027643815) est **IN PROGRESS** sur le HEAD `484be08f`. Les 61 vérifications statiques/préflight précédant l'installation Node sont **SUCCESS** ; le setup Node est **SUCCESS** ; l'installation des dépendances est encore **IN PROGRESS** au dernier contrôle. Verify (audit, TypeScript, build et Playwright) n'a donc pas encore fourni de résultat final.
 - Les jobs PostgreSQL 16 et PostgreSQL 17.6 de #1820 sont **IN PROGRESS**. Les deux jobs de simulation setup/cleanup ont les conclusions négatives intentionnelles ; les assertions dédiées sont **SUCCESS**. Le job explicitement attendu en `skipped` reste **SKIPPED**. L'assertion finale du harness runtime est encore **IN PROGRESS**.
@@ -13097,3 +13097,13 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 - Les résultats QIMA CI #1819 et CodeQL #1748 valident le parent `67bfc333`, pas le nouveau test REST. Aucune réussite de #1820/#1749 n'est revendiquée avant leur clôture.
 - Le nouveau test exerce le client Supabase contre un serveur HTTP local éphémère. Il ne touche pas Supabase Production et ne prouve pas à lui seul une vulnérabilité exploitable.
 - Aucun SQL, migration, donnée, credential, grant ou policy RLS persistante n'a été modifié. Aucun déploiement Production, merge, force-push ou changement des protections GitHub n'a été effectué.
+
+
+### Snapshot documentaire post-publication — HEAD `dd849f14` — 22 novembre 2026
+
+- Le commit `dd849f142dda77f17817e2670332b169d1370621` ne modifie que `docs/QIMA_V1_FUNCTION_REGISTER.md` ; il corrige la description du pointeur de branche de travail dans le snapshot précédent.
+- PR #26 : **OPEN / DRAFT / non fusionnée**, HEAD documentaire `dd849f142dda77f17817e2670332b169d1370621`, **2 277 commits devant `main`, 0 derrière**, 286 fichiers modifiés (+90 813 / -264). Le dernier calcul GitHub retourne `mergeable=false` après le push documentaire ; aucune interprétation de conflit n'est faite sans `mergeable_state` confirmé.
+- La branche de travail `work/qima-rest-redirect-regression-20261122-2226` et la branche PR sont synchronisées sur `dd849f14` (fast-forward, sans force-push).
+- Les workflows QIMA CI et CodeQL associés au code/test parent `484be08f` restent respectivement #1820 et #1749, tous deux **IN PROGRESS** au dernier contrôle. Le commit documentaire ne change pas le code/test et les résultats de ces workflows ne lui sont pas attribués comme s'ils avaient été exécutés sur ce commit.
+- Le statut Vercel du HEAD documentaire `dd849f14` est **PENDING** : [Preview](https://vercel.com/bmk1/qimatrade-mvp/DRBi7umzfnJSzkZG5wjMtDEB21P1).
+- Aucun SQL, migration, donnée, credential, grant ou policy RLS persistante n'a été modifié. Aucun déploiement Production, merge, force-push ou changement des protections GitHub.
