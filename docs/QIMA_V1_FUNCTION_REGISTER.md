@@ -12568,3 +12568,42 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 - Les réponses Auth sont synthétiques et caractérisent uniquement le mapping de statut de la route ; elles ne prouvent pas une panne réelle ni une vulnérabilité exploitable en Production.
 - Aucune donnée, migration, credential, grant, politique RLS persistante ou configuration de Supabase Production n'a été consultée ou modifiée.
 - Aucun déploiement Production, merge, force-push ou changement de protection GitHub n'a été effectué.
+
+
+## Auth 5xx range edge regression and dependency patch review — 22 novembre 2026, 10:16 KST
+
+### État relu avant modification
+
+- PR #26 : **OPEN / DRAFT / non fusionnée**, GitHub rapporte `mergeable=true`; branche `fix/create-offer-status-contract`, base `main`.
+- HEAD avant le nouveau test : `d80ad286145bffaf309fd9afb6b6e4c9709b172a` ; 2 240 commits devant `main`, 0 derrière ; 285 fichiers modifiés (89 949 insertions / 264 suppressions).
+- Le commit précédent `d80ad286` est documentaire et clôture le contrôle de la régression Auth 502/504. La route conserve le mapping des erreurs Auth 0, 408, 429 et 5xx vers HTTP 503 `AUTH_SERVICE_UNAVAILABLE`.
+
+### Validation de référence clôturée
+
+- QIMA CI [#1793](https://github.com/meridane/QimaTrade-MVP/actions/runs/44965975751) sur `d80ad286` : **SUCCESS**. Verify : **409 Playwright passed (37,5 s)** ; npm audit, TypeScript, build Next.js, Chromium et fixture QIMA **SUCCESS**.
+- PostgreSQL 16 et PostgreSQL 17.6 : **SUCCESS**.
+- Les deux jobs de simulation setup/cleanup ont les échecs attendus, avec leurs assertions de contrôle **SUCCESS** ; le job explicitement ignoré est `skipped`. Le workflow global est **SUCCESS**.
+- CodeQL [#1722](https://github.com/meridane/QimaTrade-MVP/actions/runs/44965975805) : **SUCCESS**. Vercel Preview du HEAD de référence : **SUCCESS**.
+
+### Nouvelle régression publiée
+
+- Branche de travail : `work/qima-auth-5xx-boundary-edge-20261122-1016`, créée depuis le HEAD PR exact `d80ad286145bffaf309fd9afb6b6e4c9709b172a`.
+- Commit de test : `a5e54d802121d5e156a58ee97e8355a451be7f02` — `test(create-offer): cover Auth 5xx range edges`.
+- Le test `CREATE_OFFER route maps Auth upstream outages and transport exceptions to a generic 503` couvre désormais les statuts 408, 429, 500, 501, 502, 503, 504, 505 et 599, ainsi que l'exception réseau.
+- Les assertions existantes restent identiques : HTTP 503, corps exact `AUTH_SERVICE_UNAVAILABLE`, aucun challenge `WWW-Authenticate`, aucun message privé et aucun appel downstream autre que Auth.
+- Le commit a été avancé sur la branche PR par fast-forward, avec `force=false` et `expected_sha=d80ad286`. Le HEAD PR est maintenant `a5e54d802121d5e156a58ee97e8355a451be7f02`, 2 241 commits devant `main`, 0 derrière ; GitHub indique `mergeable=true`, PR toujours OPEN/DRAFT/non fusionnée.
+- QIMA CI [#1794](https://github.com/meridane/QimaTrade-MVP/actions/runs/44970799298) et CodeQL [#1723](https://github.com/meridane/QimaTrade-MVP/actions/runs/44970799340) ont démarré sur ce HEAD. Au moment de cette entrée, audit npm et TypeScript sont **SUCCESS** ; le build Next.js, Playwright et les deux intégrations PostgreSQL sont encore **IN PROGRESS** ; CodeQL est **IN PROGRESS**. Vercel Preview est **SUCCESS**.
+- Les nouveaux cas 501, 505 et 599 ne sont pas encore confirmés par Playwright. Aucun résultat n'est anticipé avant la clôture de #1794.
+
+### Revue de maintenance Next.js — blocage de lockfile documenté
+
+- L'artefact npm audit de CI #1793 indique un seul package direct concerné : `next@15.5.28`, sévérité **moderate**, avec trois advisories associés : GHSA-7qx7-33qx-rqx2, GHSA-f3mh-rxg3-f5g2 et GHSA-pc58-hwjq-p385. Aucun finding High ou Critical dans cet audit.
+- La publication officielle Next.js du 3 novembre 2026 indique que la ligne Maintenance LTS `15.5.29` corrige les sept sujets de sécurité de cette publication, dont les trois advisories associés à l'audit. Source : https://nextjs.org/blog/november-2026-security-release.
+- `package.json` autorise déjà `^15.5.0`, mais `package-lock.json` épingle encore `15.5.28`. Le correctif de dépendance est donc identifié, mais le lockfile ne doit pas être modifié manuellement à partir d'extraits tiers : les déclarations transitive de Next 15.5.29 diffèrent entre des lockfiles publics consultés. Il faut une régénération `npm install` / `npm install --package-lock-only` sur un runner disposant du registre npm, puis `npm ci`, audit, typecheck et build. Aucun hash d'intégrité ni graphe transitif n'est inventé.
+- Les advisories de dépendance ne suffisent pas à établir que les conditions d'exploitation sont présentes dans l'application QimaTrade ; aucune vulnérabilité exploitable n'est déclarée.
+
+### Sécurité et limites
+
+- Aucun test local n'a été exécuté.
+- Aucun SQL, migration, donnée, credential, grant, politique RLS persistante ou configuration Supabase Production n'a été consulté ou modifié.
+- Aucun déploiement Production, merge, force-push ou changement des protections GitHub n'a été effectué.
