@@ -3830,7 +3830,7 @@ test("CREATE_OFFER runtime does not follow real Supabase action-definition RPC r
       "Action definition RPC HTTP " + status,
     ).toEqual([{ path: "/rest/v1/rpc/get_action_definition_v1", method: "POST" }]);
     expect(result.redirectTargetHits, "Action definition RPC HTTP " + status).toBe(0);
-    expectRuntimeRpcAuthorizationHeaders(result.serverAuthHeaders);
+    expectRuntimeRpcAuthorizationHeaders(result.serverAuthHeaders, 4);
   }
 });
 
@@ -3859,7 +3859,7 @@ test("CREATE_OFFER runtime does not follow real Supabase execution RPC redirects
       "Execution RPC HTTP " + status,
     ).toEqual([{ path: "/rest/v1/rpc/execute_create_offer_v1", method: "POST" }]);
     expect(result.redirectTargetHits, "Execution RPC HTTP " + status).toBe(0);
-    expectRuntimeRpcAuthorizationHeaders(result.serverAuthHeaders);
+    expectRuntimeRpcAuthorizationHeaders(result.serverAuthHeaders, 5);
   }
 });
 
@@ -3885,7 +3885,7 @@ test("CREATE_OFFER runtime preserves successful RPC execution when upstream does
     { path: "/rest/v1/rpc/execute_create_offer_v1", method: "POST" },
   ]);
   expect(result.redirectTargetHits).toBe(0);
-  expectRuntimeRpcAuthorizationHeaders(result.serverAuthHeaders);
+  expectRuntimeRpcAuthorizationHeaders(result.serverAuthHeaders, 5);
 });
 
 function expectRuntimeRpcAuthorizationHeaders(
@@ -3894,8 +3894,9 @@ function expectRuntimeRpcAuthorizationHeaders(
     authorization: string | undefined;
     apikey: string | undefined;
   }>,
+  expectedCount: number,
 ) {
-  expect(headers).toHaveLength(5);
+  expect(headers).toHaveLength(expectedCount);
   expect(
     headers.every(
       ({ authorization, apikey }) =>
