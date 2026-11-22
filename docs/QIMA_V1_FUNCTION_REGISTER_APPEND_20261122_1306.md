@@ -94,3 +94,15 @@ No Supabase Production data, migration, secret, grant, or persistent RLS policy 
 - Vercel's combined status remains **FAILURE** with `build-rate-limit` / `api-deployments-free-per-day`, a Preview quota limit rather than a confirmed build failure.
 - PR #26 remains **OPEN / DRAFT / not merged**; GitHub recalculated `mergeable=false` immediately after the push. This is a transient post-push mergeability value, not a merge action or a conclusion that the PR is merged.
 - The canonical register remains unreadable through UTF-8, base64, and line-range fetches. This append-only companion is the verified record; no replacement of the canonical file was attempted.
+
+
+## CI cancellation reconciliation and next boundary case — 22 November 2026, 13:16 KST
+
+- Follow-up check for test commit `a5689d15`: QIMA CI [#1803](https://github.com/meridane/QimaTrade-MVP/actions/runs/44984298750) is **CANCELLED** before any jobs were published. No Playwright result is attributed to HTTP 499. CodeQL [#1732](https://github.com/meridane/QimaTrade-MVP/actions/runs/44984298758) has completed **SUCCESS**.
+- The preceding baseline CI #1798 is fully closed **SUCCESS**, including Verify **409/409 Playwright**, PostgreSQL 16 and PostgreSQL 17.6. CodeQL #1727 is **SUCCESS**.
+- To make the next non-credential boundary explicit in the same parameterized contract test, added synthetic HTTP **451** (Unavailable For Legal Reasons) alongside 499 in `tests/e2e/create-offer-route-contract.spec.ts`. Both must map to HTTP 503 `AUTH_SERVICE_UNAVAILABLE`, with no `WWW-Authenticate` challenge, no upstream detail disclosure, and no downstream profile, membership, or RPC calls. Application code is unchanged.
+- New isolated work-branch test commit: `3139b426838c976386bc26da9be76a6c68ec7efd`. The 451 and 499 cases remain **unvalidated by Playwright** until a non-cancelled QIMA CI run executes on the synchronized code commit.
+- The last PR HEAD before this work was `a7a0040dfde55454ed9d6a7d865920e25eae6c01`, **OPEN / DRAFT / not merged**, `mergeable=true`, **2,254 ahead / 0 behind**. The preceding work branch was synchronized with the PR branch.
+- Vercel combined status continues to report `build-rate-limit` / `api-deployments-free-per-day`; this remains a Preview quota issue, not a confirmed build failure.
+- The canonical `docs/QIMA_V1_FUNCTION_REGISTER.md` still returns an empty content payload despite a valid blob SHA. This append-only file remains the safely readable register supplement; the canonical file was not overwritten.
+- No Supabase Production data, migrations, secrets, grants, or persistent RLS policies were changed. No Production deployment, merge, force-push, or branch-protection change was made. These synthetic HTTP cases do not establish a Production vulnerability.
