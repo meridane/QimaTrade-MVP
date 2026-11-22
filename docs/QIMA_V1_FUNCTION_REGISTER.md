@@ -12908,3 +12908,48 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 - Les réponses de redirection utilisent un serveur HTTP local éphémère ; elles valident le comportement de la route dans ce fixture, pas une vulnérabilité exploitable dans Supabase Production.
 - Aucune donnée, migration, credential, grant, policy RLS persistante ou configuration Supabase Production n'a été consulté ou modifié.
 - Aucun déploiement Production, merge, force-push ou changement des protections GitHub n'a été effectué. Aucun test local n'a été exécuté.
+
+
+## Clôture QIMA CI #1815, PostgreSQL 16/17.6 et CodeQL #1744 — 22 novembre 2026, 19:50 KST
+
+### État GitHub vérifié
+
+- PR #26 **OPEN / DRAFT / non fusionnée**, branche `fix/create-offer-status-contract`, base `main`, HEAD `b34f87086b38217a8527a2ba3014b03ec0e94a75`, **2 268 commits devant `main`, 0 derrière**, 286 fichiers modifiés (+90 515 / -264). GitHub indique `mergeable=true`.
+- Le HEAD courant est documentaire : le commit `b34f8708` ne modifie que `docs/QIMA_V1_FUNCTION_REGISTER.md`. Le dernier commit de test applicatif reste `e17f01e4fe8d9a6cd850f297e4b1d50c634d85af`, qui étend le test HTTP réel de redirection Auth à 301, 302, 303, 307 et 308.
+- Aucun review thread ni review submission n'est présent sur la PR au moment du contrôle. Les commentaires récupérés sont des notifications Vercel historiques, sans demande de modification de code.
+
+### QIMA CI #1815 — clôture complète
+
+- QIMA CI [#1815](https://github.com/meridane/QimaTrade-MVP/actions/runs/45009689599) : workflow **SUCCESS**.
+- Job `Typecheck, audit, build and browser tests` : **SUCCESS** ; 410/410 Playwright, `npm ci`, audit npm, TypeScript, build Next.js, installation Chromium, fixture QIMA et seuil d'audit : **SUCCESS**.
+- PostgreSQL 16 — job `CREATE_OFFER PostgreSQL integration tests` : **SUCCESS**.
+- PostgreSQL 17.6 — job `CREATE_OFFER PostgreSQL 17.6 compatibility` : **SUCCESS**.
+- Le journal d'audit rapporte 1 finding modéré, 0 high et 0 critical ; le seuil bloquant `--audit-level=high` est respecté.
+- Les jobs de simulation de panne setup/cleanup terminent avec la conclusion `failure` intentionnelle. Les jobs d'assertion qui vérifient la propagation/cleanup sont **SUCCESS**. Le job explicitement attendu en `skipped` reste **SKIPPED**. Ces conclusions attendues ne sont pas des échecs de la suite globale.
+- CodeQL [#1744](https://github.com/meridane/QimaTrade-MVP/actions/runs/45009689598) : **SUCCESS**.
+- Statut combiné Vercel du HEAD courant : **SUCCESS** ([déploiement](https://vercel.com/bmk1/qimatrade-mvp/zpYKfopzXtSiGxMKbNEoJSRGmdGP)).
+
+### Validation du comportement de redirection
+
+- Le test réel `CREATE_OFFER route does not follow real Supabase Auth redirects` utilise un serveur HTTP local éphémère et le Fetch natif Node.
+- Les réponses 301, 302, 303, 307 et 308 n'atteignent jamais `/redirect-target` ; une seule requête atteint `/auth/v1/user` pour chaque cas.
+- CI #1815 confirme 410/410 Playwright sur le code/test parent `e17f01e4`. Le HEAD documentaire `b34f8708` ne modifie pas le code applicatif ni les tests.
+
+### Dépendances — prochaine priorité
+
+- `package.json` autorise `next: ^15.5.0` ; `package-lock.json` verrouille encore Next.js **15.5.28**.
+- Le rapport npm audit de #1815 reste à 1 modérée, 0 high, 0 critical.
+- La release officielle Next.js [v15.5.29](https://github.com/vercel/next.js/releases/tag/v15.5.29), publiée le 3 novembre 2026, annonce des correctifs pour trois advisories modérés. L'annonce officielle de sécurité décrit les conditions d'impact de ces advisories ([annonce](https://nextjs.org/blog/november-2026-security-release)).
+- Aucun lockfile n'a été modifié. La tentative précédente d'accès au registre npm a échoué avec `EAI_AGAIN`; une mise à jour ne sera faite que depuis un runner ayant accès au registre, avec régénération npm reproductible, puis `npm ci`, audit, TypeScript, build et Playwright. Ne pas déduire l'applicabilité d'un advisory à QimaTrade sans vérifier les conditions propres au déploiement et aux fonctionnalités utilisées.
+
+### Prochaine étape
+
+1. Préparer la mise à jour de Next.js 15.5.28 vers 15.5.29 sur un environnement npm accessible.
+2. Régénérer le lockfile avec npm, puis vérifier `npm ci`, audit, TypeScript, build et Playwright avant de publier.
+3. Refaire le contrôle CI et CodeQL sur le nouveau HEAD après modification des dépendances.
+
+### Sécurité et limites
+
+- Les tests de redirection utilisent un serveur HTTP local contrôlé. Ils valident le contrat dans ce fixture et ne prouvent pas une vulnérabilité exploitable dans Supabase Production.
+- Aucun SQL, migration, donnée, credential, grant, policy RLS persistante ou configuration Supabase Production n'a été consulté ou modifié.
+- Aucun déploiement Production, merge, force-push ou changement des protections GitHub n'a été effectué. Aucun test local n'a été exécuté pendant cette réconciliation.
