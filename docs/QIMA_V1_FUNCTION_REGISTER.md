@@ -12607,3 +12607,13 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 - Aucun test local n'a été exécuté.
 - Aucun SQL, migration, donnée, credential, grant, politique RLS persistante ou configuration Supabase Production n'a été consulté ou modifié.
 - Aucun déploiement Production, merge, force-push ou changement des protections GitHub n'a été effectué.
+
+
+### Résultats Verify / CodeQL du nouveau contrat 5xx — 22 novembre 2026, 10:16 KST
+
+- QIMA CI [#1794](https://github.com/meridane/QimaTrade-MVP/actions/runs/44970799298), sur le parent code/test `a5e54d802121d5e156a58ee97e8355a451be7f02` : le job Verify est **SUCCESS**. npm audit, TypeScript, build Next.js, Chromium et Playwright **SUCCESS** ; Playwright rapporte **409 passed (38,8 s)**. Le test `CREATE_OFFER route maps Auth upstream outages and transport exceptions to a generic 503` est **PASS** avec les statuts 408, 429, 500, 501, 502, 503, 504, 505, 599 et l'exception réseau.
+- CodeQL [#1723](https://github.com/meridane/QimaTrade-MVP/actions/runs/44970799340) : **SUCCESS**.
+- Les intégrations PostgreSQL 16 et PostgreSQL 17.6 de #1794 restent **IN PROGRESS**, toutes deux à l'étape `Characterize full CREATE_OFFER runner write privileges`. La CI globale #1794 n'est donc pas encore clôturée ; aucune réussite PostgreSQL n'est anticipée.
+- Les jobs de simulation setup/cleanup gardent leurs résultats négatifs intentionnels, avec les assertions de contrôle **SUCCESS** ; le job explicitement ignoré reste `skipped`.
+- Sur le HEAD documentaire `71043e52fad34c7bb62dd65fd70d8c74288837f0`, QIMA CI [#1795](https://github.com/meridane/QimaTrade-MVP/actions/runs/44970920052) est **PENDING**, CodeQL [#1724](https://github.com/meridane/QimaTrade-MVP/actions/runs/44970919936) **SUCCESS**, et Vercel Preview **SUCCESS**.
+- Le commit documentaire ne modifie ni le code applicatif ni les tests ; la validation Playwright #1794 reste celle du parent `a5e54d80`. Aucun résultat PostgreSQL final n'est attribué au HEAD documentaire.
