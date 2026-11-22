@@ -58,7 +58,7 @@ export async function POST(request: Request) {
         auth: { autoRefreshToken: false, persistSession: false },
         global: {
           headers: { Authorization: `Bearer ${token}` },
-          // The Auth user endpoint must not silently follow redirects to another route or origin.
+          // Supabase API calls must surface redirects instead of silently following another route or origin.
           fetch: (input, init) => fetch(input, { ...init, redirect: "manual" }),
         },
       },
