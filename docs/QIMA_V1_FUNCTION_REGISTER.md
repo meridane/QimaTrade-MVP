@@ -13371,3 +13371,45 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 - Aucun test local n'a été exécuté.
 - Aucune donnée ou migration Supabase Production, aucun secret, grant ou policy RLS persistante n'a été modifié.
 - Aucun déploiement Production, merge, force-push ou changement des protections GitHub n'a été effectué.
+
+
+
+## Clôture de CI #1839 et validation UUID de profiles.actor_id — 23 novembre 2026, 07:46 KST
+
+### État vérifié avant le nouveau correctif
+
+- PR #26 : **OPEN / DRAFT / non fusionnée**, branche `fix/create-offer-status-contract`, base `main`, HEAD `550ff122c2d744550a0ad77499afa02af55ec477`, 2 297 commits devant `main`, 0 derrière, 287 fichiers modifiés (+91 750 / -265), `mergeable=true`.
+- Les derniers commits ont été relus : `550ff122` (validation des UUID de memberships), `7e8b1dad` (registre et redirection de définition), `0ec5b26b` (redirection de `get_action_definition_v1` pour PUBLISH_PRODUCT_REQUEST), `e5dc3e78` (registre Content-Type), `8889b658` (assertion Content-Type JSON), `c64c0ffe` et `9e53c4d3` (couverture runtime PUBLISH_PRODUCT_REQUEST).
+- Le registre canonique a été récupéré intégralement par l'API Contents GitHub (2 655 301 caractères). Le lecteur de fichier paginé ne renvoie pas le contenu de ce blob volumineux ; aucune troncature ni reconstruction partielle n'a été utilisée.
+
+### Résultats définitifs de QIMA CI #1839
+
+- QIMA CI [#1839](https://github.com/meridane/QimaTrade-MVP/actions/runs/45073698877), HEAD `550ff122c2d744550a0ad77499afa02af55ec477` : **SUCCESS**.
+- Verify : npm ci **SUCCESS** ; npm audit avec seuil bloquant `high` **SUCCESS** (rapport `npm-audit-report` conservé comme artefact) ; TypeScript **SUCCESS** ; build Next.js **SUCCESS** ; Chromium **SUCCESS** ; Playwright **419 passed (38,3 s)** ; fixture de contrat QIMA isolée **SUCCESS**.
+- PostgreSQL 16 : **SUCCESS**. PostgreSQL 17.6 : **SUCCESS**. Les tests CREATE_OFFER, replay, concurrence, RLS, ACL, caractérisation des privilèges du runner et nettoyage des bases jetables ont réussi.
+- Les deux jobs de simulation prepared-transaction setup/cleanup terminent intentionnellement en `failure` pour vérifier la propagation d'un échec ; leurs assertions dédiées terminent en **SUCCESS**. Le job explicitement attendu en `skipped` reste `skipped`, et son assertion de contrat est **SUCCESS**. Le workflow global est **SUCCESS**.
+- QIMA CodeQL [#1767](https://github.com/meridane/QimaTrade-MVP/actions/runs/45073698889) : **SUCCESS**.
+- Le statut de déploiement Vercel du commit `550ff122` est **SUCCESS** ([Preview](https://vercel.com/bmk1/qimatrade-mvp/8kwvXEm8vX4s6pK6eNQbVrq2QmBW)). Le check GitHub « Vercel Preview Comments » est également **SUCCESS**.
+
+### Nouvelle tâche non bloquante : valider l'UUID du profil avant CREATE_OFFER
+
+- Constat de code : `app/api/actions/create-offer/route.ts` rejetait un `actor_id` absent, mais ne vérifiait pas son type ni son format avant de le transmettre dans `p_provider_actor_id`.
+- Le type UUID est confirmé par la signature de `public.execute_create_offer_v1` dans `supabase/migrations/20261027090000_fix_create_offer_action_status_contract.sql` : `p_provider_actor_id uuid`. Cette migration a été consultée en lecture seule ; elle n'a pas été modifiée ni appliquée.
+- Changement minimal préparé sur la branche de travail : extraire `providerActorId`, exiger une chaîne correspondant à `canonicalUuidPattern` et renvoyer `PROFILE_ACTOR_NOT_FOUND` (HTTP 403) si le profil est absent, non-string ou mal formé. Le même identifiant validé est ensuite utilisé dans `p_input` et `p_provider_actor_id`.
+- Régression ajoutée dans `tests/e2e/create-offer-route-contract.spec.ts` : deux valeurs invalides (chaîne `not-a-uuid` et objet JSON non-string) doivent produire HTTP 403 et le corps exact `PROFILE_ACTOR_NOT_FOUND`, après Auth/Profile mais avant Membership et tout RPC.
+- Cette modification ajoute un test Playwright (deux variantes dans une boucle). Le total attendu sur le nouveau HEAD est **420** si tous les tests passent.
+- Les résultats de CI #1839 / CodeQL #1767 ci-dessus concernent le parent `550ff122` ; ils ne valident pas les nouveaux changements. Après synchronisation de la branche de travail, vérifier le nouveau QIMA CI, CodeQL et le statut Vercel avant de déclarer le correctif validé.
+
+### Fichiers et commits de travail
+
+- Branche : `work/qima-profile-actor-uuid-guard-20261123-0746`.
+- `app/api/actions/create-offer/route.ts` : validation explicite de `profile.actor_id` comme UUID avant membership/RPC.
+- `tests/e2e/create-offer-route-contract.spec.ts` : helper accepte une valeur profile actor inconnue et couvre la chaîne UUID mal formée et la valeur JSON non-string.
+- Commits : `2d19bfc6` (garde UUID profile actor) et `094dfe87` (tests de régression). Le commit documentaire qui clôt cette entrée sera publié ensuite sur la branche de travail, puis le lot sera synchronisé par fast-forward sur la branche PR.
+
+### Périmètre et suite
+
+- Aucun test local n'a été exécuté ; aucune réussite CI n'est attribuée aux nouveaux changements avant leur run dédié.
+- Aucune donnée ou migration Supabase Production, aucun secret, grant ou policy RLS persistante n'a été modifié. La migration mentionnée a uniquement été lue pour confirmer le type SQL.
+- Aucun déploiement Production, merge, force-push ou changement des protections GitHub n'a été effectué.
+- Prochaine étape : publier le lot par fast-forward, puis vérifier **420 tests Playwright attendus**, npm audit, TypeScript, build, PostgreSQL 16/17.6, CodeQL et Vercel Preview.
