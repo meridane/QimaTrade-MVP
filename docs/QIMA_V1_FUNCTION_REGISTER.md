@@ -13163,3 +13163,28 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 - Le code et les deux nouveaux tests sont publiés sur la branche de travail puis avancés par fast-forward sur la branche PR. La validation GitHub Actions du nouveau HEAD est à vérifier après le push ; aucun résultat n'est anticipé dans cette section.
 - Aucun test local n'a été exécuté dans cet environnement. Les seuls résultats confirmés à ce stade sont ceux de la CI de référence #1824 sur le HEAD parent.
 - Aucun SQL, migration, donnée Supabase Production, secret, grant, policy RLS persistante, déploiement Production, merge, force-push ou règle de protection n'a été modifié.
+
+
+## Contrôle positif du client RPC runtime sans redirection — 23 novembre 2026
+
+### État initial vérifié
+
+- PR #26 **OPEN / DRAFT / non fusionnée**, branche `fix/create-offer-status-contract`, base `main`, HEAD initial `9430177dcc02c983a530bfb2506670919a6f0325`, **2 282 commits devant `main`, 0 derrière**, 286 fichiers modifiés (+91 210 / -265), `mergeable=true`.
+- Le commit parent `9430177d` applique déjà `redirect: "manual"` au Fetch natif du client Supabase créé dans `lib/actions/runtime.ts`. Les deux tests d'intégration RPC couvrent les réponses 301, 302, 303, 307 et 308 pour `get_action_definition_v1` et `execute_create_offer_v1`.
+- CI #1825 sur le parent `9430177d` est **SUCCESS** : **414/414 Playwright**, `npm ci`, audit npm (0 finding), TypeScript, build Next.js, fixture QIMA et PostgreSQL 16 / 17.6 réussis. CodeQL #1754 est **SUCCESS** ; le statut Vercel du parent est **SUCCESS**.
+
+### Test positif ajouté
+
+- Le commit de test `1e117667bd9c669d36e37c6e3fa6762f78eb3dfd` modifie uniquement `tests/e2e/create-offer-route-contract.spec.ts`.
+- Le helper `postCreateOfferWithRuntimeRpcRedirect` accepte maintenant `null` comme mode sans redirection : le serveur local retourne alors les réponses normales de définition d'action et d'exécution.
+- Le nouveau test `CREATE_OFFER runtime preserves successful RPC execution when upstream does not redirect` vérifie HTTP 200, le résultat CREATE_OFFER attendu, l'ordre exact des cinq requêtes (Auth, Profiles, Membership, action definition POST, execution POST) et zéro appel à `/redirect-target`.
+- Ce contrôle positif complète les dix scénarios négatifs de redirection RPC sans modifier le runtime, le contrat métier ou le SQL.
+
+### Validation du nouveau HEAD
+
+- Le commit `1e117667` a été avancé par fast-forward sur la branche PR ; PR #26 compte maintenant **2 283 commits devant `main`, 0 derrière**, 286 fichiers modifiés (+91 234 / -265), état **OPEN / DRAFT / non fusionné**.
+- QIMA CI #1826 (run `45050844124`) a été déclenchée sur ce HEAD. Au relevé documentaire, le job Verify est **IN PROGRESS** (TypeScript en cours, build et Playwright en attente), PostgreSQL 16 et 17.6 sont **IN PROGRESS**. Les deux jobs de simulation prepared-transaction setup/cleanup ont leur conclusion `failure` intentionnelle ; les jobs d'assertion correspondants sont **SUCCESS** ; le job explicitement attendu en `skipped` est **SKIPPED**.
+- CodeQL #1755 (run `45050844113`) est **IN PROGRESS**. Le statut Vercel du nouveau HEAD est **PENDING** au moment de ce relevé.
+- Aucun résultat de Playwright ou PostgreSQL n'est anticipé pour #1826 dans cette section. La référence de code précédente reste #1825 / 414 tests réussis.
+- Aucun test local n'a été exécuté. Le test positif et les fixtures HTTP caractérisent le contrat logiciel dans un serveur local contrôlé ; ils ne démontrent pas une vulnérabilité exploitable dans Supabase Production.
+- Aucune donnée ou migration Supabase Production, aucun secret, grant ou policy RLS persistante n'a été modifié. Aucun déploiement Production, merge, force-push ou changement des protections GitHub n'a été effectué.
