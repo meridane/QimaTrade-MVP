@@ -13225,3 +13225,15 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 - Aucun résultat Playwright, PostgreSQL, CodeQL ou Preview final n'est anticipé dans cette section. Les résultats 415/415 de #1829 restent ceux du commit parent, pas des nouveaux contrôles d'en-têtes.
 - Aucun test local n'a été exécuté. Le serveur HTTP de test est un fixture local contrôlé et ne prouve pas une vulnérabilité exploitable dans Supabase Production.
 - Aucune donnée ou migration Supabase Production, aucun secret, grant ou policy RLS persistante n'a été modifié. Aucun déploiement Production, merge, force-push ou changement des protections GitHub n'a été effectué.
+
+
+### Ajustement du nombre de requêtes dans le contrat d'en-têtes — 23 novembre 2026
+
+- Lors de la revue du diff, l'assertion commune initiale `toHaveLength(5)` a été reconnue comme trop stricte pour le cas où `get_action_definition_v1` répond directement par une redirection : ce chemin comporte quatre requêtes (Auth, Profiles, Membership, Action Definition), tandis que le RPC d'exécution et le parcours positif en comportent cinq.
+- Le commit `5ce3bfa9174cf4c855e3c01e184448700a707105` corrige ce point en faisant passer le nombre attendu explicitement : 4 pour les redirections Action Definition, 5 pour les redirections Execution et le parcours positif. Le contrôle des deux en-têtes reste identique pour toutes les requêtes réellement observées.
+- Le correctif a été avancé par fast-forward sur la branche PR depuis `b6db11bd`. Le HEAD courant est `5ce3bfa9`, PR #26 **OPEN / DRAFT / non fusionnée**, 2 289 commits devant `main`, 0 derrière, 286 fichiers modifiés (+91 328 / -265), `mergeable=true`.
+- QIMA CI #1830 (run `45054464497`), attachée au commit antérieur `8989f5fe`, est encore **IN PROGRESS** au dernier contrôle. Verify a terminé npm ci, npm audit, TypeScript et build Next.js avec **SUCCESS** ; l'installation Chromium est encore **IN PROGRESS**, Playwright est **PENDING**, PostgreSQL 16 et 17.6 sont **IN PROGRESS**. Ce run ne contient pas le correctif de nombre d'appels du commit `5ce3bfa9`.
+- QIMA CodeQL #1758 (run `45054464473`) sur `8989f5fe` est **SUCCESS**. QIMA CI #1831 (run `45054617529`) sur le commit documentaire `b6db11bd` est **PENDING** au dernier contrôle ; CodeQL #1759 (run `45054617520`) est **IN PROGRESS**. Le statut Vercel de `b6db11bd` est **SUCCESS**.
+- Au moment de ce relevé, aucun run QIMA CI/CodeQL n'est encore retourné pour le nouveau HEAD `5ce3bfa9`. Aucun résultat de test n'est anticipé pour ce commit.
+- Aucun test local n'a été exécuté. Le fixture HTTP est un test de contrat local et ne prouve pas une vulnérabilité exploitable dans Supabase Production.
+- Aucune donnée ou migration Supabase Production, aucun secret, grant ou policy RLS persistante n'a été modifié. Aucun déploiement Production, merge, force-push ou changement des protections GitHub n'a été effectué.
