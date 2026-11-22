@@ -13188,3 +13188,12 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 - Aucun résultat de Playwright ou PostgreSQL n'est anticipé pour #1826 dans cette section. La référence de code précédente reste #1825 / 414 tests réussis.
 - Aucun test local n'a été exécuté. Le test positif et les fixtures HTTP caractérisent le contrat logiciel dans un serveur local contrôlé ; ils ne démontrent pas une vulnérabilité exploitable dans Supabase Production.
 - Aucune donnée ou migration Supabase Production, aucun secret, grant ou policy RLS persistante n'a été modifié. Aucun déploiement Production, merge, force-push ou changement des protections GitHub n'a été effectué.
+
+
+### Relevé post-publication — CodeQL et Preview du HEAD #1827 — 23 novembre 2026
+
+- Après le relevé initial, QIMA CodeQL #1755 (run `45050844113`) a terminé **SUCCESS** sur le commit de test `1e117667`.
+- Le statut Vercel du commit de test `1e117667` est maintenant **SUCCESS**. Le build de Preview n'est pas un déploiement Production.
+- QIMA CI #1827 (run `45050844124`) reste **IN PROGRESS** au dernier contrôle : Verify a atteint `Run browser smoke tests`; les intégrations PostgreSQL 16 et 17.6 sont encore **IN PROGRESS**. Aucun décompte Playwright final ni résultat PostgreSQL final n'est enregistré ici.
+- Le commit documentaire `54a32860` ajoute uniquement ce registre et le relevé initial du contrôle positif. Les workflows CI ignorent `docs/**` ; la validation #1827 reste attachée au commit de code/test `1e117667`.
+- La branche de travail `work/qima-runtime-rpc-success-control-20261123-0239` et la branche PR restent synchronisées. PR #26 demeure **OPEN / DRAFT / non fusionnée**, HEAD documentaire `54a328601bc05cb0d9d47ddc20c536166167fb63`, 2 284 commits devant `main`, 0 derrière, 286 fichiers modifiés (+91 259 / -265), `mergeable=true`.
