@@ -584,6 +584,115 @@ test("CREATE_OFFER route does not follow real Supabase Auth redirects", async ()
   }
 });
 
+test("CREATE_OFFER route does not follow real Supabase REST profile redirects", async () => {
+  const serverRequests: string[] = [];
+  let redirectTargetHits = 0;
+  let redirectStatus: 301 | 302 | 303 | 307 | 308 = 302;
+  const server = createServer((request, response) => {
+    const path = new URL(request.url ?? "/", "http://127.0.0.1").pathname;
+    serverRequests.push(path);
+
+    if (path === "/auth/v1/user") {
+      response.writeHead(200, { "Content-Type": "application/json" });
+      response.end(JSON.stringify({
+        id: "40000000-0000-4000-8000-000000000001",
+        aud: "authenticated",
+        role: "authenticated",
+        email: "profile-redirect@example.invalid",
+      }));
+      return;
+    }
+
+    if (path === "/rest/v1/profiles") {
+      response.writeHead(redirectStatus, {
+        Location: "/redirect-target",
+        "Content-Type": "application/json",
+      });
+      response.end(JSON.stringify({ message: "Profile redirect fixture" }));
+      return;
+    }
+
+    if (path === "/redirect-target") {
+      redirectTargetHits += 1;
+      response.writeHead(200, { "Content-Type": "application/json" });
+      response.end(JSON.stringify({ actor_id: "30000000-0000-4000-8000-000000000001" }));
+      return;
+    }
+
+    response.writeHead(404, { "Content-Type": "application/json" });
+    response.end(JSON.stringify({ message: "Unexpected local fixture request" }));
+  });
+
+  await new Promise<void>((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", resolve);
+  });
+
+  const address = server.address();
+  if (!address || typeof address === "string") {
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+    throw new Error("Could not resolve the local REST redirect fixture address");
+  }
+
+  const originalSupabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const originalAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const originalWebSocket = globalThis.WebSocket;
+
+  if (typeof globalThis.WebSocket === "undefined") {
+    globalThis.WebSocket = class MockWebSocket {} as unknown as typeof WebSocket;
+  }
+  process.env.NEXT_PUBLIC_SUPABASE_URL = `http://127.0.0.1:${address.port}`;
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "ci-placeholder-anon-key";
+
+  try {
+    // The same manual-redirect policy must protect PostgREST requests, not only Auth.
+    for (const status of [301, 302, 303, 307, 308] as const) {
+      redirectStatus = status;
+      serverRequests.length = 0;
+      redirectTargetHits = 0;
+
+      const response = await POST(
+        new Request("http://qima.test/api/actions/create-offer", {
+          method: "POST",
+          headers: {
+            authorization: "Bearer qima-native-profile-redirect-test-token",
+            "content-type": "application/json",
+          },
+          body: JSON.stringify({
+            name: "Native profile redirect fixture",
+            demandId: "50000000-0000-4000-8000-000000000001",
+            productMasterId: "60000000-0000-4000-8000-000000000001",
+            quantity: 1,
+            price: 10,
+            currency: "USD",
+          }),
+        }),
+      );
+
+      expect(response.status, `Profile HTTP ${status}`).toBe(500);
+      expect(await response.json(), `Profile HTTP ${status}`).toEqual({
+        error: "PROFILE_LOOKUP_FAILED",
+      });
+      expect(serverRequests, `Profile HTTP ${status}`).toEqual([
+        "/auth/v1/user",
+        "/rest/v1/profiles",
+      ]);
+      expect(redirectTargetHits, `Profile HTTP ${status}`).toBe(0);
+    }
+  } finally {
+    if (originalSupabaseUrl === undefined) delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+    else process.env.NEXT_PUBLIC_SUPABASE_URL = originalSupabaseUrl;
+
+    if (originalAnonKey === undefined) delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    else process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = originalAnonKey;
+
+    globalThis.WebSocket = originalWebSocket;
+    await new Promise<void>((resolve, reject) => {
+      server.close((error) => (error ? reject(error) : resolve()));
+    });
+  }
+});
+
 test("CREATE_OFFER route maps non-credential Auth upstream failures and transport exceptions to a generic 503", async () => {
   const bearer = "Bearer syntactically-valid-token";
 

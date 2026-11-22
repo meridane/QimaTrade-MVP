@@ -13055,3 +13055,32 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 - `fetch_commit_workflow_runs` ne retourne aucun nouveau run QIMA CI ou CodeQL associé au HEAD documentaire `61ecc253` au moment du contrôle. Les validations du code et du lockfile restent celles du HEAD code-bearing validé par QIMA CI #1817 et CodeQL #1746, toutes deux **SUCCESS**.
 - Le statut combiné du HEAD documentaire retourne `Vercel: pending` avec un Preview associé. Aucun résultat de déploiement n'est anticipé.
 - Aucun test ou code applicatif n'a été modifié par le commit documentaire. Aucune validation #1817/#1746 n'est présentée comme une exécution sur le commit documentaire lui-même.
+
+
+## Régression REST — redirections PostgREST non suivies — 22 novembre 2026, 22:26 KST
+
+### État initial vérifié
+- PR #26 : **OPEN / DRAFT / non fusionnée**, branche `fix/create-offer-status-contract`, HEAD `67bfc33312b6696499ee6164f5fb90acbf5ae379`, base `main`, **2 275 commits devant / 0 derrière**, 286 fichiers modifiés ; `mergeable=true`.
+- Derniers commits : `67bfc333` (snapshot CI #1817), `61ecc253` (réconciliation Next.js 15.5.29 et contrat `correlationId`), `9fc3191f` (suppression du runner temporaire), `a16066df` (documentation lockfile), `0abb0b7f` (lockfile Next.js 15.5.29).
+- QIMA CI [#1819](https://github.com/meridane/QimaTrade-MVP/actions/runs/45023695055) : **SUCCESS**. Verify, audit npm, TypeScript, build, Chromium et **410 Playwright** réussis ; PostgreSQL 16 et 17.6 **SUCCESS**. Les jobs de simulation setup/cleanup ont leurs conclusions négatives intentionnelles, leurs assertions de contrôle sont **SUCCESS** ; le job explicitement attendu en `skipped` reste `SKIPPED`.
+- CodeQL [#1748](https://github.com/meridane/QimaTrade-MVP/actions/runs/45023695050) : **SUCCESS**. Vercel Preview du HEAD initial : **SUCCESS**.
+- Le lecteur de contenu direct renvoie un contenu vide pour le registre volumineux ; le blob Git `43cf813f5b194d4e9ce088a8ff8cda429099d436` a été relu intégralement par Git Data API (2 613 916 caractères, 13 058 lignes).
+
+### Changement proposé
+- Fichier : `tests/e2e/create-offer-route-contract.spec.ts`.
+- Nouveau test d'intégration HTTP local : `CREATE_OFFER route does not follow real Supabase REST profile redirects`.
+- Le serveur local retourne une authentification valide puis une redirection du endpoint PostgREST `/rest/v1/profiles`, avec une cible qui renverrait un `actor_id` valide si elle était suivie.
+- Les statuts 301, 302, 303, 307 et 308 sont testés avec le véritable Fetch natif de Node et le client Supabase réel pointé vers le serveur local.
+- Attendus : réponse générique HTTP 500 `PROFILE_LOOKUP_FAILED`, requêtes limitées à `/auth/v1/user` puis `/rest/v1/profiles`, zéro appel à `/redirect-target`, donc aucune poursuite vers memberships ou RPC.
+- Ce test complète le test existant qui vérifie déjà les redirections réelles de l'endpoint Auth. Il vérifie que la politique `redirect: "manual"` protège également les appels REST du même client.
+- Aucun code applicatif, SQL, migration, donnée Supabase Production, secret, grant ou policy RLS persistante n'est modifié.
+
+### Validation
+- Le test vient d'être ajouté au HEAD de travail ; aucun résultat Playwright n'est encore disponible.
+- Après publication fast-forward sur la branche PR, QIMA CI et CodeQL seront vérifiés sur le nouveau HEAD. Aucun résultat n'est anticipé.
+- Aucun test local n'a été exécuté dans cette opération.
+
+### Sécurité et limites
+- Le serveur est un fixture local éphémère ; les réponses synthétiques vérifient le contrat logiciel, pas l'existence d'une vulnérabilité exploitable en Production.
+- Aucune décision métier sur `correlationId` n'est prise : tracing, persistance ou lien à un identifiant d'exécution restent à clarifier.
+- Aucun déploiement Production, merge, force-push ou changement des protections GitHub.
