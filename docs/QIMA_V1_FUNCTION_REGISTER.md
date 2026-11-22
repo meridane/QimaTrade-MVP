@@ -13335,3 +13335,39 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 - Le test utilise le Fetch natif de Node et un serveur HTTP local contrôlé. Il caractérise le contrat du client Supabase et ne prouve pas une vulnérabilité exploitable en Production.
 - Aucun test local n'a été exécuté. Aucun code applicatif runtime, SQL, migration, donnée Supabase Production, secret, grant ou policy RLS persistante n'a été modifié. Aucun déploiement Production, merge, force-push ou changement des protections GitHub n'a été effectué.
 - Prochaine étape : publier ce commit de test par fast-forward sur la branche PR, puis vérifier le résultat exact de la nouvelle suite (418 tests attendus si tout passe), npm audit, TypeScript, build, PostgreSQL 16/17.6 et CodeQL. Ne déclarer le test validé qu'après réussite du nouveau run.
+
+
+## Validation CI #1838 et garde UUID des memberships CREATE_OFFER — 23 novembre 2026, 06:40 KST
+
+### État vérifié avant modification
+
+- PR #26 **OPEN / DRAFT / non fusionnée**, branche `fix/create-offer-status-contract`, base `main`, HEAD `7e8b1dad5ebdcd21b705d4b7ae7654ea41004c8c`, 2 296 commits devant `main`, 0 derrière, 287 fichiers modifiés (+91 694 / -265), `mergeable=true`.
+- Les derniers commits de la branche ont été relus : `7e8b1dad` (registre et redirection de définition), `0ec5b26b` (test de redirection de définition PUBLISH_PRODUCT_REQUEST), `e5dc3e78` (registre Content-Type), `8889b658` (assertion Content-Type), `c64c0ffe` et `9e53c4d3` (couverture runtime PUBLISH_PRODUCT_REQUEST).
+- Le registre canonique a été relu intégralement (13 338 lignes, 2 651 148 caractères). Son dernier relevé décrivait encore CI #1838 comme en attente ; le présent ajout clôt ce point.
+
+### Résultats définitifs de CI #1838
+
+- QIMA CI [#1838](https://github.com/meridane/QimaTrade-MVP/actions/runs/45070666253), HEAD `7e8b1dad5ebdcd21b705d4b7ae7654ea41004c8c` : **SUCCESS**.
+- Verify : npm ci **SUCCESS** ; npm audit au seuil high **SUCCESS**, rapport JSON exact `info=0, low=0, moderate=0, high=0, critical=0, total=0` ; TypeScript **SUCCESS** ; build Next.js **SUCCESS** ; Chromium **SUCCESS** ; Playwright **418 passed (37.7 s)** ; fixture de contrat QIMA **SUCCESS**.
+- PostgreSQL 16 : **SUCCESS**. PostgreSQL 17.6 : **SUCCESS**. Les tests CREATE_OFFER, replay, concurrence, RLS, ACL, privilèges du runner et nettoyage des bases jetables ont terminé avec succès.
+- Les deux jobs de simulation prepared-transaction setup/cleanup ont la conclusion négative attendue ; leurs assertions dédiées de propagation/cleanup sont **SUCCESS**. Le job explicitement attendu en `skipped` reste `skipped`, et son assertion de contrat est **SUCCESS**. Le workflow global reste **SUCCESS**.
+- QIMA CodeQL [#1766](https://github.com/meridane/QimaTrade-MVP/actions/runs/45070666189) : **SUCCESS**. Le statut Vercel du HEAD est **SUCCESS** : [Preview](https://vercel.com/bmk1/qimatrade-mvp/BYB2TAaMhn84RSXYUq2YgzkAw6b2).
+
+### Nouvelle tâche non bloquante : valider les UUID de tenant retournés par Membership
+
+- Constat : la route `app/api/actions/create-offer/route.ts` trimmait les identifiants `tenant_id` et écartait seulement les valeurs vides. Elle pouvait donc transmettre au RPC une chaîne non vide qui ne respecte pas le format UUID, alors que le tenant est ensuite utilisé comme argument UUID.
+- Changement minimal : le filtre des identifiants de membership réutilise `canonicalUuidPattern` déjà défini par la route. Les UUID valides, quelle que soit la casse hexadécimale ou la version, restent acceptés ; les valeurs non-string, vides et les chaînes mal formées sont écartées.
+- Régression ajoutée dans `tests/e2e/create-offer-route-contract.spec.ts` : un jeu de memberships contenant uniquement `not-a-uuid` et des espaces doit renvoyer HTTP 403 avec `TENANT_MEMBERSHIP_REQUIRED`, après Auth/Profile/Membership et **avant tout appel RPC**.
+- Le nouveau test ajoute un cas Playwright ; le total attendu sur le nouveau HEAD est **419** si tous les tests passent.
+- Cette modification durcit la validation de frontière et ne constitue pas la confirmation d'une vulnérabilité exploitable. Elle ne modifie aucun contrat SQL, migration, rôle, policy ou donnée Supabase.
+
+### Contrôles du nouveau HEAD
+
+- Le nouveau code et le test sont préparés sur `work/qima-tenant-uuid-membership-guard-20261123-0640`, depuis le HEAD vérifié `7e8b1dad5ebdcd21b705d4b7ae7654ea41004c8c`. Les résultats CI #1838 / CodeQL #1766 ci-dessus sont ceux du parent ; ils ne valident pas la nouvelle assertion.
+- Après publication fast-forward, vérifier le nouveau QIMA CI (419 tests Playwright attendus), npm audit, TypeScript, build, PostgreSQL 16 et 17.6, CodeQL et Vercel Preview. Ne pas anticiper de résultat.
+
+### Périmètre
+
+- Aucun test local n'a été exécuté.
+- Aucune donnée ou migration Supabase Production, aucun secret, grant ou policy RLS persistante n'a été modifié.
+- Aucun déploiement Production, merge, force-push ou changement des protections GitHub n'a été effectué.

@@ -2185,6 +2185,26 @@ test("CREATE_OFFER route ignores non-string membership tenant IDs when one valid
   expect(executionCalls[0].body?.p_tenant_id).toBe(tenantId);
 });
 
+test("CREATE_OFFER route rejects malformed tenant UUIDs before action execution", async () => {
+  const result = await postCreateOffer("USD", {}, undefined, [
+    { tenant_id: "not-a-uuid" },
+    { tenant_id: "   " },
+  ]);
+
+  expect(result.status).toBe(403);
+  expect(result.body).toEqual({ error: "TENANT_MEMBERSHIP_REQUIRED" });
+  expect(result.requests.map((request) => request.path)).toEqual([
+    "/auth/v1/user",
+    "/rest/v1/profiles",
+    "/rest/v1/dt_memberships",
+  ]);
+  expect(result.requests.some((request) =>
+    request.path === "/rest/v1/rpc/get_action_definition_v1" ||
+    request.path === "/rest/v1/rpc/execute_create_offer_v1",
+  )).toBe(false);
+});
+
+
 test("CREATE_OFFER route returns a generic error when the execution RPC fails", async () => {
   const result = await postCreateOffer(
     "USD",

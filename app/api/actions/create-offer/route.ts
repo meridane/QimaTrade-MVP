@@ -149,7 +149,7 @@ export async function POST(request: Request) {
     const tenantIds = [...new Set(
       memberships
         .map((membership) => typeof membership.tenant_id === "string" ? membership.tenant_id.trim() : "")
-        .filter((tenantId) => tenantId.length > 0),
+        .filter((tenantId) => canonicalUuidPattern.test(tenantId)),
     )];
     if (tenantIds.length === 0) {
       return NextResponse.json({ error: "TENANT_MEMBERSHIP_REQUIRED" }, { status: 403 });
