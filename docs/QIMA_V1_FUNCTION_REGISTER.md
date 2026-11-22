@@ -12792,3 +12792,33 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 - Le test utilise un serveur HTTP local éphémère et le Fetch natif de Node ; il valide le comportement de la route dans ce fixture, pas une vulnérabilité exploitable dans Supabase Production.
 - Aucune donnée, migration, secret, grant, policy RLS persistante ou configuration Supabase Production n'a été consulté ou modifié.
 - Aucun déploiement Production, merge, force-push ou changement des protections GitHub n'a été effectué. Aucun test local n'a été exécuté.
+
+
+## Post-publication reconciliation — 22 novembre 2026, 17:17 KST
+
+### Synchronisation documentaire
+
+- Le commit documentaire `5c606fddff46b732b14d451ead6960a1c272ca7c` a été promu de la branche de travail `work/qima-auth-native-redirect-integration-20261122-1709` vers `fix/create-offer-status-contract` par fast-forward, `force=false`, avec `expected_sha=a536d72266029ffc63371a682be943207a5e4987`.
+- Le diff promu est limité à `docs/QIMA_V1_FUNCTION_REGISTER.md` (+56 / -1). Aucun fichier applicatif, test, SQL ou migration n'a changé dans cette synchronisation.
+- Le registre canonique est donc maintenant présent sur la branche PR au HEAD documentaire `5c606fdd`. La branche de travail précédente et la branche PR sont identiques après synchronisation.
+
+### État après synchronisation
+
+- PR #26 : **OPEN / DRAFT / non fusionnée** ; HEAD `5c606fddff46b732b14d451ead6960a1c272ca7c`, 2 264 commits devant `main`, 0 derrière, 286 fichiers modifiés (+90 398 / -264). GitHub rapporte temporairement `mergeable=false` après le push ; aucun merge n'a été tenté.
+- QIMA CI #1810 reste attachée au parent code/test `a536d722` et **IN PROGRESS** au dernier contrôle. Le job Verify est **SUCCESS** : npm audit, TypeScript, build Next.js, Chromium, fixture QIMA et **410/410 Playwright (37,4 s)** réussis. Le journal confirme le test natif `CREATE_OFFER route does not follow real Supabase Auth redirects` **PASS (25 ms)**.
+- PostgreSQL 16 et PostgreSQL 17.6 restent **IN PROGRESS**, chacun à l'étape 26 `Characterize full CREATE_OFFER runner write privileges`. Aucun résultat final n'est anticipé.
+- CodeQL #1739 : **SUCCESS**. Vercel Preview du parent code/test `a536d722` : **SUCCESS**.
+- Le nouveau HEAD documentaire `5c606fdd` ne déclenche pas QIMA CI ni CodeQL : les deux workflows déclarent explicitement `paths-ignore: docs/**`. Le statut combiné Vercel du HEAD documentaire est **PENDING** au dernier contrôle ; il ne remplace pas le résultat Preview SUCCESS du parent code/test.
+- Les résultats Verify/CodeQL ci-dessus valident le code/test du parent `a536d722`; le commit documentaire n'a modifié aucun de ces fichiers.
+
+### Prochaine priorité
+
+- Laisser terminer les jobs PostgreSQL 16 et 17.6 de CI #1810, puis consigner leurs conclusions réelles.
+- Après clôture, vérifier le statut global de #1810 et le Preview du HEAD documentaire.
+- Ensuite seulement, reprendre la mise à jour Next.js 15.5.28 vers 15.5.29 avec un accès npm fonctionnel et un lockfile régénéré de manière reproductible.
+
+### Sécurité et limites
+
+- Aucun test local n'a été exécuté. Le test HTTP utilise un serveur local éphémère et Fetch natif ; il valide ce contrat dans le fixture et ne démontre pas une vulnérabilité exploitable dans Supabase Production.
+- Aucune donnée, migration, credential, grant, policy RLS persistante ou configuration Supabase Production n'a été consulté ou modifié.
+- Aucun déploiement Production, merge, force-push ou changement des protections GitHub n'a été effectué.
