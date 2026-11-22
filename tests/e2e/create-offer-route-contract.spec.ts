@@ -487,7 +487,7 @@ test("CREATE_OFFER 401 responses include an RFC 6750 challenge without changing 
 test("CREATE_OFFER route does not follow real Supabase Auth redirects", async () => {
   const serverRequests: string[] = [];
   let redirectTargetHits = 0;
-  let redirectStatus: 302 | 307 | 308 = 302;
+  let redirectStatus: 301 | 302 | 303 | 307 | 308 = 302;
   const server = createServer((request, response) => {
     const path = request.url ?? "/";
     serverRequests.push(path);
@@ -539,7 +539,8 @@ test("CREATE_OFFER route does not follow real Supabase Auth redirects", async ()
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "ci-placeholder-anon-key";
 
   try {
-    for (const status of [302, 307, 308] as const) {
+    // Cover Fetch's method-rewriting (301/302/303) and method-preserving (307/308) redirects.
+    for (const status of [301, 302, 303, 307, 308] as const) {
       redirectStatus = status;
       serverRequests.length = 0;
       redirectTargetHits = 0;
