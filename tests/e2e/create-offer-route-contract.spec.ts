@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { POST } from "../../app/api/actions/create-offer/route";
 
-type MockRequest = { path: string; query: string; body?: Record<string, unknown>; authorization?: string };
+type MockRequest = { path: string; query: string; body?: Record<string, unknown>; authorization?: string; redirect?: RequestRedirect };
 type CreateOfferReplayState = {
   committed: boolean;
   result: Record<string, unknown> | null;
@@ -87,7 +87,7 @@ async function postCreateOffer(
       }
     }
     const headers = new Headers(init?.headers ?? request?.headers);
-    requests.push({ path: url.pathname, query: url.search, body, authorization: headers.get("authorization") ?? undefined });
+    requests.push({ path: url.pathname, query: url.search, body, authorization: headers.get("authorization") ?? undefined, redirect: init?.redirect ?? request?.redirect });
 
     if (url.pathname === "/auth/v1/user") {
       if (authStatus === "network-error") {
@@ -506,6 +506,7 @@ test("CREATE_OFFER route maps non-credential Auth upstream failures and transpor
 
     const authRequests = result.requests.filter((request) => request.path === "/auth/v1/user");
     expect(authRequests.length, String(authStatus)).toBeGreaterThan(0);
+    expect(authRequests.every((request) => request.redirect === "manual"), String(authStatus)).toBe(true);
     expect(result.requests.every((request) => request.path === "/auth/v1/user"), String(authStatus)).toBe(true);
     expect(result.requests.every((request) => request.authorization === bearer), String(authStatus)).toBe(true);
   }
