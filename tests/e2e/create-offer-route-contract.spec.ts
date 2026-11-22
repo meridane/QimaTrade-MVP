@@ -25,7 +25,7 @@ async function postCreateOffer(
   authStatus: number | "network-error" = 200,
   membershipStatus: number | "network-error" = 200,
   profileStatus: number | "network-error" = 200,
-  profileActorId: string | null = "30000000-0000-4000-8000-000000000001",
+  profileActorId: unknown = "30000000-0000-4000-8000-000000000001",
   profileMissing = false,
   createOfferRpcHttpStatus = 200,
   getActionDefinitionRpcHttpStatus = 200,
@@ -1929,6 +1929,39 @@ test("CREATE_OFFER route fails closed when the profile has no actor_id", async (
   expect(result.requests.some((request) => request.path === "/rest/v1/profiles")).toBe(true);
   expect(result.requests.some((request) => request.path === "/rest/v1/dt_memberships")).toBe(false);
   expect(result.requests.some((request) => request.path.startsWith("/rest/v1/rpc/"))).toBe(false);
+});
+
+test("CREATE_OFFER route rejects malformed or non-string profile actor IDs before tenant lookup", async () => {
+  const invalidActorIds: Array<{ label: string; value: unknown }> = [
+    { label: "malformed UUID string", value: "not-a-uuid" },
+    { label: "non-string JSON value", value: { id: "30000000-0000-4000-8000-000000000001" } },
+  ];
+
+  for (const actorId of invalidActorIds) {
+    const result = await postCreateOffer(
+      "USD",
+      {},
+      undefined,
+      undefined,
+      "succeeded",
+      "Bearer qima-route-test-token",
+      200,
+      200,
+      200,
+      actorId.value,
+    );
+
+    expect(result.status, actorId.label).toBe(403);
+    expect(result.body, actorId.label).toEqual({ error: "PROFILE_ACTOR_NOT_FOUND" });
+    expect(result.requests.map((request) => request.path), actorId.label).toEqual([
+      "/auth/v1/user",
+      "/rest/v1/profiles",
+    ]);
+    expect(
+      result.requests.some((request) => request.path === "/rest/v1/dt_memberships" || request.path.startsWith("/rest/v1/rpc/")),
+      actorId.label,
+    ).toBe(false);
+  }
 });
 
 test("CREATE_OFFER route returns a generic server error for profile lookup failures and stops before tenant or RPC access", async () => {
