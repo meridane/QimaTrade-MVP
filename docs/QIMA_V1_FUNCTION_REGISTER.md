@@ -13045,3 +13045,13 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 - Aucun SQL, migration, donnée, credential, grant, policy RLS persistante ou configuration Supabase Production n'a été consulté ou modifié.
 - Aucun déploiement Production, merge, force-push ou changement des protections GitHub n'a été effectué.
 - Aucun test local n'a été exécuté pendant cette réconciliation.
+
+
+### Snapshot post-publication — HEAD documentaire `61ecc253` — 22 novembre 2026, 21:40 KST
+
+- Le commit documentaire `61ecc253ed5f0669c63c9dcccf429b068e6167f7` ajoute 53 lignes à ce registre et ne modifie aucun autre fichier.
+- La branche de travail `work/qima-nextjs-15529-ci1817-reconcile-20261122-2139` et la branche PR `fix/create-offer-status-contract` sont identiques après fast-forward : **0 ahead / 0 behind**.
+- PR #26 après publication : **OPEN / DRAFT / non fusionnée**, HEAD `61ecc253ed5f0669c63c9dcccf429b068e6167f7`, 2 274 commits devant `main`, 0 derrière, 286 fichiers modifiés (+90 652 / -264). GitHub retourne actuellement `mergeable=false`; aucune tentative de merge n'a été faite.
+- `fetch_commit_workflow_runs` ne retourne aucun nouveau run QIMA CI ou CodeQL associé au HEAD documentaire `61ecc253` au moment du contrôle. Les validations du code et du lockfile restent celles du HEAD code-bearing validé par QIMA CI #1817 et CodeQL #1746, toutes deux **SUCCESS**.
+- Le statut combiné du HEAD documentaire retourne `Vercel: pending` avec un Preview associé. Aucun résultat de déploiement n'est anticipé.
+- Aucun test ou code applicatif n'a été modifié par le commit documentaire. Aucune validation #1817/#1746 n'est présentée comme une exécution sur le commit documentaire lui-même.
