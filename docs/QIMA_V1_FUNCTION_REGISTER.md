@@ -12531,3 +12531,40 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 - Les intégrations PostgreSQL 16 et PostgreSQL 17.6 de #1789 sont encore **IN PROGRESS**, toutes deux à la caractérisation des privilèges d'écriture complets du runner CREATE_OFFER. Le workflow global reste donc **IN PROGRESS** ; aucune réussite finale PostgreSQL n'est anticipée dans cette entrée.
 - Les deux jobs de simulation setup/cleanup terminent volontairement en failure, leurs assertions de contrôle sont success, et le job explicitement ignoré est skipped ; ces conclusions attendues ne constituent pas des échecs inattendus du workflow.
 - Le nouveau test de grammaire Bearer est confirmé par Verify. Aucun changement applicatif, SQL, migration, donnée Supabase Production, secret, grant ou policy RLS persistante n'a été effectué. Aucun test local n'a été exécuté. Aucun déploiement Production, merge, force-push ou changement des protections GitHub n'a été effectué. Le test synthétique ne démontre pas une vulnérabilité exploitable en Production.
+
+
+## Auth upstream 5xx range boundary regression — 22 novembre 2026, 09:16 KST
+
+### État relu avant modification
+
+- PR #26 : **OPEN / DRAFT / non fusionnée**, GitHub rapporte `mergeable=true`; base `main`, branche `fix/create-offer-status-contract`, HEAD initial `3507c8d0f792af396b046311d7ba4025d61b3c1f`.
+- Le HEAD initial est le commit documentaire `3507c8d0` (`docs(qima): record Auth 408 timeout regression`). PR : 2 238 commits devant `main`, 0 derrière, 285 fichiers modifiés (89 912 insertions / 264 suppressions).
+- La route `app/api/actions/create-offer/route.ts` classe déjà les statuts Auth 0, 408, 429 et tous les statuts numériques `>=500` comme HTTP 503 `AUTH_SERVICE_UNAVAILABLE`.
+- Le test existant couvrait 408, 429, 500, 503 et l'exception réseau, mais ne vérifiait pas explicitement deux statuts intermédiaires de la plage 5xx (502 Bad Gateway et 504 Gateway Timeout).
+
+### Validation de référence clôturée
+
+- QIMA CI [#1792](https://github.com/meridane/QimaTrade-MVP/actions/runs/44963455872) sur le HEAD de référence a terminé **SUCCESS**. Verify : **409 Playwright passed (38,5 s)** ; npm audit `total=1, moderate=1, high=0, critical=0` ; TypeScript, build Next.js, Chromium, fixture de contrat QIMA et application du seuil d'audit **SUCCESS**.
+- Les intégrations PostgreSQL 16 et PostgreSQL 17.6 sont toutes deux **SUCCESS**.
+- Les jobs d'assertion des harnesses de nettoyage sont **SUCCESS**. Les deux jobs qui simulent intentionnellement un échec setup/cleanup terminent au niveau job en `failure`, avec leurs étapes d'assertion de contrôle **SUCCESS** ; le harness volontairement désactivé est `skipped`. Ces états sont les résultats attendus du contrat de nettoyage et n'ont pas fait échouer le workflow global.
+- CodeQL [#1721](https://github.com/meridane/QimaTrade-MVP/actions/runs/44963455892) : **SUCCESS**.
+- Le statut combiné Vercel du HEAD de référence est **SUCCESS** (Preview). Aucun déploiement Production.
+
+### Modification de régression
+
+- Extension du test existant `CREATE_OFFER route maps Auth upstream outages and transport exceptions to a generic 503` pour inclure HTTP **502** et **504**.
+- Ces cas vérifient la frontière de la règle `status >= 500` : réponse HTTP 503 `AUTH_SERVICE_UNAVAILABLE`, aucun challenge `WWW-Authenticate`, aucun message amont privé et aucun appel downstream au-delà de `/auth/v1/user`.
+- Aucun code applicatif n'a été modifié ; le changement est limité au test Playwright. Il ne change ni la politique de retry, ni la persistance, ni le contrat métier.
+- Les cas 502/504 ne sont pas encore validés par CI au moment de cette entrée ; seule une exécution associée au nouveau HEAD pourra les confirmer.
+
+### Branche de travail
+
+- Branche isolée : `work/qima-auth-5xx-status-boundaries-20261122-0916`, créée depuis le HEAD PR exact `3507c8d0f792af396b046311d7ba4025d61b3c1f`.
+- Commit de test : `d160ebec913807d0653e436370257a56dd2cf6d6` — `test(create-offer): cover 502 and 504 Auth upstream failures`.
+- Aucun test local n'a été exécuté. Aucun résultat CI n'est anticipé pour les nouveaux cas avant publication et exécution du workflow PR.
+
+### Sécurité et limites
+
+- Les réponses Auth sont synthétiques et caractérisent uniquement le mapping de statut de la route ; elles ne prouvent pas une panne réelle ni une vulnérabilité exploitable en Production.
+- Aucune donnée, migration, credential, grant, politique RLS persistante ou configuration de Supabase Production n'a été consultée ou modifiée.
+- Aucun déploiement Production, merge, force-push ou changement de protection GitHub n'a été effectué.
