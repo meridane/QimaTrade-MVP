@@ -54,7 +54,14 @@ export async function POST(request: Request) {
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      { auth: { autoRefreshToken: false, persistSession: false }, global: { headers: { Authorization: `Bearer ${token}` } } },
+      {
+        auth: { autoRefreshToken: false, persistSession: false },
+        global: {
+          headers: { Authorization: `Bearer ${token}` },
+          // The Auth user endpoint must not silently follow redirects to another route or origin.
+          fetch: (input, init) => fetch(input, { ...init, redirect: "manual" }),
+        },
+      },
     );
 
     let authResult: Awaited<ReturnType<typeof supabase.auth.getUser>>;
