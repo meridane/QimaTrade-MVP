@@ -12866,3 +12866,45 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 - Le test utilise un serveur HTTP local éphémère et Fetch natif. Il vérifie le comportement de la route dans ce fixture et ne démontre pas une vulnérabilité exploitable dans Supabase Production.
 - Aucune donnée, migration, credential, grant, policy RLS persistante ou configuration Supabase Production n'a été consulté ou modifié.
 - Aucun déploiement Production, merge, force-push ou changement des protections GitHub n'a été effectué.
+
+
+## Post-publication check reconciliation — 22 novembre 2026, 18:53 KST
+
+### Résultats confirmés sur le commit de test `e17f01e4`
+
+- QIMA CI [#1813](https://github.com/meridane/QimaTrade-MVP/actions/runs/45009442293) : job **Typecheck, audit, build and browser tests — SUCCESS**.
+- Le journal confirme **410 Playwright passed (35,4 s)**. Le test réel `CREATE_OFFER route does not follow real Supabase Auth redirects` est **PASS (32 ms)** après extension à 301, 302, 303, 307 et 308.
+- `npm ci`, audit, TypeScript, build Next.js, Chromium, fixture QIMA et application du seuil d'audit : **SUCCESS**. npm audit rapporte 1 modérée, 0 high et 0 critical.
+- CodeQL [#1742](https://github.com/meridane/QimaTrade-MVP/actions/runs/45009442281) : **SUCCESS**.
+- Vercel Preview du HEAD documentaire `4d193a5d` : **SUCCESS** ([déploiement](https://vercel.com/bmk1/qimatrade-mvp/56U91HaxiGuA7gzc3vNb3mEs3EGX)).
+
+### Intégrations PostgreSQL encore actives
+
+- PostgreSQL 16 — job `CREATE_OFFER PostgreSQL integration tests` : **IN PROGRESS**, étape 26 `Characterize full CREATE_OFFER runner write privileges on PostgreSQL 16`.
+- PostgreSQL 17.6 — job `CREATE_OFFER PostgreSQL 17.6 compatibility` : **IN PROGRESS**, étape 26 `Characterize full CREATE_OFFER runner write privileges on PostgreSQL 17.6`.
+- Les deux simulations de panne setup/cleanup restent des jobs à échec intentionnel ; leurs assertions de contrôle sont **SUCCESS**. Le job de cleanup explicitement attendu en `skipped` est bien **SKIPPED**.
+- La conclusion globale de QIMA CI #1813 reste **IN PROGRESS** tant que les deux jobs PostgreSQL ne sont pas terminés. Aucun succès global n'est anticipé.
+
+### HEAD et synchronisation documentaire
+
+- Le HEAD de code/test `e17f01e4` a été suivi du commit documentaire `4d193a5d`, puis ce relevé ne modifie que le registre.
+- Le statut Vercel du HEAD documentaire est maintenant **SUCCESS**. Les workflows QIMA CI et CodeQL ne sont pas relancés pour ce commit documentaire seul, car leurs règles déclarent `paths-ignore: docs/**`.
+- La PR #26 reste **OPEN / DRAFT / non fusionnée**, HEAD documentaire `4d193a5d`, 2 267 commits devant `main`, 0 derrière, 286 fichiers modifiés (+90 473 / -264), `mergeable=true` au dernier contrôle.
+
+### Dépendances
+
+- `package.json` conserve `next: ^15.5.0` ; `package-lock.json` verrouille `15.5.28`.
+- La release officielle Next.js [v15.5.29](https://github.com/vercel/next.js/releases/tag/v15.5.29), publiée le 3 novembre 2026, annonce les correctifs des trois avis modérés cités dans cette release.
+- Une tentative locale `npm view next@15.5.29` a échoué avec `EAI_AGAIN` (résolution DNS du registre npm indisponible dans cet environnement). Le `npm ci` de GitHub Actions fonctionne, mais aucun mécanisme de génération/commit de lockfile n'est présent dans ce job de validation. Aucun lockfile n'a donc été modifié ou fabriqué.
+
+### Prochaine priorité
+
+- Terminer les jobs PostgreSQL 16 et 17.6 de CI #1813 et consigner leur conclusion réelle.
+- Vérifier la conclusion globale de #1813 ; les 410 tests Playwright, TypeScript, build, audit et CodeQL sont déjà confirmés.
+- Après clôture, reprendre la mise à jour Next.js 15.5.28 vers 15.5.29 uniquement dans un environnement npm ayant accès au registre, avec `npm install --package-lock-only`, `npm ci`, audit, TypeScript et build.
+
+### Sécurité et limites
+
+- Les réponses de redirection utilisent un serveur HTTP local éphémère ; elles valident le comportement de la route dans ce fixture, pas une vulnérabilité exploitable dans Supabase Production.
+- Aucune donnée, migration, credential, grant, policy RLS persistante ou configuration Supabase Production n'a été consulté ou modifié.
+- Aucun déploiement Production, merge, force-push ou changement des protections GitHub n'a été effectué. Aucun test local n'a été exécuté.
