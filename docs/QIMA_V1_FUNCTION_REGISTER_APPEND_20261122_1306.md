@@ -60,3 +60,12 @@ No Supabase Production data, migration, secret, grant, or persistent RLS policy 
 - CodeQL [#1727](https://github.com/meridane/QimaTrade-MVP/actions/runs/44983702482) on the test commit: **SUCCESS**.
 - Current documentation HEAD `7191361953bd67fb1d0ddf1fcc6e20e8cbc8ee7f`: QIMA CI [#1800](https://github.com/meridane/QimaTrade-MVP/actions/runs/44983876054) **PENDING**, CodeQL [#1729](https://github.com/meridane/QimaTrade-MVP/actions/runs/44983876006) **IN PROGRESS**, and Vercel Preview **PENDING**.
 - The work branch and PR branch remain identical; compare `main...fix/create-offer-status-contract` is **2,249 ahead / 0 behind**. PR #26 remains **OPEN**.
+
+
+## Final post-push snapshot — 22 November 2026, 13:12 KST
+
+- PR #26 remains **OPEN**. Current PR branch HEAD before this snapshot: `de1f76bc219f832056aeb19289971a8a139d77ca`; compare `main...fix/create-offer-status-contract`: **2,250 ahead / 0 behind**.
+- On the Auth 422 test commit `78dd09aa`, CI #1798 Verify remains **SUCCESS** with 409/409 Playwright; PostgreSQL 16 and 17.6 jobs are still **IN PROGRESS** at runner write-privilege characterization. No final PostgreSQL result is claimed.
+- The intermediate documentation-only CI #1800 on parent HEAD `71913619` was **CANCELLED** before jobs were published when a newer documentation commit arrived; no test outcome is attributed to it.
+- On HEAD `de1f76bc`, QIMA CI [#1801](https://github.com/meridane/QimaTrade-MVP/actions/runs/44983908834) is **PENDING**, CodeQL [#1730](https://github.com/meridane/QimaTrade-MVP/actions/runs/44983908835) is **IN PROGRESS**, and Vercel Preview reports `build-rate-limit` / `api-deployments-free-per-day`. This is a Preview quota failure, not a confirmed Next.js build failure.
+- The canonical register read limitation remains: UTF-8, base64, and a small line-range read returned empty content. This companion supplement is retained instead of overwriting the unreadable canonical file.
