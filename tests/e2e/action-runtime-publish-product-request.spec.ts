@@ -4,6 +4,7 @@ import { executeUniversalAction } from "../../lib/actions/runtime";
 import type { ActionContext, ActionResult } from "../../lib/actions/types";
 
 type RedirectStatus = 301 | 302 | 303 | 307 | 308 | null;
+type RedirectTarget = "definition" | "publish";
 
 type CapturedRequest = {
   path: string;
@@ -16,7 +17,10 @@ type CapturedRequest = {
 
 test.describe.configure({ mode: "serial" });
 
-async function executePublishProductRequestRuntime(redirectStatus: RedirectStatus) {
+async function executePublishProductRequestRuntime(
+  redirectStatus: RedirectStatus,
+  redirectTarget: RedirectTarget = "publish",
+) {
   const requestId = "60000000-0000-4000-8000-000000000001";
   const userId = "40000000-0000-4000-8000-000000000001";
   const demandId = "70000000-0000-4000-8000-000000000001";
@@ -53,6 +57,19 @@ async function executePublishProductRequestRuntime(redirectStatus: RedirectStatu
         body,
       });
 
+      if (
+        path === "/rest/v1/rpc/get_action_definition_v1" &&
+        redirectStatus !== null &&
+        redirectTarget === "definition"
+      ) {
+        response.writeHead(redirectStatus, {
+          Location: "/redirect-target",
+          "Content-Type": "application/json",
+        });
+        response.end(JSON.stringify({ message: "PUBLISH_PRODUCT_REQUEST definition redirect fixture" }));
+        return;
+      }
+
       if (path === "/rest/v1/rpc/get_action_definition_v1") {
         response.writeHead(200, { "Content-Type": "application/json" });
         response.end(JSON.stringify([{
@@ -63,7 +80,11 @@ async function executePublishProductRequestRuntime(redirectStatus: RedirectStatu
         return;
       }
 
-      if (path === "/rest/v1/rpc/dt_publish_product_request" && redirectStatus !== null) {
+      if (
+        path === "/rest/v1/rpc/dt_publish_product_request" &&
+        redirectStatus !== null &&
+        redirectTarget === "publish"
+      ) {
         response.writeHead(redirectStatus, {
           Location: "/redirect-target",
           "Content-Type": "application/json",
@@ -81,7 +102,15 @@ async function executePublishProductRequestRuntime(redirectStatus: RedirectStatu
       if (path === "/redirect-target") {
         redirectTargetHits += 1;
         response.writeHead(200, { "Content-Type": "application/json" });
-        response.end(JSON.stringify({ demandId }));
+        if (redirectTarget === "definition") {
+          response.end(JSON.stringify([{
+            action_key: "PUBLISH_PRODUCT_REQUEST",
+            version: 1,
+            status: "published",
+          }]));
+        } else {
+          response.end(JSON.stringify({ demandId }));
+        }
         return;
       }
 
@@ -145,6 +174,24 @@ async function executePublishProductRequestRuntime(redirectStatus: RedirectStatu
     });
   }
 }
+
+test("PUBLISH_PRODUCT_REQUEST runtime does not follow action-definition RPC redirects", async () => {
+  for (const status of [301, 302, 303, 307, 308] as const) {
+    const outcome = await executePublishProductRequestRuntime(status, "definition");
+
+    expect(outcome.errorMessage, "HTTP " + status).toBe("ACTION_DEFINITION_LOOKUP_FAILED");
+    expect(outcome.requests.map((request) => ({ path: request.path, method: request.method })), "HTTP " + status).toEqual([
+      { path: "/rest/v1/rpc/get_action_definition_v1", method: "POST" },
+    ]);
+    expect(outcome.requests.every(
+      ({ authorization, apikey, contentType }) =>
+        authorization === "Bearer " + outcome.accessToken &&
+        apikey === "ci-placeholder-anon-key" &&
+        typeof contentType === "string" && contentType.toLowerCase().includes("application/json"),
+    ), "HTTP " + status).toBe(true);
+    expect(outcome.redirectTargetHits, "HTTP " + status).toBe(0);
+  }
+});
 
 test("PUBLISH_PRODUCT_REQUEST runtime does not follow real Supabase RPC redirects", async () => {
   for (const status of [301, 302, 303, 307, 308] as const) {
