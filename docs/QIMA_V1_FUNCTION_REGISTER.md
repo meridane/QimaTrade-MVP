@@ -13280,3 +13280,26 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 - Aucun test local n'a été exécuté. Le nouveau serveur HTTP local caractérise le comportement du client runtime dans un fixture contrôlé ; il ne démontre pas une vulnérabilité exploitable en Production.
 - Aucune donnée ou migration Supabase Production, aucun secret, grant ou policy RLS persistante n'a été modifié. Aucun déploiement Production, merge, force-push ou changement des protections GitHub n'a été effectué.
 - Prochaine étape : attendre QIMA CI #1834, vérifier le nombre exact de tests Playwright et les jobs PostgreSQL 16 / 17.6, puis clôturer CodeQL #1762. Corriger uniquement les échecs réels du nouveau test, s'il y en a, avant de déclarer cette couverture validée.
+
+
+## Contrôle du Content-Type JSON du client runtime partagé — 23 novembre 2026, 04:12 KST
+
+### Modification complémentaire
+
+- Le commit `8889b658076e642c31ca7a8050eb1ce5e835f42a` complète `tests/e2e/action-runtime-publish-product-request.spec.ts`.
+- Le fixture capture maintenant aussi `Content-Type` pour chaque requête RPC. Les deux scénarios (redirections et succès sans redirection) exigent un type contenant `application/json`, en plus du bearer utilisateur, de `apikey`, de la méthode POST et des corps RPC exacts.
+- Cette assertion vérifie que le wrapper Fetch qui impose `redirect: "manual"` conserve également les en-têtes nécessaires au transport JSON. Aucun changement du runtime ou du contrat métier n'est effectué.
+
+### État des contrôles après le commit
+
+- Le commit `9e53c4d3` a été validé par QIMA CodeQL [#1762](https://github.com/meridane/QimaTrade-MVP/actions/runs/45059722139) : **SUCCESS**. QIMA CI [#1834](https://github.com/meridane/QimaTrade-MVP/actions/runs/45059722087) a été **CANCELLED avant publication de jobs** ; aucun résultat de test n'est attribué à ce run.
+- Sur le nouveau HEAD de code `8889b658`, QIMA CI [#1836](https://github.com/meridane/QimaTrade-MVP/actions/runs/45059904373) est **PENDING** au dernier contrôle, sans jobs publiés. Aucun résultat Playwright, TypeScript, build ou PostgreSQL n'est anticipé pour le contrôle `Content-Type`.
+- QIMA CodeQL [#1764](https://github.com/meridane/QimaTrade-MVP/actions/runs/45059904323) sur `8889b658` est **IN PROGRESS**.
+- Le statut combiné Vercel du HEAD est **FAILURE** avec la cible `build-rate-limit` / `api-deployments-free-per-day`. Ce statut correspond à la limite de quota Preview ; aucun échec de compilation n'est établi pour ce nouveau commit.
+- Les résultats de référence restent CI #1832 sur le parent `5ce3bfa9` (**415/415 Playwright**, PostgreSQL 16 et 17.6, audit au seuil configuré, TypeScript et build **SUCCESS**) et CodeQL #1760 **SUCCESS**. Ils ne valident pas le nouveau fichier ni son assertion Content-Type.
+
+### Périmètre et suite
+
+- Aucun test local n'a été exécuté. Le serveur HTTP est un fixture local contrôlé et ne démontre pas une vulnérabilité exploitable en Production.
+- Aucune donnée ou migration Supabase Production, aucun secret, grant ou policy RLS persistante n'a été modifié. Aucun déploiement Production, merge, force-push ou changement des protections GitHub n'a été effectué.
+- Prochaine étape : attendre CI #1836 et CodeQL #1764, puis enregistrer leurs résultats exacts. Si le workflow reste annulé avant publication des jobs, ne pas traiter cela comme un échec de test ; rechercher un moyen de relancer la validation autorisé par le dépôt.
