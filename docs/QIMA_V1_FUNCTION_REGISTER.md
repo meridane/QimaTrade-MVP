@@ -13084,3 +13084,16 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 - Le serveur est un fixture local éphémère ; les réponses synthétiques vérifient le contrat logiciel, pas l'existence d'une vulnérabilité exploitable en Production.
 - Aucune décision métier sur `correlationId` n'est prise : tracing, persistance ou lien à un identifiant d'exécution restent à clarifier.
 - Aucun déploiement Production, merge, force-push ou changement des protections GitHub.
+
+
+### Snapshot post-publication — HEAD code/test `484be08f` — 22 novembre 2026
+
+- Le commit `484be08fdfb13bfade03840a1d9d146bad5e78b7` a été publié sur `fix/create-offer-status-contract` par fast-forward depuis `67bfc33312b6696499ee6164f5fb90acbf5ae379`. La branche de travail `work/qima-rest-redirect-regression-20261122-2226` pointe sur le même commit.
+- PR #26 reste **OPEN / DRAFT / non fusionnée**, HEAD `484be08fdfb13bfade03840a1d9d146bad5e78b7`, **2 276 commits devant `main`, 0 derrière**, 286 fichiers modifiés (+90 800 / -264). GitHub retourne `mergeable=true`.
+- QIMA CI [#1820](https://github.com/meridane/QimaTrade-MVP/actions/runs/45027643815) est **IN PROGRESS** sur le HEAD `484be08f`. Les 61 vérifications statiques/préflight précédant l'installation Node sont **SUCCESS** ; le setup Node est **SUCCESS** ; l'installation des dépendances est encore **IN PROGRESS** au dernier contrôle. Verify (audit, TypeScript, build et Playwright) n'a donc pas encore fourni de résultat final.
+- Les jobs PostgreSQL 16 et PostgreSQL 17.6 de #1820 sont **IN PROGRESS**. Les deux jobs de simulation setup/cleanup ont les conclusions négatives intentionnelles ; les assertions dédiées sont **SUCCESS**. Le job explicitement attendu en `skipped` reste **SKIPPED**. L'assertion finale du harness runtime est encore **IN PROGRESS**.
+- CodeQL [#1749](https://github.com/meridane/QimaTrade-MVP/actions/runs/45027643857) est **IN PROGRESS**.
+- Le statut Vercel du HEAD `484be08f` est **PENDING** : [Preview](https://vercel.com/bmk1/qimatrade-mvp/2p252meRmaBQjiFg4m7gapaX8eRP). Aucun résultat de déploiement n'est anticipé.
+- Les résultats QIMA CI #1819 et CodeQL #1748 valident le parent `67bfc333`, pas le nouveau test REST. Aucune réussite de #1820/#1749 n'est revendiquée avant leur clôture.
+- Le nouveau test exerce le client Supabase contre un serveur HTTP local éphémère. Il ne touche pas Supabase Production et ne prouve pas à lui seul une vulnérabilité exploitable.
+- Aucun SQL, migration, donnée, credential, grant ou policy RLS persistante n'a été modifié. Aucun déploiement Production, merge, force-push ou changement des protections GitHub n'a été effectué.
