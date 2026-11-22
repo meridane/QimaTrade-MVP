@@ -2168,6 +2168,23 @@ test("CREATE_OFFER route trims membership tenant IDs before deduplicating the sa
   expect(executionCalls[0].body?.p_tenant_id).toBe(tenantId);
 });
 
+test("CREATE_OFFER route deduplicates membership tenant UUIDs case-insensitively", async () => {
+  const tenantId = "ab000000-0000-4000-8000-00000000000f";
+  const result = await postCreateOffer("USD", {}, undefined, [
+    { tenant_id: tenantId.toUpperCase() },
+    { tenant_id: tenantId },
+    { tenant_id: ` ${tenantId.toUpperCase()} ` },
+  ]);
+
+  expect(result.status, JSON.stringify({ body: result.body, requests: result.requests })).toBe(200);
+  expect(result.body).toMatchObject({ status: "succeeded" });
+  const executionCalls = result.requests.filter(
+    (request) => request.path === "/rest/v1/rpc/execute_create_offer_v1",
+  );
+  expect(executionCalls).toHaveLength(1);
+  expect(executionCalls[0].body?.p_tenant_id).toBe(tenantId);
+});
+
 test("CREATE_OFFER route ignores null membership rows when one valid tenant remains", async () => {
   const tenantId = "20000000-0000-4000-8000-000000000001";
   const result = await postCreateOffer("USD", {}, undefined, [

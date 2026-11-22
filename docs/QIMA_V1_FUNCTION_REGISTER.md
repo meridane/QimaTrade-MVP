@@ -13413,3 +13413,35 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 - Aucune donnée ou migration Supabase Production, aucun secret, grant ou policy RLS persistante n'a été modifié. La migration mentionnée a uniquement été lue pour confirmer le type SQL.
 - Aucun déploiement Production, merge, force-push ou changement des protections GitHub n'a été effectué.
 - Prochaine étape : publier le lot par fast-forward, puis vérifier **420 tests Playwright attendus**, npm audit, TypeScript, build, PostgreSQL 16/17.6, CodeQL et Vercel Preview.
+
+## Normalisation des UUID de memberships avant déduplication — 23 novembre 2026, 08:27 KST
+
+### État vérifié avant modification
+
+- PR #26 : **OPEN / DRAFT / non fusionnée**, branche `fix/create-offer-status-contract`, base `main`, HEAD `a1299c757fd09b8983677a729bd24e43e6c18549`, 2 300 commits devant `main`, 0 derrière, 287 fichiers modifiés (+91 829 / -266), `mergeable=true`.
+- Les trois commits les plus récents du lot précédent sont `2d19bfc6` (garde UUID de `profiles.actor_id`), `094dfe87` (tests de régression) et `a1299c75` (clôture documentaire).
+- CI #1840 sur le HEAD code/test parent : **SUCCESS**, Verify **420 Playwright passed (38,0 s)**, npm audit au seuil bloquant `high`, TypeScript, build Next.js, Chromium et fixture QIMA **SUCCESS** ; PostgreSQL 16 et 17.6 **SUCCESS**. Le total exact 420 est confirmé par le journal du job Verify.
+- CodeQL #1768 : **SUCCESS**. Le check de statut GitHub Vercel du HEAD courant : **SUCCESS**.
+- Le registre canonique a été récupéré intégralement par son blob Git (2 660 505 caractères) ; son SHA avant modification est `7324a13abcebc88c3e38db1569cb8bd245dcd971`.
+
+### Correctif ciblé
+
+- Constat : la route trimmait les UUID de `dt_memberships.tenant_id`, validait leur format, puis dédupliquait les chaînes sans normaliser la casse. Deux représentations hexadécimales majuscule/minuscule du même UUID pouvaient donc compter comme deux tenants et déclencher à tort `TENANT_SELECTION_REQUIRED` (409).
+- Correction minimale dans `app/api/actions/create-offer/route.ts` : convertir la chaîne trimée en minuscules avant validation et déduplication. Le format UUID reste contrôlé par `canonicalUuidPattern`; l'identifiant envoyé à `p_tenant_id` est la forme canonique minuscule.
+- Régression ajoutée dans `tests/e2e/create-offer-route-contract.spec.ts` : trois memberships contenant le même UUID avec casse mixte/majuscule, minuscule et espaces doivent être ramenés à un seul tenant. Le test attend HTTP 200, `status: succeeded`, un seul appel à `execute_create_offer_v1` et le `p_tenant_id` canonique minuscule.
+- Le nouveau scénario ajoute un test Playwright ; total attendu sur ce HEAD : **421** si tous les tests réussissent.
+
+### Fichiers et branche de travail
+
+- Branche : `work/qima-tenant-uuid-case-normalization-20261123-0827`, créée à partir du HEAD PR `a1299c757fd09b8983677a729bd24e43e6c18549`.
+- `app/api/actions/create-offer/route.ts` : normalisation `.trim().toLowerCase()` avant la validation et le Set.
+- `tests/e2e/create-offer-route-contract.spec.ts` : couverture des doublons UUID qui ne diffèrent que par la casse.
+- `docs/QIMA_V1_FUNCTION_REGISTER.md` : entrée append-only, historique précédent conservé.
+
+### Validation et limites
+
+- Les résultats CI #1840 / CodeQL #1768 / Vercel ci-dessus concernent le HEAD précédent et ne valident pas le nouveau test.
+- Aucun test local n'a été exécuté. Le nouveau test caractérise une différence de représentation d'UUID ; il ne démontre pas une vulnérabilité de sécurité.
+- Aucune donnée ou migration Supabase Production, aucun secret, grant ou policy RLS persistante n'a été modifié. Aucune migration n'a été appliquée.
+- Aucun déploiement Production, merge, force-push ou changement des protections GitHub n'a été effectué.
+- Après publication par fast-forward, vérifier le nouveau QIMA CI, le total attendu de 421 tests, PostgreSQL 16/17.6, CodeQL et Vercel Preview avant de déclarer le correctif validé.

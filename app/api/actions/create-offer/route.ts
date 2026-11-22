@@ -151,7 +151,7 @@ export async function POST(request: Request) {
 
     const tenantIds = [...new Set(
       memberships
-        .map((membership) => typeof membership.tenant_id === "string" ? membership.tenant_id.trim() : "")
+        .map((membership) => typeof membership.tenant_id === "string" ? membership.tenant_id.trim().toLowerCase() : "")
         .filter((tenantId) => canonicalUuidPattern.test(tenantId)),
     )];
     if (tenantIds.length === 0) {
