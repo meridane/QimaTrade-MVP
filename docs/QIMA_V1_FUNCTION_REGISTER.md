@@ -13197,3 +13197,31 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 - QIMA CI #1827 (run `45050844124`) reste **IN PROGRESS** au dernier contrôle : Verify a atteint `Run browser smoke tests`; les intégrations PostgreSQL 16 et 17.6 sont encore **IN PROGRESS**. Aucun décompte Playwright final ni résultat PostgreSQL final n'est enregistré ici.
 - Le commit documentaire `54a32860` ajoute uniquement ce registre et le relevé initial du contrôle positif. Les workflows CI ignorent `docs/**` ; la validation #1827 reste attachée au commit de code/test `1e117667`.
 - La branche de travail `work/qima-runtime-rpc-success-control-20261123-0239` et la branche PR restent synchronisées. PR #26 demeure **OPEN / DRAFT / non fusionnée**, HEAD documentaire `54a328601bc05cb0d9d47ddc20c536166167fb63`, 2 284 commits devant `main`, 0 derrière, 286 fichiers modifiés (+91 259 / -265), `mergeable=true`.
+
+
+## Contrat de propagation des en-têtes du client RPC runtime — 23 novembre 2026
+
+### État initial vérifié
+
+- PR #26 **OPEN / DRAFT / non fusionnée**, branche `fix/create-offer-status-contract`, base `main`, HEAD initial `1da8a7db869bced974c9c78bcb2687aa55eef8ad`, 2 285 commits dans la PR, 0 derrière `main`, 286 fichiers modifiés (+91 268 / -265), `mergeable=true`.
+- Le client Supabase de `lib/actions/runtime.ts` transmet explicitement `redirect: "manual"` au Fetch natif pour les RPC `get_action_definition_v1` et `execute_create_offer_v1`.
+- Le test d'intégration existant utilise un serveur HTTP local et couvre les redirections 301, 302, 303, 307 et 308 pour les deux RPC, ainsi qu'un parcours positif sans redirection.
+- La validation de référence du HEAD précédent, QIMA CI #1829 (run `45050994174`), est **SUCCESS** : Verify, npm audit au seuil `high`, TypeScript, build Next.js, Chromium et **415 Playwright passed (37,9 s)** ; PostgreSQL 16 et 17.6 sont **SUCCESS**. Les deux jobs de simulation prepared-transaction setup/cleanup ont leurs conclusions `failure` intentionnelles ; les assertions de contrôle sont **SUCCESS** et le job explicitement attendu en `skipped` est **SKIPPED**.
+- QIMA CodeQL #1757 (run `45050994158`) est **SUCCESS**. Le statut Vercel du HEAD de référence est **SUCCESS**.
+
+### Régression ajoutée
+
+- Les commits de travail `203bc699` et `8989f5fe` modifient uniquement `tests/e2e/create-offer-route-contract.spec.ts`.
+- Le fixture `postCreateOfferWithRuntimeRpcRedirect` capture désormais, pour chaque requête locale, les en-têtes `Authorization` et `apikey` en plus du chemin et de la méthode.
+- Les deux boucles de redirection RPC (définition et exécution) et le parcours positif exigent que les cinq requêtes conservent exactement le bearer utilisateur `Bearer qima-native-runtime-rpc-redirect-test-token` et la clé publique de fixture `ci-placeholder-anon-key`.
+- La lecture de `request.headers.apikey` est normalisée par un contrôle `typeof === "string"` afin de respecter le type des en-têtes Node et d'éviter une assertion TypeScript trop large.
+- Aucun comportement runtime, contrat métier, SQL ou migration n'a été modifié dans cette régression.
+
+### Validation après publication
+
+- Le commit `8989f5febe7f270b8ecc3253e1aed6e8cfc9ac79` a été avancé par fast-forward sur `fix/create-offer-status-contract` depuis `1da8a7db`. PR #26 est toujours **OPEN / DRAFT / non fusionnée**, HEAD `8989f5fe`, 2 287 commits devant `main`, 0 derrière, 286 fichiers modifiés (+91 299 / -265).
+- QIMA CI #1830 (run `45054464497`) a démarré sur ce nouveau HEAD. Au relevé initial, Verify, PostgreSQL 16 et PostgreSQL 17.6 sont en cours ; les jobs setup/cleanup ont leurs conclusions négatives intentionnelles et les assertions correspondantes sont contrôlées. Le job explicitement attendu en `skipped` est **SKIPPED**.
+- QIMA CodeQL #1758 (run `45054464473`) est **IN PROGRESS** au relevé initial. Vercel Preview est **PENDING**.
+- Aucun résultat Playwright, PostgreSQL, CodeQL ou Preview final n'est anticipé dans cette section. Les résultats 415/415 de #1829 restent ceux du commit parent, pas des nouveaux contrôles d'en-têtes.
+- Aucun test local n'a été exécuté. Le serveur HTTP de test est un fixture local contrôlé et ne prouve pas une vulnérabilité exploitable dans Supabase Production.
+- Aucune donnée ou migration Supabase Production, aucun secret, grant ou policy RLS persistante n'a été modifié. Aucun déploiement Production, merge, force-push ou changement des protections GitHub n'a été effectué.
