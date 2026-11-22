@@ -94,6 +94,9 @@ async function postCreateOffer(
         throw new Error("ECONNRESET: Auth network connection reset");
       }
       if (authStatus !== 200) {
+        if (authStatus === 304) {
+          return new Response(null, { status: authStatus });
+        }
         const authError = authStatus === 401
           ? { message: "Invalid JWT", code: "bad_jwt" }
           : { message: "Auth service unavailable", code: "server_error" };
@@ -483,7 +486,7 @@ test("CREATE_OFFER 401 responses include an RFC 6750 challenge without changing 
 test("CREATE_OFFER route maps non-credential Auth upstream failures and transport exceptions to a generic 503", async () => {
   const bearer = "Bearer syntactically-valid-token";
 
-  for (const authStatus of [404, 408, 422, 429, 451, 499, 500, 501, 502, 503, 504, 505, 599, "network-error"] as const) {
+  for (const authStatus of [300, 301, 302, 303, 304, 307, 308, 404, 408, 422, 429, 451, 499, 500, 501, 502, 503, 504, 505, 599, "network-error"] as const) {
     const result = await postCreateOffer(
       "USD",
       {},
