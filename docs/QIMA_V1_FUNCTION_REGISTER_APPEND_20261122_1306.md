@@ -43,3 +43,11 @@ This append-only supplement records the current Auth status-contract regression 
 ## Safety scope
 
 No Supabase Production data, migration, secret, grant, or persistent RLS policy was changed. No Production deployment, PR merge, force-push, or branch-protection change was performed. The Auth fixtures are synthetic contract tests and do not establish a Production vulnerability.
+
+
+## Post-publication status snapshot — 22 November 2026, 13:08 KST
+
+- Test commit `78dd09aa48bfc06203813d1c4d41211f843912c6`: CodeQL [#1727](https://github.com/meridane/QimaTrade-MVP/actions/runs/44983702482) **SUCCESS**; QIMA CI [#1798](https://github.com/meridane/QimaTrade-MVP/actions/runs/44983702551) remains **IN PROGRESS**. At this check, Playwright browser tests were still running; PostgreSQL 16 and 17.6 jobs were at their final runner-privilege / legacy RLS checks. No final Playwright or PostgreSQL conclusion is attributed to the 422 fixture yet.
+- Documentation HEAD `933997d04cf715f293365207da4ab86c6d23110a`: CodeQL [#1728](https://github.com/meridane/QimaTrade-MVP/actions/runs/44983808892) **IN PROGRESS**; QIMA CI [#1799](https://github.com/meridane/QimaTrade-MVP/actions/runs/44983808859) **PENDING**; Vercel Preview **PENDING**.
+- The PR remains **OPEN**. Compare `main...fix/create-offer-status-contract` reports **2,248 ahead / 0 behind**. The work branch and PR branch compare as **identical (0 ahead / 0 behind)**.
+- The canonical register remained unreadable through the connector (empty content for UTF-8, base64, and a 20-line range); this supplement is the safely readable append-only record. No attempt was made to overwrite the canonical file.
