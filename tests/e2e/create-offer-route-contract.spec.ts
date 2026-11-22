@@ -3648,7 +3648,7 @@ type RuntimeRpcRedirectPath =
 
 async function postCreateOfferWithRuntimeRpcRedirect(
   redirectPath: RuntimeRpcRedirectPath,
-  redirectStatus: 301 | 302 | 303 | 307 | 308,
+  redirectStatus: 301 | 302 | 303 | 307 | 308 | null,
 ) {
   const serverRequests: Array<{ path: string; method: string }> = [];
   let redirectTargetHits = 0;
@@ -3681,7 +3681,7 @@ async function postCreateOfferWithRuntimeRpcRedirect(
       return;
     }
 
-    if (path === redirectPath) {
+    if (path === redirectPath && redirectStatus !== null) {
       response.writeHead(redirectStatus, {
         Location: "/redirect-target",
         "Content-Type": "application/json",
@@ -3848,4 +3848,28 @@ test("CREATE_OFFER runtime does not follow real Supabase execution RPC redirects
     ).toEqual([{ path: "/rest/v1/rpc/execute_create_offer_v1", method: "POST" }]);
     expect(result.redirectTargetHits, "Execution RPC HTTP " + status).toBe(0);
   }
+});
+
+
+test("CREATE_OFFER runtime preserves successful RPC execution when upstream does not redirect", async () => {
+  const result = await postCreateOfferWithRuntimeRpcRedirect(
+    "/rest/v1/rpc/execute_create_offer_v1",
+    null,
+  );
+
+  expect(result.status).toBe(200);
+  expect(result.body).toMatchObject({
+    executionId: "10000000-0000-4000-8000-000000000001",
+    status: "succeeded",
+    objectId: "50000000-0000-4000-8000-000000000001",
+    result: { offerId: "70000000-0000-4000-8000-000000000001" },
+  });
+  expect(result.serverRequests).toEqual([
+    { path: "/auth/v1/user", method: "GET" },
+    { path: "/rest/v1/profiles", method: "GET" },
+    { path: "/rest/v1/dt_memberships", method: "GET" },
+    { path: "/rest/v1/rpc/get_action_definition_v1", method: "POST" },
+    { path: "/rest/v1/rpc/execute_create_offer_v1", method: "POST" },
+  ]);
+  expect(result.redirectTargetHits).toBe(0);
 });
