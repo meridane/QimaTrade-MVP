@@ -12693,3 +12693,47 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 - Les réponses Auth 3xx/304 sont synthétiques et caractérisent uniquement le mapping de la route. Elles ne prouvent pas une panne réelle ni une vulnérabilité exploitable en Production.
 - Aucun SQL, migration, donnée, secret, grant, politique RLS persistante ou configuration Supabase Production n'a été consulté ou modifié.
 - Aucun déploiement Production, merge, force-push ou changement des protections GitHub n'a été effectué. Aucun test local n'a été exécuté.
+
+
+## Supabase Auth redirect-following boundary — 22 novembre 2026, 15:30 KST
+
+### État relu avant modification
+
+- PR #26 : **OPEN / DRAFT / non fusionnée** ; `mergeable=true` avant le push de code, base `main`, branche `fix/create-offer-status-contract`.
+- HEAD initial : `3a9a495a15068cde151fe6067a6dd6f3a626d5be`, 2 257 commits devant `main`, 0 derrière, 286 fichiers modifiés (+90 152 / -264).
+- Le commit `186dfceb673eaca91d7820adc9c4e68a93373555` a ensuite été synchronisé par fast-forward sur la branche PR après clôture de CI #1806. Il ne modifie que ce registre et documente le résultat Verify de #1806.
+- CI #1806 est maintenant **SUCCESS** : Verify **409/409 Playwright**, installation, audit npm, TypeScript, build Next.js, Chromium et fixture QIMA réussis ; PostgreSQL 16 et PostgreSQL 17.6 **SUCCESS**. Les jobs de simulation setup/cleanup conservent leurs conclusions négatives intentionnelles avec assertions de contrôle réussies ; le job explicitement skipped reste `skipped`.
+- CodeQL #1735 : **SUCCESS**.
+
+### Revue du comportement des redirects
+
+- La matrice HTTP 3xx ajoutée précédemment retournait des réponses synthétiques directement depuis le mock global `fetch`. Ce mock vérifiait le mapping 503, mais ne reproduisait pas l'algorithme natif de suivi automatique des redirects de Fetch.
+- Sans politique explicite, `fetch` suit par défaut les redirects. Un statut 3xx de l'endpoint Auth pourrait donc être suivi avant que `supabase.auth.getUser()` voie la réponse, ce qui rendrait les cas synthétiques 3xx insuffisants pour établir le contrat de non-suivi.
+- Le client Supabase de la route reçoit maintenant un `global.fetch` qui transmet `redirect: "manual"`. Les réponses 3xx restent visibles par le client Auth et peuvent être classées comme erreurs amont non liées aux identifiants (503), sans navigation implicite vers une autre route ou origine.
+- Cette politique s'applique au client Supabase utilisé par cette route (Auth et REST). Les endpoints API attendus sont des endpoints JSON directs ; un redirect est traité comme réponse inattendue plutôt que suivi automatiquement.
+
+### Modifications publiées
+
+- `app/api/actions/create-offer/route.ts` : ajoute `global.fetch: (input, init) => fetch(input, { ...init, redirect: "manual" })`.
+- `tests/e2e/create-offer-route-contract.spec.ts` : le mock consigne `RequestInit.redirect` et le test paramétré des erreurs Auth vérifie `redirect === "manual"` pour chaque appel Auth.
+- La matrice existante conserve les cas 300, 301, 302, 303, 304, 307 et 308, avec le cas 304 sans corps ; aucun nouveau statut n'a été ajouté dans cette étape.
+- Aucun changement de schéma, SQL, migration ou contrat métier.
+
+### Commits et validation
+
+- Branche de travail : `work/qima-auth-no-follow-redirects-20261122-1530`, créée depuis le HEAD PR exact `186dfceb673eaca91d7820adc9c4e68a93373555`.
+- `9904cc30190432634f75adf3cca3bca98ff4e2da` — `fix(create-offer): prevent Supabase Auth fetch redirects`.
+- `daab3a834109ec77f17b4cf43a14f8f94752a034` — `test(create-offer): assert Auth redirects are not followed`.
+- `87be88b98ecde33afb0062a0956a3b862253490f` — clarification documentaire du commentaire de politique fetch.
+- Le diff vérifié contient uniquement les deux fichiers applicatif/test ci-dessus (+11/-3 lignes environ). Le commit a été synchronisé sur `fix/create-offer-status-contract` par fast-forward, `force=false`, avec `expected_sha=186dfceb673eaca91d7820adc9c4e68a93373555`.
+- HEAD après publication : `87be88b98ecde33afb0062a0956a3b862253490f`. La PR est toujours OPEN / DRAFT / non fusionnée ; GitHub a temporairement retourné `mergeable=false` pendant le recalcul après push.
+- QIMA CI #1808 sur le nouveau HEAD : **PENDING**, aucun job publié au dernier contrôle.
+- CodeQL #1737 : **IN PROGRESS**.
+- Vercel Preview : **PENDING**.
+- Les résultats #1806 / #1735 valident le parent `3a9a495a`, pas le nouveau changement `redirect: "manual"`. Aucun résultat du nouveau test n'est anticipé avant la fin de #1808.
+
+### Sécurité et limites
+
+- Le test vérifie la configuration de la couche fetch et le comportement du mock ; il ne constitue pas une preuve d'exploitation ou de vulnérabilité réelle en Production.
+- Aucun SQL, migration, donnée, secret, grant, policy RLS persistante ou configuration Supabase Production n'a été consulté ou modifié.
+- Aucun déploiement Production, merge, force-push ou changement des protections GitHub n'a été effectué. Aucun test local n'a été exécuté.
