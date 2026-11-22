@@ -12654,3 +12654,42 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 - Le test 404 utilise une réponse Auth synthétique et vérifie seulement le contrat de classification de la route. Il ne prouve pas une panne réelle ni une vulnérabilité exploitable en Production.
 - Aucun SQL, migration, donnée, credential, grant, politique RLS persistante ou configuration Supabase Production n'a été consulté ou modifié.
 - Aucun déploiement Production, merge, force-push ou changement des protections GitHub n'a été effectué.
+
+## Auth unexpected 3xx redirect-status regression — 22 novembre 2026, 15:07 KST
+
+### État relu avant modification
+
+- PR #26 : **OPEN / DRAFT / non fusionnée**, `mergeable=true` au dernier calcul avant le nouveau push ; base `main`, branche `fix/create-offer-status-contract`, HEAD initial `7e7f68528fdbb76a655ba0c51c1bb7624498ec8d`, **2 256 commits devant `main`, 0 derrière**, 286 fichiers modifiés (+90 149 / -264).
+- Le commit initial `7e7f6852` est documentaire uniquement. Le test parent `3139b426` contenait déjà les cas HTTP 451 et 499.
+- Le blob canonique a été récupéré via Git Data API (2 573 976 caractères). L'endpoint Contents `fetch_file` renvoie encore un contenu vide pour ce gros fichier ; la lecture du blob Git a permis de préserver l'historique complet.
+
+### Validation de référence des cas HTTP 451 et 499
+
+- QIMA CI [#1805](https://github.com/meridane/QimaTrade-MVP/actions/runs/44984420722) sur le HEAD initial `7e7f6852` : **SUCCESS**. Le job Verify a terminé **409 passed (34,1 s)** ; le journal identifie explicitement le test `CREATE_OFFER route maps non-credential Auth upstream failures and transport exceptions to a generic 503` comme **PASS**. Ce test paramétré inclut les statuts 451 et 499.
+- PostgreSQL 16 et PostgreSQL 17.6 : **SUCCESS**.
+- CodeQL [#1734](https://github.com/meridane/QimaTrade-MVP/actions/runs/44984420713) : **SUCCESS**.
+- Le statut combiné Vercel du HEAD de référence signalait une limite Preview `build-rate-limit` / `api-deployments-free-per-day`, sans échec de build CI établi.
+
+### Régression 3xx ajoutée
+
+- Dans `tests/e2e/create-offer-route-contract.spec.ts`, la matrice des erreurs Auth non liées aux identifiants couvre maintenant les statuts HTTP **300, 301, 302, 303, 304, 307 et 308**, en plus des cas déjà présents (404, 408, 422, 429, 451, 499, 500, 501, 502, 503, 504, 505, 599 et exception réseau).
+- Le statut 304 ne peut pas porter de corps selon l'API Response ; le mock retourne donc explicitement `new Response(null, { status: 304 })`. Les autres statuts de la matrice conservent le corps JSON synthétique.
+- Le contrat attendu pour chaque cas reste HTTP 503 avec `AUTH_SERVICE_UNAVAILABLE`, sans challenge `WWW-Authenticate`, sans divulgation du message amont et sans requête aval vers profiles, memberships ou RPC.
+- Aucun code applicatif, SQL ou migration n'a été modifié.
+
+### Commits et validation du nouveau HEAD
+
+- Branche de travail isolée créée depuis le HEAD PR exact : `work/qima-auth-redirect-status-regression-20261122-1507`.
+- Commit de test : `3a9a495a15068cde151fe6067a6dd6f3a626d5be` — `test(create-offer): cover unexpected Auth redirect statuses`.
+- Après fast-forward vers la branche PR avec `force=false` et contrôle du SHA attendu, la PR est au HEAD `3a9a495a`, **2 257 commits devant / 0 derrière**, 286 fichiers modifiés (+90 152 / -264). La branche de travail et la branche PR sont identiques au commit de test.
+- QIMA CI [#1806](https://github.com/meridane/QimaTrade-MVP/actions/runs/44992459915) sur `3a9a495a` : le job Verify est **SUCCESS**. Installation npm, audit, TypeScript, build Next.js, Chromium et fixture QIMA isolée sont **SUCCESS** ; Playwright rapporte **409 passed (35,1 s)**. Le journal confirme explicitement le test paramétré des erreurs Auth non liées aux identifiants (ligne 486), donc les nouveaux cas 3xx, y compris le 304 sans corps, sont **PASS**.
+- CodeQL [#1735](https://github.com/meridane/QimaTrade-MVP/actions/runs/44992460011) : **SUCCESS**.
+- PostgreSQL 16 et PostgreSQL 17.6 sont encore **IN PROGRESS**, tous deux à l'étape `Characterize full CREATE_OFFER runner write privileges` (étape 26). Aucun résultat PostgreSQL final n'est anticipé ; la CI globale #1806 reste donc en cours.
+- Le statut Vercel du HEAD de test était **PENDING** au dernier contrôle. Aucun échec Vercel n'est inventé.
+- Pour ne pas annuler les deux jobs PostgreSQL encore actifs, la mise à jour documentaire est préparée sur la branche de travail mais n'est pas encore promue sur la branche PR. Le commit documentaire sera synchronisé après clôture de #1806.
+
+### Sécurité et limites
+
+- Les réponses Auth 3xx/304 sont synthétiques et caractérisent uniquement le mapping de la route. Elles ne prouvent pas une panne réelle ni une vulnérabilité exploitable en Production.
+- Aucun SQL, migration, donnée, secret, grant, politique RLS persistante ou configuration Supabase Production n'a été consulté ou modifié.
+- Aucun déploiement Production, merge, force-push ou changement des protections GitHub n'a été effectué. Aucun test local n'a été exécuté.
