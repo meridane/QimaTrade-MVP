@@ -64,12 +64,18 @@ export async function POST(request: Request) {
       return authServiceUnavailableResponse();
     }
     const { data: { user }, error: userError } = authResult;
-    // auth-js reports network fetch failures as AuthRetryableFetchError with status 0.
-    if (typeof userError?.status === "number" && (userError.status === 0 || userError.status === 408 || userError.status === 429 || userError.status >= 500)) {
-      return authServiceUnavailableResponse();
+    // Only known credential-rejection statuses represent an unauthenticated caller.
+    // Unknown Auth upstream statuses (including route/configuration failures such as 404)
+    // must not be misreported as an invalid user credential.
+    if (userError) {
+      const status = userError.status;
+      if (status !== 400 && status !== 401 && status !== 403) {
+        return authServiceUnavailableResponse();
+      }
+      return unauthenticatedResponse(status === 401);
     }
-    if (userError || !user) {
-      return unauthenticatedResponse(userError ? userError.status === 401 : !user);
+    if (!user) {
+      return unauthenticatedResponse();
     }
     // A successful Auth response must still carry a canonical Supabase user UUID.
     // Treat malformed upstream identity data as an Auth service failure before any profile lookup.
