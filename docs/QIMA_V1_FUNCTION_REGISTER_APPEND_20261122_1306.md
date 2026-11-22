@@ -82,3 +82,15 @@ No Supabase Production data, migration, secret, grant, or persistent RLS policy 
 - Vercel Preview reports `build-rate-limit` / `api-deployments-free-per-day`; this is a Preview quota failure, not evidence of a failed application build.
 - The canonical register fetch still returns an empty payload for UTF-8, base64, and a 1–30 line range despite a valid blob SHA. The existing append-only register is therefore extended rather than replacing unreadable canonical content.
 - No Supabase Production data or migrations, secrets, grants, or persistent RLS policies were touched. No Production deployment, merge, force-push, or branch-protection change was made. Synthetic HTTP fixtures do not establish a Production vulnerability.
+
+
+## Post-push validation update — 22 November 2026, 13:15 KST
+
+- The isolated work branch was fast-forwarded to `fix/create-offer-status-contract` with expected old HEAD `7ef0e6f2`; the update used `force=false`. The test commit `a5689d15` and this documentation commit are now on the PR branch. Work branch and PR branch compare **0 ahead / 0 behind**.
+- QIMA CI [#1798](https://github.com/meridane/QimaTrade-MVP/actions/runs/44983702551) has now completed **SUCCESS**. Verify passed with **409/409 Playwright**, npm audit, TypeScript, Next.js build, Chromium, and the isolated QIMA fixture. PostgreSQL 16 and PostgreSQL 17.6 integration jobs both completed **SUCCESS**; the previously active runner-privilege characterization and subsequent legacy-offer RLS, wrapper-owner/membership, function ACL, and participant self-enrollment steps all completed successfully.
+- The two prepared-transaction setup/cleanup simulation jobs retain their intentionally negative `failure` conclusions; their assertion jobs passed. The intentionally skipped harness remains `skipped`. These expected harness outcomes do not change the overall CI #1798 **SUCCESS** conclusion.
+- CodeQL [#1727](https://github.com/meridane/QimaTrade-MVP/actions/runs/44983702482) completed **SUCCESS**.
+- On new PR HEAD `9e4695bcdad9049603462aabf91387eb874144aa`, QIMA CI [#1803](https://github.com/meridane/QimaTrade-MVP/actions/runs/44984298750) is **PENDING** with no jobs published at the last check; CodeQL [#1732](https://github.com/meridane/QimaTrade-MVP/actions/runs/44984298758) is **IN PROGRESS**. The new HTTP 499 fixture has no Playwright result yet.
+- Vercel's combined status remains **FAILURE** with `build-rate-limit` / `api-deployments-free-per-day`, a Preview quota limit rather than a confirmed build failure.
+- PR #26 remains **OPEN / DRAFT / not merged**; GitHub recalculated `mergeable=false` immediately after the push. This is a transient post-push mergeability value, not a merge action or a conclusion that the PR is merged.
+- The canonical register remains unreadable through UTF-8, base64, and line-range fetches. This append-only companion is the verified record; no replacement of the canonical file was attempted.
