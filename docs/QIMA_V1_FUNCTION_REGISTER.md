@@ -12617,3 +12617,40 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 - Les jobs de simulation setup/cleanup gardent leurs résultats négatifs intentionnels, avec les assertions de contrôle **SUCCESS** ; le job explicitement ignoré reste `skipped`.
 - Sur le HEAD documentaire `71043e52fad34c7bb62dd65fd70d8c74288837f0`, QIMA CI [#1795](https://github.com/meridane/QimaTrade-MVP/actions/runs/44970920052) est **PENDING**, CodeQL [#1724](https://github.com/meridane/QimaTrade-MVP/actions/runs/44970919936) **SUCCESS**, et Vercel Preview **SUCCESS**.
 - Le commit documentaire ne modifie ni le code applicatif ni les tests ; la validation Playwright #1794 reste celle du parent `a5e54d80`. Aucun résultat PostgreSQL final n'est attribué au HEAD documentaire.
+
+
+## Auth status allowlist and unknown-upstream 404 regression — 22 novembre 2026, 11:38 KST
+
+### État relu avant modification
+
+- PR #26 : **OPEN / DRAFT / non fusionnée**, mergeable=true, base main, branche fix/create-offer-status-contract.
+- HEAD initial vérifié : 1fbd3db071821f63faadc4b7baa7cd264e7c3d44, 2 243 commits devant main, 0 derrière, 285 fichiers modifiés (89 998 insertions / 264 suppressions).
+- Le registre canonique a été lu via le blob GitHub 5b1b4af6d058d7546cdc9c28125b2600fa528cd0 (2 570 058 caractères). Le dernier snapshot décrit CI #1796 et CodeQL #1725 comme SUCCESS ; le statut Vercel combiné est failure avec la cible build-rate-limit.
+
+### Validation de référence clôturée avant cette modification
+
+- QIMA CI [#1796](https://github.com/meridane/QimaTrade-MVP/actions/runs/44971262521) sur le HEAD initial 1fbd3db0 : workflow **SUCCESS**. Verify : audit npm, TypeScript, build Next.js, Chromium, Playwright et fixture QIMA **SUCCESS** ; PostgreSQL 16 et PostgreSQL 17.6 **SUCCESS**.
+- Les deux jobs de simulation de failure setup/cleanup terminent avec la conclusion attendue failure, et leurs étapes de contrôle/restauration réussissent ; le job de simulation skipped reste explicitement skipped. Le job d'assertion du résultat skipped réussit.
+- CodeQL [#1725](https://github.com/meridane/QimaTrade-MVP/actions/runs/44971262524) : **SUCCESS**.
+- Le statut combiné du HEAD initial rapporte Vercel failure, cible api-deployments-free-per-day / build-rate-limit. Ce signal concerne le quota Preview ; il ne constitue pas un échec du build CI ni un déploiement Production.
+
+### Régression identifiée et correction publiée sur la branche de travail
+
+- Le contrôle Auth précédent classait explicitement les erreurs réseau (status 0), 408, 429 et les statuts >=500 comme indisponibilités, puis classait tout autre userError en 401. Un statut amont inattendu tel que HTTP 404 pouvait donc être présenté à tort comme un rejet d'identifiants.
+- Le contrat est maintenant une allowlist stricte des statuts de rejet d'identifiants déjà établis par les tests : **400, 401 et 403**. Tout autre statut Auth est normalisé en HTTP 503 AUTH_SERVICE_UNAVAILABLE ; 401 conserve le challenge invalid_token, tandis que 400/403 conservent le challenge Bearer sans erreur.
+- Le test existant des indisponibilités Auth inclut maintenant HTTP **404** et est renommé pour refléter les erreurs amont non liées aux identifiants. Les assertions existantes imposent HTTP 503, corps public exact, aucun challenge WWW-Authenticate, aucun détail amont et aucune requête après /auth/v1/user.
+- Ce changement évite de confondre une erreur de routage/configuration de l'endpoint Auth avec un token invalide. Il ne change pas le traitement des statuts 400/401/403 déjà testés, ni le traitement des 408/429/5xx et des exceptions réseau.
+
+### Commits et état de validation
+
+- Branche de travail isolée, créée depuis le HEAD PR exact : work/qima-auth-unknown-upstream-status-20261122-1138.
+- Commit route : 404570c89b5a11d953cdf3e0eddfd5aeb7d3c380 — fix(create-offer): fail closed on unknown Auth error statuses.
+- Commit test : 032cb98625dcad55bfaf8ff95bdc0015d7c5df52 — test(create-offer): classify unknown Auth 4xx as upstream failure.
+- Les modifications sont préparées sur la branche de travail. Aucune conclusion CI n'est anticipée ; les résultats GitHub Actions doivent être relevés après la publication du HEAD PR.
+- Aucun test local n'a été exécuté.
+
+### Sécurité et limites
+
+- Le test 404 utilise une réponse Auth synthétique et vérifie seulement le contrat de classification de la route. Il ne prouve pas une panne réelle ni une vulnérabilité exploitable en Production.
+- Aucun SQL, migration, donnée, credential, grant, politique RLS persistante ou configuration Supabase Production n'a été consulté ou modifié.
+- Aucun déploiement Production, merge, force-push ou changement des protections GitHub n'a été effectué.
