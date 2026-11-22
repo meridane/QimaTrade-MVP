@@ -12737,3 +12737,58 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 - Le test vérifie la configuration de la couche fetch et le comportement du mock ; il ne constitue pas une preuve d'exploitation ou de vulnérabilité réelle en Production.
 - Aucun SQL, migration, donnée, secret, grant, policy RLS persistante ou configuration Supabase Production n'a été consulté ou modifié.
 - Aucun déploiement Production, merge, force-push ou changement des protections GitHub n'a été effectué. Aucun test local n'a été exécuté.
+
+## Native Supabase Auth redirect integration regression — 22 novembre 2026, 17:09 KST
+
+### État relu avant modification
+
+- PR #26 : **OPEN / DRAFT / non fusionnée**, mergeable=true, base main, branche fix/create-offer-status-contract.
+- HEAD initial de cette exécution : c684f4e0e07f208c2042e48e47c6de03ab697d1d, 2 262 commits devant main, 0 derrière, 286 fichiers modifiés (+90 243 / -264).
+- Derniers commits avant cette exécution : 9904cc30 (politique fetch sans suivi des redirects), daab3a83 (assertion redirect: manual), 87be88b9 (commentaire de politique fetch), puis c684f4e0 (snapshot documentaire et CI).
+- CI #1809 sur c684f4e0 : **SUCCESS**. Verify **409/409 Playwright (38,9 s)** ; npm audit, TypeScript, build Next.js, Chromium et fixture QIMA réussis ; PostgreSQL 16 et 17.6 réussis. Les deux jobs setup/cleanup à échec simulé ont leurs conclusions négatives attendues avec assertions de contrôle réussies ; le harness explicitement skipped reste skipped.
+- CodeQL #1738 : **SUCCESS**. Vercel Preview du parent : **SUCCESS**.
+
+### Lacune de test identifiée
+
+- Le test précédent vérifiait que la configuration Supabase transmettait redirect: manual, mais le mock global fetch renvoyait directement les réponses synthétiques et n'exécutait pas l'algorithme natif de suivi des redirections.
+- Cette assertion de configuration ne suffisait donc pas à démontrer, au niveau de la route, qu'un serveur HTTP réel ne recevait pas une seconde requête après un redirect.
+
+### Régression ajoutée
+
+- Fichier : tests/e2e/create-offer-route-contract.spec.ts.
+- Nouveau test : CREATE_OFFER route does not follow real Supabase Auth redirects.
+- Le test démarre un serveur HTTP local éphémère et utilise le vrai fetch Node (sans mock global) pour trois réponses Auth : **302, 307 et 308**.
+- Chaque cas exige HTTP **503**, corps exact AUTH_SERVICE_UNAVAILABLE, une seule requête vers /auth/v1/user et **zéro** accès à /redirect-target.
+- Le serveur local renvoie un utilisateur Auth valide à la cible de redirection afin qu'un suivi automatique serait observable et ferait échouer les assertions.
+- Aucun changement applicatif, SQL, migration ou contrat métier dans ce commit.
+
+### Commit et publication
+
+- Branche de travail : work/qima-auth-native-redirect-integration-20261122-1709, créée depuis le HEAD PR exact c684f4e0e07f208c2042e48e47c6de03ab697d1d.
+- Commit de test : a536d72266029ffc63371a682be943207a5e4987 — test(create-offer): exercise native Auth redirect handling.
+- Le commit a été promu sur fix/create-offer-status-contract par fast-forward, force=false, avec expected_sha=c684f4e0e07f208c2042e48e47c6de03ab697d1d.
+- HEAD PR après publication : a536d72266029ffc63371a682be943207a5e4987, 2 263 commits devant main, 0 derrière, 286 fichiers modifiés (+90 343 / -264). GitHub indique **OPEN / DRAFT / mergeable=true**.
+- Le diff du commit contient uniquement le test ci-dessus (+100 lignes environ).
+
+### Résultats CI du nouveau HEAD
+
+- QIMA CI #1810 (https://github.com/meridane/QimaTrade-MVP/actions/runs/45001644668) : **IN PROGRESS** au snapshot documentaire.
+- Le job Verify est **SUCCESS** : installation npm, npm audit, TypeScript, build Next.js, Chromium et fixture QIMA réussis ; Playwright **410/410 passés (37,4 s)**.
+- Le journal confirme explicitement le nouveau test CREATE_OFFER route does not follow real Supabase Auth redirects : **PASS (25 ms)**.
+- npm audit : **1 moderate, 0 high, 0 critical** ; le contrôle bloquant au seuil high est réussi.
+- PostgreSQL 16 et PostgreSQL 17.6 restent **IN PROGRESS**, tous deux à l'étape Characterize full CREATE_OFFER runner write privileges. Aucun résultat final n'est anticipé.
+- Les deux jobs de simulation setup/cleanup conservent leurs conclusions négatives intentionnelles ; les jobs d'assertion de ces contrats sont **SUCCESS**. Le job de nettoyage explicitement attendu en skipped est bien skipped.
+- CodeQL #1739 (https://github.com/meridane/QimaTrade-MVP/actions/runs/45001644674) : **SUCCESS**.
+- Vercel Preview du nouveau HEAD : **SUCCESS** (https://vercel.com/bmk1/qimatrade-mvp/HMqN7DoRJiLNtVnkjzGNb6Juh4oq).
+
+### Dépendances et prochaine priorité
+
+- package.json autorise déjà next: ^15.5.0, mais package-lock.json verrouille encore Next.js **15.5.28**.
+- L'audit courant rapporte un finding modéré et aucun finding high/critical. Aucun lockfile n'a été modifié sans accès npm fiable ni régénération reproductible.
+- Prochaine priorité : laisser terminer les deux jobs PostgreSQL de #1810, puis consigner leurs résultats définitifs et synchroniser cette mise à jour documentaire sur la branche PR par fast-forward. Ensuite, préparer la mise à jour Next.js 15.5.29 sur un runner disposant du registre npm.
+
+### Sécurité et limites
+
+- Le test utilise un serveur HTTP local éphémère et le Fetch natif de Node ; il valide le comportement de la route dans ce fixture, pas une vulnérabilité exploitable dans Supabase Production.
+- Aucune donnée, migration, secret, grant, policy RLS persistante ou configuration Supabase Production n'a été consulté ou modifié.
+- Aucun déploiement Production, merge, force-push ou changement des protections GitHub n'a été effectué. Aucun test local n'a été exécuté.
