@@ -13303,3 +13303,35 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 - Aucun test local n'a été exécuté. Le serveur HTTP est un fixture local contrôlé et ne démontre pas une vulnérabilité exploitable en Production.
 - Aucune donnée ou migration Supabase Production, aucun secret, grant ou policy RLS persistante n'a été modifié. Aucun déploiement Production, merge, force-push ou changement des protections GitHub n'a été effectué.
 - Prochaine étape : attendre CI #1836 et CodeQL #1764, puis enregistrer leurs résultats exacts. Si le workflow reste annulé avant publication des jobs, ne pas traiter cela comme un échec de test ; rechercher un moyen de relancer la validation autorisé par le dépôt.
+
+
+## Clôture CI #1837 et couverture de redirection du RPC de définition PUBLISH_PRODUCT_REQUEST — 23 novembre 2026, 06:09 KST
+
+### État vérifié de la PR et du HEAD précédent
+
+- PR #26 : OPEN, DRAFT, non fusionnée ; branche `fix/create-offer-status-contract`, HEAD `e5dc3e78462daaa184368d9759ed367d48dc6873`, base `main`. GitHub indique `mergeable=true`. Le HEAD officiel n'avait pas changé depuis le commit documentaire du 22 novembre 2026 à 19:17:55 UTC.
+- Les six derniers commits ont été relus. Les derniers changements de code couvrent le client runtime partagé, les redirections de `dt_publish_product_request`, le succès sans redirection, et les en-têtes Authorization, `apikey` et Content-Type JSON.
+
+### Résultats définitifs de QIMA CI #1837
+
+- QIMA CI [#1837](https://github.com/meridane/QimaTrade-MVP/actions/runs/45059971729), HEAD `e5dc3e78462daaa184368d9759ed367d48dc6873` : **SUCCESS**.
+- Verify : npm ci **SUCCESS** ; npm audit au seuil high **SUCCESS**, rapport JSON exact `info=0, low=0, moderate=0, high=0, critical=0, total=0` ; TypeScript **SUCCESS** ; build Next.js **SUCCESS** ; Chromium **SUCCESS** ; Playwright **417 passed (38.0 s)** ; fixture de contrat QIMA **SUCCESS**.
+- PostgreSQL 16 : **SUCCESS**. PostgreSQL 17.6 : **SUCCESS**. Les tests CREATE_OFFER, replay, concurrence, RLS, ACL, contrôles du runner et nettoyage des bases jetables ont terminé avec succès.
+- Les deux jobs de simulation prepared-transaction setup/cleanup se terminent intentionnellement en `failure` pour éprouver la propagation d'échec ; leurs assertions de contrôle dédiées terminent en **SUCCESS**. Le job explicitement attendu en `skipped` reste `skipped`, et son assertion de contrat est **SUCCESS**. Le workflow global est **SUCCESS**.
+- QIMA CodeQL [#1765](https://github.com/meridane/QimaTrade-MVP/actions/runs/45059971703) : **SUCCESS**.
+
+### Nouvelle régression sur une branche de travail
+
+- Branche de travail : `work/qima-publish-definition-redirect-20261123-0609`.
+- Commit de test : `0ec5b26b5970e45132752a979ffe258c75941b4a` — `test(qima): cover publish action-definition redirects`.
+- Fichier modifié : `tests/e2e/action-runtime-publish-product-request.spec.ts`.
+- Le helper HTTP local accepte maintenant une cible de redirection `definition` ou `publish`. Un nouveau test paramétré vérifie les statuts 301, 302, 303, 307 et 308 sur `get_action_definition_v1` pour `PUBLISH_PRODUCT_REQUEST`.
+- Contrat attendu : erreur exacte `ACTION_DEFINITION_LOOKUP_FAILED`, une seule requête POST vers `get_action_definition_v1`, aucun appel à `dt_publish_product_request`, aucun appel à `/redirect-target`, bearer utilisateur, `apikey` et Content-Type JSON conservés. La cible de redirection propose volontairement une définition publiée valide afin que le test échoue si la redirection est suivie.
+- Ce commit ajoute un test Playwright (cinq statuts HTTP dans la boucle). Le total attendu si le test passe est donc 418, contre 417 sur le HEAD parent ; aucun résultat n'est attribué avant CI.
+- Au moment de cette entrée, le commit de test est sur la branche de travail et n'est pas encore intégré à la branche PR ; aucun workflow PR n'est donc revendiqué pour lui. Après fast-forward, vérifier le nouveau run QIMA CI et CodeQL, y compris PostgreSQL 16/17.6.
+
+### Périmètre et suite
+
+- Le test utilise le Fetch natif de Node et un serveur HTTP local contrôlé. Il caractérise le contrat du client Supabase et ne prouve pas une vulnérabilité exploitable en Production.
+- Aucun test local n'a été exécuté. Aucun code applicatif runtime, SQL, migration, donnée Supabase Production, secret, grant ou policy RLS persistante n'a été modifié. Aucun déploiement Production, merge, force-push ou changement des protections GitHub n'a été effectué.
+- Prochaine étape : publier ce commit de test par fast-forward sur la branche PR, puis vérifier le résultat exact de la nouvelle suite (418 tests attendus si tout passe), npm audit, TypeScript, build, PostgreSQL 16/17.6 et CodeQL. Ne déclarer le test validé qu'après réussite du nouveau run.
