@@ -69,3 +69,16 @@ No Supabase Production data, migration, secret, grant, or persistent RLS policy 
 - The intermediate documentation-only CI #1800 on parent HEAD `71913619` was **CANCELLED** before jobs were published when a newer documentation commit arrived; no test outcome is attributed to it.
 - On HEAD `de1f76bc`, QIMA CI [#1801](https://github.com/meridane/QimaTrade-MVP/actions/runs/44983908834) is **PENDING**, CodeQL [#1730](https://github.com/meridane/QimaTrade-MVP/actions/runs/44983908835) is **IN PROGRESS**, and Vercel Preview reports `build-rate-limit` / `api-deployments-free-per-day`. This is a Preview quota failure, not a confirmed Next.js build failure.
 - The canonical register read limitation remains: UTF-8, base64, and a small line-range read returned empty content. This companion supplement is retained instead of overwriting the unreadable canonical file.
+
+
+## Follow-up regression and live CI state — 22 November 2026, 13:14 KST
+
+- Baseline PR #26 was re-read from GitHub before this change: **OPEN / DRAFT / not merged**, `mergeable=true`; branch `fix/create-offer-status-contract`, base `main`, HEAD `7ef0e6f2e54fd9a5754ee6abb735c162db022464`, **2,251 ahead / 0 behind**, 286 changed files (+90,112 / -264). No PR review submissions or inline review threads were returned.
+- Latest PR commit `7ef0e6f2` is documentation-only. Its parent `de1f76bc` records Verify #1798; the test commit is `78dd09aa`.
+- Added synthetic HTTP **499** to the existing non-credential Auth upstream failure matrix in `tests/e2e/create-offer-route-contract.spec.ts`. The existing assertions require HTTP 503 with `AUTH_SERVICE_UNAVAILABLE`, no `WWW-Authenticate` challenge, no private upstream detail disclosure, and no downstream profile, membership, or RPC calls. No application code or SQL was changed.
+- Work-branch test commit: `a5689d15cd4ae413ffb28657d052b22e18a8f0c9`. The commit is on the isolated work branch at this snapshot; no CI result is attributed to it before synchronization to the PR branch.
+- CI #1798 Verify is **SUCCESS**: npm audit, TypeScript, Next.js build, Chromium, QIMA fixture, and **409/409 Playwright passed**. PostgreSQL 16 remains at “Characterize full CREATE_OFFER runner write privileges” (step 26, **IN PROGRESS**); PostgreSQL 17.6 has advanced to “Run CREATE_OFFER wrapper-owner and membership regressions on PostgreSQL 17” (step 29, **IN PROGRESS**). No final PostgreSQL result is claimed.
+- CodeQL #1727 is **SUCCESS**. On documentation HEAD `7ef0e6f2`, QIMA CI #1802 is **PENDING** with no jobs published at the last read; CodeQL #1731 is **SUCCESS**.
+- Vercel Preview reports `build-rate-limit` / `api-deployments-free-per-day`; this is a Preview quota failure, not evidence of a failed application build.
+- The canonical register fetch still returns an empty payload for UTF-8, base64, and a 1–30 line range despite a valid blob SHA. The existing append-only register is therefore extended rather than replacing unreadable canonical content.
+- No Supabase Production data or migrations, secrets, grants, or persistent RLS policies were touched. No Production deployment, merge, force-push, or branch-protection change was made. Synthetic HTTP fixtures do not establish a Production vulnerability.
