@@ -12822,3 +12822,47 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 - Aucun test local n'a été exécuté. Le test HTTP utilise un serveur local éphémère et Fetch natif ; il valide ce contrat dans le fixture et ne démontre pas une vulnérabilité exploitable dans Supabase Production.
 - Aucune donnée, migration, credential, grant, policy RLS persistante ou configuration Supabase Production n'a été consulté ou modifié.
 - Aucun déploiement Production, merge, force-push ou changement des protections GitHub n'a été effectué.
+
+
+## État vérifié — extension des redirections Fetch et clôture CI #1812 — 22 novembre 2026, 18:48 KST
+
+### État de la PR et commits
+
+- PR #26 **OPEN / DRAFT / non fusionnée** ; branche `fix/create-offer-status-contract`, base `main`, HEAD de code/test `e17f01e4fe8d9a6cd850f297e4b1d50c634d85af`, **2 266 commits devant `main`, 0 derrière**, 286 fichiers modifiés (+90 429 / -264). GitHub indique `mergeable=true` au dernier contrôle.
+- Le commit de test `e17f01e4` modifie uniquement `tests/e2e/create-offer-route-contract.spec.ts` : le test HTTP natif des redirections Auth couvre maintenant 301, 302, 303, 307 et 308. Les trois statuts 301/302/303 couvrent les redirections Fetch qui peuvent réécrire la méthode ; 307/308 couvrent les redirections qui préservent la méthode. Le serveur local vérifie toujours qu'une seule requête atteint `/auth/v1/user` et qu'aucune requête n'atteint `/redirect-target`.
+- Le changement est limité à l'élargissement du type de statut et à l'ajout de 301/303 dans la boucle de test, plus un commentaire de classification. Aucun code applicatif, SQL, migration ou configuration Supabase n'a changé.
+- La branche de travail `work/qima-auth-redirect-method-coverage-20261122-1848` a été créée depuis le HEAD `e869a5f5`, puis le commit `e17f01e4` a été promu sur la branche PR par fast-forward, `force=false`, avec `expected_sha=e869a5f5b2456a0ae692174e0a8ec1939729a563`.
+
+### Validation de référence du parent `e869a5f5`
+
+- QIMA CI [#1812](https://github.com/meridane/QimaTrade-MVP/actions/runs/45002199703) : **SUCCESS**. Le job Verify est **SUCCESS** : **410/410 Playwright** réussis (34,8 s), audit npm, TypeScript, build Next.js, Chromium et fixture QIMA réussis.
+- Le journal npm audit de #1812 rapporte 1 finding modéré, 0 high et 0 critical ; le seuil bloquant `--audit-level=high` est respecté.
+- PostgreSQL 16 — job `CREATE_OFFER PostgreSQL integration tests` : **SUCCESS**. PostgreSQL 17.6 — job `CREATE_OFFER PostgreSQL 17.6 compatibility` : **SUCCESS**.
+- CodeQL [#1741](https://github.com/meridane/QimaTrade-MVP/actions/runs/45002199674) : **SUCCESS**. Vercel Preview du parent `e869a5f5` : **SUCCESS** ([déploiement](https://vercel.com/bmk1/qimatrade-mvp/53FKaztAtwqH5neEA11qj4m1MorW)).
+- Les deux jobs de simulation de panne setup/cleanup terminent en `failure` intentionnel, comme attendu par leur contrat ; les jobs d'assertion correspondants sont **SUCCESS**. Le job de cleanup explicitement attendu en `skipped` est bien **SKIPPED**. Ces états ne sont pas des échecs de la suite de validation.
+- Les résultats ci-dessus valident le parent `e869a5f5`, avant l'ajout des cas réels 301 et 303.
+
+### Contrôles du nouveau HEAD `e17f01e4`
+
+- Après publication du commit de test, QIMA CI [#1813](https://github.com/meridane/QimaTrade-MVP/actions/runs/45009442293) est **QUEUED** au dernier contrôle ; aucun résultat Playwright, TypeScript, build ou PostgreSQL n'est encore attribué au nouveau changement.
+- CodeQL [#1742](https://github.com/meridane/QimaTrade-MVP/actions/runs/45009442281) est **IN PROGRESS**.
+- Vercel Preview du nouveau HEAD est **PENDING** ([Preview](https://vercel.com/bmk1/qimatrade-mvp/F89R7uxz4SSA8pLnCkQsVhQYyHCr)).
+- Le test HTTP réel couvre maintenant cinq statuts de redirection, mais la réussite de 301 et 303 doit être confirmée par CI #1813 ; aucun test local n'a été exécuté.
+
+### Dépendances — point inchangé
+
+- `package.json` autorise `next: ^15.5.0`, tandis que `package-lock.json` verrouille toujours Next.js `15.5.28`.
+- L'audit npm de #1812 rapporte 1 finding modéré, 0 high et 0 critical. Aucun lockfile n'a été modifié ; la mise à jour vers 15.5.29 reste conditionnée à une régénération reproductible avec un registre npm accessible, suivie de `npm ci`, audit, TypeScript et build.
+
+### Prochaine priorité
+
+- Laisser démarrer et terminer QIMA CI #1813, puis confirmer le test HTTP réel pour 301/302/303/307/308, ainsi que les intégrations PostgreSQL 16 et 17.6.
+- Terminer CodeQL #1742 et vérifier le Preview du nouveau HEAD.
+- Ajouter les résultats définitifs à ce registre après les retours de CI.
+- Ensuite reprendre la mise à jour Next.js 15.5.28 vers 15.5.29 uniquement avec un lockfile généré et validé par npm.
+
+### Sécurité et limites
+
+- Le test utilise un serveur HTTP local éphémère et Fetch natif. Il vérifie le comportement de la route dans ce fixture et ne démontre pas une vulnérabilité exploitable dans Supabase Production.
+- Aucune donnée, migration, credential, grant, policy RLS persistante ou configuration Supabase Production n'a été consulté ou modifié.
+- Aucun déploiement Production, merge, force-push ou changement des protections GitHub n'a été effectué.
