@@ -3663,7 +3663,7 @@ async function postCreateOfferWithRuntimeRpcRedirect(
     serverAuthHeaders.push({
       path,
       authorization: request.headers.authorization,
-      apikey: request.headers.apikey,
+      apikey: typeof request.headers.apikey === "string" ? request.headers.apikey : undefined,
     });
 
     if (path === "/auth/v1/user") {
