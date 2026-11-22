@@ -13138,3 +13138,28 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 - Le commit documentaire précédent `033b56fe` ne modifie aucun code applicatif, test, SQL, migration ou lockfile. Cette section ajoute uniquement le relevé final des contrôles #1822/#1751 et l'état Vercel au registre canonique.
 - Aucun test local n'a été exécuté. Les fixtures HTTP utilisent un serveur local éphémère et caractérisent le comportement logiciel ; elles ne prouvent pas une vulnérabilité exploitable dans Supabase Production.
 - Aucune donnée ou migration Supabase Production, aucun secret, grant ou policy RLS persistante n'a été modifié. Aucun déploiement Production, merge, force-push ou changement des protections GitHub n'a été effectué.
+
+## Protection anti-redirection du client RPC Supabase — 23 novembre 2026, 01:27 KST
+
+### État initial vérifié
+
+- PR #26 **OPEN / DRAFT / non fusionnée**, branche `fix/create-offer-status-contract`, base `main`, HEAD `2d51a86ad2656131bd9855aa629feb61aed86162`, **2 281 commits devant `main`, 0 derrière**, 286 fichiers modifiés (+90 972 / -264), `mergeable=true`.
+- La route `app/api/actions/create-offer/route.ts` configure déjà `redirect: "manual"` pour son client Supabase Auth/PostgREST.
+- Le client distinct créé dans `lib/actions/runtime.ts` ne transmettait pas cette option à `createClient`. Les appels RPC `get_action_definition_v1` et `execute_create_offer_v1` n'avaient donc pas la même politique explicite que les appels Auth, Profiles et Membership.
+- QIMA CI [#1824](https://github.com/meridane/QimaTrade-MVP/actions/runs/45041143493), sur le HEAD initial, est **SUCCESS** : npm ci, npm audit (0 finding), TypeScript, build Next.js, Chromium, fixture QIMA, **412/412 Playwright**, PostgreSQL 16 et PostgreSQL 17.6 réussis.
+- QIMA CodeQL [#1753](https://github.com/meridane/QimaTrade-MVP/actions/runs/45041143543) est **SUCCESS**. Le statut Vercel du HEAD initial est **SUCCESS**.
+
+### Modification applicative et régressions
+
+- `lib/actions/runtime.ts` transmet maintenant `redirect: "manual"` au Fetch natif pour tous les appels RPC du client Supabase runtime. Les erreurs de redirection restent traitées par les chemins d'échec existants ; aucun statut métier ni contrat public n'est modifié.
+- `tests/e2e/create-offer-route-contract.spec.ts` ajoute deux tests d'intégration HTTP utilisant un serveur local éphémère et le Fetch natif :
+  - `get_action_definition_v1` : 301, 302, 303, 307 et 308 ;
+  - `execute_create_offer_v1` : 301, 302, 303, 307 et 308.
+- Les fixtures de redirection proposent volontairement des définitions d'action ou résultats valides à `/redirect-target`. Chaque cas exige HTTP 500 / `ACTION_FAILED`, une seule requête POST vers le RPC concerné et zéro appel à la cible de redirection. Le scénario définition doit s'arrêter avant le RPC d'exécution.
+- Ces tests caractérisent le comportement du client et de la route dans un serveur local contrôlé. Ils ne prouvent pas une vulnérabilité exploitable dans Supabase Production.
+
+### Validation après publication
+
+- Le code et les deux nouveaux tests sont publiés sur la branche de travail puis avancés par fast-forward sur la branche PR. La validation GitHub Actions du nouveau HEAD est à vérifier après le push ; aucun résultat n'est anticipé dans cette section.
+- Aucun test local n'a été exécuté dans cet environnement. Les seuls résultats confirmés à ce stade sont ceux de la CI de référence #1824 sur le HEAD parent.
+- Aucun SQL, migration, donnée Supabase Production, secret, grant, policy RLS persistante, déploiement Production, merge, force-push ou règle de protection n'a été modifié.

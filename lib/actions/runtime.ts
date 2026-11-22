@@ -12,7 +12,11 @@ export async function executeUniversalAction(
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       auth: { autoRefreshToken: false, persistSession: false },
-      global: { headers: { Authorization: `Bearer ${accessToken}` } },
+      global: {
+        headers: { Authorization: `Bearer ${accessToken}` },
+        // Keep RPC redirects visible; never let a redirect target supply action definitions or results.
+        fetch: (input, init) => fetch(input, { ...init, redirect: "manual" }),
+      },
     },
   );
 
