@@ -13138,3 +13138,16 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 - Le commit documentaire précédent `033b56fe` ne modifie aucun code applicatif, test, SQL, migration ou lockfile. Cette section ajoute uniquement le relevé final des contrôles #1822/#1751 et l'état Vercel au registre canonique.
 - Aucun test local n'a été exécuté. Les fixtures HTTP utilisent un serveur local éphémère et caractérisent le comportement logiciel ; elles ne prouvent pas une vulnérabilité exploitable dans Supabase Production.
 - Aucune donnée ou migration Supabase Production, aucun secret, grant ou policy RLS persistante n'a été modifié. Aucun déploiement Production, merge, force-push ou changement des protections GitHub n'a été effectué.
+
+
+---
+
+## État vérifié — redirections REST des memberships — 23 novembre 2026, 00:56 KST
+
+- PR #26 reste **OPEN / DRAFT / non fusionnée** ; branche `fix/create-offer-status-contract`, base `main`. HEAD applicatif/test publié : `2d51a86ad2656131bd9855aa629feb61aed86162` (`test(qima): cover real membership REST redirects`). GitHub indique `mergeable=true` au dernier contrôle avant l'actualisation documentaire.
+- Le nouveau test `CREATE_OFFER route does not follow real Supabase REST membership redirects` est ajouté dans `tests/e2e/create-offer-route-contract.spec.ts`. Il utilise le Fetch natif de Node et un serveur HTTP local éphémère. Pour chacun des statuts 301, 302, 303, 307 et 308, le serveur de destination propose volontairement une ligne membership valide ; le test exige une réponse publique HTTP 500 `TENANT_MEMBERSHIP_LOOKUP_FAILED`, exactement les requêtes Auth / profiles / memberships, et zéro appel à `/redirect-target`.
+- QIMA CI [#1824](https://github.com/meridane/QimaTrade-MVP/actions/runs/45041143493) : le job Verify est **SUCCESS**. Le journal confirme `npm audit --audit-level=high --json` : **0 total** (0 info, 0 low, 0 moderate, 0 high, 0 critical), installation `npm ci`, TypeScript, build Next.js, Chromium et fixture de sécurité QIMA réussis. Playwright : **412 passed (35,5 s)** ; le nouveau test membership est explicitement **PASS (23 ms)**.
+- QIMA CodeQL [#1753](https://github.com/meridane/QimaTrade-MVP/actions/runs/45041143543) est **SUCCESS**. Vercel Preview du commit de test est **SUCCESS** : [Preview](https://vercel.com/bmk1/qimatrade-mvp/38yMPKmHnHTyc9cXdY5VjKsdtCwz).
+- Les intégrations PostgreSQL 16 et 17.6 de #1824 sont encore **IN PROGRESS**, toutes deux à l'étape de caractérisation complète des privilèges du runner. Le workflow global ne doit donc pas être déclaré terminé à ce stade.
+- Les deux jobs de simulation prepared-transaction setup/cleanup ont une conclusion `failure` intentionnelle ; les assertions dédiées sont **SUCCESS**. Le job explicitement attendu en `skipped` est **SKIPPED**. Ces états ne sont pas des échecs inattendus des tests applicatifs.
+- Le test est une caractérisation d'intégration locale et ne prouve pas une vulnérabilité exploitable en Supabase Production. Aucun test local n'a été exécuté. Aucune donnée ou migration Supabase Production, aucun secret, grant ou policy RLS persistante, aucun déploiement Production, merge, force-push ou changement de protection n'a été effectué.
