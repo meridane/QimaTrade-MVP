@@ -134,7 +134,10 @@ export async function POST(request: Request) {
     } catch {
       return NextResponse.json({ error: "PROFILE_LOOKUP_FAILED" }, { status: 500 });
     }
-    if (!profile?.actor_id) return NextResponse.json({ error: "PROFILE_ACTOR_NOT_FOUND" }, { status: 403 });
+    const providerActorId = profile?.actor_id;
+    if (typeof providerActorId !== "string" || !canonicalUuidPattern.test(providerActorId)) {
+      return NextResponse.json({ error: "PROFILE_ACTOR_NOT_FOUND" }, { status: 403 });
+    }
 
     let memberships: Array<{ tenant_id?: unknown }> | null = null;
     try {
@@ -164,7 +167,7 @@ export async function POST(request: Request) {
       // Keep JSONB p_input and typed UUID RPC arguments in one canonical form for idempotency hashing.
       demandId: demandId.toLowerCase(),
       productMasterId: productMasterId.toLowerCase(),
-      providerActorId: profile.actor_id,
+      providerActorId,
       quantity,
       price,
       currency,
