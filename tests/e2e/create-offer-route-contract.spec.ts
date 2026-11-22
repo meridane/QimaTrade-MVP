@@ -3651,10 +3651,20 @@ async function postCreateOfferWithRuntimeRpcRedirect(
   redirectStatus: 301 | 302 | 303 | 307 | 308 | null,
 ) {
   const serverRequests: Array<{ path: string; method: string }> = [];
+  const serverAuthHeaders: Array<{
+    path: string;
+    authorization: string | undefined;
+    apikey: string | undefined;
+  }> = [];
   let redirectTargetHits = 0;
   const server = createServer((request, response) => {
     const path = new URL(request.url ?? "/", "http://127.0.0.1").pathname;
     serverRequests.push({ path, method: request.method ?? "GET" });
+    serverAuthHeaders.push({
+      path,
+      authorization: request.headers.authorization,
+      apikey: request.headers.apikey,
+    });
 
     if (path === "/auth/v1/user") {
       response.writeHead(200, { "Content-Type": "application/json" });
@@ -3779,6 +3789,7 @@ async function postCreateOfferWithRuntimeRpcRedirect(
       status: response.status,
       body: await response.json(),
       serverRequests,
+      serverAuthHeaders,
       redirectTargetHits,
     };
   } finally {
@@ -3819,6 +3830,7 @@ test("CREATE_OFFER runtime does not follow real Supabase action-definition RPC r
       "Action definition RPC HTTP " + status,
     ).toEqual([{ path: "/rest/v1/rpc/get_action_definition_v1", method: "POST" }]);
     expect(result.redirectTargetHits, "Action definition RPC HTTP " + status).toBe(0);
+    expectRuntimeRpcAuthorizationHeaders(result.serverAuthHeaders);
   }
 });
 
@@ -3847,6 +3859,7 @@ test("CREATE_OFFER runtime does not follow real Supabase execution RPC redirects
       "Execution RPC HTTP " + status,
     ).toEqual([{ path: "/rest/v1/rpc/execute_create_offer_v1", method: "POST" }]);
     expect(result.redirectTargetHits, "Execution RPC HTTP " + status).toBe(0);
+    expectRuntimeRpcAuthorizationHeaders(result.serverAuthHeaders);
   }
 });
 
@@ -3872,4 +3885,22 @@ test("CREATE_OFFER runtime preserves successful RPC execution when upstream does
     { path: "/rest/v1/rpc/execute_create_offer_v1", method: "POST" },
   ]);
   expect(result.redirectTargetHits).toBe(0);
+  expectRuntimeRpcAuthorizationHeaders(result.serverAuthHeaders);
 });
+
+function expectRuntimeRpcAuthorizationHeaders(
+  headers: Array<{
+    path: string;
+    authorization: string | undefined;
+    apikey: string | undefined;
+  }>,
+) {
+  expect(headers).toHaveLength(5);
+  expect(
+    headers.every(
+      ({ authorization, apikey }) =>
+        authorization === "Bearer qima-native-runtime-rpc-redirect-test-token" &&
+        apikey === "ci-placeholder-anon-key",
+    ),
+  ).toBe(true);
+}
