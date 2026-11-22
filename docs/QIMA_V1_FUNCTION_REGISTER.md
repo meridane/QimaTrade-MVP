@@ -12953,3 +12953,42 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 - Les tests de redirection utilisent un serveur HTTP local contrôlé. Ils valident le contrat dans ce fixture et ne prouvent pas une vulnérabilité exploitable dans Supabase Production.
 - Aucun SQL, migration, donnée, credential, grant, policy RLS persistante ou configuration Supabase Production n'a été consulté ou modifié.
 - Aucun déploiement Production, merge, force-push ou changement des protections GitHub n'a été effectué. Aucun test local n'a été exécuté pendant cette réconciliation.
+
+
+## Mise à jour Next.js 15.5.29 — lockfile régénéré et vérifié sur runner npm — 22 novembre 2026, 20:16 KST
+
+### État initial et méthode
+
+- PR #26 au début de cette opération : **OPEN / DRAFT / non fusionnée**, HEAD `b185bd38ce09634bc6cda282cb5a55556bde1847`, base `main`, 2 269 commits devant et 0 derrière ; `mergeable=true`.
+- Le registre canonique était à 2 603 957 caractères, blob `7f1ba7a08b43d5a53073ffa2ea32e843458530d0`.
+- Le runner local ne pouvait pas joindre le registre npm. Pour éviter de fabriquer des intégrités, un runner GitHub Actions temporaire et limité à la branche `work/qima-nextjs-15529-lock-refresh-20261122-2012` a été utilisé.
+- Le workflow temporaire `.github/workflows/qima-nextjs-lockfile-refresh.yml` a utilisé le GITHUB_TOKEN intégré avec `contents: write`, uniquement pour publier le lockfile vérifié sur cette branche de travail. Aucun secret utilisateur n'a été ajouté ou lu.
+
+### Résultat du runner temporaire #1
+
+- Run : [QIMA temporary Next.js 15.5.29 lockfile refresh #1](https://github.com/meridane/QimaTrade-MVP/actions/runs/45016361893) — **SUCCESS**.
+- Commit généré par le runner : `0abb0b7f49989510d1b926afcca245850a2f9183`, message `chore(deps): refresh Next.js 15.5.29 lockfile`.
+- Seul `package-lock.json` a été modifié : 39 insertions et 39 suppressions. `package.json` est resté inchangé avec `next: ^15.5.0`.
+- Le lockfile verrouille maintenant `next 15.5.29` et `@next/env 15.5.29`; les huit binaires optionnels `@next/swc-*` sont également en `15.5.29`.
+- `sharp` reste en `0.35.5`, version déjà présente dans le lockfile avant cette opération et compatible avec la plage déclarée par Next.js 15.5.29.
+- Les URLs, versions et hashes d'intégrité du lockfile ont été produits par npm sur le runner, pas saisis manuellement.
+- `npm ci --no-audit --no-fund` : **SUCCESS**.
+- `npm audit --audit-level=high --json` : **0 total**, 0 info, 0 low, 0 moderate, 0 high, 0 critical. Rapport conservé dans l'artefact `nextjs-15529-npm-audit` (ID 14751653091).
+- TypeScript : **SUCCESS**.
+- Build Next.js : **SUCCESS**.
+- Installation Chromium Playwright : **SUCCESS**.
+- Playwright : **410/410 réussis en 36,8 secondes**.
+- Le job complet, y compris le commit du lockfile et l'upload du rapport, est **SUCCESS**.
+
+### Nettoyage et publication sur la PR
+
+- Le workflow temporaire sera supprimé de la branche de travail avant la promotion du lockfile sur la PR. Il ne doit pas devenir un workflow permanent.
+- Le commit `0abb0b7` reste sur la branche de travail jusqu'à la suppression du workflow et la mise à jour du registre.
+- Après fast-forward vers `fix/create-offer-status-contract`, une nouvelle QIMA CI et CodeQL devront valider le HEAD qui contient le lockfile mis à jour. Les résultats du runner temporaire ne remplacent pas les validations complètes de la PR, notamment les intégrations PostgreSQL 16 et 17.6.
+
+### Interprétation de sécurité
+
+- Le passage de npm audit à zéro finding est un résultat du graphe de dépendances effectivement installé sur ce runner, pas une preuve générale d'absence de vulnérabilité.
+- Les conditions d'applicabilité des avis Next.js restent dépendantes des fonctionnalités et du mode d'hébergement. Aucun exploit ni vulnérabilité QimaTrade en production n'est déduit de ces tests.
+- Aucune donnée, migration, credential, grant, policy RLS persistante ou configuration Supabase Production n'a été consulté ou modifié.
+- Aucun déploiement Production, merge, force-push ou changement des protections GitHub n'a été effectué.
