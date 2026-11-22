@@ -13107,3 +13107,18 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 - Les workflows QIMA CI et CodeQL associés au code/test parent `484be08f` restent respectivement #1820 et #1749, tous deux **IN PROGRESS** au dernier contrôle. Le commit documentaire ne change pas le code/test et les résultats de ces workflows ne lui sont pas attribués comme s'ils avaient été exécutés sur ce commit.
 - Le statut Vercel du HEAD documentaire `dd849f14` est **PENDING** : [Preview](https://vercel.com/bmk1/qimatrade-mvp/DRBi7umzfnJSzkZG5wjMtDEB21P1).
 - Aucun SQL, migration, donnée, credential, grant ou policy RLS persistante n'a été modifié. Aucun déploiement Production, merge, force-push ou changement des protections GitHub.
+
+
+### Résultat Verify et CodeQL — QIMA CI #1820 — 22 novembre 2026
+
+- Sur le commit code/test `484be08fdfb13bfade03840a1d9d146bad5e78b7`, le job Verify de QIMA CI [#1820](https://github.com/meridane/QimaTrade-MVP/actions/runs/45027643815) a terminé **SUCCESS**.
+- Installation depuis le lockfile, audit npm, TypeScript, build Next.js, installation Chromium et tests navigateur : **SUCCESS**.
+- `npm audit --audit-level=high --json` : **0 total**, 0 info, 0 low, 0 moderate, 0 high, 0 critical.
+- Playwright : **411 passed (36,0 s)**. Le nouveau test `CREATE_OFFER route does not follow real Supabase REST profile redirects` est explicitement **PASS** en 21 ms ; les cinq statuts 301/302/303/307/308 n'ont pas suivi `/redirect-target`.
+- La fixture de contrat de sécurité QIMA, l'application du seuil d'audit et les téléversements des rapports/lockfile : **SUCCESS**.
+- CodeQL [#1749](https://github.com/meridane/QimaTrade-MVP/actions/runs/45027643857) sur le commit code/test `484be08f` : **SUCCESS**.
+- PostgreSQL 16 et PostgreSQL 17.6 de #1820 restent **IN PROGRESS**, tous deux à l'étape de caractérisation des privilèges complets du runner (étape 26). Les scénarios d'intégration et de replay déjà exécutés dans les deux jobs sont **SUCCESS** ; la CI globale n'est donc pas encore clôturée.
+- Les jobs de simulation prepared-transaction setup/cleanup ont les échecs intentionnels attendus ; leurs assertions de contrôle sont **SUCCESS**. Le job explicitement attendu en `skipped` reste `SKIPPED`.
+- Sur le HEAD documentaire précédent `dd849f14`, QIMA CI [#1821](https://github.com/meridane/QimaTrade-MVP/actions/runs/45027720415) est **PENDING** sans jobs publiés au dernier contrôle ; CodeQL [#1750](https://github.com/meridane/QimaTrade-MVP/actions/runs/45027720387) est **SUCCESS**.
+- Le statut Vercel du HEAD documentaire courant est **FAILURE** avec la cible `build-rate-limit`. Il s'agit de la limite de déploiements Preview du compte, pas d'un échec de compilation établi ; le build Next.js du job Verify #1820 est **SUCCESS**.
+- Aucun résultat PostgreSQL final n'est anticipé. Aucun test local n'a été exécuté. Le test HTTP local ne prouve pas une vulnérabilité exploitable en Production.
