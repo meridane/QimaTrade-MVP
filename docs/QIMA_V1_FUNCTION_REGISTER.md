@@ -13591,3 +13591,11 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 - Aucun échec inattendu n'est signalé pour ces deux jobs au dernier contrôle ; leur résultat final n'est pas anticipé.
 - CodeQL #1771 et Vercel Preview du commit code/test sont **SUCCESS**.
 - L'API Pull Request indique OPEN / DRAFT / non fusionnée, mergeable=true et mergeable_state=unstable pendant les validations actives. La branche de travail et la branche PR restent identiques.
+
+
+### Rectification du statut Vercel — 23 novembre 2026, 11:01 KST
+
+- Une vérification de l'historique Vercel par SHA a précisé l'attribution des statuts Preview : le déploiement dpl_6MBH3JhkjpRDPSDH1V8a3YUGXbvk pour le commit code/test 843d32c83b2566142303a1b2e7a146ac649aeacb est **CANCELED**, et non un build en échec. Ses événements de build ne sont pas disponibles.
+- Le déploiement dpl_6FzogbvPT2eYd9bjwaVKZr2TQT7z du commit documentaire 47dc6a187de6e3b78c7c3c84ed8945e605132481 est **READY**. Ce commit est descendant du commit code/test 843d32c et ne modifie que le registre ; il conserve donc exactement le même code et les mêmes tests.
+- Aucun déploiement Vercel n'est encore listé pour le HEAD documentaire actuel fab051bb15b2bf852a3c1278e9206cc439b324f0. Le statut READY précédent valide le même arbre applicatif, mais ne doit pas être présenté comme un déploiement du HEAD documentaire exact.
+- Le statut Vercel est donc : déploiement code/test initial annulé par les déploiements suivants ; déploiement d'un commit documentaire descendant READY ; aucun déploiement enregistré pour le HEAD documentaire le plus récent.
