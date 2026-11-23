@@ -14149,3 +14149,23 @@ Lecture de app/api/actions/create-offer/route.ts (blob fea405fe02de3dae5ebd3fc01
 - Continuer la revue indépendante des scripts de validation et des frontières CREATE_OFFER sans imposer de décision API/métier non approuvée.
 - Demander une décision explicite sur la grammaire numérique et les types des champs facultatifs avant d'ajouter des tests qui figeraient leur comportement.
 - Conserver les statuts CI, CodeQL et Vercel liés au SHA exact ; vérifier les workflows déclenchés après cette publication documentaire.
+
+
+---
+
+## Snapshot post-publication — HEAD b2f98a9e, 24 novembre 2026, 01:37 KST
+
+- Après publication du commit documentaire b2f98a9e, la PR #26 est toujours **OPEN**, **DRAFT**, non fusionnée ; GitHub indique mergeable=true au contrôle post-push.
+- HEAD exact : b2f98a9ef14f1a33d361de2746b365110ab1a7ab. Comparaison main...fix/create-offer-status-contract : **2 336 commits en avance, 0 en retard**. Métadonnées PR : 289 fichiers modifiés, 93 019 insertions et 266 suppressions.
+- Le commit b2f98a9e ne modifie que docs/QIMA_V1_FUNCTION_REGISTER.md ; le code et les tests restent inchangés.
+- QIMA CI [#1870](https://github.com/meridane/QimaTrade-MVP/actions/runs/45219107352) : **QUEUED** au dernier contrôle. Aucun résultat Verify, Playwright ou PostgreSQL n'est encore attribué à ce nouveau HEAD.
+- CodeQL [#1798](https://github.com/meridane/QimaTrade-MVP/actions/runs/45219107330) : **IN PROGRESS** au dernier contrôle.
+- Statut combiné Vercel du HEAD exact : **PENDING** ([Preview](https://vercel.com/bmk1/qimatrade-mvp/4Mw6khVP1kNQsf77dseci9vVzjNC)).
+- Le run CI #1869, CodeQL #1797 et le Preview SUCCESS consignés dans la section précédente concernent le parent a278e98d, et ne sont pas présentés comme des validations du nouveau HEAD b2f98a9e.
+- Les branches de travail et PR ont été synchronisées par fast-forward : 0 commit d'avance, 0 de retard après publication.
+- Aucun code applicatif, test, SQL, migration, donnée Supabase Production, secret, grant, policy RLS persistante ou configuration PostgreSQL n'a été modifié. Aucun déploiement Production, merge, force-push ou changement des protections GitHub n'a été effectué.
+
+### Prochaine étape
+
+- Clôturer CI #1870 et CodeQL #1798 sur le HEAD b2f98a9e, puis vérifier le Preview Vercel.
+- Continuer l'audit des scripts et du contrat CREATE_OFFER sans imposer les décisions métier/API encore ouvertes.
