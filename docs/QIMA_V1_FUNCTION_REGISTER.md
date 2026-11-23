@@ -13482,3 +13482,50 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 - Aucun test local n'a été exécuté.
 - Aucune donnée ou migration Supabase Production, aucun secret, grant ou policy RLS persistante n'a été modifié. Aucun SQL ni runtime applicatif n'a changé dans ce lot.
 - Aucun déploiement Production, merge, force-push ou changement des protections GitHub n'a été effectué.
+
+---
+
+## Actualisation — 23 novembre 2026, 10:54 KST — validation de la forme des memberships CREATE_OFFER
+
+### État GitHub relu avant intervention
+
+- PR #26 : **OPEN**, **DRAFT**, non fusionnée, mergeable=true ; branche fix/create-offer-status-contract, base main, HEAD 8b9da2afcf95c9e1db7a868caf8b0396eebdf311, **2 303 commits devant main, 0 derrière**, 287 fichiers modifiés (91 924 insertions / 266 suppressions).
+- Six derniers commits vérifiés par parcours des parents : 8b9da2af (documentation CI #1841), 699ed7ba (test des memberships mal formés), 444eced7 (normalisation de la casse UUID), a1299c75 (documentation CI #1839 et garde actor UUID), 094dfe87 (tests actor UUID), 2d19bfc6 (validation actor UUID avant RPC).
+- Le commit HEAD 8b9da2af est documentaire uniquement. Le parent code/test 699ed7ba contient l'extension du scénario mixte memberships.
+
+### Clôture des contrôles du HEAD précédent
+
+- QIMA CI [#1842](https://github.com/meridane/QimaTrade-MVP/actions/runs/45088718536) : **SUCCESS**. Le job Verify est SUCCESS ; le journal confirme **421 Playwright passed (37,4 s)**. Installation, audit npm au seuil high, TypeScript, build Next.js, Chromium et fixture QIMA isolée sont réussis.
+- PostgreSQL 16 et PostgreSQL 17.6 : jobs d'intégration **SUCCESS**.
+- CodeQL [#1770](https://github.com/meridane/QimaTrade-MVP/actions/runs/45088718548) : **SUCCESS**.
+- Vercel Preview du HEAD précédent : **SUCCESS**, statut Vercel vérifié sur le commit.
+- Les jobs de simulation setup-failure et cleanup-failure ont leurs conclusions négatives intentionnelles ; leurs jobs d'assertion dédiés ont **SUCCESS**. Le job explicitement attendu en skipped est correctement ignoré.
+- L'audit npm est bloquant au seuil high ; le résultat du gate est SUCCESS. Aucun décompte de vulnérabilités sous le seuil n'est affirmé ici.
+
+### Nouveau point de robustesse identifié
+
+- Dans app/api/actions/create-offer/route.ts, la réponse de dt_memberships était typée comme un tableau de lignes et parcourue directement.
+- Une réponse JSON non-tableau avec une propriété length positive pouvait atteindre .map() sans être un tableau. De même, une ligne null ou primitive dans le tableau pouvait provoquer un accès à membership.tenant_id avant filtrage.
+- Il s'agit d'un défaut de robustesse face à une forme de réponse inattendue, pas d'une vulnérabilité confirmée en production.
+
+### Correctif et régression
+
+- Le stockage local de la réponse est maintenant typé unknown, puis contrôlé avec Array.isArray avant toute opération de tableau. Une forme non-tableau ou un tableau vide renvoie le contrat existant 403 TENANT_MEMBERSHIP_REQUIRED.
+- Chaque ligne est vérifiée avant lecture de tenant_id : seules les valeurs objet non-nulles qui possèdent ce champ peuvent être normalisées ; les autres lignes sont ignorées. La validation UUID, la canonicalisation minuscule et la déduplication restent inchangées.
+- Le helper Playwright accepte maintenant un payload de membership unknown, afin de représenter aussi une réponse JSON mal formée.
+- Un nouveau test couvre deux cas : (1) objet array-like avec length: 1 mais non-tableau, rejeté avant RPC ; (2) tableau mêlant null, chaîne, nombre, objet imbriqué et une ligne tenant valide, qui doit réussir avec un seul appel d'exécution et le tenant canonique attendu.
+- Total Playwright attendu sur le nouveau HEAD : **422** (421 précédents + 1 nouveau scénario).
+
+### Branche de travail et commits
+
+- Branche : work/qima-membership-response-shape-guard-20261123-1054, créée à partir du HEAD PR 8b9da2af.
+- app/api/actions/create-offer/route.ts : garde de forme du payload et lecture défensive des lignes.
+- tests/e2e/create-offer-route-contract.spec.ts : helper élargi à unknown et test de régression des deux formes malformées.
+- Aucun SQL, migration, runtime RPC ou contrat métier n'a été modifié.
+
+### Validation en attente après publication
+
+- CI #1842 / CodeQL #1770 / Vercel ci-dessus valident le HEAD précédent, pas le nouveau correctif.
+- Après fast-forward vers la branche PR, vérifier le nouveau QIMA CI, les **422** tests Playwright, PostgreSQL 16/17.6, CodeQL et Vercel Preview avant de déclarer le lot validé.
+- Aucun test local n'a été exécuté.
+- Aucune donnée ou migration Supabase Production, aucun secret, grant ou policy RLS persistante n'a été modifié. Aucun déploiement Production, merge, force-push ou changement des protections GitHub n'a été effectué.
