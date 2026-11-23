@@ -13641,3 +13641,48 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 ### Périmètre
 
 Aucune donnée Supabase Production, aucune migration, aucun secret, grant ou policy RLS persistante n'a été modifié. La migration mentionnée a uniquement été lue. Aucun déploiement Production, merge, force-push ou changement des règles de protection n'a été effectué. Les tests synthétiques décrivent le comportement contrôlé et ne prouvent pas une vulnérabilité exploitable en Production.
+
+
+## Clôture de validation — QIMA CI #1852 — 23 novembre 2026, 13:34 KST
+
+### État GitHub relu avant cette actualisation
+
+- Dépôt : `meridane/QimaTrade-MVP`.
+- PR #26 : **OPEN / DRAFT / non fusionnée**, base `main`, branche `fix/create-offer-status-contract`.
+- HEAD officiel : `55c515ea1260c4ace19aa19259c85b72b5ff7b9d`, commit documentaire dont le parent est `acb35c75e80eda3f97e1bc1df353224e0ed9cc3e`, le commit de test de replay UUID.
+- Comparaison GitHub `main...fix/create-offer-status-contract` : **2 318 commits en avance, 0 en retard**, 288 fichiers dans le diff.
+- Snapshot PR : 92 262 insertions et 266 suppressions. GitHub rapporte `mergeable=true` et `mergeable_state=unstable` ; la PR reste ouverte et en brouillon. Aucun merge n'est entrepris.
+- Le registre canonique a été récupéré par Git Blobs à partir du SHA `3c14a396cc33385cbbdda015105fdf651adef428` (2 685 583 caractères, 13 644 lignes). Cette actualisation est append-only et conserve tout l'historique.
+
+### Clôture vérifiée de QIMA CI #1852 sur le HEAD `55c515ea`
+
+- Workflow QIMA CI [#1852](https://github.com/meridane/QimaTrade-MVP/actions/runs/45108367481) : **SUCCESS**.
+- Job « Typecheck, audit, build and browser tests » : **SUCCESS**. Le journal confirme **423 passed (36,6 s)**.
+- Installation npm, audit au seuil bloquant configuré `high`, TypeScript, build Next.js, installation Chromium, Playwright, fixture de contrat sécurité QIMA et publication de l'artefact d'audit : **SUCCESS**. Le résultat est décrit comme réussite au seuil configuré ; aucun nombre de findings n'est inféré de ce seul statut.
+- Intégration PostgreSQL 16 : **SUCCESS**, y compris intégration CREATE_OFFER, tests de replay et concurrence, caractérisation des privilèges du runner, tests RLS, ACL et nettoyage des bases jetables.
+- Compatibilité PostgreSQL 17.6 : **SUCCESS**, y compris intégration CREATE_OFFER, replay, concurrence, wrapper-owner, ACL et nettoyage.
+- Les jobs de simulation « expected setup failure » et « expected cleanup failure » terminent avec la conclusion négative attendue. Les jobs qui vérifient la propagation des échecs et le caractère bloquant du nettoyage sont **SUCCESS**. Le job explicitement attendu en `skipped` est **SKIPPED**, avec son assertion de contrôle **SUCCESS**. Ces états intentionnels ne sont pas comptés comme des échecs inattendus.
+- CodeQL [#1780](https://github.com/meridane/QimaTrade-MVP/actions/runs/45108367497) : **SUCCESS**.
+- Le statut de commit Vercel sur le HEAD `55c515ea` est **SUCCESS** (« Deployment has completed »), Preview : [CtEk2kN32M8RKk28AFo3cm1AAAtx](https://vercel.com/bmk1/qimatrade-mvp/CtEk2kN32M8RKk28AFo3cm1AAAtx). Il s'agit d'un Preview uniquement, pas d'un déploiement Production.
+- La mention précédente indiquant que la validation du commit de test `acb35c75` était en attente est désormais close : ce commit est bien l'ancêtre code/test du HEAD `55c515ea`, et CI #1852 a validé le HEAD courant.
+
+### Revue en lecture seule — contrat correlationId
+
+- La route `app/api/actions/create-offer/route.ts` accepte un `body.correlationId` non vide (sinon génère un UUID) et le transmet dans le `ActionContext` à `executeUniversalAction`.
+- `lib/actions/runtime.ts` ne transmet pas ce champ au RPC `execute_create_offer_v1`. Le handler CREATE_OFFER envoie les paramètres métier et d'idempotence, sans paramètre `p_correlation_id`.
+- La migration existante `20261027090000_fix_create_offer_action_status_contract.sql` déclare la variable `v_correlation_id` puis la génère avec `gen_random_uuid()` avant d'insérer `action_executions` et `action_events`.
+- Il existe donc une question de contrat à trancher : le correlationId fourni par le client doit-il être persisté, remplacé par l'identifiant généré par SQL, ou rester une donnée de contexte non persistée pour CREATE_OFFER ? Ce choix touche la sémantique de traçabilité. **Aucune modification n'est faite sans décision architecturale/métier explicite.**
+- L'autre distinction de contexte est conservée : la route transmet `objectType: "Demand"` et l'identifiant de demande à l'ActionContext, tandis que la fonction SQL crée l'exécution comme `object_type = 'Offer'` et renseigne ensuite l'Offer créée. Elle doit être documentée comme sémantique d'exécution, pas normalisée par supposition.
+
+### Prochaine étape
+
+1. Obtenir une décision explicite sur la sémantique de `correlationId` et sur le rôle de `objectType/objectId` du contexte par rapport à l'objet Offer persisté.
+2. En attendant cette décision, poursuivre uniquement les tests non bloquants qui n'imposent pas cette sémantique, puis consigner chaque résultat.
+3. Relire le statut PR et les checks du nouveau HEAD documentaire après publication.
+
+### Périmètre et limites
+
+- Aucun test local n'a été exécuté dans cette intervention ; les résultats cités proviennent des journaux GitHub Actions du run #1852.
+- Aucune donnée Supabase Production, aucune migration, aucun secret, grant ou policy RLS persistante n'a été modifié. La migration mentionnée a uniquement été lue.
+- Aucun déploiement Production, merge, force-push ou changement des règles de protection n'a été effectué.
+- Les tests et fixtures synthétiques caractérisent des contrats logiciels contrôlés et ne prouvent pas une vulnérabilité exploitable en Production.
