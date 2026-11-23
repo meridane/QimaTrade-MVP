@@ -13964,3 +13964,50 @@ Deux comportements sont observés mais ne sont pas modifiés sans décision de c
 
 - Vérifier les workflows et le statut Vercel déclenchés par cette actualisation documentaire sur le nouveau HEAD.
 - Continuer les contrôles indépendants des décisions produit/API ; ne pas modifier les contrats listés ci-dessus sans approbation explicite.
+
+---
+
+## Clôture QIMA CI #1865 — HEAD `3e22c26e` — 23 novembre 2026, 22:23 KST
+
+### État GitHub vérifié
+
+- La PR cible est #26, « fix: align CREATE_OFFER execution statuses » ; branche `fix/create-offer-status-contract`, base `main`.
+- Comparaison `main...fix/create-offer-status-contract` : **2 331 commits en avance, 0 en retard**, **289 fichiers modifiés**.
+- Commit contrôlé : `3e22c26e5a9546c5f10c06b558f3b33caa4bc4f2` (`docs(qima): close CI 1863 and 1864 validation`).
+- La recherche PR disponible retourne un corps historique daté du 20 novembre ; les champs d'état/draft/mergeability ne sont pas rafraîchis par cette réponse. Aucun nouvel état PR n'est déduit de ce corps ancien.
+
+### Clôture QIMA CI #1865
+
+- QIMA CI [#1865](https://github.com/meridane/QimaTrade-MVP/actions/runs/45180844695) : **SUCCESS**.
+- Job Verify : installation npm, gate npm audit au seuil bloquant `high`, TypeScript, build Next.js, Chromium et fixture sécurité QIMA : **SUCCESS**.
+- Le journal du job Verify confirme **423 passed (38,2 s)**.
+- PostgreSQL 16 : intégration CREATE_OFFER, concurrence, replay, caractérisation des privilèges du runner, ACL/RLS et nettoyage : **SUCCESS**.
+- PostgreSQL 17.6 : intégration et compatibilité CREATE_OFFER, concurrence, replay, privilèges du runner, ACL/RLS et nettoyage : **SUCCESS**.
+- Les deux jobs de simulation prepared-transaction ont leurs conclusions négatives intentionnelles ; les assertions dédiées de propagation/restauration sont **SUCCESS**. Le job attendu en `skipped` est bien **SKIPPED**, et les assertions de contrôle correspondantes sont **SUCCESS**.
+- CodeQL [#1793](https://github.com/meridane/QimaTrade-MVP/actions/runs/45180844282) : **SUCCESS**.
+- Le statut combiné GitHub `Vercel` du commit contrôlé est **SUCCESS**, Preview uniquement : [déploiement](https://vercel.com/bmk1/qimatrade-mvp/FjKQhxkjdBRWV922cDnNfoD869a3).
+
+### Caractérisation ciblée de la route et des tests CREATE_OFFER
+
+Lecture de `app/api/actions/create-offer/route.ts` et `tests/e2e/create-offer-route-contract.spec.ts` :
+
+- `quantity` et `price` acceptent les nombres JSON et les chaînes non vides converties par `Number(...)`. Les tests existants couvrent les chaînes décimales (`"2"`, `"12.5"`), les entrées vides/non numériques, les valeurs non finies, les types non numériques, les limites de quantité/prix et le replay entre `"10.00"/"01"` et `10/1`.
+- Les formes lexicales hexadécimales, binaires et octales ne sont pas caractérisées par les tests consultés. Leur acceptation découlerait de la sémantique JavaScript de `Number`, mais la grammaire produit/API reste **à décider** ; aucun changement n'est effectué.
+- Les champs métier facultatifs `conditions`, `market`, `geography` et `documentationStatus` ont des tests pour les valeurs string, `null`, omission et chaîne vide. Le code applique actuellement `String(...)` aux valeurs non nulles ; le contrat pour les types non-string n'est pas approuvé et n'est pas modifié.
+- `attributes` dispose déjà de tests couvrant la normalisation des valeurs non-objet vers `{}`, la préservation des objets JSON imbriqués et l'équivalence omission/objet vide. Aucun test redondant n'est ajouté.
+
+### Interprétation et limites
+
+- Le passage du gate npm audit signifie que le seuil bloquant `high` est respecté ; il ne permet pas d'affirmer l'absence de findings sous ce seuil.
+- Les jobs de simulation préparée en échec sont des scénarios négatifs contrôlés, pas des échecs inattendus de la validation.
+- Les tests E2E/SQL caractérisent des comportements contrôlés et ne prouvent pas, à eux seuls, une vulnérabilité exploitable en Production.
+- Cette actualisation est documentaire uniquement ; aucun code applicatif, test, SQL ou migration n'a changé. Aucun test local n'a été exécuté.
+- Aucune donnée Supabase Production, migration, secret, grant, policy RLS persistante ou configuration PostgreSQL n'a été modifiée. Aucun déploiement Production, merge, force-push ou changement des protections GitHub n'a été effectué.
+
+### Décisions et prochaine étape
+
+- Grammaire exacte des chaînes numériques de CREATE_OFFER.
+- Politique de validation des types non-string pour les champs métier facultatifs.
+- Source officielle de `correlationId), sémantique `objectType/objectId), et caractère obligatoire ou facultatif de `idempotencyKey`.
+- MKT-1.3 numeric canonicalization : **CHARACTERIZATION / DECISION REQUIRED — NOT APPROVED** ; aucun changement du hash SQL ou des clés existantes sans décision et plan de compatibilité.
+- Prochaine étape : vérifier les workflows et le Preview déclenchés sur le nouveau HEAD documentaire ; poursuivre uniquement les contrôles indépendants des décisions API/métier.
