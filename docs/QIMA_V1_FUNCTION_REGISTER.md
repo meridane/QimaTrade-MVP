@@ -13560,3 +13560,13 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 - Vercel Preview reste **PENDING** ([Preview](https://vercel.com/bmk1/qimatrade-mvp/6MBH3JhkjpRDPSDH1V8a3YUGXbvk)).
 - Après recalcul GitHub, la PR #26 reste **OPEN / DRAFT / non fusionnée** et mergeable=true. Le HEAD documentaire courant est 3eca455ad54094d309760e7baa58d837a13c0d5c ; le commit de code/test validé par CI en cours reste 843d32c83b2566142303a1b2e7a146ac649aeacb.
 - La validation du nouveau test n'est pas déclarée avant la fin du job Playwright ; le total attendu est **422**.
+
+
+### Actualisation des checks — 23 novembre 2026, 10:58 KST
+
+- CodeQL #1771 : **SUCCESS**.
+- Vercel Preview du commit code/test 843d32c83b2566142303a1b2e7a146ac649aeacb : **SUCCESS** ([Preview](https://vercel.com/bmk1/qimatrade-mvp/8KnZtnGkZ8DoX1hWZ8G1MnFqTkPs)).
+- Dans QIMA CI #1843, le job Verify a terminé l'étape browser smoke tests en **SUCCESS**. Le job reste néanmoins **IN PROGRESS** car la fixture sécurité QIMA isolée et les étapes finales ne sont pas encore terminées ; les journaux finaux Playwright ne sont pas encore téléchargeables, donc aucun nombre 422/422 n'est revendiqué.
+- PostgreSQL 16 et PostgreSQL 17.6 restent **IN PROGRESS**.
+- Les assertions des harnesses setup/cleanup restent **SUCCESS** ; les conclusions négatives simulées et le job skipped attendu conservent leurs états intentionnels.
+- La PR #26 est toujours **OPEN / DRAFT / non fusionnée**. L'API GitHub indique mergeable=true, mergeable_state=unstable pendant les checks ; le nombre de commits devant main est 2 309 et le nombre derrière reste 0.
