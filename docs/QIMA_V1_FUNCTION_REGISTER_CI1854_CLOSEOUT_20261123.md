@@ -1,0 +1,73 @@
+# QimaTrade — snapshot de clôture CI #1854
+
+Date : 23 novembre 2026, 14:31 KST  
+Dépôt : `meridane/QimaTrade-MVP`  
+PR : [#26 — fix: align CREATE_OFFER execution statuses](https://github.com/meridane/QimaTrade-MVP/pull/26)  
+Branche suivie : `fix/create-offer-status-contract`
+
+> Document compagnon append-only. Le registre canonique `docs/QIMA_V1_FUNCTION_REGISTER.md` est volumineux : le lecteur GitHub a retourné son SHA `0b7fe3ba66b35e0002fdca18e1270c87d991c2f3`, mais aucun contenu, y compris lors d'une lecture par plage de lignes. Pour éviter de remplacer un fichier dont l'intégralité n'est pas disponible, ce snapshot est ajouté séparément. Il ne remplace pas le registre canonique.
+
+## 1. État relu avant cette actualisation
+
+- PR #26 : **OPEN**, **DRAFT**, non fusionnée ; base `main`.
+- HEAD : `d4e7a5a1f19f50349f224b32803e17b18037ec84`.
+- GitHub indique `mergeable=true`.
+- Comparaison `main...fix/create-offer-status-contract` : **2 320 commits en avance, 0 en retard**.
+- Diff PR : **288 fichiers**, **92 317 insertions**, **266 suppressions**.
+- Aucun review thread non résolu n'a été retourné.
+- Derniers commits relus :
+  - `d4e7a5a1` — documentation du statut post-push CI #1853 et Preview ;
+  - `77d2ba26` — clôture CI #1852 et audit du contrat correlationId ;
+  - `55c515ea` — clôture CI #1851 et renforcement du replay UUID acteur ;
+  - `acb35c75` — test de replay UUID acteur mixte majuscules/minuscules ;
+  - `408f4492` — canonicalisation UUID acteur et résultats CI #1850.
+
+## 2. Clôture de QIMA CI #1854
+
+- Workflow [QIMA CI #1854](https://github.com/meridane/QimaTrade-MVP/actions/runs/45113116778), HEAD exact `d4e7a5a1` : **SUCCESS**.
+- Job Verify « Typecheck, audit, build and browser tests » : **SUCCESS**.
+- Journal Playwright : **423 passed (38,1 s)**.
+- Installation npm, audit au seuil bloquant configuré `high`, TypeScript, build Next.js, Chromium, Playwright, fixture de contrat sécurité QIMA et publication du rapport d'audit : **SUCCESS**.
+- Le statut npm audit est uniquement rapporté au seuil configuré. Aucun nombre de findings n'est déduit de ce statut.
+- Intégration CREATE_OFFER PostgreSQL 16 : **SUCCESS** (job `137491433591`).
+- Compatibilité PostgreSQL 17.6 : **SUCCESS** (job `137491433576`).
+- Les contrôles de catalogue, de privilèges du runner, de replay/concurrence et de nettoyage exécutés dans les jobs PostgreSQL sont terminés avec succès.
+- Les jobs de simulation setup-failure et cleanup-failure ont la conclusion négative intentionnelle attendue ; les jobs d'assertion qui vérifient leur propagation sont **SUCCESS**. Le job explicitement attendu en `skipped` est **SKIPPED** et son assertion de contrôle est **SUCCESS**. Ces états ne sont pas comptés comme des échecs inattendus.
+
+## 3. Contrôles associés au HEAD
+
+- [QIMA CodeQL #1782](https://github.com/meridane/QimaTrade-MVP/actions/runs/45113116763) : **SUCCESS**, HEAD `d4e7a5a1`.
+- [Vercel Preview](https://vercel.com/bmk1/qimatrade-mvp/2o1s1rhQUjCBsvVdVJ4toDUKHumA) : statut de commit **SUCCESS** sur le HEAD `d4e7a5a1`. Preview uniquement, pas de déploiement Production.
+- [QIMA CI #1853](https://github.com/meridane/QimaTrade-MVP/actions/runs/45112947989) : **SUCCESS** sur le parent documentaire `77d2ba26`.
+- [CodeQL #1781](https://github.com/meridane/QimaTrade-MVP/actions/runs/45112948069) : **SUCCESS** sur `77d2ba26`.
+
+## 4. Revue contractuelle non bloquante — idempotencyKey
+
+Lecture en lecture seule de `app/api/actions/create-offer/route.ts` et des tests `tests/e2e/create-offer-route-contract.spec.ts` :
+
+- Une clé string non vide est trimée puis transmise à `p_idempotency_key`.
+- Une clé omise, vide après trim, ou non-string est remplacée par un UUID v4 généré par la route.
+- Les tests existants couvrent explicitement la clé vide, les types non-string et deux requêtes sans clé qui reçoivent des UUID distincts (tests autour des lignes 1754–1835 du fichier courant).
+- Conséquence du contrat actuel : une nouvelle requête sans clé stable du client ne réutilise pas automatiquement la clé de la requête précédente. La garantie de replay après perte de réponse dépend donc de la réutilisation par le client d'une même clé explicite.
+- Ce constat décrit le comportement actuel et les assertions de test ; il ne démontre pas un doublon ni un incident Production.
+- **Décision non prise :** confirmer si la clé client doit rester facultative avec génération serveur, ou devenir obligatoire pour les opérations qui exigent un replay fiable après perte de réponse. Ne pas modifier le contrat sans décision produit/architecture et compatibilité client.
+
+## 5. Décisions déjà identifiées — aucun changement inféré
+
+- **correlationId :** la route accepte/transmet un identifiant de contexte, le runtime CREATE_OFFER ne le transmet pas au RPC et la fonction SQL génère son propre `v_correlation_id`. La sémantique attend une décision explicite.
+- **objectType/objectId :** le contexte applicatif est initialisé sur `Demand`, tandis que l'exécution persistée SQL est `Offer` et reçoit l'identifiant de l'offre créée. Ne pas harmoniser par supposition.
+- **MKT-1.3 numeric canonicalization :** le document correspondant reste `CHARACTERIZATION / DECISION REQUIRED — NOT APPROVED`. Ne pas changer la politique d'équivalence numérique ni les hashes existants sans décision et plan de compatibilité.
+
+## 6. Vérification après modification documentaire
+
+- Les workflows QIMA CI et CodeQL déclarent `paths-ignore: docs/**`. Un commit limité à ce document ne doit donc pas être présenté comme une nouvelle validation applicative ; les résultats de référence restent CI #1854 et CodeQL #1782 sur le code inchangé.
+- Le statut Vercel du commit documentaire sera vérifié séparément après publication.
+- Aucun test local n'a été exécuté dans cette intervention.
+
+## 7. Périmètre de sécurité
+
+- Aucun code applicatif ni test n'est modifié par ce snapshot.
+- Aucune donnée Supabase Production, migration, secret, grant, policy RLS persistante ou configuration PostgreSQL n'est modifié.
+- Aucune migration n'est appliquée.
+- Aucun déploiement Production, merge, force-push ou changement des règles de protection n'est effectué.
+- Les tests synthétiques et les fixtures jetables caractérisent des contrats contrôlés ; ils ne prouvent pas une vulnérabilité exploitable en Production.
