@@ -236,3 +236,14 @@ Fichiers relus en lecture seule : `app/api/actions/create-offer/route.ts` et `te
 - Aucune donnée Supabase Production, migration, secret, grant, policy RLS persistante ou configuration PostgreSQL n'est modifiée.
 - Aucun déploiement Production, merge, force-push ou changement des règles de protection GitHub n'est effectué.
 - Prochaine étape : poursuivre les contrôles indépendants des décisions produit/API ; ne pas modifier les contrats listés ci-dessus sans approbation explicite.
+---
+
+## Snapshot post-publication — QIMA CI #1867 / CodeQL #1795 — 24 novembre 2026, 00:09 KST
+
+- HEAD exact : `219b66a157426425a169feccacccfdcfabc8c8a9` (commit documentaire `docs(qima): close CI 1866 and record route boundary review`).
+- Après publication, QIMA CI [#1867](https://github.com/meridane/QimaTrade-MVP/actions/runs/45202409690) et CodeQL [#1795](https://github.com/meridane/QimaTrade-MVP/actions/runs/45202409479) ont été déclenchés ; les deux sont **IN PROGRESS** au contrôle de 00:09 KST.
+- Dans CI #1867, Verify, PostgreSQL 16 et PostgreSQL 17.6 sont **IN PROGRESS**. Les deux jobs de simulation prepared-transaction présentent les conclusions négatives intentionnelles ; les assertions de contrôle correspondantes sont encore en cours. Le job explicitement attendu en `skipped` est **SKIPPED**.
+- CodeQL #1795 : analyse JavaScript/TypeScript **IN PROGRESS**.
+- Le statut combiné GitHub `Vercel` du HEAD `219b66a1` est **PENDING** ([Preview](https://vercel.com/bmk1/qimatrade-mvp/CeH9LUuk14NW6GVMVrobht64mRAu)).
+- Aucun résultat Playwright, PostgreSQL ou CodeQL final n'est attribué à ce nouveau HEAD à ce stade. Les validations #1866/#1794 documentées dans la section précédente concernent uniquement le parent `983030fb`.
+- Prochaine étape : attendre et vérifier les conclusions complètes de #1867/#1795 et le Preview de `219b66a1` avant toute nouvelle conclusion.
