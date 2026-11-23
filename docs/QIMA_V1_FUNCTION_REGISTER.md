@@ -13540,3 +13540,12 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 - Les deux jobs de simulation setup-failure et cleanup-failure affichent leurs conclusions négatives intentionnelles. Le job d'assertion du skipped est **SUCCESS** ; les deux autres jobs d'assertion de nettoyage sont encore **IN PROGRESS**. Aucun échec inattendu du code applicatif n'est établi.
 - Le HEAD de la branche de travail et celui de la PR ont été comparés après publication : **0 commit d'avance / 0 de retard**.
 - Le nouveau scénario doit porter le total Playwright à **422** s'il passe. Les résultats de CI #1842 (421/421), CodeQL #1770 et Vercel du HEAD parent ne sont pas attribués au nouveau correctif.
+
+
+### Actualisation des checks — 23 novembre 2026, 10:56 KST
+
+- Sur QIMA CI #1843, les deux jobs d'assertion de nettoyage précédemment actifs ont terminé **SUCCESS**. Le job d'assertion du résultat skipped reste **SUCCESS** ; les deux jobs de simulation setup-failure et cleanup-failure conservent leurs conclusions négatives intentionnelles.
+- Le job Verify reste **IN PROGRESS** : installation npm, audit au seuil high et TypeScript sont **SUCCESS** ; build Next.js est encore **IN PROGRESS** ; Chromium et Playwright sont **PENDING**.
+- Les jobs d'intégration PostgreSQL 16 et PostgreSQL 17.6 restent **IN PROGRESS**.
+- CodeQL #1771 reste **IN PROGRESS** et le statut Vercel Preview reste **PENDING**.
+- Aucun résultat Playwright n'est encore disponible pour le nouveau scénario ; le total attendu reste **422**. Les assertions de nettoyage réussies ne sont pas assimilées à une réussite des jobs de simulation, qui échouent volontairement pour vérifier la propagation des erreurs.
