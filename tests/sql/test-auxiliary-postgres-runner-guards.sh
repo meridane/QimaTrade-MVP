@@ -87,18 +87,29 @@ check_runner() {
     fi
   done
 
-  # Missing configuration must also fail before the database client is called.
-  : > "$CALLS"
-  set +e
-  PATH="$MOCK_BIN:$PATH" MOCK_PSQL_CALLS="$CALLS" DATABASE_URL="" \
-    bash "$runner" >"$OUTPUT" 2>&1
-  runner_status=$?
-  set -e
-  if [[ "$runner_status" -eq 0 || -s "$CALLS" ]]; then
-    echo "ERROR: $runner_name did not fail closed when DATABASE_URL was missing." >&2
-    cat "$OUTPUT" >&2
-    exit 1
-  fi
+  # Unset and explicitly empty configuration must fail before the database
+  # client is called. Require the exact required-variable failure so a missing
+  # executable or an unrelated error cannot satisfy this guard.
+  local config_case
+  for config_case in unset empty; do
+    : > "$CALLS"
+    set +e
+    if [[ "$config_case" == "unset" ]]; then
+      PATH="$MOCK_BIN:$PATH" MOCK_PSQL_CALLS="$CALLS" env -u DATABASE_URL \
+        bash "$runner" >"$OUTPUT" 2>&1
+    else
+      PATH="$MOCK_BIN:$PATH" MOCK_PSQL_CALLS="$CALLS" DATABASE_URL="" \
+        bash "$runner" >"$OUTPUT" 2>&1
+    fi
+    runner_status=$?
+    set -e
+    if [[ "$runner_status" -ne 1 || -s "$CALLS" ]] ||
+      ! grep -Fq "DATABASE_URL must point to the disposable PostgreSQL CI database" "$OUTPUT"; then
+      echo "ERROR: $runner_name did not reject $config_case DATABASE_URL with the exact required-variable failure before psql (received $runner_status)." >&2
+      cat "$OUTPUT" >&2
+      exit 1
+    fi
+  done
 
   # Supported loopback URLs must pass the guard and reach only the inert stub.
   for safe_url in "${safe_urls[@]}"; do
@@ -125,4 +136,4 @@ check_runner() {
 check_runner "run-create-offer-wrapper-owner-regression.sh" "Refusing wrapper-owner regression"
 check_runner "run-function-execute-acl-regression.sh" "Refusing ACL regression setup"
 
-echo "Auxiliary PostgreSQL runner URL guard regression PASS: 2 runners; ${#unsafe_urls[@]} unsafe URLs and missing DATABASE_URL rejected before psql; 3 supported loopback URLs accepted per runner."
+echo "Auxiliary PostgreSQL runner URL guard regression PASS: 2 runners; ${#unsafe_urls[@]} unsafe URLs and unset/empty DATABASE_URL rejected before psql; 3 supported loopback URLs accepted per runner."

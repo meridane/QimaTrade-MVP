@@ -14450,3 +14450,30 @@ La revue croisée des scripts de garde-fou PostgreSQL a révélé le même défa
 - Aucun déploiement Production, merge, force-push ou changement de protection n'a été effectué. Les tests de garde-fou sont des tests synthétiques de contrat et ne prouvent pas une vulnérabilité exploitable.
 - Vérifier la nouvelle QIMA CI sur le HEAD contenant l'exigence du code de sortie exact, confirmer le résultat du script PostgreSQL 17.6, puis clôturer CodeQL et Vercel de ce HEAD.
 
+
+---
+
+## Clôture QIMA CI #1880 et précision du garde-fou DATABASE_URL des runners auxiliaires — 24 novembre 2026, 08:40 KST
+
+### État vérifié avant modification
+
+- PR #26 : **OPEN / DRAFT / non fusionnée**, branche `fix/create-offer-status-contract`, base `main`, HEAD `093fef81abdd1ef9d17f9cdeca9900e5ce632ff7`, 2 352 commits, 289 fichiers modifiés (93 326 insertions / 266 suppressions), `mergeable=true`.
+- Le workflow associé au HEAD est **QIMA CI #1880** (run ID `45280983977`) et non #1879 : le workflow global est **SUCCESS**. Verify : npm install, npm audit au seuil `high`, TypeScript, build Next.js, Chromium et **423 Playwright passed (37,1 s)**.
+- PostgreSQL 16 et PostgreSQL 17.6 : jobs complets **SUCCESS**. PostgreSQL 17.6 a confirmé `server_version_num=170006`; l'étape de test des dix cas invalides exigeant exactement le code de sortie 1 est **SUCCESS**.
+- Le journal PostgreSQL 16 confirme `Auxiliary PostgreSQL runner URL guard regression PASS` : deux runners, 11 URL non autorisées, configuration `DATABASE_URL` absente rejetée avant `psql`, et trois URL loopback prises en charge acceptées par runner. QA262 et QA328 sont également **PASS** dans le même job.
+- CodeQL [#1808](https://github.com/meridane/QimaTrade-MVP/actions/runs/45280984216) : **SUCCESS**. Le statut Vercel du HEAD `093fef81` est **SUCCESS** ([Preview](https://vercel.com/bmk1/qimatrade-mvp/ASRti68zdt8MFdxrhCwDY7Kvr3f1)).
+- Les jobs de simulation prepared-transaction ont des conclusions négatives intentionnelles et leurs assertions dédiées sont **SUCCESS** ; le job de simulation de cleanup attendu en `skipped` est correctement ignoré. Le workflow global reste **SUCCESS**.
+
+### Renforcement non bloquant du test des runners auxiliaires
+
+- Revue de `tests/sql/test-auxiliary-postgres-runner-guards.sh`, `run-create-offer-wrapper-owner-regression.sh` et `run-function-execute-acl-regression.sh` : les deux runners commencent par `: "${DATABASE_URL:?DATABASE_URL must point to the disposable PostgreSQL CI database}"`, ce qui définit un refus attendu avec code de sortie **1** et diagnostic explicite.
+- Le test auxiliaire ne vérifiait que « non-zéro » pour une variable vide. Il pouvait donc accepter un échec sans rapport (par exemple un chemin de runner absent avec code 127) et ne testait pas séparément une variable réellement non définie.
+- Changement limité au test : les deux runners sont désormais exercés avec `DATABASE_URL` non définie et avec une chaîne vide. Chaque cas exige exactement le code **1**, le diagnostic requis et zéro appel au stub `psql`. Le résumé final précise les deux cas.
+- Les cas d'URL non autorisées, les trois formes loopback, les messages des runners et toutes les commandes PostgreSQL restent inchangés. Aucun runner de production/test, SQL ou schéma n'a été modifié.
+- Le changement et cette entrée sont publiés sur le HEAD suivant par fast-forward uniquement. **Aucun test local n'a été exécuté** ; la validation de ce nouveau changement est en attente de la prochaine QIMA CI.
+
+### Périmètre et prochaine étape
+
+- Aucun code applicatif, SQL de migration, schéma ou donnée Supabase Production n'a changé. Aucun secret, grant, policy RLS persistante ou configuration PostgreSQL Production n'a été modifié.
+- Aucun déploiement Production, merge, force-push ou changement de protection n'a été effectué. Les tests synthétiques de garde-fou ne prouvent pas une vulnérabilité exploitable.
+- Vérifier dans la prochaine QIMA CI l'étape `Verify wrapper-owner and function ACL runners reject unsafe database URLs`, confirmer séparément les cas unset/empty et le maintien du non-appel `psql`, puis clôturer CodeQL et Vercel du nouveau HEAD.
