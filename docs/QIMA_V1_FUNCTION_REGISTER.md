@@ -13856,3 +13856,45 @@ Deux comportements sont observés mais ne sont pas modifiés sans décision de c
 - CodeQL [#1789](https://github.com/meridane/QimaTrade-MVP/actions/runs/45159380302) : **IN PROGRESS** ; checkout réussi, initialisation CodeQL en cours, autobuild/analyse en attente.
 - Le statut combiné GitHub `Vercel` du commit `0fc523cb` est **PENDING** : [Preview GFFLC4wJFRsaaJJmLvZo9naV14Q6](https://vercel.com/bmk1/qimatrade-mvp/GFFLC4wJFRsaaJJmLvZo9naV14Q6).
 - Aucun code applicatif ni test n'a été modifié ; cette publication ne change que le registre canonique. Les résultats de #1860 ci-dessus restent ceux du commit parent `ef497982` et ne sont pas attribués au nouveau commit.
+
+## Clôture des contrôles post-publication — 23 novembre 2026, 20:43 KST
+
+### État GitHub vérifié avant cette actualisation
+
+- PR #26 : **OPEN / DRAFT / non fusionnée**, mergeable=true, branche fix/create-offer-status-contract, base main, HEAD contrôlé ed0abaf691134a154bef622a57590a9d042557aa.
+- Comparaison main...fix/create-offer-status-contract : **2 328 commits en avance, 0 en retard**, 289 fichiers modifiés. Le snapshot PR indique 92 661 insertions et 266 suppressions. Aucun review thread ouvert (0 au total).
+- Le commit ed0abaf est le HEAD de la PR ; son parent direct est 0fc523cb0fafdde7819d13fb07d75b2a6f45c205.
+
+### Clôture de QIMA CI #1861 — commit 0fc523cb
+
+- QIMA CI [#1861](https://github.com/meridane/QimaTrade-MVP/actions/runs/45159380532) : **SUCCESS**.
+- Verify : installation npm, audit au seuil bloquant high, TypeScript, build Next.js, Chromium et fixture QIMA : **SUCCESS**.
+- Le journal Playwright confirme **423 passed (38,6 s)**.
+- PostgreSQL 16 : intégration CREATE_OFFER, concurrence, replay, validations sans écriture, ACL/RLS et nettoyage : **SUCCESS**.
+- PostgreSQL 17.6 : mêmes familles de contrôles et compatibilité : **SUCCESS**.
+- Les deux jobs de simulation prepared-transaction ont la conclusion négative intentionnelle prévue ; leurs assertions de propagation/cleanup sont **SUCCESS**. Le job attendu en skipped est bien **SKIPPED**, et son assertion est **SUCCESS**.
+- CodeQL [#1789](https://github.com/meridane/QimaTrade-MVP/actions/runs/45159380302) : **SUCCESS**.
+- Le statut combiné Vercel pour le commit parent 0fc523cb est **FAILURE** ([statut](https://vercel.com/bmk1/qimatrade-mvp/GFFLC4wJFRsaaJJmLvZo9naV14Q6)). La cause précise n'a pas été établie à partir du statut combiné seul ; ce résultat n'est pas assimilé à un échec de compilation et ne doit pas être présenté comme un Preview réussi.
+
+### Clôture de QIMA CI #1862 — HEAD ed0abaf
+
+- QIMA CI [#1862](https://github.com/meridane/QimaTrade-MVP/actions/runs/45159481047) : **SUCCESS**.
+- Verify : installation npm, audit au seuil bloquant high, TypeScript, build Next.js, Chromium et fixture QIMA : **SUCCESS**.
+- Le journal Playwright confirme **423 passed (37,7 s)**.
+- PostgreSQL 16 et PostgreSQL 17.6 : intégrations, régressions CREATE_OFFER, replay, concurrence, privilèges, ACL/RLS et nettoyage : **SUCCESS**.
+- Les deux simulations prepared-transaction ont leurs conclusions négatives intentionnelles ; les assertions qui les encadrent sont **SUCCESS**. Le job attendu en skipped est bien **SKIPPED**.
+- CodeQL [#1790](https://github.com/meridane/QimaTrade-MVP/actions/runs/45159481003) : **SUCCESS**.
+- Le statut combiné Vercel du HEAD ed0abaf est **SUCCESS**, Preview uniquement : [déploiement](https://vercel.com/bmk1/qimatrade-mvp/CjxgnKpakLcdG1w7x69hwREcuiC1).
+
+### Interprétation et périmètre
+
+- Les deux cycles CI (#1861 et #1862) ont chacun validé 423 tests Playwright ; il s'agit de deux validations distinctes sur deux commits, soit 846 exécutions de tests réussies au total, et non 846 tests uniques.
+- Le gate npm audit au seuil high a réussi dans les deux cycles. Aucun nombre global de findings ou affirmation « zéro vulnérabilité » n'est déduit de ce seul seuil.
+- Cette clôture est documentaire uniquement : aucun code applicatif, test, migration ou SQL n'a été modifié. Aucun test local n'a été exécuté.
+- Aucune donnée Supabase Production, migration, secret, grant, policy RLS persistante ou configuration PostgreSQL n'a été modifiée. Aucun déploiement Production, merge, force-push ou changement des règles de protection n'a été effectué.
+- Les tests E2E, SQL et fixtures caractérisent des comportements logiciels contrôlés ; ils ne prouvent pas à eux seuls une vulnérabilité exploitable en Production.
+
+### Prochaine tâche
+
+- Continuer uniquement les contrôles indépendants des décisions produit/API.
+- Les décisions concernant la grammaire des nombres, les types acceptés pour les champs textuels facultatifs, correlationId, objectType/objectId, le caractère obligatoire de idempotencyKey et la canonicalisation numérique MKT-1.3 restent ouvertes. Aucun comportement ni hash SQL ne doit être changé sans contrat approuvé et plan de compatibilité.
