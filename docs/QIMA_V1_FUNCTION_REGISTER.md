@@ -13755,3 +13755,43 @@ Aucun changement applicatif ou test n'a été nécessaire dans cette exécution 
 - Aucune donnée Supabase Production, migration, secret, grant, policy RLS persistante ou configuration PostgreSQL n'est modifiée.
 - Aucun déploiement Production, merge, force-push ou changement des règles de protection n'est effectué.
 - Les tests E2E, SQL et fixtures CI caractérisent des comportements contrôlés ; ils ne constituent pas, à eux seuls, une preuve de vulnérabilité exploitable en Production.
+
+
+## Clôture QIMA CI #1859 et CodeQL #1787 — 23 novembre 2026, 18:22 KST
+
+### État PR et historique relus avant cette actualisation
+
+- PR #26 : **OPEN / DRAFT / non fusionnée**, base `main`, branche `fix/create-offer-status-contract`, HEAD exact `4d882297ff363897818c814e97cb08eae5537ef1`.
+- GitHub indique `mergeable=true`. La comparaison `main...fix/create-offer-status-contract` confirme **2 325 commits en avance, 0 en retard**.
+- Diff de la PR : **289 fichiers**, **92 560 insertions**, **266 suppressions**. Aucun review thread ouvert n'a été retourné.
+- Derniers commits de la branche, du plus récent au plus ancien : `4d882297` (clôture CI #1854–#1858), `d78d0c97` (clôture CI #1857 et revue du contrat), `7db3e593` (clôture CI #1855/#1856), `9b6127ef` (correction de la note sur les filtres CI), `ba3a65ec` (snapshot CI #1854 et analyse idempotencyKey).
+
+### Résultats vérifiés sur le HEAD exact
+
+- QIMA CI [#1859](https://github.com/meridane/QimaTrade-MVP/actions/runs/45142294932), commit `4d882297ff363897818c814e97cb08eae5537ef1` : **SUCCESS**.
+- Le job Verify « Typecheck, audit, build and browser tests » est **SUCCESS**. Le journal Playwright confirme **423 passed (38,3 s)**. Installation depuis le lockfile, audit npm au seuil bloquant `high`, TypeScript, build Next.js, Chromium, fixture de contrat sécurité QIMA et publication de l'artefact npm-audit-report ont tous réussi. L'artefact `npm-audit-report.zip` a été publié (314 octets) ; ce statut ne permet pas, à lui seul, d'affirmer un nombre de findings sous le seuil configuré.
+- PostgreSQL 16 : job d'intégration **SUCCESS**, y compris les régressions CREATE_OFFER de replay/concurrence, les contrôles de privilèges/ACL, RLS et les tests de wrapper/membership.
+- PostgreSQL 17.6 : job de compatibilité **SUCCESS**, y compris la garde de version, les mêmes familles de tests CREATE_OFFER, les contrôles RLS/ACL et les régressions wrapper/membership.
+- Les journaux SQL contiennent des erreurs attendues dans des fixtures négatives de caractérisation (par exemple refus du propriétaire de wrapper non conforme, objet de catalogue volontairement absent et connexions arrêtées pendant le nettoyage). Les étapes de test correspondantes ont terminé **SUCCESS** ; elles ne sont pas des échecs inattendus de la CI.
+- Les deux jobs de simulation prepared-transaction ont les conclusions négatives intentionnelles prévues ; les jobs d'assertion qui vérifient la propagation de ces échecs ont terminé **SUCCESS**. Le job de cleanup explicitement attendu en `skipped` est bien **SKIPPED**, et son assertion de contrôle est **SUCCESS**.
+- CodeQL [#1787](https://github.com/meridane/QimaTrade-MVP/actions/runs/45142294792) : **SUCCESS**, analyse JavaScript/TypeScript terminée.
+- Le statut combiné GitHub `Vercel` sur le HEAD exact `4d882297ff363897818c814e97cb08eae5537ef1` est **SUCCESS** (« Deployment has completed »), Preview : [Ao1bBrdfUAJZfGVyq6SKxz75rHHy](https://vercel.com/bmk1/qimatrade-mvp/Ao1bBrdfUAJZfGVyq6SKxz75rHHy). Preview uniquement, aucun déploiement Production.
+
+### Revue non bloquante et prochaine tâche
+
+- Relecture en lecture seule de `app/api/actions/create-offer/route.ts`, `lib/actions/runtime.ts`, `tests/e2e/create-offer-route-contract.spec.ts` et de la migration SQL existante.
+- La route canonise les UUID utilisés dans le payload et les arguments RPC, valide les memberships, limite les codes d'erreur publics à une allowlist, et transmet une clé d'idempotence explicite après trim ou génère un UUID serveur si la valeur est absente/vide/non-string.
+- Le runtime transmet `p_input`, l'acteur et les paramètres métier à `execute_create_offer_v1`. La fonction SQL inclut l'entrée et les paramètres effectifs dans le hash, sérialise les tentatives par verrou consultatif tenant/clé, puis retourne le résultat persisté lors d'un replay identique.
+- Le run #1859 inclut la caractérisation numérique en lecture seule sur PostgreSQL 16 et 17.6, ainsi que le contrôle que le rejet d'un replay numérique ne remplace pas l'état persisté. Cette caractérisation ne vaut pas approbation d'une nouvelle règle de canonicalisation.
+- **Décision requise — `correlationId` :** le contexte de route possède un identifiant, mais le runtime CREATE_OFFER ne le transmet pas au RPC ; SQL génère son propre identifiant de corrélation. Ne pas choisir une source officielle sans décision.
+- **Décision requise — `objectType/objectId` :** le contexte ActionEngine est `Demand`, alors que l'exécution persistée par SQL est de type `Offer`. Ne pas harmoniser sans décision métier/architecture.
+- **Décision requise — `idempotencyKey` client :** une clé stable explicite permet le replay ; la route remplace actuellement une valeur absente/vide/non-string par un UUID v4 serveur. Le caractère obligatoire ou facultatif côté client reste à décider.
+- **MKT-1.3 numeric canonicalization** reste `CHARACTERIZATION / DECISION REQUIRED — NOT APPROVED`. Aucun changement du hash SQL ni de l'équivalence numérique n'est autorisé sans décision et plan de compatibilité.
+- Aucun changement applicatif ou test n'a été nécessaire dans cette exécution : la validation du HEAD est verte et les sujets restants relèvent de décisions de contrat, non d'un défaut démontré.
+
+### Périmètre de sécurité
+
+- Cette actualisation modifie uniquement le registre documentaire.
+- Aucune donnée Supabase Production, migration, secret, grant, policy RLS persistante ou configuration PostgreSQL n'est modifiée.
+- Aucun déploiement Production, merge, force-push ou changement des règles de protection n'est effectué.
+- Les tests E2E, SQL et fixtures contrôlées caractérisent des comportements logiciels ; ils ne prouvent pas, à eux seuls, une vulnérabilité exploitable en Production.
