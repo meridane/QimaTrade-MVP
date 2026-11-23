@@ -99,4 +99,4 @@ for safe_url in "${safe_urls[@]}"; do
   fi
 done
 
-echo "Participant self-enrollment runner URL guard regression PASS: 7 unsafe URLs rejected before psql; 3 supported loopback URLs accepted."
+echo "Participant self-enrollment runner URL guard regression PASS: ${#unsafe_urls[@]} unsafe URLs rejected before psql; 3 supported loopback URLs accepted."
