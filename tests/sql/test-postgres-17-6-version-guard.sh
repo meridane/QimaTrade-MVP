@@ -15,8 +15,14 @@ grep -Fq "PostgreSQL 17.6 compatibility server_version_num=170006" <<< "$output"
 assert_rejected() {
   local label="$1"
   shift
+  local status=0
   if bash "$VALIDATOR" "$@" >/dev/null 2>&1; then
-    echo "ERROR: validator accepted invalid case: $label" >&2
+    status=0
+  else
+    status=$?
+  fi
+  if [[ "$status" -ne 1 ]]; then
+    echo "ERROR: validator expected exit 1 for invalid case: $label (received $status)" >&2
     exit 1
   fi
 }
