@@ -1964,6 +1964,31 @@ test("CREATE_OFFER route rejects malformed or non-string profile actor IDs befor
   }
 });
 
+test("CREATE_OFFER route canonicalizes the profile actor UUID before building the idempotency payload", async () => {
+  const actorId = "30000000-0000-4000-8000-000000000001";
+  const result = await postCreateOffer(
+    "USD",
+    {},
+    undefined,
+    undefined,
+    "succeeded",
+    "Bearer qima-route-test-token",
+    200,
+    200,
+    200,
+    actorId.toUpperCase(),
+  );
+
+  expect(result.status, JSON.stringify({ body: result.body, requests: result.requests })).toBe(200);
+  const executionCall = result.requests.find(
+    (request) => request.path === "/rest/v1/rpc/execute_create_offer_v1",
+  );
+  expect(executionCall).toBeDefined();
+  expect(executionCall?.body?.p_provider_actor_id).toBe(actorId);
+  const rpcInput = executionCall?.body?.p_input as Record<string, unknown> | undefined;
+  expect(rpcInput?.providerActorId).toBe(actorId);
+});
+
 test("CREATE_OFFER route returns a generic server error for profile lookup failures and stops before tenant or RPC access", async () => {
   const result = await postCreateOffer(
     "USD",
