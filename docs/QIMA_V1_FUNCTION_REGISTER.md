@@ -14393,3 +14393,31 @@ La revue croisée des scripts de garde-fou PostgreSQL a révélé le même défa
 - Aucun déploiement Production, merge, force-push ou changement de protection n'a été effectué. Les tests synthétiques ne prouvent pas une vulnérabilité exploitable en Production.
 - Attendre la clôture de CI #1877 et CodeQL #1805 pour ne pas annuler les jobs actifs ; vérifier spécifiquement le message QA262 dans les journaux PostgreSQL.
 - Re-comparer ensuite `work/qima-qa328-summary-count-20261124-0524` à la branche PR et publier par fast-forward uniquement si elle est toujours exactement basée sur le HEAD attendu ; vérifier la nouvelle CI, CodeQL et le Preview avant une clôture documentaire finale.
+
+
+---
+
+## Clôture QIMA CI #1877 et validation préalable du correctif QA328 — 24 novembre 2026, 06:18 KST
+
+### Résultats définitifs du HEAD `6d3a873e`
+
+- PR #26 vérifiée via l'API GitHub : **OPEN / DRAFT / non fusionnée**, base `main`, HEAD `6d3a873eab36f8de21556d8296da85de41c386c6`, 2 347 commits dans la PR, 289 fichiers modifiés, 93 234 insertions et 266 suppressions ; `mergeable=true`, `mergeable_state=unstable` pendant les contrôles.
+- QIMA CI [#1877](https://github.com/meridane/QimaTrade-MVP/actions/runs/45259218286) : workflow global **SUCCESS**. Le job Verify est **SUCCESS** avec npm install, audit au seuil `high`, TypeScript, build Next.js, Chromium et Playwright **423 passed (35,8 s)**.
+- PostgreSQL 16 : job d'intégration **SUCCESS**. PostgreSQL 17.6 : job de compatibilité **SUCCESS**, version exacte `server_version_num=170006`.
+- Le journal PostgreSQL 16 confirme QA262 : **3** URLs loopback prises en charge, **11** URLs non autorisées et `DATABASE_URL` absent rejetés avant `psql`. Le même run affiche encore le résumé QA328 pré-correctif avec **7** URLs non autorisées ; la correction QA328 ci-dessous n'était pas incluse dans ce HEAD.
+- CodeQL [#1805](https://github.com/meridane/QimaTrade-MVP/actions/runs/45259219292) : **SUCCESS**. Le statut de commit Vercel est **SUCCESS** ([Preview](https://vercel.com/bmk1/qimatrade-mvp/6MhHGLVZXJR8UeGE9gr4npmGrn5n)).
+- Les deux jobs prepared-transaction de simulation portent une conclusion de job `failure` attendue (setup et cleanup simulés) ; leurs assertions de contrôle dédiées ont **SUCCESS**. Le job `skipped` est attendu et le contrôle anti-faux-succès est **SUCCESS**. Le workflow global est **SUCCESS**.
+
+### Correctif QA328 prêt à être publié
+
+- Le commit de test [`d6011235`](https://github.com/meridane/QimaTrade-MVP/commit/d60112351e963dcb2baf03268e10ceaa20278ca5) modifie uniquement le message final de `tests/sql/test-prepared-transactions-config-setup.sh` : le nombre statique `7` est remplacé par `${#unsafe_setup_urls[@]}`, qui reflète le tableau réellement parcouru.
+- Le commit documentaire [`7d0853f5`](https://github.com/meridane/QimaTrade-MVP/commit/7d0853f5abca4ce906ce01bf3175e1bdb6596fa7) consigne la correction et son état de validation.
+- Comparaison GitHub vérifiée avant publication : `work/qima-qa328-summary-count-20261124-0524` est **2 commits en avance, 0 en retard** sur `fix/create-offer-status-contract`. Les deux fichiers concernés sont le script QA328 (1 insertion / 1 suppression) et ce registre (29 lignes ajoutées).
+- Le diff QA328 ne modifie ni les sept URLs, ni les trois URLs loopback autorisées, ni les assertions, ni les codes de sortie, ni les appels Docker/psql ou l'écriture du marqueur. La sortie QA328 de CI #1877 décrit le parent pré-correctif et ne constitue pas une validation de cette modification.
+- Aucun test local n'a été exécuté. La validation du correctif sera attribuée uniquement à la nouvelle CI déclenchée après publication fast-forward.
+
+### Périmètre et prochaine étape
+
+- Aucun code applicatif, SQL de migration ou schéma Supabase n'a changé. Aucune donnée Supabase Production, migration, secret, grant, policy RLS persistante ou configuration PostgreSQL Production n'a été modifiée.
+- Aucun déploiement Production, merge, force-push ou changement de protection n'a été effectué. Les tests synthétiques de garde-fou ne prouvent pas une vulnérabilité exploitable en Production.
+- Publier les deux commits QA328 par fast-forward avec lease sur le HEAD attendu `6d3a873e`, puis vérifier la nouvelle CI, CodeQL et le Preview du nouveau HEAD.
