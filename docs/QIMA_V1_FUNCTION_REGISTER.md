@@ -14169,3 +14169,24 @@ Lecture de app/api/actions/create-offer/route.ts (blob fea405fe02de3dae5ebd3fc01
 
 - Clôturer CI #1870 et CodeQL #1798 sur le HEAD b2f98a9e, puis vérifier le Preview Vercel.
 - Continuer l'audit des scripts et du contrat CREATE_OFFER sans imposer les décisions métier/API encore ouvertes.
+
+
+---
+
+## Snapshot post-publication — HEAD 44e22aba, 24 novembre 2026, 01:37 KST
+
+- PR #26 : **OPEN**, **DRAFT**, non fusionnée ; HEAD 44e22abaf12e2dc9358cc6606c823540a2b8f77f ; GitHub indique mergeable=true au dernier contrôle.
+- Comparaison main...fix/create-offer-status-contract : **2 337 commits en avance, 0 en retard**. Métadonnées PR : 289 fichiers modifiés, 93 039 insertions et 266 suppressions.
+- Le commit 44e22aba ne modifie que docs/QIMA_V1_FUNCTION_REGISTER.md.
+- QIMA CI [#1870](https://github.com/meridane/QimaTrade-MVP/actions/runs/45219107352), associé au parent b2f98a9e, est passé de QUEUED à **IN PROGRESS** ; aucun résultat final ne lui est attribué.
+- CodeQL [#1798](https://github.com/meridane/QimaTrade-MVP/actions/runs/45219107330), associé au parent b2f98a9e : **IN PROGRESS**.
+- Sur le HEAD exact 44e22aba, QIMA CI [#1871](https://github.com/meridane/QimaTrade-MVP/actions/runs/45219241174) : **PENDING** au dernier contrôle ; CodeQL [#1799](https://github.com/meridane/QimaTrade-MVP/actions/runs/45219241140) : **IN PROGRESS**.
+- Statut combiné Vercel du HEAD 44e22aba : **PENDING** ([Preview](https://vercel.com/bmk1/qimatrade-mvp/WYJCyVxQqgtHLKBDde7gvxYJQa5T)).
+- Aucun résultat CI #1869 n'est attribué aux nouveaux commits b2f98a9e ou 44e22aba. Les workflows de ces SHA restent à clôturer.
+- La branche de travail et la branche PR étaient identiques après fast-forward : 0 commit d'avance, 0 de retard.
+- Aucun code applicatif, test, SQL, migration, donnée Supabase Production, secret, grant, policy RLS persistante ou configuration PostgreSQL n'a été modifié. Aucun déploiement Production, merge, force-push ou changement des protections GitHub n'a été effectué.
+
+### Prochaine étape
+
+- Clôturer CI #1870 et CodeQL #1798 sur b2f98a9e, puis CI #1871, CodeQL #1799 et le Preview du HEAD 44e22aba.
+- Ne modifier les règles numériques ou les conversions des champs métier facultatifs qu'après décision API/métier explicite.
