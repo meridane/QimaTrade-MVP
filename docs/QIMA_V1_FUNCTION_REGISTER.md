@@ -13529,3 +13529,14 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 - Après fast-forward vers la branche PR, vérifier le nouveau QIMA CI, les **422** tests Playwright, PostgreSQL 16/17.6, CodeQL et Vercel Preview avant de déclarer le lot validé.
 - Aucun test local n'a été exécuté.
 - Aucune donnée ou migration Supabase Production, aucun secret, grant ou policy RLS persistante n'a été modifié. Aucun déploiement Production, merge, force-push ou changement des protections GitHub n'a été effectué.
+
+
+### Suivi post-publication — 23 novembre 2026, 10:55 KST
+
+- Le fast-forward de la branche de travail vers fix/create-offer-status-contract a réussi sans force-push. HEAD publié : 843d32c83b2566142303a1b2e7a146ac649aeacb.
+- QIMA CI [#1843](https://github.com/meridane/QimaTrade-MVP/actions/runs/45097506889) a démarré sur le nouveau HEAD et est **IN PROGRESS**. Verify/browser, PostgreSQL 16 et PostgreSQL 17.6 sont encore actifs. Aucun décompte Playwright n'est encore disponible.
+- CodeQL [#1771](https://github.com/meridane/QimaTrade-MVP/actions/runs/45097506839) est **IN PROGRESS**.
+- Vercel Preview du nouveau HEAD est **PENDING** ([Preview](https://vercel.com/bmk1/qimatrade-mvp/6MBH3JhkjpRDPSDH1V8a3YUGXbvk)).
+- Les deux jobs de simulation setup-failure et cleanup-failure affichent leurs conclusions négatives intentionnelles. Le job d'assertion du skipped est **SUCCESS** ; les deux autres jobs d'assertion de nettoyage sont encore **IN PROGRESS**. Aucun échec inattendu du code applicatif n'est établi.
+- Le HEAD de la branche de travail et celui de la PR ont été comparés après publication : **0 commit d'avance / 0 de retard**.
+- Le nouveau scénario doit porter le total Playwright à **422** s'il passe. Les résultats de CI #1842 (421/421), CodeQL #1770 et Vercel du HEAD parent ne sont pas attribués au nouveau correctif.
