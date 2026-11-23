@@ -13599,3 +13599,45 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 - Le déploiement dpl_6FzogbvPT2eYd9bjwaVKZr2TQT7z du commit documentaire 47dc6a187de6e3b78c7c3c84ed8945e605132481 est **READY**. Ce commit est descendant du commit code/test 843d32c et ne modifie que le registre ; il conserve donc exactement le même code et les mêmes tests.
 - Aucun déploiement Vercel n'est encore listé pour le HEAD documentaire actuel fab051bb15b2bf852a3c1278e9206cc439b324f0. Le statut READY précédent valide le même arbre applicatif, mais ne doit pas être présenté comme un déploiement du HEAD documentaire exact.
 - Le statut Vercel est donc : déploiement code/test initial annulé par les déploiements suivants ; déploiement d'un commit documentaire descendant READY ; aucun déploiement enregistré pour le HEAD documentaire le plus récent.
+
+
+## Exécution automatisée — 23 novembre 2026, 12:48 KST
+
+### État GitHub relu avant modification
+
+- Dépôt : `meridane/QimaTrade-MVP`.
+- PR #26 : **OPEN / DRAFT / non fusionnée**, base `main`, branche `fix/create-offer-status-contract`, `mergeable=true`.
+- HEAD PR avant cette intervention : `408f44927581996d126a724fe5bf377d50c6bbe4`, 2 316 commits dans la PR, 288 fichiers modifiés, 92 163 insertions et 266 suppressions.
+- Le HEAD `408f4492` est documentaire uniquement. Les commits de code/test précédents vérifiés sont `dac2ec316fc23c70c1c1a4ece8b326e8122313d3` (normalisation de `profile.actor_id`) et `f1dba2e854a4edf63d771da8e039c2d05b5dd1fd` (test associé).
+- Le blob canonique de ce registre a été relu intégralement par l'API Git Blobs : SHA `134a22c21b4b5843aeb8468592b50142ddffd882`, 2 680 484 caractères, 13 602 lignes. La réponse vide précédente concernait le lecteur Contents avec plages de lignes ; elle ne signifiait pas que le blob était inaccessible. Cette mise à jour est donc faite dans le registre canonique lui-même, sans remplacer l'historique par un fichier compagnon.
+
+### Clôture vérifiée de QIMA CI #1851 — HEAD code/test antérieur
+
+- QIMA CI [#1851](https://github.com/meridane/QimaTrade-MVP/actions/runs/45101013580) : **SUCCESS**.
+- Job « Typecheck, audit, build and browser tests » : **SUCCESS** ; le journal Playwright confirme **423 passed (36,0 s)**.
+- Installation npm, audit au seuil bloquant configuré `high`, TypeScript, build Next.js, Chromium, fixture de contrat sécurité QIMA : **SUCCESS**.
+- Intégration PostgreSQL 16 : **SUCCESS**, y compris tests CREATE_OFFER, replay, concurrence, privilèges du runner et régressions RLS.
+- Compatibilité PostgreSQL 17.6 : **SUCCESS**, y compris tests CREATE_OFFER, replay, concurrence, wrapper-owner et ACL.
+- Les jobs de simulation de défaillance setup/cleanup ont des conclusions `failure` intentionnelles. Les assertions qui vérifient leur propagation et le nettoyage sont **SUCCESS** ; le job explicitement attendu en `skipped` est correctement ignoré.
+- Le journal Playwright contient des traces `ECONNRESET` émises par le `fetch` mock du test de transport Auth (« maps non-credential Auth upstream failures and transport exceptions to a generic 503 »). Le test correspondant est **PASS** ; il s'agit d'une exception synthétique contrôlée, pas d'une panne Auth externe ni d'un incident de production.
+- CodeQL [#1779](https://github.com/meridane/QimaTrade-MVP/actions/runs/45101013530) : **SUCCESS**.
+- Le statut Vercel du HEAD `408f4492` est **FAILURE** avec la cible `build-rate-limit` / `api-deployments-free-per-day`. C'est une limite de quota Preview, pas un échec de compilation ; aucun contournement ni déploiement Production n'a été effectué.
+
+### Revue du contrat SQL et correction d'un test insuffisamment discriminant
+
+- La migration existante `supabase/migrations/20261027090000_fix_create_offer_action_status_contract.sql` a été lue en lecture seule. Elle déclare `p_provider_actor_id uuid`, vérifie l'égalité avec l'acteur du profil, et calcule `request_hash` sur un objet JSONB contenant à la fois `p_input` et `p_provider_actor_id`.
+- Le test précédent utilisait `30000000-0000-4000-8000-000000000001`. Cette valeur ne contient que des chiffres hexadécimaux ; `.toUpperCase()` ne la modifiait donc pas. L'assertion ne testait pas réellement une différence de casse. C'est une faiblesse de couverture du test, pas la preuve d'un défaut de production.
+- Sur la branche de travail `work/qima-actor-uuid-idempotency-replay-20261123-1248`, le commit `acb35c75e80eda3f97e1bc1df353224e0ed9cc3e` modifie uniquement `tests/e2e/create-offer-route-contract.spec.ts`.
+- Le test emploie maintenant l'UUID hexadécimal mixte `3a000000-0000-4000-8000-00000000000f`, qui contient réellement `a` et `f`. Il vérifie les deux ordres (majuscule puis minuscule, puis l'inverse) avec la même clé d'idempotence : `p_provider_actor_id` et `p_input.providerActorId` restent canoniques, la seconde requête rejoue le même résultat, `createCount=1` et `replayCount=1`. Le test existant est renforcé, sans ajouter de scénario Playwright ; le total attendu reste 423.
+- **Résultat CI du commit `acb35c75` : en attente de publication sur la branche PR et de validation.** Aucun résultat de test n'est anticipé.
+
+### Prochaine étape
+
+1. Publier le commit de test par fast-forward uniquement si la tête de la PR est toujours `408f4492`.
+2. Vérifier la nouvelle CI : Playwright (423 attendus), PostgreSQL 16, PostgreSQL 17.6 et CodeQL.
+3. Consigner les résultats définitifs dans ce registre.
+4. Reprendre les autres contrôles CREATE_OFFER sans changer le contrat métier `correlationId` en l'absence de décision architecturale.
+
+### Périmètre
+
+Aucune donnée Supabase Production, aucune migration, aucun secret, grant ou policy RLS persistante n'a été modifié. La migration mentionnée a uniquement été lue. Aucun déploiement Production, merge, force-push ou changement des règles de protection n'a été effectué. Les tests synthétiques décrivent le comportement contrôlé et ne prouvent pas une vulnérabilité exploitable en Production.
