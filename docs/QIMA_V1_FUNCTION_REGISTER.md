@@ -13848,3 +13848,11 @@ Deux comportements sont observés mais ne sont pas modifiés sans décision de c
 - Aucune donnée Supabase Production, migration, secret, grant, policy RLS persistante ou configuration PostgreSQL n'est modifiée.
 - Aucun déploiement Production, merge, force-push ou changement des règles de protection n'est effectué.
 - Les tests E2E, SQL et fixtures contrôlées caractérisent des comportements logiciels ; ils ne prouvent pas, à eux seuls, une vulnérabilité exploitable en Production.
+
+### Snapshot post-publication du commit 0fc523cb — 23 novembre 2026, 19:46 KST
+
+- La mise à jour documentaire précédente a été fast-forwardée sur `fix/create-offer-status-contract` : commit `0fc523cb0fafdde7819d13fb07d75b2a6f45c205`, parent de travail créé depuis le commit contrôlé `ef4979827814ee3d3b949590cd2a7b5257213151`. La comparaison `main...fix/create-offer-status-contract` retourne maintenant **2 327 commits en avance, 0 en retard**, et 289 fichiers modifiés.
+- QIMA CI [#1861](https://github.com/meridane/QimaTrade-MVP/actions/runs/45159380532) : **IN PROGRESS** au contrôle post-publication. Le job Verify est en cours d'installation des dépendances après les contrôles statiques SQL déjà réussis ; PostgreSQL 16 est en cours d'installation du client ; PostgreSQL 17.6 est au checkout. Les deux simulations prepared-transaction ont leurs conclusions négatives intentionnelles et leurs assertions de contrôle sont **SUCCESS** ; le job attendu en `skipped` est bien **SKIPPED** et son assertion est **SUCCESS**. Aucun résultat Playwright final n'est disponible pour ce commit à cet instant.
+- CodeQL [#1789](https://github.com/meridane/QimaTrade-MVP/actions/runs/45159380302) : **IN PROGRESS** ; checkout réussi, initialisation CodeQL en cours, autobuild/analyse en attente.
+- Le statut combiné GitHub `Vercel` du commit `0fc523cb` est **PENDING** : [Preview GFFLC4wJFRsaaJJmLvZo9naV14Q6](https://vercel.com/bmk1/qimatrade-mvp/GFFLC4wJFRsaaJJmLvZo9naV14Q6).
+- Aucun code applicatif ni test n'a été modifié ; cette publication ne change que le registre canonique. Les résultats de #1860 ci-dessus restent ceux du commit parent `ef497982` et ne sont pas attribués au nouveau commit.
