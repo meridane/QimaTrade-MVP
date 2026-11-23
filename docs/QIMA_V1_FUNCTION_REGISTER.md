@@ -13795,3 +13795,56 @@ Aucun changement applicatif ou test n'a été nécessaire dans cette exécution 
 - Aucune donnée Supabase Production, migration, secret, grant, policy RLS persistante ou configuration PostgreSQL n'est modifiée.
 - Aucun déploiement Production, merge, force-push ou changement des règles de protection n'est effectué.
 - Les tests E2E, SQL et fixtures contrôlées caractérisent des comportements logiciels ; ils ne prouvent pas, à eux seuls, une vulnérabilité exploitable en Production.
+
+---
+
+## Clôture QIMA CI #1860 et revue de validation des champs — 23 novembre 2026, 19:44 KST
+
+### État GitHub relu avant cette actualisation
+
+- La recherche GitHub résout bien la PR #26, intitulée `fix: align CREATE_OFFER execution statuses`. L'endpoint de recherche ne renseigne toutefois pas les champs live `state` et `draft` (valeurs nulles) ; le corps de PR retourné contient un ancien snapshot daté du 20 novembre. L'état OPEN/DRAFT n'est donc pas présenté ici comme une vérification live.
+- La comparaison `main...fix/create-offer-status-contract` retourne `ahead`, **2 326 commits en avance et 0 en retard**. Elle retourne 289 fichiers ; l'agrégat des statistiques de fichiers de cette comparaison est de 27 620 insertions et 222 suppressions. Ces chiffres proviennent de l'endpoint compare, et non du corps de PR obsolète.
+- Le commit contrôlé pour cette clôture est `ef4979827814ee3d3b949590cd2a7b5257213151`, message `docs(qima): close CI 1859 and CodeQL 1787 validation`. Son diff ne modifie que le registre canonique. Le blob actuel du registre sur la branche correspond à `a3e5458f1f21e890fbb1b4de3743fadc1043d8d4`.
+- Aucun review thread n'est retourné par l'API de revue pour la PR #26.
+- Les workflows associés au commit contrôlé sont CI #1860 et CodeQL #1788.
+
+### Résultats définitifs sur le commit contrôlé
+
+- QIMA CI [#1860](https://github.com/meridane/QimaTrade-MVP/actions/runs/45146745789) : **SUCCESS**.
+- Le job Verify `Typecheck, audit, build and browser tests` est **SUCCESS** ; le journal Playwright confirme **423 passed (38,3 s)**.
+- Installation depuis le lockfile, audit npm au seuil bloquant `high`, TypeScript, build Next.js, installation Chromium, tests navigateur et fixture de contrat sécurité QIMA : **SUCCESS**.
+- L'artefact `npm-audit-report` a été publié (314 octets). Le gate au seuil `high` a réussi. Le workflow indique que les niveaux sous le seuil peuvent être reportés sans bloquer ; aucun nombre global de findings n'est affirmé ici.
+- PostgreSQL 16 : job d'intégration **SUCCESS**. PostgreSQL 17.6 : job de compatibilité **SUCCESS**. Les deux jobs ont terminé les suites CREATE_OFFER de replay, concurrence, validations sans écriture, contrôles de privilèges/ACL, RLS, wrapper/membership et nettoyage des bases temporaires.
+- Les deux jobs de simulation prepared-transaction ont la conclusion négative intentionnelle prévue. Les assertions de propagation/cleanup associées sont **SUCCESS**. Le job explicitement attendu en `skipped` est bien **SKIPPED**, avec son assertion de contrôle **SUCCESS**.
+- CodeQL [#1788](https://github.com/meridane/QimaTrade-MVP/actions/runs/45146745830) : **SUCCESS**.
+- Le statut combiné GitHub `Vercel` du commit contrôlé est **SUCCESS** (Preview uniquement) : [7jGaqU3mgzV92FuG24UZafKuPiJc](https://vercel.com/bmk1/qimatrade-mvp/7jGaqU3mgzV92FuG24UZafKuPiJc).
+
+### Revue complémentaire de la frontière de validation HTTP
+
+Relecture en lecture seule de `app/api/actions/create-offer/route.ts`, `lib/actions/runtime.ts`, `lib/actions/engine.ts`, `lib/actions/types.ts`, `tests/e2e/create-offer-route-contract.spec.ts`, `docs/MKT-1.0_CREATE_OFFER_PRICE_VALIDATION.md` et `docs/MKT-1.3_IDEMPOTENCY_NUMERIC_CANONICALIZATION.md`.
+
+Deux comportements sont observés mais ne sont pas modifiés sans décision de contrat :
+
+1. **Lexique des nombres reçus en chaînes.** La route convertit les chaînes `quantity` et `price` avec `Number(...)`, puis applique `Number.isFinite` et les bornes métier. Le document MKT-1.0 spécifie la finitude et les bornes, mais ne définit pas explicitement une grammaire décimale. En JavaScript, `Number("0x10")`, `Number("0b10")` et `Number("0o10")` sont des conversions numériques valides ; la notation scientifique est également acceptée. **Décision requise :** les chaînes hexadécimales/binaires/octales doivent-elles être refusées, et la notation scientifique doit-elle rester autorisée ? Aucun comportement n'est changé ni verrouillé par un nouveau test.
+2. **Coercition des champs textuels facultatifs.** Les champs non nuls `pricingModel`, `conditions`, `market`, `geography`, `documentationStatus`, `lifecycle` et `offerType` sont convertis avec `String(...)`. Les objets/tableaux/valeurs booléennes ou numériques peuvent donc devenir du texte avant l'appel RPC. Les tests actuels couvrent les valeurs textuelles, vides, nulles et omises, mais pas toutes les formes non-string de ces champs. **Décision requise :** faut-il rejeter les types non-string ou conserver la coercition actuelle ? Aucun changement n'est appliqué sans contrat explicite.
+- Ces observations décrivent le comportement du code et des conversions JavaScript ; elles ne constituent pas une vulnérabilité confirmée ni une preuve d'incident Production.
+
+### Décisions de contrat toujours ouvertes
+
+- `correlationId` : le contexte de route possède un identifiant, mais le runtime CREATE_OFFER ne le transmet pas au RPC ; SQL génère son propre identifiant. Source officielle à décider.
+- `objectType/objectId` : contexte ActionEngine `Demand`, exécution persistée SQL `Offer`. Sémantique métier à confirmer.
+- `idempotencyKey` client : une clé explicite stable permet le replay ; la route génère actuellement un UUID v4 lorsque la clé est absente, vide ou non-string. Caractère obligatoire/facultatif à décider.
+- MKT-1.3 numeric canonicalization reste **CHARACTERIZATION / DECISION REQUIRED — NOT APPROVED**. Aucun changement de hash SQL ou de compatibilité des clés existantes n'est autorisé sans décision et plan de migration/compatibilité.
+
+### Prochaine tâche non bloquante
+
+- Obtenir la décision produit/API sur la grammaire des nombres et les types acceptés pour les champs textuels facultatifs.
+- Après décision seulement, ajouter des tests ciblés pour les formes retenues, puis relancer TypeScript, build, Playwright, PostgreSQL 16/17.6, npm audit et CodeQL.
+- En attendant, conserver le comportement actuel et poursuivre uniquement les vérifications indépendantes de ces contrats.
+
+### Périmètre de sécurité
+
+- Cette actualisation est documentaire uniquement.
+- Aucune donnée Supabase Production, migration, secret, grant, policy RLS persistante ou configuration PostgreSQL n'est modifiée.
+- Aucun déploiement Production, merge, force-push ou changement des règles de protection n'est effectué.
+- Les tests E2E, SQL et fixtures contrôlées caractérisent des comportements logiciels ; ils ne prouvent pas, à eux seuls, une vulnérabilité exploitable en Production.
