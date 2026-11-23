@@ -125,4 +125,4 @@ check_runner() {
 check_runner "run-create-offer-wrapper-owner-regression.sh" "Refusing wrapper-owner regression"
 check_runner "run-function-execute-acl-regression.sh" "Refusing ACL regression setup"
 
-echo "Auxiliary PostgreSQL runner URL guard regression PASS: 2 runners; 7 unsafe URLs and missing DATABASE_URL rejected before psql; 3 supported loopback URLs accepted per runner."
+echo "Auxiliary PostgreSQL runner URL guard regression PASS: 2 runners; ${#unsafe_urls[@]} unsafe URLs and missing DATABASE_URL rejected before psql; 3 supported loopback URLs accepted per runner."
