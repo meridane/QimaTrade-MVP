@@ -60,8 +60,10 @@ Lecture en lecture seule de `app/api/actions/create-offer/route.ts` et des tests
 
 ## 6. Vérification après modification documentaire
 
-- Les workflows QIMA CI et CodeQL déclarent `paths-ignore: docs/**`. Un commit limité à ce document ne doit donc pas être présenté comme une nouvelle validation applicative ; les résultats de référence restent CI #1854 et CodeQL #1782 sur le code inchangé.
-- Le statut Vercel du commit documentaire sera vérifié séparément après publication.
+- Les workflows QIMA CI et CodeQL déclarent bien `paths-ignore: docs/**`, mais cela n'empêche pas leurs événements `pull_request` de s'exécuter lorsque la PR contient déjà d'autres fichiers modifiés hors de `docs/**`. Le filtre est évalué sur l'ensemble du diff de la PR, pas seulement sur les fichiers du dernier commit.
+- Observation réelle après le commit documentaire `ba3a65ec` : QIMA CI [#1855](https://github.com/meridane/QimaTrade-MVP/actions/runs/45118604618) et CodeQL [#1783](https://github.com/meridane/QimaTrade-MVP/actions/runs/45118604578) ont été déclenchés sur le HEAD `ba3a65ec`. Au moment de cette correction documentaire, les deux workflows sont **IN PROGRESS** ; Verify, PostgreSQL 16 et PostgreSQL 17.6 sont en cours dans #1855. Les jobs setup/cleanup simulés ont leurs conclusions négatives intentionnelles et les assertions de contrôle sont **SUCCESS**.
+- Le Preview Vercel du commit `ba3a65ec` a été créé mais son état reste **QUEUED** au dernier contrôle ([déploiement](https://vercel.com/bmk1/qimatrade-mvp/Fnh7BhQsjnJtkeQGXVtm6c8HRUZz)).
+- Les résultats de référence du code inchangé restent CI #1854 et CodeQL #1782, tous deux **SUCCESS**. Les nouveaux runs #1855/#1783 doivent être clôturés séparément ; aucune réussite n'est anticipée.
 - Aucun test local n'a été exécuté dans cette intervention.
 
 ## 7. Périmètre de sécurité
