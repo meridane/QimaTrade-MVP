@@ -13686,3 +13686,13 @@ Aucune donnée Supabase Production, aucune migration, aucun secret, grant ou pol
 - Aucune donnée Supabase Production, aucune migration, aucun secret, grant ou policy RLS persistante n'a été modifié. La migration mentionnée a uniquement été lue.
 - Aucun déploiement Production, merge, force-push ou changement des règles de protection n'a été effectué.
 - Les tests et fixtures synthétiques caractérisent des contrats logiciels contrôlés et ne prouvent pas une vulnérabilité exploitable en Production.
+
+
+### Vérification post-publication — HEAD documentaire `77d2ba26` — 23 novembre 2026, 13:38 KST
+
+- Après le fast-forward, la PR #26 pointe bien sur `77d2ba26da65527dab616c417a73be75ec9e825e`, reste **OPEN / DRAFT / non fusionnée**, `mergeable=true`, `mergeable_state=unstable`. La comparaison `main...fix/create-offer-status-contract` confirme **2 319 commits en avance et 0 en retard**.
+- QIMA CI [#1853](https://github.com/meridane/QimaTrade-MVP/actions/runs/45112947989) et CodeQL [#1781](https://github.com/meridane/QimaTrade-MVP/actions/runs/45112948069) ont bien été déclenchés sur ce HEAD documentaire et sont **IN PROGRESS** au contrôle post-push.
+- Dans #1853, l'installation npm, l'audit au seuil high et TypeScript sont **SUCCESS** ; le build Next.js est encore en cours, Playwright est en attente, et les intégrations PostgreSQL 16 et 17.6 sont **IN PROGRESS**. Les assertions setup/cleanup déjà terminées sont **SUCCESS** ; les deux conclusions négatives simulées sont intentionnelles et le job attendu en skipped reste **SKIPPED**.
+- CodeQL #1781 : analyse encore **IN PROGRESS**. Aucun résultat final n'est anticipé.
+- Le statut Vercel du HEAD exact `77d2ba26` est maintenant **SUCCESS** (« Deployment has completed »), Preview : [G1vRbSkE5S57hPECMTceaiJC7mvP](https://vercel.com/bmk1/qimatrade-mvp/G1vRbSkE5S57hPECMTceaiJC7mvP).
+- Ce commit est documentaire uniquement ; il ne change ni le code applicatif ni les tests validés par CI #1852. La clôture des nouveaux contrôles #1853/#1781 sera consignée lors de leur résultat final.
