@@ -14364,3 +14364,32 @@ La revue croisée des scripts de garde-fou PostgreSQL a révélé le même défa
 - Attendre la clôture de CI #1876 afin de ne pas annuler les jobs PostgreSQL encore actifs.
 - Comparer à nouveau les branches, puis publier le commit de correction par fast-forward uniquement.
 - Vérifier la nouvelle CI PR et confirmer que le script QA262 passe avec le résumé issu du bon tableau ; mettre ensuite à jour le registre avec le résultat final.
+
+
+---
+
+## Réconciliation post-publication QA262 et audit du compteur QA328 — 24 novembre 2026, 05:24 KST
+
+### Clôture du HEAD parent et publication du correctif QA262
+
+- PR #26 avant la correction QA328 : **OPEN / DRAFT / non fusionnée**, branche `fix/create-offer-status-contract`, base `main`, HEAD `6d3a873eab36f8de21556d8296da85de41c386c6`, 2 347 commits, 289 fichiers modifiés, 93 234 insertions et 266 suppressions ; GitHub indique `mergeable=false` pendant les nouveaux contrôles.
+- Le HEAD précédent `62de182f` a clôturé QIMA CI [#1876](https://github.com/meridane/QimaTrade-MVP/actions/runs/45253876685) avec **SUCCESS** : Verify, audit npm au seuil `high`, TypeScript, build Next.js et Chromium réussis ; Playwright **423 passed (38,0 s)** ; PostgreSQL 16 et PostgreSQL 17.6 **SUCCESS**. Les étapes de garde-fou auxiliaire, legacy migration runner et participant self-enrollment sont **SUCCESS**.
+- Le journal de CI #1876 montre que QA262 imprimait **11** URLs non autorisées avant le correctif ; les deux tableaux distincts avaient alors tous deux 11 entrées, de sorte que la sortie était numériquement correcte malgré la référence au mauvais tableau.
+- CodeQL [#1804](https://github.com/meridane/QimaTrade-MVP/actions/runs/45253876667) : **SUCCESS**. Le statut combiné Vercel du nouveau HEAD après publication QA262 est **PENDING** au dernier contrôle ; le contrôle de commentaire Vercel est terminé, mais il ne suffit pas à déclarer le Preview READY.
+- Le correctif QA262 [`9e2018ba`](https://github.com/meridane/QimaTrade-MVP/commit/9e2018bab95892071e3b6d4bc5e596bc45440bb1) et sa documentation [`6d3a873e`](https://github.com/meridane/QimaTrade-MVP/commit/6d3a873eab36f8de21556d8296da85de41c386c6) ont été publiés sur la branche PR par fast-forward uniquement après comparaison exacte : 2 commits d'avance avant publication, 0 derrière. Les branches de travail et PR sont maintenant identiques à `6d3a873e`.
+- Sur ce HEAD, QIMA CI [#1877](https://github.com/meridane/QimaTrade-MVP/actions/runs/45259218286) est **IN PROGRESS** et CodeQL [#1805](https://github.com/meridane/QimaTrade-MVP/actions/runs/45259219292) est **IN PROGRESS**. Verify a terminé l'installation npm et l'audit avec **SUCCESS** ; le build et Playwright sont encore en attente. Les jobs PostgreSQL 16 et 17.6 sont actifs ; les étapes des trois garde-fous sont encore en attente au dernier relevé. Aucun résultat de CI #1876 n'est attribué au correctif QA262.
+
+### Audit complémentaire QA328 et correction préparée
+
+- Revue statique de 12 scripts shell de garde-fou, runner, setup et restore dans `tests/sql/` : les résumés des scripts auxiliaire, CREATE_OFFER, legacy et participant utilisent des tailles de tableaux dynamiques ; le script de setup prepared-transactions QA328 était le dernier cas repéré avec un nombre codé en dur.
+- Dans `tests/sql/test-prepared-transactions-config-setup.sh`, le tableau `unsafe_setup_urls` contient **7** entrées. Le message QA328 affichait le même nombre statique 7 ; le compte actuel est donc exact, mais il ne suit pas automatiquement une évolution du tableau.
+- Correction minimale préparée sur `work/qima-qa328-summary-count-20261124-0524`, commit [`d6011235`](https://github.com/meridane/QimaTrade-MVP/commit/d60112351e963dcb2baf03268e10ceaa20278ca5) : le message QA328 utilise désormais `${#unsafe_setup_urls[@]}`. Les sept URL, les trois URL loopback autorisées, les scénarios, les codes de sortie et les contrôles avant Docker/psql ou écriture du marqueur restent inchangés.
+- La modification est limitée à une substitution sur une ligne. Elle n'est pas encore publiée sur la branche PR et n'a pas encore été exécutée par GitHub Actions. Aucun test local n'a été exécuté.
+- Le commit de suivi documentaire courant décrit cette correction comme **PENDING CI** ; il ne prétend pas qu'elle est déjà validée.
+
+### Périmètre et prochaine étape
+
+- Aucun code applicatif, SQL de migration ou schéma Supabase n'a changé. Aucune donnée Supabase Production, migration, secret, grant, policy RLS persistante ou configuration PostgreSQL Production n'a été modifiée.
+- Aucun déploiement Production, merge, force-push ou changement de protection n'a été effectué. Les tests synthétiques ne prouvent pas une vulnérabilité exploitable en Production.
+- Attendre la clôture de CI #1877 et CodeQL #1805 pour ne pas annuler les jobs actifs ; vérifier spécifiquement le message QA262 dans les journaux PostgreSQL.
+- Re-comparer ensuite `work/qima-qa328-summary-count-20261124-0524` à la branche PR et publier par fast-forward uniquement si elle est toujours exactement basée sur le HEAD attendu ; vérifier la nouvelle CI, CodeQL et le Preview avant une clôture documentaire finale.
