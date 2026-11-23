@@ -13549,3 +13549,14 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 - Les jobs d'intégration PostgreSQL 16 et PostgreSQL 17.6 restent **IN PROGRESS**.
 - CodeQL #1771 reste **IN PROGRESS** et le statut Vercel Preview reste **PENDING**.
 - Aucun résultat Playwright n'est encore disponible pour le nouveau scénario ; le total attendu reste **422**. Les assertions de nettoyage réussies ne sont pas assimilées à une réussite des jobs de simulation, qui échouent volontairement pour vérifier la propagation des erreurs.
+
+
+### Actualisation des checks — 23 novembre 2026, 10:57 KST
+
+- CodeQL [#1771](https://github.com/meridane/QimaTrade-MVP/actions/runs/45097506839) a terminé **SUCCESS** sur le commit code/test 843d32c83b2566142303a1b2e7a146ac649aeacb.
+- QIMA CI [#1843](https://github.com/meridane/QimaTrade-MVP/actions/runs/45097506889) reste **IN PROGRESS**. Dans Verify, npm ci, audit au seuil high, TypeScript, build Next.js et installation Chromium sont **SUCCESS** ; le job browser smoke tests est **IN PROGRESS**. Aucun nombre final de tests n'est encore disponible.
+- Les jobs PostgreSQL 16 et PostgreSQL 17.6 restent **IN PROGRESS**.
+- Les deux jobs d'assertion de nettoyage et l'assertion du job skipped sont **SUCCESS**. Les jobs setup-failure et cleanup-failure restent en échec intentionnel attendu.
+- Vercel Preview reste **PENDING** ([Preview](https://vercel.com/bmk1/qimatrade-mvp/6MBH3JhkjpRDPSDH1V8a3YUGXbvk)).
+- Après recalcul GitHub, la PR #26 reste **OPEN / DRAFT / non fusionnée** et mergeable=true. Le HEAD documentaire courant est 3eca455ad54094d309760e7baa58d837a13c0d5c ; le commit de code/test validé par CI en cours reste 843d32c83b2566142303a1b2e7a146ac649aeacb.
+- La validation du nouveau test n'est pas déclarée avant la fin du job Playwright ; le total attendu est **422**.
