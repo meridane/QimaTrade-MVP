@@ -13898,3 +13898,14 @@ Deux comportements sont observés mais ne sont pas modifiés sans décision de c
 
 - Continuer uniquement les contrôles indépendants des décisions produit/API.
 - Les décisions concernant la grammaire des nombres, les types acceptés pour les champs textuels facultatifs, correlationId, objectType/objectId, le caractère obligatoire de idempotencyKey et la canonicalisation numérique MKT-1.3 restent ouvertes. Aucun comportement ni hash SQL ne doit être changé sans contrat approuvé et plan de compatibilité.
+
+### Snapshot post-publication du commit 5edf0bee — 23 novembre 2026, 20:47 KST
+
+- Le commit documentaire 5edf0bee87b83a940c4a4d51712fcd3aca78a493 est le HEAD actuel de la PR #26. PR **OPEN / DRAFT / non fusionnée**, mergeable=true ; comparaison main...fix/create-offer-status-contract : **2 329 commits en avance, 0 en retard**, 289 fichiers modifiés, 92 703 insertions et 266 suppressions. Aucun review thread n'est ouvert. La branche de travail et la branche PR sont identiques (0 ahead / 0 behind).
+- QIMA CI [#1863](https://github.com/meridane/QimaTrade-MVP/actions/runs/45168021565) : **IN PROGRESS** au dernier contrôle. Le job Verify est **SUCCESS** : npm ci, audit au seuil high, TypeScript, build Next.js, Chromium et fixture QIMA réussis ; le journal Playwright confirme **423 passed (37,9 s)**. Les jobs PostgreSQL 16 et 17.6 restent en cours, chacun à la caractérisation des privilèges d'écriture du runner CREATE_OFFER. Aucun résultat final n'est attribué à ces deux intégrations avant leur conclusion.
+- Dans CI #1863, les deux jobs de simulation prepared-transaction ont leur conclusion négative intentionnelle ; les assertions de contrôle associées sont **SUCCESS**. Le job explicitement attendu en skipped est **SKIPPED**, et son assertion est **SUCCESS**.
+- CodeQL [#1791](https://github.com/meridane/QimaTrade-MVP/actions/runs/45168021633) : **SUCCESS**.
+- Le statut combiné GitHub Vercel du commit 5edf0bee est **SUCCESS**. La lecture directe de la deployment API confirme l'état **READY** pour le SHA exact 5edf0bee, Preview uniquement : [déploiement](https://vercel.com/bmk1/qimatrade-mvp/5SAoGDnom4iACFrhdH6bBsYWdhEU).
+- Le commit 5edf0bee ne modifie que ce registre canonique. Aucun code applicatif, test, SQL ou migration n'a changé ; aucun test local n'a été exécuté.
+- Aucune donnée Supabase Production, migration, secret, grant, policy RLS persistante ou configuration PostgreSQL n'a été modifiée. Aucun déploiement Production, merge, force-push ou changement des règles de protection n'a été effectué.
+- Prochaine étape : attendre les conclusions PostgreSQL 16 et 17.6 de CI #1863, puis enregistrer leur résultat exact. Les tests synthétiques et les fixtures contrôlées ne prouvent pas à eux seuls une vulnérabilité exploitable en Production.
