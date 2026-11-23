@@ -19,7 +19,7 @@ async function postCreateOffer(
   currency: unknown,
   overrides: Record<string, unknown> = {},
   rawBody?: string,
-  membershipRows: Array<{ tenant_id?: unknown }> = [{ tenant_id: "20000000-0000-4000-8000-000000000001" }],
+  membershipRows: unknown = [{ tenant_id: "20000000-0000-4000-8000-000000000001" }],
   rpcStatus = "succeeded",
   authorizationHeader: string | null = "Bearer qima-route-test-token",
   authStatus: number | "network-error" = 200,
@@ -2238,6 +2238,44 @@ test("CREATE_OFFER route ignores malformed and non-string membership tenant IDs 
     "/rest/v1/rpc/execute_create_offer_v1",
   ]);
   const executionCalls = result.requests.filter(
+    (request) => request.path === "/rest/v1/rpc/execute_create_offer_v1",
+  );
+  expect(executionCalls).toHaveLength(1);
+  expect(executionCalls[0].body?.p_tenant_id).toBe(tenantId);
+});
+
+test("CREATE_OFFER route rejects non-array membership payloads and skips malformed membership rows", async () => {
+  const tenantId = "20000000-0000-4000-8000-000000000001";
+  const expectedLookupPaths = [
+    "/auth/v1/user",
+    "/rest/v1/profiles",
+    "/rest/v1/dt_memberships",
+  ];
+
+  const malformedPayload = await postCreateOffer("USD", {}, undefined, {
+    length: 1,
+    0: { tenant_id: tenantId },
+  });
+  expect(malformedPayload.status).toBe(403);
+  expect(malformedPayload.body).toEqual({ error: "TENANT_MEMBERSHIP_REQUIRED" });
+  expect(malformedPayload.requests.map((request) => request.path)).toEqual(expectedLookupPaths);
+  expect(malformedPayload.requests.some((request) => request.path.startsWith("/rest/v1/rpc/"))).toBe(false);
+
+  const mixedRows = await postCreateOffer("USD", {}, undefined, [
+    null,
+    "malformed-membership-row",
+    42,
+    { tenant_id: { id: tenantId } },
+    { tenant_id: tenantId },
+  ]);
+  expect(mixedRows.status, JSON.stringify({ body: mixedRows.body, requests: mixedRows.requests })).toBe(200);
+  expect(mixedRows.body).toMatchObject({ status: "succeeded" });
+  expect(mixedRows.requests.map((request) => request.path)).toEqual([
+    ...expectedLookupPaths,
+    "/rest/v1/rpc/get_action_definition_v1",
+    "/rest/v1/rpc/execute_create_offer_v1",
+  ]);
+  const executionCalls = mixedRows.requests.filter(
     (request) => request.path === "/rest/v1/rpc/execute_create_offer_v1",
   );
   expect(executionCalls).toHaveLength(1);
