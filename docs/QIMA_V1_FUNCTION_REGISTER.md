@@ -13570,3 +13570,15 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 - PostgreSQL 16 et PostgreSQL 17.6 restent **IN PROGRESS**.
 - Les assertions des harnesses setup/cleanup restent **SUCCESS** ; les conclusions négatives simulées et le job skipped attendu conservent leurs états intentionnels.
 - La PR #26 est toujours **OPEN / DRAFT / non fusionnée**. L'API GitHub indique mergeable=true, mergeable_state=unstable pendant les checks ; le nombre de commits devant main est 2 309 et le nombre derrière reste 0.
+
+
+### Résultat Verify — QIMA CI #1843 — 23 novembre 2026, 10:59 KST
+
+- Le job Verify / Typecheck, audit, build et browser tests de [QIMA CI #1843](https://github.com/meridane/QimaTrade-MVP/actions/runs/45097506889) est **SUCCESS**.
+- Le journal Playwright confirme **422 passed (34,9 s)**. Le nouveau test « rejects non-array membership payloads and skips malformed membership rows » est inclus dans ce total.
+- Installation npm, audit bloquant au seuil high, TypeScript, build Next.js, Chromium, Playwright et fixture sécurité QIMA isolée : **SUCCESS**.
+- CodeQL [#1771](https://github.com/meridane/QimaTrade-MVP/actions/runs/45097506839) : **SUCCESS**.
+- Vercel Preview du commit code/test : **SUCCESS** ([Preview](https://vercel.com/bmk1/qimatrade-mvp/8KnZtnGkZ8DoX1hWZ8G1MnFqTkPs)).
+- Les jobs PostgreSQL 16 et PostgreSQL 17.6 sont encore **IN PROGRESS** au moment de cette actualisation ; la CI globale n'est donc pas déclarée terminée.
+- Les simulations setup-failure et cleanup-failure conservent leurs conclusions négatives attendues ; les trois jobs d'assertion correspondants ont **SUCCESS**, tandis que le job explicitement attendu en skipped est bien **SKIPPED**.
+- Le nouveau test est validé par Verify, mais la validation complète des deux matrices PostgreSQL reste à obtenir.
