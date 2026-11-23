@@ -14190,3 +14190,24 @@ Lecture de app/api/actions/create-offer/route.ts (blob fea405fe02de3dae5ebd3fc01
 
 - Clôturer CI #1870 et CodeQL #1798 sur b2f98a9e, puis CI #1871, CodeQL #1799 et le Preview du HEAD 44e22aba.
 - Ne modifier les règles numériques ou les conversions des champs métier facultatifs qu'après décision API/métier explicite.
+
+
+---
+
+## État vérifié — HEAD `57d7df48` (24 novembre 2026, 02:21 KST)
+
+- PR #26 : **OPEN / DRAFT / non fusionnée**, base `main`, branche `fix/create-offer-status-contract`, HEAD `57d7df48b281c9ce5d3b318459002d06979e6083`, `mergeable=true`. Comparaison GitHub `main...fix/create-offer-status-contract` : **2 338 commits en avance, 0 en retard** ; métadonnées PR : 289 fichiers modifiés, 93 060 insertions et 266 suppressions. Aucun review thread ouvert (0 au total).
+- Le commit `57d7df48` est documentaire uniquement : il ajoute le snapshot post-publication relatif à `44e22aba` dans ce registre. Aucun code applicatif, test, SQL ou migration n'a changé dans ce commit.
+- QIMA CI [#1870](https://github.com/meridane/QimaTrade-MVP/actions/runs/45219107352), sur le parent `b2f98a9e`, est maintenant **SUCCESS**. CodeQL [#1798](https://github.com/meridane/QimaTrade-MVP/actions/runs/45219107330) est **SUCCESS**.
+- QIMA CI [#1871](https://github.com/meridane/QimaTrade-MVP/actions/runs/45219241174), sur `44e22aba`, est **CANCELLED** ; aucune réussite/échec de tests n'est attribué à ce run. CodeQL [#1799](https://github.com/meridane/QimaTrade-MVP/actions/runs/45219241140) est **SUCCESS**.
+- Sur le HEAD exact `57d7df48`, QIMA CI [#1872](https://github.com/meridane/QimaTrade-MVP/actions/runs/45219390942) est **SUCCESS** : Verify, npm audit (seuil bloquant `high`), TypeScript, build Next.js, Chromium et **423/423 Playwright (37,2 s)** réussis ; intégrations CREATE_OFFER/PostgreSQL 16 et PostgreSQL 17.6 **SUCCESS**. Les contrôles de concurrence, replay, refus de payload modifié, privilèges du runner, ACL/RLS et nettoyage ont réussi.
+- CodeQL [#1800](https://github.com/meridane/QimaTrade-MVP/actions/runs/45219390978) est **SUCCESS**. Le statut combiné du commit `57d7df48` rapporte Vercel **SUCCESS** ([Preview](https://vercel.com/bmk1/qimatrade-mvp/74KYhue9VG71EgPcC5vhFnmhBS8D)).
+- Les deux jobs de simulation prepared-transaction présentent leurs conclusions négatives intentionnelles ; leurs assertions de restauration et de propagation sont **SUCCESS**. Le job de contrôle attendu en `skipped` est correctement ignoré. Ces conclusions ne sont pas des échecs du workflow global.
+- Le registre canonique a été relu depuis le blob Git complet (2 745 157 caractères avant cette entrée). Cette section clôture #1870/#1798, décrit l'annulation #1871 sans lui attribuer de résultat de tests, puis clôture les contrôles du HEAD #1872/#1800 et le Preview associé.
+- Aucun test local n'a été exécuté pendant cette actualisation ; les résultats ci-dessus proviennent des jobs GitHub Actions. L'audit npm confirme le passage du seuil configuré `high`, sans affirmer l'absence de findings de sévérité inférieure.
+- Aucun code applicatif, test, SQL, migration, donnée Supabase Production, secret, grant, policy RLS persistante ou configuration PostgreSQL n'a été modifié. Aucun déploiement Production, merge, force-push ou changement des protections GitHub n'a été effectué. Les tests synthétiques caractérisent les contrats et ne prouvent pas à eux seuls une vulnérabilité exploitable en Production.
+
+### Prochaine étape
+
+- Éviter les snapshots documentaires intermédiaires qui déclenchent des workflows et peuvent annuler les runs précédents ; regrouper les clôtures suivantes dans une seule publication.
+- Poursuivre l'audit non bloquant des scripts de test et des frontières CREATE_OFFER. Ne figer la grammaire numérique, les conversions des champs facultatifs, `correlationId`, `objectType/objectId`, `idempotencyKey` ou MKT-1.3 qu'après décision API/métier explicite.
