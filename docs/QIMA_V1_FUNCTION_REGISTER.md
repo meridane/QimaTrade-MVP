@@ -14088,3 +14088,64 @@ Lecture en lecture seule de app/api/actions/create-offer/route.ts et tests/e2e/c
 - Continuer la revue indépendante des contrats métier/API sans imposer de décision non approuvée.
 - Examiner les scripts de validation locaux et les frontières d'exécution CREATE_OFFER restantes pour trouver un défaut de test ou de code objectivement démontrable.
 - Conserver la distinction entre les statuts CI, CodeQL et Preview Vercel propres à chaque SHA.
+
+
+---
+
+## Clôture QIMA CI #1869 et vérification du HEAD documentaire — 24 novembre 2026, 01:37 KST
+
+### État GitHub vérifié avant cette actualisation
+
+- PR #26 « fix: align CREATE_OFFER execution statuses » : **OPEN**, **DRAFT**, non fusionnée (merged=false), mergeable=true.
+- Base : main. Branche : fix/create-offer-status-contract.
+- HEAD exact : a278e98d29d4eb4f67173bc9f6109d682bd5e29b.
+- Comparaison main...fix/create-offer-status-contract : **2 335 commits en avance, 0 en retard**.
+- Métadonnées PR : **289 fichiers modifiés**, **92 958 insertions / 266 suppressions**.
+- Derniers commits relus, du plus récent au plus ancien :
+  - a278e98d — clôture documentaire des CI #1866–#1868.
+  - bee8f911 — snapshot post-publication de CI #1867.
+  - 219b66a1 — clôture de CI #1866 et revue de la frontière HTTP.
+  - 983030fb — clôture de CI #1865.
+  - 3e22c26e — clôture des CI #1863 et #1864.
+- Le commit HEAD a278e98d ne modifie que docs/QIMA_V1_FUNCTION_REGISTER.md. Le contenu du registre a été récupéré intégralement par son blob Git : **2 735 672 caractères** avant la présente actualisation. L'API de lecture de fichier renvoie un contenu vide pour ce gros fichier, mais le blob correspondant au SHA 60ae8b5e9afb814066df4a674cc667fb672fbc04 a bien été récupéré et inspecté.
+
+### Clôture de QIMA CI #1869 — HEAD a278e98d
+
+- Run [#1869](https://github.com/meridane/QimaTrade-MVP/actions/runs/45214002425) : **SUCCESS**.
+- Job Verify (installation npm, audit au seuil bloquant high, TypeScript, build Next.js, Chromium, fixture QIMA et Playwright) : **SUCCESS**.
+- Le journal Verify confirme **423 passed (36,0 s)**.
+- PostgreSQL 16 — intégrations CREATE_OFFER, concurrence, replay, privilèges du runner, ACL/RLS, migrations jetables et nettoyage : **SUCCESS**.
+- PostgreSQL 17.6 — garde de version, intégrations CREATE_OFFER, concurrence, replay, privilèges, ACL/RLS et nettoyage : **SUCCESS**.
+- CodeQL [#1797](https://github.com/meridane/QimaTrade-MVP/actions/runs/45214002318) : **SUCCESS**.
+- Statut combiné Vercel du HEAD exact : **SUCCESS**, Preview uniquement ([déploiement](https://vercel.com/bmk1/qimatrade-mvp/22Td41iYjUCRgf8HKBEZKo2mG7u6)).
+- Aucun autre workflow PR-triggered n'était retourné pour ce SHA lors de la lecture de fetch_commit_workflow_runs.
+
+### Interprétation des jobs
+
+- Les jobs Verify, PostgreSQL 16 et PostgreSQL 17.6 ont conclu **SUCCESS**.
+- Les deux jobs de simulation prepared-transaction explicitement nommés « expected setup failure » et « expected cleanup failure » ont une conclusion négative intentionnelle ; les assertions dédiées de restauration et de propagation ont conclu **SUCCESS**.
+- Le job explicitement attendu en skipped est bien **SKIPPED** ; l'assertion qui vérifie qu'un résultat skipped ne peut pas être traité comme un succès a conclu **SUCCESS**.
+- L'audit npm a passé le seuil bloquant high. Cela ne démontre pas l'absence de findings sous ce seuil ni l'absence de vulnérabilité dans l'application.
+
+### Revue non destructive de la route CREATE_OFFER
+
+Lecture de app/api/actions/create-offer/route.ts (blob fea405fe02de3dae5ebd3fc01736d63a8ea79319, 218 lignes) et de tests/e2e/create-offer-route-contract.spec.ts (blob b74c0f5fc1542256f4c48ae28571401dcd3dbe24, 4 107 lignes).
+
+- La suite existante contient des cas dédiés à la grammaire RFC 6750, à l'authentification avant parsing JSON, aux UUID de product master, à la normalisation des espaces Unicode de currency, aux limites numériques, aux memberships, aux attributs JSONB, aux clés d'idempotence et aux statuts d'exécution.
+- La route conserve Number(...) pour les chaînes numériques et String(...) pour certains champs métier facultatifs. Les décisions de contrat concernant les notations numériques non décimales et les valeurs non-string facultatives restent ouvertes ; aucun test ne doit figer une politique métier non approuvée.
+- Aucun défaut indépendant, objectivement démontré et sans décision métier requise n'a justifié un changement applicatif ou un nouveau test pendant cette exécution. Aucun test redondant n'a été ajouté.
+- Aucun test local n'a été exécuté ; les résultats Playwright et PostgreSQL rapportés ici proviennent des jobs GitHub Actions du run #1869.
+
+### Limites, décisions ouvertes et sécurité
+
+- Les décisions sur la grammaire numérique, les types des champs facultatifs, la source officielle de correlationId, la sémantique objectType/objectId, le caractère obligatoire ou facultatif de idempotencyKey et MKT-1.3 restent ouvertes.
+- MKT-1.3 numeric canonicalization demeure **CHARACTERIZATION / DECISION REQUIRED — NOT APPROVED**. Aucun hash SQL, format de clé ou comportement de replay n'est modifié sans approbation et plan de compatibilité.
+- Les tests E2E, SQL et fixtures caractérisent des comportements contrôlés ; ils ne prouvent pas à eux seuls une vulnérabilité exploitable en Production.
+- Cette actualisation est documentaire uniquement. Aucun code applicatif, test, SQL ou fichier de migration n'a été modifié.
+- Aucune donnée Supabase Production, migration, secret, grant, policy RLS persistante ou configuration PostgreSQL n'a été modifiée. Aucun déploiement Production, merge, force-push ou changement des règles de protection n'a été effectué.
+
+### Prochaine étape
+
+- Continuer la revue indépendante des scripts de validation et des frontières CREATE_OFFER sans imposer de décision API/métier non approuvée.
+- Demander une décision explicite sur la grammaire numérique et les types des champs facultatifs avant d'ajouter des tests qui figeraient leur comportement.
+- Conserver les statuts CI, CodeQL et Vercel liés au SHA exact ; vérifier les workflows déclenchés après cette publication documentaire.
