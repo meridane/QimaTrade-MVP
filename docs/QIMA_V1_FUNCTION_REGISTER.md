@@ -14011,3 +14011,80 @@ Lecture de `app/api/actions/create-offer/route.ts` et `tests/e2e/create-offer-ro
 - Source officielle de `correlationId), sémantique `objectType/objectId), et caractère obligatoire ou facultatif de `idempotencyKey`.
 - MKT-1.3 numeric canonicalization : **CHARACTERIZATION / DECISION REQUIRED — NOT APPROVED** ; aucun changement du hash SQL ou des clés existantes sans décision et plan de compatibilité.
 - Prochaine étape : vérifier les workflows et le Preview déclenchés sur le nouveau HEAD documentaire ; poursuivre uniquement les contrôles indépendants des décisions API/métier.
+
+
+---
+
+## Clôture des validations QIMA CI #1866, #1867 et #1868 — 24 novembre 2026, 01:09 KST
+
+### État GitHub vérifié avant cette actualisation
+
+- PR #26 « fix: align CREATE_OFFER execution statuses » : **OPEN**, **DRAFT**, non fusionnée (merged=false), mergeable=true.
+- Base : main. Branche : fix/create-offer-status-contract.
+- HEAD exact : bee8f9113ad7618ede26343bc50bfa834d7f3be5.
+- Comparaison main...fix/create-offer-status-contract : **2 334 commits en avance, 0 en retard**.
+- Métadonnées PR : **289 fichiers modifiés**, **92 881 insertions / 266 suppressions**.
+- Derniers commits relus, du plus récent au plus ancien :
+  - bee8f911 — snapshot documentaire post-publication de CI #1867.
+  - 219b66a1 — clôture de CI #1866 et revue de la frontière HTTP.
+  - 983030fb — clôture de CI #1865 et caractérisation CREATE_OFFER.
+  - 3e22c26e — clôture des CI #1863 et #1864.
+  - fa7d3ca5 — snapshot post-publication de CI #1863.
+- Le commit HEAD bee8f911 ne modifie que docs/QIMA_V1_FUNCTION_REGISTER_CI1854_CLOSEOUT_20261123.md. Le commit parent 219b66a1 modifie le même document compagnon. Le commit 983030fb a modifié le présent registre canonique.
+
+### Clôture de QIMA CI #1866 — commit 983030fb
+
+- Run [#1866](https://github.com/meridane/QimaTrade-MVP/actions/runs/45183869752) : **SUCCESS**.
+- Verify (npm ci, audit au seuil bloquant high, TypeScript, build Next.js, Chromium, fixture QIMA et Playwright) : **SUCCESS**.
+- Le journal Verify confirme **423 passed (38,0 s)**.
+- PostgreSQL 16 et PostgreSQL 17.6 : intégrations CREATE_OFFER, concurrence, replay, privilèges du runner, ACL/RLS et nettoyage : **SUCCESS**.
+- CodeQL [#1794](https://github.com/meridane/QimaTrade-MVP/actions/runs/45183869610) : **SUCCESS**.
+- Statut combiné Vercel : **SUCCESS**, Preview uniquement ([déploiement](https://vercel.com/bmk1/qimatrade-mvp/HNSf6DcCQvgSjrZpF6GBaGcLvuup)).
+
+### Clôture de QIMA CI #1867 — commit 219b66a1
+
+- Run [#1867](https://github.com/meridane/QimaTrade-MVP/actions/runs/45202409690) : **SUCCESS**.
+- Verify : installation npm, audit au seuil bloquant high, TypeScript, build Next.js, Chromium, fixture QIMA et Playwright : **SUCCESS**.
+- Le journal Verify confirme **423 passed (38,1 s)**.
+- PostgreSQL 16 et PostgreSQL 17.6 : intégrations CREATE_OFFER, concurrence, replay, privilèges, ACL/RLS et nettoyage : **SUCCESS**.
+- CodeQL [#1795](https://github.com/meridane/QimaTrade-MVP/actions/runs/45202409479) : **SUCCESS**.
+- Nuance Vercel : le statut combiné du commit PR 219b66a1 est **FAILURE**. La lecture des déploiements Vercel montre que le déploiement associé à la branche PR (dpl_CeH9LUuk14NW6GVMVrobht64mRAu) est **CANCELED**, tandis qu'un déploiement du même SHA sur la branche de travail work/qima-ci1866-closeout-20261124-0008 est **READY** (dpl_DrXHjVEKdij1ziW75DoX3R9Wkiwc). La cause de l'annulation n'a pas été établie ; ce Preview PR n'est donc pas déclaré réussi.
+
+### Clôture de QIMA CI #1868 — HEAD bee8f911
+
+- Run [#1868](https://github.com/meridane/QimaTrade-MVP/actions/runs/45202541644) : **SUCCESS**.
+- Verify : installation npm, audit au seuil bloquant high, TypeScript, build Next.js, Chromium, fixture QIMA et Playwright : **SUCCESS**.
+- Le journal Verify confirme **423 passed (37,0 s)**.
+- PostgreSQL 16 et PostgreSQL 17.6 : intégrations CREATE_OFFER, concurrence, replay, privilèges, ACL/RLS et nettoyage : **SUCCESS**.
+- CodeQL [#1796](https://github.com/meridane/QimaTrade-MVP/actions/runs/45202541534) : **SUCCESS**.
+- Statut combiné GitHub Vercel du HEAD exact : **SUCCESS**, Preview uniquement. La liste Vercel confirme un déploiement de la branche PR en état **READY** (dpl_7efR4zpMT3WRqX7uPzX6ikNbDsvi) et un déploiement de la branche de travail également **READY** (dpl_HBq9inUriMV3fWmq4EoEMZ96JwB3).
+
+### Interprétation des jobs et des résultats
+
+- Les trois cycles CI (#1866, #1867, #1868) ont chacun validé **423 exécutions Playwright**, soit **1 269 exécutions de tests réussies sur trois commits**, et non 1 269 tests uniques.
+- Pour chaque cycle, les jobs Verify, PostgreSQL 16 et PostgreSQL 17.6 ont conclu **SUCCESS**.
+- Les jobs de simulation prepared-transaction portant explicitement « expected setup failure » ou « expected cleanup failure » ont une conclusion négative intentionnelle ; leurs assertions dédiées de propagation/restauration ont conclu **SUCCESS**. Le job explicitement attendu en skipped est bien **SKIPPED**, et son assertion de contrôle a conclu **SUCCESS**. Ces états ne sont pas des échecs inattendus du workflow global.
+- Les gates npm audit ont passé le seuil bloquant high. Aucun nombre global de findings ni absence de findings sous ce seuil n'est déduit de ce résultat.
+- CodeQL #1794, #1795 et #1796 : **SUCCESS**.
+- Les statuts Vercel sont propres à chaque SHA et à chaque branche ; l'annulation du Preview PR sur #1867 n'est pas masquée par le déploiement READY de la branche de travail.
+
+### Revue de la frontière HTTP CREATE_OFFER
+
+Lecture en lecture seule de app/api/actions/create-offer/route.ts et tests/e2e/create-offer-route-contract.spec.ts :
+
+- Le fichier de tests contient déjà des cas explicites pour la grammaire RFC 6750 b64token, les schémas Bearer insensibles à la casse, les espaces répétés, le rejet des tabulations, les credentials absents, les caractères interdits et le padding mal placé.
+- Les tests vérifient aussi l'authentification avant le parsing JSON, les erreurs Auth non credential, les UUID canoniques, l'absence d'accès DB avant authentification, le masquage des erreurs PostgREST, les redirects Auth/REST/RPC et les reprises d'idempotence.
+- Les tests couvrent les chemins positifs et négatifs correspondants ; aucun défaut indépendant et vérifié n'a justifié un changement applicatif supplémentaire pendant cette exécution. Aucun test redondant n'a été ajouté.
+
+### Limites, décisions ouvertes et sécurité
+
+- Les décisions concernant la grammaire numérique, les types des champs textuels facultatifs, correlationId, objectType/objectId, le caractère obligatoire de idempotencyKey et MKT-1.3 restent ouvertes. Aucun contrat ou hash SQL n'est modifié sans approbation et plan de compatibilité.
+- Les tests E2E, SQL et fixtures caractérisent des comportements contrôlés ; ils ne prouvent pas à eux seuls une vulnérabilité exploitable en Production.
+- Cette actualisation est documentaire uniquement. Aucun code applicatif, test, SQL ou fichier de migration n'a été modifié. Aucun test local n'a été exécuté.
+- Aucune donnée Supabase Production, migration, secret, grant, policy RLS persistante ou configuration PostgreSQL n'a été modifiée. Aucun déploiement Production, merge, force-push ou changement des règles de protection n'a été effectué.
+
+### Prochaine étape
+
+- Continuer la revue indépendante des contrats métier/API sans imposer de décision non approuvée.
+- Examiner les scripts de validation locaux et les frontières d'exécution CREATE_OFFER restantes pour trouver un défaut de test ou de code objectivement démontrable.
+- Conserver la distinction entre les statuts CI, CodeQL et Preview Vercel propres à chaque SHA.
