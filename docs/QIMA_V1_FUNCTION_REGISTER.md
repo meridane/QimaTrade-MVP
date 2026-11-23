@@ -14252,3 +14252,46 @@ Fichier : `tests/sql/test-auxiliary-postgres-runner-guards.sh`.
 - Synchroniser la branche de travail par fast-forward après comparaison exacte avec le HEAD `52c5f727`.
 - Vérifier sur le nouveau HEAD le job Verify et le résultat de `test-auxiliary-postgres-runner-guards.sh`, puis consigner le résultat final dans ce registre.
 - Garder les décisions de contrat CREATE_OFFER (grammaire numérique, champs facultatifs, `correlationId`, `objectType/objectId`, `idempotencyKey` et MKT-1.3) en attente d'approbation métier/API.
+
+
+---
+
+## Réconciliation des résumés des garde-fous URL — 24 novembre 2026, 03:28 KST
+
+### Deux autres compteurs statiques inexacts identifiés
+
+La revue croisée des scripts de garde-fou PostgreSQL a révélé le même défaut de compte-rendu dans deux scripts supplémentaires :
+
+- `tests/sql/test-legacy-messages-runner-guard.sh` : tableau `unsafe_urls` de **11** entrées, résumé final auparavant codé en dur à **7**.
+- `tests/sql/test-participant-self-enrollment-runner-guard.sh` : tableau `unsafe_urls` de **11** entrées, résumé final auparavant codé en dur à **7**.
+- Le premier cas analogue, `tests/sql/test-auxiliary-postgres-runner-guards.sh`, avait déjà été corrigé dans le commit `671ce60b` : son tableau comporte 11 entrées et son résumé utilise maintenant `${#unsafe_urls[@]}`.
+
+### Corrections appliquées
+
+- Les deux résumés supplémentaires utilisent maintenant `${#unsafe_urls[@]}` au lieu du nombre statique 7.
+- Les tableaux de cas, boucles d'exécution, codes de sortie attendus, stubs `psql`, vérifications de non-connexion et URLs loopback autorisées n'ont pas été modifiés.
+- Il s'agit de corriger la fidélité du message de synthèse, pas de modifier le comportement des garde-fous ni d'affirmer qu'une tentative de connexion réelle a eu lieu.
+- Les trois scripts sont invoqués par `.github/workflows/ci.yml` : le test auxiliaire et les deux garde-fous legacy/participant sont donc couverts par le workflow CI PR.
+- Vérification statique : chacun des trois tableaux contient 11 cas ; chacun des trois messages de synthèse calcule désormais le nombre depuis le tableau correspondant.
+- Aucun test local n'a été exécuté. Les trois scripts restent **PENDING validation GitHub Actions** sur le nouveau HEAD.
+
+### État des validations pendant cette revue
+
+- Le HEAD antérieur `52c5f727` a CI #1873 **SUCCESS** (423/423 Playwright, PostgreSQL 16/17.6) et CodeQL #1801 **SUCCESS** ; Vercel Preview du SHA exact **SUCCESS**.
+- Après la première correction du résumé auxiliaire, CI [#1874](https://github.com/meridane/QimaTrade-MVP/actions/runs/45238767096) est **IN PROGRESS** sur le HEAD `a918151a`. Elle contient le correctif du script auxiliaire, mais pas encore les deux corrections ajoutées dans cette section.
+- CodeQL [#1802](https://github.com/meridane/QimaTrade-MVP/actions/runs/45238767159) sur le HEAD `a918151a` est **IN PROGRESS**.
+- Le statut Vercel Preview de `a918151a` était **PENDING** au dernier contrôle.
+- La branche de travail `work/qima-aux-runner-guard-summary-20261124-0325` porte maintenant les deux corrections supplémentaires et ce snapshot ; le contrôle final doit être déclenché après son fast-forward sur la branche PR. Aucun résultat CI antérieur ne sera attribué à ces deux nouveaux changements.
+
+### Périmètre
+
+- Modifications limitées aux messages de synthèse de trois scripts de test ; aucun code applicatif, SQL de migration ou schéma n'a changé.
+- Aucune donnée Supabase Production, migration, secret, grant, policy RLS persistante ou configuration PostgreSQL n'a été modifiée.
+- Aucun déploiement Production, merge, force-push ou changement de règle de protection.
+- Les tests synthétiques et ces corrections de compteurs ne constituent pas une preuve de vulnérabilité exploitable en Production.
+
+### Prochaine étape
+
+- Publier les deux corrections supplémentaires et le présent registre par fast-forward uniquement après comparaison exacte des branches.
+- Vérifier le nouveau run QIMA CI : Verify doit exécuter les trois scripts de garde-fou URL ; relever leurs messages réels et les résultats des jobs PostgreSQL 16/17.6.
+- Clôturer CodeQL et le Preview du nouveau SHA, puis ajouter une seule entrée de clôture finale au registre.
