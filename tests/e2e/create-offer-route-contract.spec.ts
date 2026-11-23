@@ -1964,29 +1964,86 @@ test("CREATE_OFFER route rejects malformed or non-string profile actor IDs befor
   }
 });
 
-test("CREATE_OFFER route canonicalizes the profile actor UUID before building the idempotency payload", async () => {
-  const actorId = "30000000-0000-4000-8000-000000000001";
-  const result = await postCreateOffer(
-    "USD",
-    {},
-    undefined,
-    undefined,
-    "succeeded",
-    "Bearer qima-route-test-token",
-    200,
-    200,
-    200,
-    actorId.toUpperCase(),
-  );
+test("CREATE_OFFER route canonicalizes mixed-case profile actor UUIDs across idempotent retries", async () => {
+  const actorId = "3a000000-0000-4000-8000-00000000000f";
+  const idempotencyKey = "actor-uuid-case-normalization-replay";
+  const retryOrders = [
+    {
+      label: "uppercase first, lowercase retry",
+      firstActorId: actorId.toUpperCase(),
+      retryActorId: actorId,
+    },
+    {
+      label: "lowercase first, uppercase retry",
+      firstActorId: actorId,
+      retryActorId: actorId.toUpperCase(),
+    },
+  ];
 
-  expect(result.status, JSON.stringify({ body: result.body, requests: result.requests })).toBe(200);
-  const executionCall = result.requests.find(
-    (request) => request.path === "/rest/v1/rpc/execute_create_offer_v1",
-  );
-  expect(executionCall).toBeDefined();
-  expect(executionCall?.body?.p_provider_actor_id).toBe(actorId);
-  const rpcInput = executionCall?.body?.p_input as Record<string, unknown> | undefined;
-  expect(rpcInput?.providerActorId).toBe(actorId);
+  for (const fixture of retryOrders) {
+    const replayState: CreateOfferReplayState = {
+      committed: false,
+      result: null,
+      createCount: 0,
+      replayCount: 0,
+      firstRpcInput: null,
+      replayRpcInput: null,
+    };
+    const invoke = (profileActorId: string) =>
+      postCreateOffer(
+        "USD",
+        { idempotencyKey },
+        undefined,
+        undefined,
+        "succeeded",
+        "Bearer qima-route-test-token",
+        200,
+        200,
+        200,
+        profileActorId,
+        false,
+        200,
+        200,
+        undefined,
+        undefined,
+        undefined,
+        null,
+        null,
+        null,
+        null,
+        false,
+        false,
+        replayState,
+      );
+
+    const firstAttempt = await invoke(fixture.firstActorId);
+    expect(firstAttempt.status, fixture.label).toBe(200);
+    const firstExecutionCall = firstAttempt.requests.find(
+      (request) => request.path === "/rest/v1/rpc/execute_create_offer_v1",
+    );
+    expect(firstExecutionCall, fixture.label).toBeDefined();
+    expect(firstExecutionCall?.body?.p_provider_actor_id, fixture.label).toBe(actorId);
+    const firstRpcInput = firstExecutionCall?.body?.p_input as Record<string, unknown> | undefined;
+    expect(firstRpcInput?.providerActorId, fixture.label).toBe(actorId);
+
+    const retryAttempt = await invoke(fixture.retryActorId);
+    expect(retryAttempt.status, fixture.label).toBe(200);
+    expect(retryAttempt.body, fixture.label).toEqual(firstAttempt.body);
+    const retryExecutionCall = retryAttempt.requests.find(
+      (request) => request.path === "/rest/v1/rpc/execute_create_offer_v1",
+    );
+    expect(retryExecutionCall, fixture.label).toBeDefined();
+    expect(retryExecutionCall?.body?.p_provider_actor_id, fixture.label).toBe(actorId);
+    const retryRpcInput = retryExecutionCall?.body?.p_input as Record<string, unknown> | undefined;
+    expect(retryRpcInput?.providerActorId, fixture.label).toBe(actorId);
+
+    expect(replayState, fixture.label).toMatchObject({
+      committed: true,
+      createCount: 1,
+      replayCount: 1,
+    });
+    expect(replayState.replayRpcInput, fixture.label).toEqual(replayState.firstRpcInput);
+  }
 });
 
 test("CREATE_OFFER route returns a generic server error for profile lookup failures and stops before tenant or RPC access", async () => {
