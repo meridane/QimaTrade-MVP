@@ -13582,3 +13582,12 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 - Les jobs PostgreSQL 16 et PostgreSQL 17.6 sont encore **IN PROGRESS** au moment de cette actualisation ; la CI globale n'est donc pas déclarée terminée.
 - Les simulations setup-failure et cleanup-failure conservent leurs conclusions négatives attendues ; les trois jobs d'assertion correspondants ont **SUCCESS**, tandis que le job explicitement attendu en skipped est bien **SKIPPED**.
 - Le nouveau test est validé par Verify, mais la validation complète des deux matrices PostgreSQL reste à obtenir.
+
+
+### Suivi PostgreSQL — 23 novembre 2026, 11:00 KST
+
+- Le job Verify de QIMA CI #1843 est **SUCCESS**, avec **422/422 Playwright**, audit npm au seuil high, TypeScript, build Next.js, Chromium et fixture QIMA isolée réussis.
+- Les deux matrices PostgreSQL ne sont pas encore terminées. PostgreSQL 16 et PostgreSQL 17.6 ont réussi les étapes précédentes 1 à 25 et exécutent actuellement l'étape 26, « Characterize full CREATE_OFFER runner write privileges ».
+- Aucun échec inattendu n'est signalé pour ces deux jobs au dernier contrôle ; leur résultat final n'est pas anticipé.
+- CodeQL #1771 et Vercel Preview du commit code/test sont **SUCCESS**.
+- L'API Pull Request indique OPEN / DRAFT / non fusionnée, mergeable=true et mergeable_state=unstable pendant les validations actives. La branche de travail et la branche PR restent identiques.
