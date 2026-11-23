@@ -128,3 +128,57 @@ Lecture en lecture seule de `app/api/actions/create-offer/route.ts` et des tests
 - Aucune donnée Supabase Production, migration, secret, grant, policy RLS persistante ou configuration PostgreSQL n'est modifiée.
 - Aucune migration n'est appliquée ; aucun déploiement Production, merge, force-push ou changement des règles de protection n'est effectué.
 
+
+
+## 9. Clôture post-publication — QIMA CI #1857, 23 novembre 2026, 16:20 KST
+
+### État GitHub relu avant cette actualisation
+
+- PR #26 : **OPEN / DRAFT / non fusionnée**, base `main`, branche `fix/create-offer-status-contract`.
+- HEAD avant cette clôture : `7db3e593f7f9746b2b1f92cc0a427be4f64ea34e`, commit documentaire `docs(qima): close CI 1855 and 1856 validation`.
+- GitHub indique `mergeable=true`; 2 323 commits devant `main`, 0 derrière, 289 fichiers modifiés, 92 447 insertions et 266 suppressions.
+- Branche PR et branche distante de travail précédemment utilisée étaient à jour ; aucun review thread n'est retourné.
+- Derniers commits relus dans l'ordre : `7db3e593` (clôture CI #1855/#1856), `9b6127ef` (correction de la note sur `paths-ignore`), `ba3a65ec` (snapshot initial CI #1854 et note idempotencyKey), `d4e7a5a1`, puis `77d2ba26`.
+
+### QIMA CI #1857 — HEAD exact `7db3e593`
+
+- Run [#1857](https://github.com/meridane/QimaTrade-MVP/actions/runs/45123451078) : **SUCCESS**.
+- Job Verify « Typecheck, audit, build and browser tests » : **SUCCESS**.
+- Le journal du job confirme **423 passed (39,1 s)**.
+- Installation des dépendances depuis le lockfile, audit npm avec seuil bloquant `high`, TypeScript, build Next.js, installation Chromium, tests navigateur, fixture de contrat sécurité QIMA, enforcement et publication du rapport d'audit : **SUCCESS**.
+- PostgreSQL 16 : **SUCCESS**.
+- PostgreSQL 17.6 : **SUCCESS**.
+- Les tests SQL de replay isolé (product master, demand, provider actor, defaults), concurrence même clé, rejet du payload changé, validations numériques, ordre des clés JSONB, privilèges du runner et ACL ont terminé avec succès sur les versions correspondantes.
+- Les jobs de simulation setup-failure et cleanup-failure ont les conclusions négatives intentionnelles attendues. Les assertions bloquantes dédiées confirment la propagation et le nettoyage : **SUCCESS**. Le job explicitement attendu en `skipped` est **SKIPPED**, et l'assertion qui vérifie cet état est **SUCCESS**. Aucun de ces états intentionnels n'est compté comme un échec inattendu.
+
+### Contrôles complémentaires du même HEAD
+
+- [QIMA CodeQL #1785](https://github.com/meridane/QimaTrade-MVP/actions/runs/45123451164) : **SUCCESS**, analyse JavaScript/TypeScript terminée.
+- Statut combiné GitHub `Vercel` sur `7db3e593` : **SUCCESS** ([Preview](https://vercel.com/bmk1/qimatrade-mvp/6f4HpU3VUqU8qB7yUDufFjywfTv9)).
+- Aucun déploiement Production n'est associé à cette validation.
+
+### Revue non bloquante du contrat CREATE_OFFER
+
+Lecture en lecture seule de `app/api/actions/create-offer/route.ts`, `lib/actions/runtime.ts`, `lib/actions/engine.ts`, `lib/actions/types.ts`, des tests E2E et de la migration existante `20261027090000_fix_create_offer_action_status_contract.sql` :
+
+- La route valide et canonicalise les UUID de demande, produit et acteur avant de construire le payload JSONB et les paramètres RPC.
+- Les memberships sont validés comme tableau ; les lignes nulles, primitives ou mal formées sont ignorées, puis les UUID valides sont trimés, mis en minuscules et dédupliqués.
+- Le runtime transmet `p_provider_actor_id` et les paramètres métier au RPC ; la fonction SQL compare l'acteur au profil authentifié et inclut les paramètres effectifs dans le hash d'idempotence.
+- Les tests existants couvrent la réutilisation de la même clé, la perte de réponse après commit, le rejet d'un payload modifié, les champs du hash, la concurrence et plusieurs frontières numériques. Le run #1857 a exécuté avec succès les assertions CI correspondantes.
+- **Décision toujours requise — `correlationId` :** la route construit un identifiant de contexte, mais le runtime ne le transmet pas au RPC CREATE_OFFER ; la fonction SQL crée son propre `v_correlation_id`. Aucun changement n'est effectué sans décision sur l'identifiant de corrélation persistant.
+- **Décision toujours requise — `objectType/objectId` :** le contexte applicatif utilise `Demand`, alors que la fonction SQL persiste l'exécution comme `Offer` avec l'ID de l'offre créée. Ne pas harmoniser par supposition.
+- **Décision toujours requise — `idempotencyKey` client :** une clé explicite stable permet le replay ; lorsqu'elle est omise ou invalide, la route génère une nouvelle clé UUID. Le caractère obligatoire ou facultatif de la clé reste une décision produit/architecture.
+- **MKT-1.3 numeric canonicalization** reste `CHARACTERIZATION / DECISION REQUIRED — NOT APPROVED`. Les tests de caractérisation et de replay ne valent pas approbation d'une nouvelle politique de hash numérique.
+
+### État du registre canonique
+
+- Relecture de `docs/QIMA_V1_FUNCTION_REGISTER.md` sur `fix/create-offer-status-contract` : le blob SHA reste `0b7fe3ba66b35e0002fdca18e1270c87d991c2f3`, mais le lecteur GitHub retourne un contenu vide en encodage UTF-8 comme en base64.
+- Aucun remplacement du registre canonique n'a été tenté, car son contenu complet n'est pas disponible pour une modification sûre.
+- Cette clôture est ajoutée au présent document compagnon append-only ; elle ne prétend pas remplacer le registre canonique.
+
+### Périmètre de sécurité
+
+- Aucun code applicatif, test, SQL ou fichier de migration n'a été modifié pendant cette intervention.
+- Aucune donnée Supabase Production, migration, secret, grant, policy RLS persistante ou configuration PostgreSQL n'a été modifiée.
+- Aucun déploiement Production, merge, force-push ou changement des règles de protection n'a été effectué.
+- Les tests et fixtures CI sont des validations de comportement contrôlées ; ils ne constituent pas une preuve d'une vulnérabilité exploitable en Production.
