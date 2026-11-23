@@ -14211,3 +14211,44 @@ Lecture de app/api/actions/create-offer/route.ts (blob fea405fe02de3dae5ebd3fc01
 
 - Éviter les snapshots documentaires intermédiaires qui déclenchent des workflows et peuvent annuler les runs précédents ; regrouper les clôtures suivantes dans une seule publication.
 - Poursuivre l'audit non bloquant des scripts de test et des frontières CREATE_OFFER. Ne figer la grammaire numérique, les conversions des champs facultatifs, `correlationId`, `objectType/objectId`, `idempotencyKey` ou MKT-1.3 qu'après décision API/métier explicite.
+
+
+---
+
+## Correction du résumé des garde-fous PostgreSQL auxiliaires — 24 novembre 2026, 03:25 KST
+
+### État GitHub avant correction
+
+- PR #26 : **OPEN / DRAFT / non fusionnée**, `merged=false`, `mergeable=true`, base `main`, branche `fix/create-offer-status-contract`.
+- HEAD officiel avant correction : `52c5f727449634c02bf60288dce8d7fe1ef93942`.
+- Métadonnées PR : 2 339 commits, 289 fichiers modifiés, 93 081 insertions et 266 suppressions ; 0 review thread ouvert.
+- QIMA CI [#1873](https://github.com/meridane/QimaTrade-MVP/actions/runs/45227030852) sur le HEAD `52c5f727` : **SUCCESS**. Verify, audit npm (seuil bloquant `high`), TypeScript, build Next.js, Chromium et **423/423 Playwright (35,5 s)** réussis ; intégrations PostgreSQL 16 et PostgreSQL 17.6 **SUCCESS**.
+- CodeQL [#1801](https://github.com/meridane/QimaTrade-MVP/actions/runs/45227031939) : **SUCCESS**. Le statut combiné du HEAD exact rapporte Vercel Preview **SUCCESS** ([Preview](https://vercel.com/bmk1/qimatrade-mvp/CPYoj5pEG5oAX5bLNATTzVBPpite)).
+- Les deux jobs de simulation prepared-transaction ont leurs conclusions négatives intentionnelles ; les assertions de restauration/propagation sont **SUCCESS**. Le job de contrôle attendu en skipped est correctement ignoré.
+
+### Défaut documentaire du test identifié et correction
+
+Fichier : `tests/sql/test-auxiliary-postgres-runner-guards.sh`.
+
+- Le tableau `unsafe_urls` contient **11** entrées (URLs distantes, mauvaise base/port/schéma, suffixe de domaine trompeur, adresse loopback non autorisée et charges avec caractères de contrôle).
+- Le script exécute ce tableau pour **2 runners** : `run-create-offer-wrapper-owner-regression.sh` et `run-function-execute-acl-regression.sh`.
+- Le résumé final affichait auparavant le nombre codé en dur **7**, alors que la suite exécutait bien les 11 entrées pour chaque runner. Le contrôle fonctionnel n'était pas affaibli ; seul le compte-rendu affiché était inexact.
+- Correction minimale : remplacer le nombre codé en dur par `${#unsafe_urls[@]}`, afin que le résumé reflète automatiquement la taille réelle du tableau.
+- Les cas de configuration DATABASE_URL absente/vide et les trois URLs loopback autorisées restent inchangés. Le stub `psql` demeure inerte et n'ouvre aucune connexion.
+- Le workflow `.github/workflows/ci.yml` invoque explicitement `bash tests/sql/test-auxiliary-postgres-runner-guards.sh` dans Verify. La validation du changement est donc attendue dans la prochaine CI PR.
+- Vérification statique avant publication : 11 entrées dans `unsafe_urls`, une interpolation dynamique dans le message final, aucun autre changement au comportement du garde-fou.
+- Aucun test local n'a été exécuté ; le résultat d'exécution de ce changement reste **PENDING CI**.
+
+### Publication et périmètre
+
+- Branche de travail : `work/qima-aux-runner-guard-summary-20261124-0325`, créée depuis le HEAD officiel `52c5f727`.
+- Commit de test : `671ce60b95145c68600a82651381564baeaa7df3`.
+- Le commit de suivi documentaire est préparé sur la même branche avant sa synchronisation fast-forward avec la branche PR ; le snapshot ne présente pas le nouveau test comme déjà réussi.
+- Aucun code applicatif, SQL, migration ou donnée Supabase Production n'a été modifié. Aucun secret, grant, policy RLS persistante, déploiement Production, merge, force-push ou règle de protection n'a été modifié.
+- Ce correctif rectifie la précision du compte-rendu de test ; il ne constitue ni une découverte ni une confirmation de vulnérabilité.
+
+### Prochaine étape
+
+- Synchroniser la branche de travail par fast-forward après comparaison exacte avec le HEAD `52c5f727`.
+- Vérifier sur le nouveau HEAD le job Verify et le résultat de `test-auxiliary-postgres-runner-guards.sh`, puis consigner le résultat final dans ce registre.
+- Garder les décisions de contrat CREATE_OFFER (grammaire numérique, champs facultatifs, `correlationId`, `objectType/objectId`, `idempotencyKey` et MKT-1.3) en attente d'approbation métier/API.
