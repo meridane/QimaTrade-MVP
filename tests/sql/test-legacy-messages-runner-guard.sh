@@ -325,4 +325,4 @@ if [[ "$missing_url_status" -ne 1 || -s "$ASSERTION_CALLS" ]] ||
   exit 1
 fi
 
-echo "QA262 assertion regression PASS: absent/present database, psql error propagation, 3 supported loopback URLs, ${#unsafe_urls[@]} unsafe URLs and missing DATABASE_URL rejected before psql."
+echo "QA262 assertion regression PASS: absent/present database, psql error propagation, 3 supported loopback URLs, ${#unsafe_assertion_urls[@]} unsafe URLs and missing DATABASE_URL rejected before psql."
