@@ -14345,3 +14345,22 @@ La revue croisée des scripts de garde-fou PostgreSQL a révélé le même défa
 
 - Poursuivre l'audit non bloquant des scripts de garde-fou et de leur câblage dans `.github/workflows/ci.yml`, sans changer les destinations autorisées ni les règles métier sans approbation.
 - Garder les décisions CREATE_OFFER non approuvées (grammaire numérique, types textuels facultatifs, `correlationId`, `objectType/objectId`, caractère obligatoire de `idempotencyKey` et MKT-1.3) en attente d'une décision produit/API.
+
+---
+
+## Audit complémentaire — compteur du garde-fou QA262 — 24 novembre 2026, 04:53 KST
+
+- La revue du script `tests/sql/test-legacy-messages-runner-guard.sh` a identifié une référence de tableau imprécise dans le message final QA262 : la boucle de l'assertion parcourt `unsafe_assertion_urls`, alors que le résumé utilisait `${#unsafe_urls[@]}`.
+- Les deux tableaux comportent actuellement **11** entrées ; le nombre affiché par le run précédent était donc numériquement correct. Le problème est une dépendance accidentelle entre deux tableaux distincts : si leurs tailles divergeaient, le résumé QA262 pourrait devenir inexact.
+- Correction minimale préparée sur `work/qima-legacy-assertion-count-20261124-0453`, commit `9e2018bab95892071e3b6d4bc5e596bc45440bb1` : le résumé QA262 utilise désormais `${#unsafe_assertion_urls[@]}`, le tableau réellement parcouru par cette assertion.
+- Vérification statique du fichier sur la branche de travail : `unsafe_urls` = 11 entrées ; `unsafe_assertion_urls` = 11 entrées ; le résumé QA262 référence maintenant `${#unsafe_assertion_urls[@]}`.
+- Le diff du commit est limité à une substitution sur une ligne ; aucun tableau, scénario, code de sortie, stub `psql` ou contrôle de destination n'a changé.
+- QIMA CI [#1876](https://github.com/meridane/QimaTrade-MVP/actions/runs/45253876685) valide le HEAD parent `62de182f`, pas encore ce correctif. Au dernier contrôle, les jobs Verify, PostgreSQL 16 et PostgreSQL 17.6 étaient **IN PROGRESS** ; CodeQL [#1804](https://github.com/meridane/QimaTrade-MVP/actions/runs/45253876667) était **SUCCESS** et le Preview Vercel du parent était **SUCCESS**.
+- La correction n'est donc **pas encore validée par CI** et n'a pas encore été publiée sur la branche PR. Le push de branche de travail ne déclenche pas le workflow QIMA CI, dont le déclencheur `push` vise `main` ; le contrôle requis sera la CI PR après fast-forward, une fois le run #1876 terminé.
+- Aucun test local n'a été exécuté. Cette correction de compte-rendu n'est ni une modification du comportement du garde-fou ni une preuve de vulnérabilité.
+
+### Prochaine étape
+
+- Attendre la clôture de CI #1876 afin de ne pas annuler les jobs PostgreSQL encore actifs.
+- Comparer à nouveau les branches, puis publier le commit de correction par fast-forward uniquement.
+- Vérifier la nouvelle CI PR et confirmer que le script QA262 passe avec le résumé issu du bon tableau ; mettre ensuite à jour le registre avec le résultat final.
