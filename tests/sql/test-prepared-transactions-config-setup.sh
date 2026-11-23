@@ -540,4 +540,4 @@ fi
 
 echo "Prepared-transaction setup regression passed: docker ps partial-output failures preserve the exit code; zero/multiple container discovery fails before database access; initial SHOW and non-pristine baseline failures stop before mutation; marker write failures and partial GITHUB_OUTPUT writes stop before mutation with safe always() no-op cleanup; SET, restart, post-restart SHOW and readiness failures preserve the cleanup marker; retry exhaustion is bounded; workflow invokes setup and always() restoration."
 
-echo "QA328 prepared-transaction setup URL guard PASS: 3 supported loopback URLs accepted; 7 unsafe URLs and an unset DATABASE_URL rejected before Docker/psql or restoration-marker writes."
+echo "QA328 prepared-transaction setup URL guard PASS: 3 supported loopback URLs accepted; ${#unsafe_setup_urls[@]} unsafe URLs and an unset DATABASE_URL rejected before Docker/psql or restoration-marker writes."
