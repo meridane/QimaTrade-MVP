@@ -14295,3 +14295,53 @@ La revue croisée des scripts de garde-fou PostgreSQL a révélé le même défa
 - Publier les deux corrections supplémentaires et le présent registre par fast-forward uniquement après comparaison exacte des branches.
 - Vérifier le nouveau run QIMA CI : Verify doit exécuter les trois scripts de garde-fou URL ; relever leurs messages réels et les résultats des jobs PostgreSQL 16/17.6.
 - Clôturer CodeQL et le Preview du nouveau SHA, puis ajouter une seule entrée de clôture finale au registre.
+
+---
+
+## Clôture QIMA CI #1875 — garde-fous URL des runners PostgreSQL — 24 novembre 2026, 04:53 KST
+
+### État vérifié avant cette actualisation
+
+- PR #26 : **OPEN / DRAFT / non fusionnée**, branche `fix/create-offer-status-contract`, base `main`, HEAD `419f28be8697f9ea3a6d64d93e6a2e90676f0b01`, `mergeable=true`.
+- 2 344 commits dans la PR ; 289 fichiers modifiés ; 93 165 insertions et 266 suppressions au dernier snapshot GitHub.
+- La branche de travail précédente `work/qima-aux-runner-guard-summary-20261124-0325` est identique au HEAD de la PR : 0 commit d'avance, 0 de retard, aucun fichier supplémentaire.
+- Les trois scripts de garde-fou contiennent bien un résumé calculé depuis `${#unsafe_urls[@]}` ; les deux scripts legacy/participant ont les mêmes SHA sur la branche de travail et sur le HEAD de la PR.
+
+### QIMA CI #1875 — résultat final
+
+- Run [QIMA CI #1875](https://github.com/meridane/QimaTrade-MVP/actions/runs/45238987955), commit `419f28be8697f9ea3a6d64d93e6a2e90676f0b01` : **SUCCESS**.
+- Job Verify : installation npm, audit npm au seuil `high`, TypeScript, build Next.js, Chromium, fixture de sécurité QIMA et Playwright **SUCCESS** ; Playwright rapporte **423 passed (37,9 s)**.
+- Job d'intégration PostgreSQL 16 : **SUCCESS**. Les étapes suivantes sont explicitement **SUCCESS** :
+  - garde-fou URL du runner CREATE_OFFER ;
+  - garde-fous URL des runners wrapper-owner / function-ACL ;
+  - garde-fou URL du runner de migration legacy ;
+  - garde-fou URL du runner participant self-enrollment ;
+  - régressions RLS et de migration legacy sur base jetable.
+- Les journaux confirment notamment :
+  - runner auxiliaire : **11** URLs non autorisées et `DATABASE_URL` manquante rejetées avant `psql`, trois formes loopback acceptées par runner ;
+  - assertion QA262 : **11** URLs non autorisées et configuration manquante rejetées avant `psql`, trois formes loopback acceptées ;
+  - participant self-enrollment : **11** URLs non autorisées rejetées avant `psql`, trois formes loopback acceptées ;
+  - runner CREATE_OFFER : 11 cas d'URL non autorisée, espaces seuls et deux configurations absentes/vides rejetés avant `psql`, trois formes loopback acceptées.
+- Job de compatibilité PostgreSQL 17.6 : **SUCCESS**, avec assertion de version exacte et suite d'intégration/concurrence CREATE_OFFER réussie.
+- CodeQL [#1803](https://github.com/meridane/QimaTrade-MVP/actions/runs/45238988019) : **SUCCESS**.
+- Statut combiné du commit : Vercel **SUCCESS** ([Preview](https://vercel.com/bmk1/qimatrade-mvp/6F69CPWdJFmofFyvJLvnsj51zoTf)).
+- Les deux jobs de simulation prepared-transaction portent la conclusion de job **failure** attendue par le harness (échec setup / échec cleanup simulés) ; leurs étapes d'assertion dédiées ont réussi. Le job de résultat `skipped` est attendu et son contrôle anti-faux-succès a réussi. Le workflow global reste **SUCCESS** ; ces conclusions négatives ne sont pas des échecs fonctionnels non traités.
+
+### Conclusion sur les trois résumés
+
+- Les trois scripts concernés sont couverts par les étapes de CI #1875.
+- Les messages auxiliaire, legacy et participant utilisent le nombre réel des tableaux ; les journaux confirment explicitement 11 pour les cas auxiliaire et participant, et QA262 pour l'assertion legacy.
+- Aucune modification supplémentaire des scripts n'est nécessaire dans cette clôture. Les changements de comportement des garde-fous n'ont pas été élargis.
+- Les tests exécutés utilisent des stubs ou des bases PostgreSQL jetables ; ils ne constituent pas une preuve de vulnérabilité exploitable en Production.
+
+### Publication et validation documentaire
+
+- Cette actualisation est documentaire uniquement : elle clôt les états **PENDING** consignés dans la section précédente à partir des jobs et journaux GitHub Actions terminés.
+- Aucun test local n'a été exécuté.
+- Aucune donnée Supabase Production, migration, secret, grant, policy RLS persistante ou configuration PostgreSQL Production n'a été modifiée.
+- Aucun déploiement Production, merge, force-push ou changement de protection n'a été effectué.
+
+### Prochaine étape
+
+- Poursuivre l'audit non bloquant des scripts de garde-fou et de leur câblage dans `.github/workflows/ci.yml`, sans changer les destinations autorisées ni les règles métier sans approbation.
+- Garder les décisions CREATE_OFFER non approuvées (grammaire numérique, types textuels facultatifs, `correlationId`, `objectType/objectId`, caractère obligatoire de `idempotencyKey` et MKT-1.3) en attente d'une décision produit/API.
