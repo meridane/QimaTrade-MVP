@@ -13909,3 +13909,58 @@ Deux comportements sont observés mais ne sont pas modifiés sans décision de c
 - Le commit 5edf0bee ne modifie que ce registre canonique. Aucun code applicatif, test, SQL ou migration n'a changé ; aucun test local n'a été exécuté.
 - Aucune donnée Supabase Production, migration, secret, grant, policy RLS persistante ou configuration PostgreSQL n'a été modifiée. Aucun déploiement Production, merge, force-push ou changement des règles de protection n'a été effectué.
 - Prochaine étape : attendre les conclusions PostgreSQL 16 et 17.6 de CI #1863, puis enregistrer leur résultat exact. Les tests synthétiques et les fixtures contrôlées ne prouvent pas à eux seuls une vulnérabilité exploitable en Production.
+
+---
+
+## Clôture des validations QIMA CI #1863 et #1864 — 23 novembre 2026, 22:03 KST
+
+### État GitHub vérifié avant cette actualisation
+
+- PR #26 : **OPEN / DRAFT / non fusionnée**, `mergeable=true` ; branche `fix/create-offer-status-contract`, base `main`.
+- HEAD contrôlé : `fa7d3ca5543c6d9fd019afcfb8989214dead7cf2` (`docs(qima): record CI 1863 post-push status`).
+- Comparaison `main...fix/create-offer-status-contract` : **2 330 commits en avance, 0 en retard**, 289 fichiers modifiés (92 714 insertions / 266 suppressions). Aucun review thread ouvert.
+- Le commit `fa7d3ca` ne modifie que le registre canonique.
+
+### Clôture de QIMA CI #1863 — parent `5edf0bee`
+
+- QIMA CI [#1863](https://github.com/meridane/QimaTrade-MVP/actions/runs/45168021565) : **SUCCESS**.
+- Verify : installation npm, audit au seuil bloquant `high`, TypeScript, build Next.js, Chromium et fixture QIMA : **SUCCESS**.
+- Le journal du job Verify confirme **423 passed (37,9 s)**.
+- PostgreSQL 16 : intégration CREATE_OFFER, concurrence, replay, contrôles de privilèges, ACL/RLS et nettoyage : **SUCCESS**.
+- PostgreSQL 17.6 : compatibilité, intégration CREATE_OFFER, concurrence, replay, contrôles de privilèges, ACL/RLS et nettoyage : **SUCCESS**.
+- Les deux jobs de simulation prepared-transaction ont leur conclusion négative intentionnelle ; les assertions de propagation et de cleanup sont **SUCCESS**. Le job attendu en `skipped` est bien **SKIPPED**, et les assertions qui contrôlent ces états sont **SUCCESS**.
+- CodeQL [#1791](https://github.com/meridane/QimaTrade-MVP/actions/runs/45168021633) : **SUCCESS**.
+- Le statut Vercel du commit `5edf0bee` : **SUCCESS**, Preview uniquement ([déploiement](https://vercel.com/bmk1/qimatrade-mvp/5SAoGDnom4iACFrhdH6bBsYWdhEU)).
+
+### Clôture de QIMA CI #1864 — HEAD `fa7d3ca`
+
+- QIMA CI [#1864](https://github.com/meridane/QimaTrade-MVP/actions/runs/45168495800) : **SUCCESS**.
+- Verify : installation npm, audit au seuil bloquant `high`, TypeScript, build Next.js, Chromium et fixture QIMA : **SUCCESS**.
+- Le journal du job Verify confirme **423 passed (38,9 s)**.
+- PostgreSQL 16 : intégration CREATE_OFFER, concurrence, replay, validations sans écriture, ACL/RLS, privilèges du runner et nettoyage : **SUCCESS**.
+- PostgreSQL 17.6 : mêmes familles de contrôles et compatibilité : **SUCCESS**.
+- Les deux jobs prepared-transaction attendus en échec contrôlé ont leur conclusion négative intentionnelle ; leurs assertions de contrôle sont **SUCCESS**. Le job explicitement attendu en `skipped` est bien **SKIPPED**.
+- CodeQL [#1792](https://github.com/meridane/QimaTrade-MVP/actions/runs/45168495692) : **SUCCESS**.
+- Le statut combiné GitHub Vercel du HEAD `fa7d3ca` : **SUCCESS**, Preview uniquement ([déploiement](https://vercel.com/bmk1/qimatrade-mvp/3uR8T6WnLoBLb928hFVPAHYe9xdp)).
+
+### Interprétation et limites
+
+- CI #1863 et CI #1864 ont chacune validé 423 exécutions Playwright ; cela représente **846 exécutions de tests réussies sur deux commits**, pas 846 tests uniques.
+- Les gates npm audit ont réussi au seuil `high`. Aucun nombre global de findings, ni affirmation « zéro vulnérabilité », n'est déduit de ce seul seuil.
+- Les simulations prepared-transaction en échec sont des cas négatifs contrôlés, pas des échecs inattendus de CI ; leurs assertions dédiées sont réussies.
+- Les tests E2E, SQL et fixtures caractérisent des comportements contrôlés et ne prouvent pas, à eux seuls, une vulnérabilité exploitable en Production.
+- Cette actualisation est documentaire uniquement. Aucun code applicatif, test, SQL, migration, donnée Supabase Production, secret, grant, policy RLS persistante ou configuration PostgreSQL n'a été modifié. Aucun déploiement Production, merge, force-push ou changement des règles de protection n'a été effectué.
+
+### Décisions de contrat toujours ouvertes
+
+- Grammaire des chaînes numériques de CREATE_OFFER.
+- Types admis pour les champs textuels facultatifs.
+- Source officielle de `correlationId`.
+- Sémantique `objectType/objectId` (contexte Demand versus exécution persistée Offer).
+- Caractère obligatoire ou facultatif de `idempotencyKey` côté client.
+- MKT-1.3 numeric canonicalization : **CHARACTERIZATION / DECISION REQUIRED — NOT APPROVED**. Aucun changement du hash SQL ou des clés existantes sans décision et plan de compatibilité.
+
+### Prochaine étape
+
+- Vérifier les workflows et le statut Vercel déclenchés par cette actualisation documentaire sur le nouveau HEAD.
+- Continuer les contrôles indépendants des décisions produit/API ; ne pas modifier les contrats listés ci-dessus sans approbation explicite.
