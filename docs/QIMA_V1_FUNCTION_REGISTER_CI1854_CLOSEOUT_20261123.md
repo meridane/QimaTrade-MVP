@@ -182,3 +182,57 @@ Lecture en lecture seule de `app/api/actions/create-offer/route.ts`, `lib/action
 - Aucune donnée Supabase Production, migration, secret, grant, policy RLS persistante ou configuration PostgreSQL n'a été modifiée.
 - Aucun déploiement Production, merge, force-push ou changement des règles de protection n'a été effectué.
 - Les tests et fixtures CI sont des validations de comportement contrôlées ; ils ne constituent pas une preuve d'une vulnérabilité exploitable en Production.
+
+---
+
+## Clôture post-publication — QIMA CI #1866 et CodeQL #1794 — 24 novembre 2026, 00:08 KST
+
+### État GitHub relu avant cette actualisation
+
+- PR #26 « fix: align CREATE_OFFER execution statuses » : **OPEN**, **DRAFT**, non fusionnée, `mergeable=true`.
+- Base `main`, branche `fix/create-offer-status-contract`, HEAD contrôlé `983030fb416f04965ce23be0df2689afa28ac72d`.
+- Métadonnées PR : **2 332 commits**, **289 fichiers modifiés**, **92 816 insertions / 266 suppressions**.
+- Derniers commits de la branche, du plus récent au plus ancien :
+  - `983030fb` — clôture CI #1865 et caractérisation CREATE_OFFER.
+  - `3e22c26e` — clôture CI #1863/#1864.
+  - `fa7d3ca5` — snapshot post-publication CI #1863.
+  - `5edf0bee` — clôture CI #1861/#1862.
+  - `ed0abaf6` — snapshot post-publication CI #1861.
+- Comparaison `main...fix/create-offer-status-contract` : **2332 commits en avance**, **0 en retard**.
+
+### QIMA CI #1866 — HEAD exact `983030fb416f04965ce23be0df2689afa28ac72d`
+
+- Run [#1866](https://github.com/meridane/QimaTrade-MVP/actions/runs/45183869752) : **SUCCESS**.
+- Job Verify « Typecheck, audit, build and browser tests » : **SUCCESS**.
+- Le journal du job confirme **423 passed (38,0 s)**.
+- Installation depuis le lockfile, audit npm au seuil bloquant `high`, TypeScript, build Next.js, Chromium, tests navigateur et fixture de contrat sécurité QIMA : **SUCCESS**.
+- PostgreSQL 16 : intégration CREATE_OFFER, concurrence, replay, privilèges du runner, ACL/RLS et nettoyage : **SUCCESS**.
+- PostgreSQL 17.6 : compatibilité CREATE_OFFER, concurrence, replay, privilèges du runner, ACL/RLS et nettoyage : **SUCCESS**.
+- Les deux jobs de simulation prepared-transaction ont les conclusions négatives intentionnelles attendues ; les assertions de restauration/propagation sont **SUCCESS**. Le job prévu en `skipped` est bien **SKIPPED**, avec assertions de contrôle **SUCCESS**.
+- CodeQL [#1794](https://github.com/meridane/QimaTrade-MVP/actions/runs/45183869610) : **SUCCESS**.
+- Le statut combiné GitHub `Vercel` sur le HEAD exact est **SUCCESS**, Preview uniquement : [Preview](https://vercel.com/bmk1/qimatrade-mvp/HNSf6DcCQvgSjrZpF6GBaGcLvuup).
+
+### Relecture ciblée de la frontière HTTP CREATE_OFFER
+
+Fichiers relus en lecture seule : `app/api/actions/create-offer/route.ts` et `tests/e2e/create-offer-route-contract.spec.ts`.
+
+- Le corps JSON est lu après authentification. Les tests couvrent l'authentification avant parsing, le JSON malformé, les tableaux de premier niveau et les primitives JSON (`null`, chaîne, nombre, booléen).
+- Pour un corps malformé avec utilisateur authentifié, la route renvoie `400 INVALID_REQUEST_BODY` et le test vérifie qu'aucune lecture de profil ou d'appartenance tenant n'est exécutée.
+- Pour un corps malformé avec authentification absente, la route renvoie `401 UNAUTHENTICATED` avant le parsing ; le test vérifie qu'aucune requête Supabase n'est effectuée.
+- Les cas observés sont déjà couverts par des tests dédiés ; aucun test redondant ni changement applicatif n'est ajouté dans cette intervention.
+- Les décisions sur la grammaire des chaînes numériques, les types non-string des champs facultatifs, `correlationId`, `objectType/objectId` et l'obligation éventuelle de `idempotencyKey` restent ouvertes. Aucun comportement n'est modifié sans approbation produit/architecture.
+
+### État du registre canonique et limite de lecture
+
+- `docs/QIMA_V1_FUNCTION_REGISTER.md` a été demandé sur la branche officielle en UTF-8, en base64 et par plage de lignes ; l'API de contenu retourne un contenu vide pour ce blob volumineux (SHA `9991b0df5c5059f4ea881423b0b43d52248cf65c`).
+- La récupération Raw GitHub du fichier complet est également rejetée par le connecteur comme fichier trop volumineux/non pris en charge.
+- Pour éviter de remplacer ou tronquer le registre sans disposer de son contenu intégral, **aucune écriture sur le registre canonique n'est effectuée**. Cette clôture est ajoutée au présent document compagnon append-only ; elle ne prétend pas remplacer le registre canonique.
+- L'audit npm atteste uniquement le passage du seuil bloquant `high` ; aucun nombre de vulnérabilités ni absence de findings sous ce seuil n'est déduit.
+- Les fixtures E2E et SQL décrivent des comportements contrôlés et ne prouvent pas, à elles seules, une vulnérabilité exploitable en Production.
+
+### Périmètre de sécurité et prochaine étape
+
+- Aucun code applicatif, test, SQL ou fichier de migration n'est modifié dans cette clôture documentaire.
+- Aucune donnée Supabase Production, migration, secret, grant, policy RLS persistante ou configuration PostgreSQL n'est modifiée.
+- Aucun déploiement Production, merge, force-push ou changement des règles de protection GitHub n'est effectué.
+- Prochaine étape : poursuivre les contrôles indépendants des décisions produit/API ; ne pas modifier les contrats listés ci-dessus sans approbation explicite.
