@@ -14421,3 +14421,32 @@ La revue croisée des scripts de garde-fou PostgreSQL a révélé le même défa
 - Aucun code applicatif, SQL de migration ou schéma Supabase n'a changé. Aucune donnée Supabase Production, migration, secret, grant, policy RLS persistante ou configuration PostgreSQL Production n'a été modifiée.
 - Aucun déploiement Production, merge, force-push ou changement de protection n'a été effectué. Les tests synthétiques de garde-fou ne prouvent pas une vulnérabilité exploitable en Production.
 - Publier les deux commits QA328 par fast-forward avec lease sur le HEAD attendu `6d3a873e`, puis vérifier la nouvelle CI, CodeQL et le Preview du nouveau HEAD.
+
+---
+
+## Clôture QA328 / QIMA CI #1878 et renforcement du test de version PostgreSQL — 24 novembre 2026, 07:31 KST
+
+### État vérifié avant le nouveau changement
+
+- PR #26 : **OPEN / DRAFT / non fusionnée**, base `main`, HEAD `9334e479cfaf17b10735c56dd2fbdc98ee792888`, 2 350 commits dans la PR, 289 fichiers modifiés, 93 291 insertions et 266 suppressions ; GitHub indique `mergeable=true`.
+- QIMA CI [#1878](https://github.com/meridane/QimaTrade-MVP/actions/runs/45268632819) : workflow global **SUCCESS**. Verify **SUCCESS**, dont npm install, audit au seuil `high`, TypeScript, build Next.js, Chromium et Playwright **423 passed (34,9 s)**.
+- PostgreSQL 16 et PostgreSQL 17.6 : jobs d'intégration et de compatibilité **SUCCESS**. Le job PostgreSQL 17.6 a utilisé la version exacte `server_version_num=170006`.
+- Le journal PostgreSQL 16 confirme explicitement QA328 : **3** URL loopback prises en charge, **7** URL non autorisées et `DATABASE_URL` absent rejetés avant Docker/psql ou l'écriture du marqueur de restauration. La modification QA328 est donc validée par CI #1878.
+- CodeQL [#1806](https://github.com/meridane/QimaTrade-MVP/actions/runs/45268632333) : **SUCCESS**. Le statut Vercel du HEAD `9334e479cfaf17b10735c56dd2fbdc98ee792888` est **SUCCESS** ([Preview](https://vercel.com/bmk1/qimatrade-mvp/CSg1Kv7s6YRBvvADeyGBBRJE15wy)).
+- Les deux jobs de simulation prepared-transaction portent une conclusion négative intentionnelle ; les assertions de contrôle correspondantes sont **SUCCESS**. Le job de nettoyage attendu en `skipped` est correctement ignoré et le contrôle anti-faux-succès est **SUCCESS**. Le workflow global est **SUCCESS**.
+
+### Amélioration non bloquante du garde-fou de version PostgreSQL
+
+- Revue de `tests/sql/test-postgres-17-6-version-guard.sh` et `tests/sql/assert-postgres-17-6-version.sh` : les dix cas invalides sont déjà correctement refusés par le validateur, qui renvoie explicitement le code **1** pour un nombre d'arguments incorrect, une valeur non numérique ou une version différente de `170006`.
+- Le helper de test `assert_rejected` vérifiait seulement qu'un cas ne renvoyait pas zéro. Il pouvait donc accepter à tort un échec d'exécution inattendu (par exemple un code 127) comme un rejet valide.
+- Changement minimal préparé : le helper capture le statut de sortie et exige exactement **1** pour chacun des dix cas négatifs (versions PostgreSQL non prises en charge, version lisible, valeur non numérique, valeur vide, argument absent et argument supplémentaire).
+- Le validateur de production/test `assert-postgres-17-6-version.sh`, ses messages, la version acceptée et les dix scénarios restent inchangés. Seul le test de régression devient plus strict.
+- Vérification statique avant publication : dix appels `assert_rejected` présents ; trois branches explicites `exit 1` dans le validateur ; substitution du helper vérifiée exactement. **Aucun test local n'a été exécuté.**
+- La modification et cette entrée de registre sont publiées ensemble sur le HEAD suivant par fast-forward uniquement. La validation GitHub Actions de ce nouveau HEAD reste **PENDING** au moment de cette entrée ; aucune réussite CI n'est attribuée à ce changement.
+
+### Périmètre et prochaine étape
+
+- Aucun code applicatif, SQL de migration, schéma ou donnée Supabase Production n'a changé. Aucun secret, grant, policy RLS persistante ou configuration PostgreSQL Production n'a été modifié.
+- Aucun déploiement Production, merge, force-push ou changement de protection n'a été effectué. Les tests de garde-fou sont des tests synthétiques de contrat et ne prouvent pas une vulnérabilité exploitable.
+- Vérifier la nouvelle QIMA CI sur le HEAD contenant l'exigence du code de sortie exact, confirmer le résultat du script PostgreSQL 17.6, puis clôturer CodeQL et Vercel de ce HEAD.
+
