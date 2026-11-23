@@ -13696,3 +13696,62 @@ Aucune donnée Supabase Production, aucune migration, aucun secret, grant ou pol
 - CodeQL #1781 : analyse encore **IN PROGRESS**. Aucun résultat final n'est anticipé.
 - Le statut Vercel du HEAD exact `77d2ba26` est maintenant **SUCCESS** (« Deployment has completed »), Preview : [G1vRbSkE5S57hPECMTceaiJC7mvP](https://vercel.com/bmk1/qimatrade-mvp/G1vRbSkE5S57hPECMTceaiJC7mvP).
 - Ce commit est documentaire uniquement ; il ne change ni le code applicatif ni les tests validés par CI #1852. La clôture des nouveaux contrôles #1853/#1781 sera consignée lors de leur résultat final.
+
+
+## Clôture consolidée des validations QIMA CI #1854 à #1858 — 23 novembre 2026, 17:50 KST
+
+### État PR et historique relus avant cette actualisation
+
+- PR #26 : **OPEN / DRAFT / non fusionnée**, base `main`, head branch `fix/create-offer-status-contract`, HEAD exact `d78d0c97b6c32e7c57d7285d8cbfb123aa4a07b9`.
+- GitHub indique `mergeable=true`; comparaison `main...fix/create-offer-status-contract` : **2 324 commits en avance, 0 en retard**.
+- Diff de la PR : **289 fichiers**, **92 501 insertions**, **266 suppressions**. Aucun review thread non résolu n'a été retourné.
+- Derniers commits de la branche, du plus récent au plus ancien : `d78d0c97` (clôture #1857 et revue du contrat), `7db3e593` (clôture #1855/#1856), `9b6127ef` (correction de la note paths-ignore), `ba3a65ec` (snapshot #1854 et idempotencyKey), `d4e7a5a1` (snapshot post-push #1853).
+
+### Résultats vérifiés des workflows
+
+Les cinq exécutions QIMA CI ci-dessous ont été relues dans les runs et leurs jobs/étapes. Chaque run a terminé **SUCCESS** ; le job Verify a confirmé **423 Playwright passed** :
+
+| Run | HEAD validé | Playwright | PostgreSQL 16 | PostgreSQL 17.6 |
+|---|---|---:|---|---|
+| [#1854](https://github.com/meridane/QimaTrade-MVP/actions/runs/45113116778) | `d4e7a5a1` | 423 passed (38,1 s) | PASS | PASS |
+| [#1855](https://github.com/meridane/QimaTrade-MVP/actions/runs/45118604618) | `ba3a65ec` | 423 passed (38,7 s) | PASS | PASS |
+| [#1856](https://github.com/meridane/QimaTrade-MVP/actions/runs/45118667127) | `9b6127ef` | 423 passed (36,3 s) | PASS | PASS |
+| [#1857](https://github.com/meridane/QimaTrade-MVP/actions/runs/45123451078) | `7db3e593` | 423 passed (39,1 s) | PASS | PASS |
+| [#1858](https://github.com/meridane/QimaTrade-MVP/actions/runs/45130560174) | `d78d0c97b6c32e7c57d7285d8cbfb123aa4a07b9` | 423 passed (38,3 s) | PASS | PASS |
+
+Pour le run #1858, les étapes Verify suivantes sont **SUCCESS** : installation depuis le lockfile, `npm audit --audit-level=high`, TypeScript, build Next.js, installation Chromium, tests navigateur, fixture de contrat sécurité QIMA, enforcement et publication de l'artefact de rapport d'audit. Le statut d'audit est rapporté uniquement au seuil configuré `high` ; aucun nombre de findings n'est déduit du seul statut.
+
+Les jobs PostgreSQL 16 et 17.6 du run #1858 ont terminé toutes leurs étapes avec succès, notamment les contrats CREATE_OFFER de replay/concurrence, les contrôles de privilèges/ACL et les régressions associées. Les journaux contiennent des erreurs SQL attendues dans les fixtures négatives de caractérisation ; les étapes correspondantes se sont terminées **SUCCESS**. Elles ne sont pas des échecs inattendus du workflow.
+
+Dans #1858, les jobs de simulation setup-failure et cleanup-failure ont les conclusions négatives intentionnelles prévues ; les assertions dédiées qui vérifient leur propagation sont **SUCCESS**. Le job explicitement attendu en `skipped` est **SKIPPED**, et son assertion de contrôle est **SUCCESS**.
+
+### CodeQL et Vercel
+
+- CodeQL [#1782](https://github.com/meridane/QimaTrade-MVP/actions/runs/45113116763) : **SUCCESS**.
+- CodeQL [#1783](https://github.com/meridane/QimaTrade-MVP/actions/runs/45118604578) : **SUCCESS**.
+- CodeQL [#1784](https://github.com/meridane/QimaTrade-MVP/actions/runs/45118667074) : **SUCCESS**.
+- CodeQL [#1785](https://github.com/meridane/QimaTrade-MVP/actions/runs/45123451164) : **SUCCESS**.
+- CodeQL [#1786](https://github.com/meridane/QimaTrade-MVP/actions/runs/45130560097) : **SUCCESS**, analyse JavaScript/TypeScript terminée.
+- Le statut combiné GitHub `Vercel` sur le HEAD exact `d78d0c97b6c32e7c57d7285d8cbfb123aa4a07b9` est **SUCCESS** ([Preview](https://vercel.com/bmk1/qimatrade-mvp/8tWPxky5xP7YsVPAB9r8v1iSWygW)). Preview uniquement ; aucun déploiement Production.
+
+### Revue non bloquante du contrat CREATE_OFFER
+
+Lecture en lecture seule de la route, du runtime, de l'ActionEngine, des types, des tests E2E et de la migration SQL déjà présente dans le dépôt :
+
+- La route valide les identifiants UUID, canonicalise les UUID transmis dans `p_input` et les arguments UUID du RPC, et filtre/déduplique les memberships avant l'exécution.
+- Le runtime transmet au RPC les paramètres métier et l'acteur authentifié ; la fonction SQL valide l'acteur contre le profil authentifié et construit le hash d'idempotence sur l'entrée et les paramètres effectifs.
+- Les tests E2E couvrent déjà les séparateurs Bearer, les corps JSON invalides, les clés d'idempotence explicites trimées, les clés vides/non-string/omises remplacées par UUID v4 distincts, les UUID acteur mixtes et le replay, ainsi que les réponses memberships malformées.
+- Les tests ActionEngine couvrent déjà les ActionResult Proxy, les traps de réflexion qui lèvent, les clés dupliquées/masquées, les champs hérités, les getters, les métadonnées non énumérables et symboliques, et les payloads imbriqués. Le run #1858 valide la suite complète de 423 tests.
+- **Décision requise — `correlationId` :** la route crée/transmet un identifiant de contexte, mais le runtime CREATE_OFFER ne le transmet pas au RPC et la fonction SQL génère son propre `v_correlation_id`. La source officielle de corrélation persistée n'est pas décidée.
+- **Décision requise — `objectType/objectId` :** le contexte ActionEngine utilise `Demand`, tandis que la fonction SQL persiste l'exécution comme `Offer` et l'ID de l'offre créée. Ne pas harmoniser sans décision métier/architecture.
+- **Décision requise — `idempotencyKey` client :** une clé explicite stable permet le replay ; une clé absente, vide ou non-string est remplacée par un UUID serveur. Le caractère obligatoire ou facultatif de la clé client reste à décider.
+- **MKT-1.3 numeric canonicalization** demeure `CHARACTERIZATION / DECISION REQUIRED — NOT APPROVED`. Aucun changement du hash ou de l'équivalence numérique n'est autorisé sans décision et plan de compatibilité.
+
+Aucun changement applicatif ou test n'a été nécessaire dans cette exécution : les contrôles observés sont verts et les sujets restants relèvent de décisions de contrat, non d'une correction à inférer.
+
+### Périmètre de sécurité
+
+- Aucun code applicatif, test, SQL ou fichier de migration n'est modifié par cette clôture documentaire.
+- Aucune donnée Supabase Production, migration, secret, grant, policy RLS persistante ou configuration PostgreSQL n'est modifiée.
+- Aucun déploiement Production, merge, force-push ou changement des règles de protection n'est effectué.
+- Les tests E2E, SQL et fixtures CI caractérisent des comportements contrôlés ; ils ne constituent pas, à eux seuls, une preuve de vulnérabilité exploitable en Production.
