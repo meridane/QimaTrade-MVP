@@ -138,6 +138,7 @@ export async function POST(request: Request) {
     if (typeof providerActorId !== "string" || !canonicalUuidPattern.test(providerActorId)) {
       return NextResponse.json({ error: "PROFILE_ACTOR_NOT_FOUND" }, { status: 403 });
     }
+    const canonicalProviderActorId = providerActorId.toLowerCase();
 
     let memberships: unknown = null;
     try {
@@ -180,7 +181,7 @@ export async function POST(request: Request) {
       // Keep JSONB p_input and typed UUID RPC arguments in one canonical form for idempotency hashing.
       demandId: demandId.toLowerCase(),
       productMasterId: productMasterId.toLowerCase(),
-      providerActorId,
+      providerActorId: canonicalProviderActorId,
       quantity,
       price,
       currency,
