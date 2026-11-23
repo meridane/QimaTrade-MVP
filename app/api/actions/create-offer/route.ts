@@ -139,7 +139,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "PROFILE_ACTOR_NOT_FOUND" }, { status: 403 });
     }
 
-    let memberships: Array<{ tenant_id?: unknown }> | null = null;
+    let memberships: unknown = null;
     try {
       const { data, error } = await supabase.from("dt_memberships").select("tenant_id").eq("user_id", user.id);
       if (error) return NextResponse.json({ error: "TENANT_MEMBERSHIP_LOOKUP_FAILED" }, { status: 500 });
@@ -147,11 +147,24 @@ export async function POST(request: Request) {
     } catch {
       return NextResponse.json({ error: "TENANT_MEMBERSHIP_LOOKUP_FAILED" }, { status: 500 });
     }
-    if (!memberships?.length) return NextResponse.json({ error: "TENANT_MEMBERSHIP_REQUIRED" }, { status: 403 });
+    if (!Array.isArray(memberships) || memberships.length === 0) {
+      return NextResponse.json({ error: "TENANT_MEMBERSHIP_REQUIRED" }, { status: 403 });
+    }
 
     const tenantIds = [...new Set(
       memberships
-        .map((membership) => typeof membership.tenant_id === "string" ? membership.tenant_id.trim().toLowerCase() : "")
+        .map((membership: unknown) => {
+          if (
+            membership === null ||
+            typeof membership !== "object" ||
+            !("tenant_id" in membership)
+          ) {
+            return "";
+          }
+
+          const tenantId = membership.tenant_id;
+          return typeof tenantId === "string" ? tenantId.trim().toLowerCase() : "";
+        })
         .filter((tenantId) => canonicalUuidPattern.test(tenantId)),
     )];
     if (tenantIds.length === 0) {
