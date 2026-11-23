@@ -13445,3 +13445,40 @@ Portée : correction d'une étiquette documentaire uniquement. Aucun code applic
 - Aucune donnée ou migration Supabase Production, aucun secret, grant ou policy RLS persistante n'a été modifié. Aucune migration n'a été appliquée.
 - Aucun déploiement Production, merge, force-push ou changement des protections GitHub n'a été effectué.
 - Après publication par fast-forward, vérifier le nouveau QIMA CI, le total attendu de 421 tests, PostgreSQL 16/17.6, CodeQL et Vercel Preview avant de déclarer le correctif validé.
+
+
+## Filtrage des memberships invalides lorsqu'un tenant valide existe — 23 novembre 2026, 09:23 KST
+
+### État vérifié avant modification
+
+- PR #26 : **OPEN / DRAFT / non fusionnée**, branche `fix/create-offer-status-contract`, base `main`, HEAD `444eced7d4c364698b029cc49fa5f1186b61dd0f`, **2 301 commits devant `main`, 0 derrière**, 287 fichiers modifiés (+91 878 / -266), `mergeable=true`.
+- Dernier commit applicatif : `444eced7` — normalisation en minuscules des UUID de `dt_memberships.tenant_id` avant validation et déduplication.
+- QIMA CI [#1841](https://github.com/meridane/QimaTrade-MVP/actions/runs/45083490503) sur le HEAD `444eced7` : **SUCCESS**. Le journal du job Verify confirme **421 Playwright passed (34,0 s)** ; npm ci, npm audit avec seuil bloquant `high`, TypeScript, build Next.js, Chromium et fixture de contrat QIMA **SUCCESS**.
+- PostgreSQL 16 : **SUCCESS**. PostgreSQL 17.6 : **SUCCESS**. Les tests CREATE_OFFER, replay, concurrence, RLS, ACL et caractérisation des privilèges du runner ont réussi.
+- Les deux jobs de simulation prepared-transaction setup/cleanup terminent intentionnellement en `failure` ; leurs assertions dédiées sont **SUCCESS**. Le job explicitement attendu en `skipped` reste `skipped`, avec assertion de contrat **SUCCESS**. Le workflow global est **SUCCESS**.
+- QIMA CodeQL [#1769](https://github.com/meridane/QimaTrade-MVP/actions/runs/45083490590) : **SUCCESS**.
+- Le check de statut GitHub Vercel du HEAD `444eced7` : **SUCCESS** ([Preview](https://vercel.com/bmk1/qimatrade-mvp/2VsnuGxTMaMk2iwEhe7vcECErkje)).
+- Le registre canonique a été récupéré intégralement depuis le blob Git avant modification : 2 663 926 caractères, blob SHA `b0e8143f906b8470060f86f9e1477a851c966c3f`.
+
+### Extension ciblée de la régression
+
+- Le code actuel de `app/api/actions/create-offer/route.ts` convertit les `tenant_id` string en forme trimée/minuscule, puis filtre les valeurs qui ne correspondent pas à `canonicalUuidPattern`. Les tests existants couvraient les ensembles entièrement invalides, les lignes nulles/blanches avec un tenant valide et les valeurs non-string avec un tenant valide.
+- Petite lacune de couverture : le cas combinant une chaîne UUID mal formée et un tenant valide n'était pas explicitement couvert dans le scénario mixte. Ce changement ne suppose pas une vulnérabilité ; il verrouille le comportement de filtrage déjà implémenté.
+- Dans `tests/e2e/create-offer-route-contract.spec.ts`, le test existant est renommé `ignores malformed and non-string membership tenant IDs when one valid tenant remains`. Les lignes de fixture ajoutent `not-a-uuid` et une variante entourée d'espaces, tout en conservant les valeurs number, boolean, object, array et la ligne sans `tenant_id`.
+- Le test exige HTTP 200, la séquence complète Auth → Profile → Membership → définition → exécution, exactement un appel `execute_create_offer_v1` et le seul `p_tenant_id` valide attendu.
+- Il s'agit d'une extension du test existant, pas d'un nouveau test Playwright : le total attendu reste **421**.
+
+### Fichier et branche de travail
+
+- Branche de travail : `work/qima-membership-invalid-row-mix-20261123-0923`, créée à partir du HEAD PR `444eced7d4c364698b029cc49fa5f1186b61dd0f`.
+- `tests/e2e/create-offer-route-contract.spec.ts` : extension du scénario mixte pour inclure les chaînes UUID mal formées et assertion de la séquence de requêtes.
+- `docs/QIMA_V1_FUNCTION_REGISTER.md` : entrée append-only, historique antérieur conservé.
+- Commit de test : `699ed7ba930060a08e3a4f9e812eba52bf13d275`. Le commit documentaire est créé après cette entrée.
+
+### Validation et limites
+
+- CI #1841 / CodeQL #1769 / Vercel ci-dessus valident le HEAD parent `444eced7`, pas cette extension de test.
+- Après publication par fast-forward, vérifier le nouveau QIMA CI, le résultat du test Playwright (total attendu **421**), PostgreSQL 16/17.6 et CodeQL avant de déclarer la modification validée.
+- Aucun test local n'a été exécuté.
+- Aucune donnée ou migration Supabase Production, aucun secret, grant ou policy RLS persistante n'a été modifié. Aucun SQL ni runtime applicatif n'a changé dans ce lot.
+- Aucun déploiement Production, merge, force-push ou changement des protections GitHub n'a été effectué.
