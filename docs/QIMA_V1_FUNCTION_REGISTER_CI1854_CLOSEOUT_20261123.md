@@ -73,3 +73,58 @@ Lecture en lecture seule de `app/api/actions/create-offer/route.ts` et des tests
 - Aucune migration n'est appliquée.
 - Aucun déploiement Production, merge, force-push ou changement des règles de protection n'est effectué.
 - Les tests synthétiques et les fixtures jetables caractérisent des contrats contrôlés ; ils ne prouvent pas une vulnérabilité exploitable en Production.
+
+## 8. Clôture post-publication — 23 novembre 2026, 15:18 KST
+
+### État GitHub relu
+
+- PR #26 : **OPEN / DRAFT / non fusionnée**, base `main`, branche `fix/create-offer-status-contract`.
+- HEAD exact : `9b6127efef87b4a4520e2546f2263949c4b6e38f`, commit documentaire `docs(qima): correct pull-request path filter validation note`.
+- GitHub indique `mergeable=true`; la PR compte 2 322 commits devant `main`, 0 derrière, 289 fichiers modifiés, 92 392 insertions et 266 suppressions.
+- Le commit précédent `ba3a65ec` documentait l'observation initiale des workflows après publication. Le présent snapshot clôt leurs résultats réels.
+
+### QIMA CI #1855 — commit `ba3a65ec`
+
+- Run [#1855](https://github.com/meridane/QimaTrade-MVP/actions/runs/45118604618) : **SUCCESS**.
+- Verify : npm audit au seuil bloquant `high`, TypeScript, build Next.js, Chromium et Playwright **SUCCESS** ; journal Playwright : **423 passed (38,7 s)**.
+- PostgreSQL 16 : **SUCCESS**.
+- PostgreSQL 17.6 : **SUCCESS**.
+- Les tests d'intégration CREATE_OFFER, replay, concurrence, contrôles de privilèges et régressions exécutés dans les environnements PostgreSQL jetables ont terminé avec succès.
+- Les jobs de simulation setup-failure et cleanup-failure ont les conclusions négatives intentionnelles prévues ; les jobs d'assertion correspondants sont **SUCCESS**. Le job explicitement attendu en `skipped` est **SKIPPED**, avec son assertion de contrôle **SUCCESS**.
+- CodeQL [#1783](https://github.com/meridane/QimaTrade-MVP/actions/runs/45118604578) : **SUCCESS**.
+
+### QIMA CI #1856 — HEAD exact `9b6127ef`
+
+- Run [#1856](https://github.com/meridane/QimaTrade-MVP/actions/runs/45118667127) : **SUCCESS**.
+- Verify : npm audit au seuil bloquant `high`, TypeScript, build Next.js, Chromium et Playwright **SUCCESS** ; journal Playwright : **423 passed (36,3 s)**.
+- PostgreSQL 16 : **SUCCESS**.
+- PostgreSQL 17.6 : **SUCCESS**.
+- Les jobs d'intégration CREATE_OFFER et de compatibilité PostgreSQL ont terminé avec succès.
+- Les deux jobs de simulation setup/cleanup ont leurs conclusions négatives intentionnelles ; les assertions qui vérifient ces résultats sont **SUCCESS**. Le job de nettoyage explicitement attendu en `skipped` est **SKIPPED**, avec assertion **SUCCESS**.
+- CodeQL [#1784](https://github.com/meridane/QimaTrade-MVP/actions/runs/45118667074) : **SUCCESS**.
+
+### Preview Vercel du HEAD
+
+- Le statut combiné GitHub `Vercel` du commit `9b6127ef` est **SUCCESS**.
+- Le commentaire Vercel associé à la PR indique le déploiement **READY** : [Preview Vercel](https://vercel.com/bmk1/qimatrade-mvp/9ALWyT9r3gNyvHPY74pDZh5phoPH).
+- Il s'agit d'un Preview uniquement ; aucun déploiement Production n'a été effectué.
+
+### Interprétation des contrôles
+
+- Les conclusions `failure` des deux jobs de harness setup/cleanup sont les résultats négatifs intentionnels du test de propagation ; elles ne représentent pas des échecs inattendus de CI, puisque les assertions de contrôle dédiées sont **SUCCESS**.
+- Le job explicitement conçu pour être `skipped` est contrôlé par une assertion réussie ; il n'est pas présenté comme un test réussi exécuté.
+- L'audit npm est rapporté selon le seuil `high` configuré. Aucun nombre de vulnérabilités n'est déduit du seul statut du job.
+- Les résultats Playwright, PostgreSQL et CodeQL sont des validations de CI et de fixtures jetables ; ils ne constituent pas, à eux seuls, une preuve d'une vulnérabilité exploitable en Production.
+
+### État du registre canonique
+
+- Une lecture de `docs/QIMA_V1_FUNCTION_REGISTER.md` sur la branche officielle retourne le blob SHA `0b7fe3ba66b35e0002fdca18e1270c87d991c2f3`, mais un contenu vide, même avec des plages de lignes ciblées.
+- Pour ne pas remplacer un registre volumineux dont le contenu complet n'est pas accessible, cette clôture est ajoutée au présent document compagnon append-only. Le registre canonique n'a pas été remplacé ni réécrit.
+- Aucun test local n'a été exécuté dans cette intervention.
+
+### Périmètre de sécurité
+
+- Aucun code applicatif ou test n'est modifié par cette clôture documentaire.
+- Aucune donnée Supabase Production, migration, secret, grant, policy RLS persistante ou configuration PostgreSQL n'est modifiée.
+- Aucune migration n'est appliquée ; aucun déploiement Production, merge, force-push ou changement des règles de protection n'est effectué.
+
