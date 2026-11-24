@@ -44,6 +44,10 @@ if [[ "${#postgres_containers[@]}" -ne 1 ]]; then
   exit 1
 fi
 container_id="${postgres_containers[0]}"
+if [[ ! "$container_id" =~ ^[0-9a-f]{12,64}$ ]]; then
+  echo "::error::Docker returned an invalid PostgreSQL 16 service container ID; no database or configuration operation was attempted." >&2
+  exit 1
+fi
 
 if baseline="$("$REAL_PSQL" "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -Atqc "SHOW max_prepared_transactions")"; then
   :
