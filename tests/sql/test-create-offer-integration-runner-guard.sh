@@ -30,6 +30,10 @@ unsafe_urls=(
   "postgresql://postgres:postgres@localhost.evil:5432/qima_test"
   "postgresql://postgres:postgres@127.0.0.2:5432/qima_test"
   $'postgresql://postgres:postgres@localhost:5432/qima_test\nqa348-injected'
+  $'postgresql://post\nqa435-credential-injected:postgres@localhost:5432/qima_test'
+  $'postgresql://postgres:pass\rqa435-credential-injected@localhost:5432/qima_test'
+  $'postgresql://postgres:pass\tqa435-credential-injected@localhost:5432/qima_test'
+  $'postgresql://po\001qa435-credential-injected:postgres@localhost:5432/qima_test'
   $'postgresql://postgres:postgres@localhost:5432/qima_test\r'
   $'postgresql://postgres:postgres@localhost:5432/qima_test\t'
   $'postgresql://postgres:postgres@localhost:5432/qima_test\r\nqa348-injected'
@@ -63,12 +67,12 @@ for unsafe_url in "${unsafe_urls[@]}"; do
     cat "$OUTPUT" >&2
     exit 1
   fi
-  if LC_ALL=C grep -q $'\r' "$OUTPUT" || LC_ALL=C grep -q $'\t' "$OUTPUT" || [[ "$(wc -l < "$OUTPUT")" -ne 1 ]]; then
+  if LC_ALL=C grep -q $'\r' "$OUTPUT" || LC_ALL=C grep -q $'\t' "$OUTPUT" || LC_ALL=C grep -q  then\001' "$OUTPUT" || [[ "$(wc -l < "$OUTPUT")" -ne 1 ]]; then
     echo "ERROR: refusal output was not a single control-character-free diagnostic line." >&2
     cat "$OUTPUT" >&2
     exit 1
   fi
-  if grep -Fq "qa348-injected" "$OUTPUT"; then
+  if grep -Fq "qa348-injected" "$OUTPUT" || grep -Fq "qa435-credential-injected" "$OUTPUT"; then
     echo "ERROR: refusal output reflected control-character payload content." >&2
     cat "$OUTPUT" >&2
     exit 1
