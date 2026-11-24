@@ -14881,6 +14881,7 @@ La revue croisée des scripts de garde-fou PostgreSQL a révélé le même défa
 - Le mock du test distingue maintenant une variable `MOCK_RESTORED_VALUE` vide d'une variable absente, afin de couvrir le résultat vide réel.
 - Le test de restauration ajoute six cas : vide, texte non numérique, LF, CR, TAB et SOH. Chaque cas exige le code 1, le diagnostic exact sur une seule ligne, aucune réflexion de marqueur, aucun délai/retry, et aucun contrôle des ressources résiduelles ni message de succès.
 - Le chemin valide `0`, la convergence transitoire depuis une valeur numérique différente, et les erreurs psql existantes restent inchangés.
+- Revue pré-publication : la première génération du bloc de test avait une citation ANSI-C mal formée ; elle a été corrigée avant le fast-forward PR. Le bloc final a été relu, et les six valeurs de test LF/CR/TAB/SOH sont présentes comme séquences shell ANSI-C, sans tronquer le reste du fichier.
 - Le workflow existant exécute déjà `tests/sql/test-prepared-transactions-config-restore.sh` dans le job PostgreSQL 16 ; aucun changement de workflow n'est requis.
 
 ### Publication et validation
