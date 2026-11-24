@@ -54,7 +54,7 @@ else
 fi
 
 if [[ "$baseline" != "0" ]]; then
-  echo "::error::Expected the pristine disposable PostgreSQL baseline to be 0; found $baseline. No configuration change was attempted." >&2
+  echo "::error::Expected the pristine disposable PostgreSQL max_prepared_transactions baseline 0; received a different value. No configuration change was attempted." >&2
   exit 1
 fi
 
