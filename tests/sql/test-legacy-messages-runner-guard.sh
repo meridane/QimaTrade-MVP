@@ -70,19 +70,25 @@ for unsafe_url in "${unsafe_urls[@]}"; do
     fi
 done
 
-# An unset destination must fail closed before psql, just like a malformed URL.
-set +e
-env -u DATABASE_URL PATH="$TEMP_DIR:$PATH" bash "$RUNNER" >"$OUTPUT" 2>&1
-missing_url_status=$?
-set -e
-if [[ "$missing_url_status" -ne 1 ]] ||
-  ! grep -Fq "DATABASE_URL must point to a disposable PostgreSQL database" "$OUTPUT" ||
-  grep -Fq "psql must not be invoked" "$OUTPUT" ||
-  grep -Fq "postgres:postgres" "$OUTPUT"; then
-  echo "ERROR: migration runner did not safely reject an unset DATABASE_URL before psql." >&2
-  cat "$OUTPUT" >&2
-  exit 1
-fi
+# Unset and explicitly empty destinations must fail closed before psql.
+assert_missing_database_url_rejected() {
+  local label="$1"
+  shift
+  set +e
+  "$@" PATH="$TEMP_DIR:$PATH" bash "$RUNNER" >"$OUTPUT" 2>&1
+  local missing_url_status=$?
+  set -e
+  if [[ "$missing_url_status" -ne 1 ]] ||
+    ! grep -Fq "DATABASE_URL must point to a disposable PostgreSQL database" "$OUTPUT" ||
+    grep -Fq "psql must not be invoked" "$OUTPUT" ||
+    grep -Fq "postgres:postgres" "$OUTPUT"; then
+    echo "ERROR: migration runner did not safely reject a ${label} DATABASE_URL before psql." >&2
+    cat "$OUTPUT" >&2
+    exit 1
+  fi
+}
+assert_missing_database_url_rejected "unset" env -u DATABASE_URL
+assert_missing_database_url_rejected "empty" env DATABASE_URL=""
 
 
 

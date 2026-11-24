@@ -14505,3 +14505,36 @@ La revue croisée des scripts de garde-fou PostgreSQL a révélé le même défa
 - À la première lecture post-push, la liste des workflow runs associés au nouveau SHA n'était pas encore retournée par le connecteur GitHub ; le statut Vercel du nouveau HEAD était **PENDING**. Aucun numéro de QIMA CI ou de CodeQL n'est anticipé pour ce commit.
 - Vérifier la prochaine QIMA CI : étape QA328, cas unset et empty, code 2, diagnostic, absence d'événements Docker/psql et absence de marqueur ; confirmer PostgreSQL 16/17.6, Verify/Playwright, CodeQL et Preview Vercel du HEAD exact.
 - Aucun code applicatif, SQL de migration, schéma ou donnée Supabase Production n'a changé. Aucun secret, grant, policy RLS persistante ou configuration PostgreSQL Production n'a été modifié. Aucun déploiement Production, merge, force-push ou changement de protection n'a été effectué. Les tests synthétiques de garde-fou ne prouvent pas une vulnérabilité exploitable.
+
+
+
+---
+
+## Couverture unset/empty du runner legacy messages — 24 novembre 2026, 11:07 KST
+
+### État de référence vérifié avant modification
+
+- PR #26 : **OPEN / DRAFT / non fusionnée**, branche \`fix/create-offer-status-contract\`, base \`main\`, HEAD \`358db877b001171bea9df9f6cfd771f3c821f1bf\`, 2 355 commits, 289 fichiers modifiés (93 400 insertions / 266 suppressions), \`mergeable=true\`.
+- QIMA CI [#1882](https://github.com/meridane/QimaTrade-MVP/actions/runs/45300156090) sur le commit de test \`f1e8e3fd\` : **SUCCESS**. Verify : audit npm, TypeScript, build Next.js, Chromium et **423 Playwright passed (38,1 s)**. PostgreSQL 16 et PostgreSQL 17.6 : jobs complets **SUCCESS**. Le job Verify confirme le contrat de setup prepared-transaction ; le run PostgreSQL confirme les régressions CREATE_OFFER, ACL, RLS et les garde-fous.
+- CodeQL [#1810](https://github.com/meridane/QimaTrade-MVP/actions/runs/45300156113) : **SUCCESS**.
+- QIMA CI [#1883](https://github.com/meridane/QimaTrade-MVP/actions/runs/45300236831) sur le HEAD documentaire \`358db877\` : **SUCCESS**. Verify : npm audit, TypeScript, build Next.js, Chromium et **423 Playwright passed (34,1 s)** ; PostgreSQL 16 et 17.6 : **SUCCESS**. Les deux jobs de simulation prepared-transaction ont leurs échecs intentionnels, avec assertions dédiées **SUCCESS** ; le job de simulation skipped est attendu et son assertion bloquante est **SUCCESS**.
+- CodeQL [#1811](https://github.com/meridane/QimaTrade-MVP/actions/runs/45300236842) : **SUCCESS**. Le statut combiné Vercel du HEAD \`358db877\` est **SUCCESS** ([Preview](https://vercel.com/bmk1/qimatrade-mvp/42AtAEtTGnB3WBkm7vcE7j23TiMm)).
+- Le registre canonique a été récupéré intégralement par blob Git avant cette modification ; le contenu historique est conservé.
+
+### Lacune de couverture constatée
+
+- \`tests/sql/test-legacy-messages-runner-guard.sh\` couvre 11 URL non autorisées et une variable \`DATABASE_URL\` non définie, mais ne teste pas séparément la variable définie à la chaîne vide.
+- Le runner \`tests/sql/run-legacy-messages-rls-regression.sh\` commence par \`: "\${DATABASE_URL:?DATABASE_URL must point to a disposable PostgreSQL database}"\` : Bash refuse à la fois une variable absente et une variable vide avant tout appel à \`psql\`.
+- Il s'agit d'une lacune de test de non-régression, pas d'un défaut démontré du runner ni d'une vulnérabilité confirmée.
+
+### Correction de test préparée
+
+- Le bloc de test de configuration manquante est remplacé par \`assert_missing_database_url_rejected\`, appelé avec \`env -u DATABASE_URL\` et \`env DATABASE_URL=""\`.
+- Les deux scénarios exigent exactement le code de sortie **1**, le diagnostic attendu, l'absence du message du stub \`psql\` et l'absence de l'identifiant de test dans la sortie.
+- Les 11 cas URL non autorisées, les trois formes loopback autorisées, les scénarios EXIT-trap et les commandes SQL restent inchangés. Aucun runner, SQL, migration, schéma ou code applicatif n'est modifié.
+- Fichier modifié : \`tests/sql/test-legacy-messages-runner-guard.sh\`. Aucun test local n'a été exécuté.
+
+### Validation attendue et périmètre
+
+- Le changement est publié sur une branche de travail issue du HEAD vérifié. La validation GitHub Actions du nouveau HEAD reste **EN ATTENTE** : vérifier le job PostgreSQL qui exécute \`test-legacy-messages-runner-guard.sh\`, confirmer les deux cas unset/empty, l'exit 1, le diagnostic et l'absence d'appel \`psql\`, puis confirmer Verify/Playwright, PostgreSQL 16/17.6, CodeQL et Vercel.
+- Aucun SQL de migration, donnée Supabase Production, secret, grant, policy RLS persistante ou configuration PostgreSQL Production n'a été modifié. Aucun déploiement Production, merge, force-push ou changement des protections GitHub n'a été effectué. Les tests synthétiques caractérisent le contrat du runner et ne prouvent pas une vulnérabilité exploitable.
