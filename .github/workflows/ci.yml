@@ -138,6 +138,8 @@ jobs:
         run: bash tests/sql/test-create-offer-geography-default-replay-contract.sh
       - name: Verify CREATE_OFFER geography default replay crosses committed PostgreSQL sessions
         run: bash tests/sql/test-create-offer-geography-default-committed-replay-contract.sh
+      - name: Verify CREATE_OFFER geography committed-replay runner rejects unsafe database URLs
+        run: bash tests/sql/test-create-offer-geography-default-committed-replay-runner-guard.sh
       - name: Verify CREATE_OFFER default-replay diagnostics identify their own parameter
         run: bash tests/sql/test-create-offer-default-replay-diagnostics-contract.sh
       - name: Verify numeric replay fixture keys and PostgreSQL runner isolation
