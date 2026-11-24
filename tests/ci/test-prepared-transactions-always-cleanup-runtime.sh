@@ -43,27 +43,39 @@ RESTORE_LOG="$TEMP_DIR/restore.log"
 mkdir -p "$MOCK_BIN"
 : > "$EVENTS"
 
-cat > "$MOCK_BIN/docker" <<'DOCKER'
+# QA447: lock down Docker discovery, exec target/SQL arguments, and restart target\ncat > "$MOCK_BIN/docker" <<'DOCKER'
 #!/usr/bin/env bash
 set -euo pipefail
 case "${1-}" in
   ps)
-    printf '%s\n' 0123456789ab
-    printf '%s\n' docker-ps >> "$MOCK_EVENTS"
+    if [[ "$#" -ne 5 || "$2" != "--filter" || "$3" != "ancestor=postgres:16" ||
+      "$4" != "--format" || "$5" != "{{.ID}}" ]]; then
+      echo "Unexpected Docker container discovery arguments." >&2
+      exit 89
+    fi
+    printf '%s\\n' 0123456789ab
+    printf '%s\\n' docker-ps >> "$MOCK_EVENTS"
     ;;
   exec)
-    if [[ "$*" != *"ALTER SYSTEM RESET max_prepared_transactions"* ]]; then
-      echo "Unexpected docker exec command." >&2
+    if [[ "$#" -ne 11 || "$2" != "0123456789ab" || "$3" != "psql" ||
+      "$4" != "-U" || "$5" != "postgres" || "$6" != "-d" ||
+      "$7" != "qima_test" || "$8" != "-v" || "$9" != "ON_ERROR_STOP=1" ||
+      "${10}" != "-c" || "${11}" != "ALTER SYSTEM RESET max_prepared_transactions" ]]; then
+      echo "Unexpected Docker exec target or argument contract." >&2
       exit 90
     fi
-    printf '%s\n' 0 > "$MOCK_STATE_FILE"
-    printf '%s\n' docker-exec-reset >> "$MOCK_EVENTS"
+    printf '%s\\n' 0 > "$MOCK_STATE_FILE"
+    printf '%s\\n' docker-exec-reset >> "$MOCK_EVENTS"
     if [[ "${MOCK_RESTORE_EXIT:-0}" != "0" ]]; then
       exit "$MOCK_RESTORE_EXIT"
     fi
     ;;
   restart)
-    printf '%s\n' docker-restart >> "$MOCK_EVENTS"
+    if [[ "$#" -ne 2 || "$2" != "0123456789ab" ]]; then
+      echo "Unexpected Docker restart target." >&2
+      exit 91
+    fi
+    printf '%s\\n' docker-restart >> "$MOCK_EVENTS"
     ;;
   *)
     echo "Unexpected docker invocation." >&2
