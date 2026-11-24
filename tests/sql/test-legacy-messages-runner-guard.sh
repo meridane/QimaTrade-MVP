@@ -315,20 +315,26 @@ for unsafe_url in "${unsafe_assertion_urls[@]}"; do
   fi
 done
 
-# An unset destination must fail closed before psql as well.
-: > "$ASSERTION_CALLS"
-set +e
-env -u DATABASE_URL PATH="$ASSERTION_MOCK_BIN:$PATH" \
-  MOCK_ASSERT_PSQL_CALLS="$ASSERTION_CALLS" \
-  bash "$ASSERTION_SCRIPT" > "$OUTPUT" 2>&1
-missing_url_status=$?
-set -e
-if [[ "$missing_url_status" -ne 1 || -s "$ASSERTION_CALLS" ]] ||
-  ! grep -Fq "DATABASE_URL must point to the disposable PostgreSQL test database" "$OUTPUT" ||
-  grep -Fq "postgres:postgres" "$OUTPUT"; then
-  echo "ERROR: post-run assertion did not safely reject an unset DATABASE_URL before psql." >&2
-  cat "$OUTPUT" >&2
-  exit 1
-fi
+# Both an unset and an explicitly empty destination must fail closed before psql.
+assert_missing_database_url_rejected() {
+  local label="$1"
+  shift
+  : > "$ASSERTION_CALLS"
+  set +e
+  PATH="$ASSERTION_MOCK_BIN:$PATH" MOCK_ASSERT_PSQL_CALLS="$ASSERTION_CALLS" \
+    "$@" bash "$ASSERTION_SCRIPT" > "$OUTPUT" 2>&1
+  local missing_url_status=$?
+  set -e
+  if [[ "$missing_url_status" -ne 1 || -s "$ASSERTION_CALLS" ]] ||
+    ! grep -Fq "DATABASE_URL must point to the disposable PostgreSQL test database" "$OUTPUT" ||
+    grep -Fq "postgres:postgres" "$OUTPUT"; then
+    echo "ERROR: post-run assertion did not safely reject a ${label} DATABASE_URL before psql (received $missing_url_status)." >&2
+    cat "$OUTPUT" >&2
+    cat "$ASSERTION_CALLS" >&2
+    exit 1
+  fi
+}
+assert_missing_database_url_rejected "unset" env -u DATABASE_URL
+assert_missing_database_url_rejected "empty" env DATABASE_URL=""
 
-echo "QA262 assertion regression PASS: absent/present database, psql error propagation, 3 supported loopback URLs, ${#unsafe_assertion_urls[@]} unsafe URLs and missing DATABASE_URL rejected before psql."
+echo "QA262 assertion regression PASS: absent/present database, psql error propagation, 3 supported loopback URLs, ${#unsafe_assertion_urls[@]} unsafe URLs and unset/empty DATABASE_URL rejected before psql."
