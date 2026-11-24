@@ -255,7 +255,7 @@ run_setup 1 env MOCK_INITIAL_CONFIGURED_VALUE=5
 expected="$(printf '%s\n' docker-ps psql-show-1)"
 if [[ "$(cat "$EVENTS")" != "$expected" ]] ||
   [[ -s "$GITHUB_OUTPUT_FILE" ]] ||
-  ! grep -Fq "Expected the pristine disposable PostgreSQL baseline to be 0; found 5" "$OUTPUT" ||
+  ! grep -Fq "Expected the pristine disposable PostgreSQL max_prepared_transactions baseline 0; received a different value. No configuration change was attempted." "$OUTPUT" ||
   grep -Fq "docker-exec-set" "$EVENTS" ||
   grep -Fq "docker-restart" "$EVENTS"; then
   echo "ERROR: a non-zero initial PostgreSQL baseline was not rejected before marker publication and mutation." >&2
