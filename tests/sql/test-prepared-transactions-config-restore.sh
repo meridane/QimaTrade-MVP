@@ -308,8 +308,8 @@ fi
 
 # QA442: resource-count output is machine-readable decimal data. Reject malformed
 # values before the next query and never reflect returned values in diagnostics.
-prepared_count_events="$(printf '%s\\n' docker-ps pg-isready docker-exec-reset docker-restart pg-isready psql-show psql-prepared)"
-all_resource_count_events="$(printf '%s\\n' docker-ps pg-isready docker-exec-reset docker-restart pg-isready psql-show psql-prepared psql-database)"
+prepared_count_events="$(printf '%s\n' docker-ps pg-isready docker-exec-reset docker-restart pg-isready psql-show psql-prepared)"
+all_resource_count_events="$(printf '%s\n' docker-ps pg-isready docker-exec-reset docker-restart pg-isready psql-show psql-prepared psql-database)"
 invalid_prepared_count_diagnostic="::error::PostgreSQL returned an invalid QA266 prepared-transaction count; restoration is not confirmed."
 invalid_database_count_diagnostic="::error::PostgreSQL returned an invalid disposable migration database count; restoration is not confirmed."
 remaining_resources_diagnostic="::error::PostgreSQL configuration was restored, but disposable QA266 resources remain; restoration is not confirmed."
@@ -356,13 +356,12 @@ assert_remaining_resource_count_is_constant() {
 
 assert_remaining_resource_count_is_constant "prepared transaction count 1" MOCK_PREPARED_COUNT 1
 assert_remaining_resource_count_is_constant "disposable database count 1" MOCK_DATABASE_COUNT 1
-long_resource_count="$(printf '%512s' '')"
-long_resource_count="${long_resource_count// /9}"
+long_resource_count="$(printf '9%.0s' {1..512})"
 assert_remaining_resource_count_is_constant "512-digit prepared transaction count" MOCK_PREPARED_COUNT "$long_resource_count"
 assert_remaining_resource_count_is_constant "512-digit disposable database count" MOCK_DATABASE_COUNT "$long_resource_count"
 
-invalid_resource_counts=(
-  "not-a-count"
+for invalid_count in \
+  "not-a-count" \
   
 
 # A failed ALTER SYSTEM RESET must stop before restart or postcondition checks,
@@ -619,8 +618,7 @@ echo "Prepared-transaction configuration restoration regression passed: docker p
 
 
 echo "QA437 restore credential-control regression: unset/empty and LF/CR/TAB/SOH credentials are rejected before Docker, readiness, psql, or ALTER SYSTEM RESET."
-echo "QA442 restore postcondition-count regression: prepared-transaction and database counts must be decimal; malformed/control-character outputs are rejected before subsequent checks, and nonzero/oversized numeric counts use constant one-line diagnostics without reflecting the returned value."
-0\\nqa442-injected'
+0\nqa442-injected' \
   
 
 # A failed ALTER SYSTEM RESET must stop before restart or postcondition checks,
@@ -877,7 +875,7 @@ echo "Prepared-transaction configuration restoration regression passed: docker p
 
 
 echo "QA437 restore credential-control regression: unset/empty and LF/CR/TAB/SOH credentials are rejected before Docker, readiness, psql, or ALTER SYSTEM RESET."
-0\\rqa442-injected'
+0\rqa442-injected' \
   
 
 # A failed ALTER SYSTEM RESET must stop before restart or postcondition checks,
@@ -1134,7 +1132,7 @@ echo "Prepared-transaction configuration restoration regression passed: docker p
 
 
 echo "QA437 restore credential-control regression: unset/empty and LF/CR/TAB/SOH credentials are rejected before Docker, readiness, psql, or ALTER SYSTEM RESET."
-0\\tqa442-injected'
+0\tqa442-injected' \
   
 
 # A failed ALTER SYSTEM RESET must stop before restart or postcondition checks,
@@ -1391,9 +1389,7 @@ echo "Prepared-transaction configuration restoration regression passed: docker p
 
 
 echo "QA437 restore credential-control regression: unset/empty and LF/CR/TAB/SOH credentials are rejected before Docker, readiness, psql, or ALTER SYSTEM RESET."
-0\\x01qa442-injected'
-)
-for invalid_count in "${invalid_resource_counts[@]}"; do
+0\x01qa442-injected'; do
   assert_invalid_resource_count_rejected "prepared transaction" "$prepared_count_events" "$invalid_prepared_count_diagnostic" MOCK_PREPARED_COUNT "$invalid_count"
   assert_invalid_resource_count_rejected "disposable database" "$all_resource_count_events" "$invalid_database_count_diagnostic" MOCK_DATABASE_COUNT "$invalid_count"
 done
