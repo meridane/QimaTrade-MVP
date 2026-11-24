@@ -14794,3 +14794,43 @@ La revue croisée des scripts de garde-fou PostgreSQL a révélé le même défa
 - Aucun SQL, migration, donnée Supabase Production, secret, grant, policy RLS persistante ou configuration PostgreSQL Production modifié.
 - Aucun déploiement Production, merge, force-push ou changement des protections GitHub.
 - Les tests à mocks caractérisent le comportement du harness ; ils ne prouvent pas une vulnérabilité exploitable en production.
+
+
+---
+
+## QA442 — validation des compteurs de nettoyage PostgreSQL (25 novembre 2026, 02:27 KST)
+
+### État de référence vérifié avant QA442
+
+- PR #26 : **OPEN / DRAFT / non fusionnée**, mergeable=true, branche fix/create-offer-status-contract, base main, HEAD 42dd1969e3fef0de3259edadd284156ea59137fa, **2 396 commits devant main, 0 derrière**, 297 fichiers modifiés.
+- QIMA CI [#1902](https://github.com/meridane/QimaTrade-MVP/actions/runs/45439265772) : **SUCCESS**. Verify, npm audit, TypeScript, build Next.js, Chromium et **423/423 Playwright** réussis ; PostgreSQL 16 et PostgreSQL 17.6 réussis.
+- Le journal PostgreSQL 16 confirme les étapes setup/restoration prepared-transactions, le nettoyage QA267, les régressions RLS legacy/participant et les runners CREATE_OFFER. Le job PostgreSQL 17.6 confirme les régressions wrapper-owner et EXECUTE ACL.
+- CodeQL [#1830](https://github.com/meridane/QimaTrade-MVP/actions/runs/45439265855) : **SUCCESS**.
+- Le statut Vercel du HEAD est **failure** avec la cible upgradeToPro=build-rate-limit. Il s'agit d'une limite de builds du compte, pas d'un échec de compilation observé. Aucun déploiement Production n'a été tenté.
+- QA441 est clôturé sur ce HEAD. Ces résultats CI ne valident pas les changements QA442 ci-dessous.
+
+### Constat QA442
+
+- tests/sql/restore-prepared-transactions-config.sh lit les compteurs count(*) de pg_prepared_xacts et pg_database, puis reflétait leurs valeurs brutes dans le diagnostic lorsque des ressources résiduelles étaient trouvées.
+- Les résultats attendus sont des entiers décimaux. Le script ne vérifiait pas explicitement ce format avant de comparer les postconditions ; une sortie de stub/client mal formée pouvait être réimprimée dans le journal.
+- Il s'agit d'un durcissement du contrat de sortie et des diagnostics du harness CI. Les tests synthétiques ne démontrent pas une vulnérabilité exploitable en production.
+
+### Modification QA442
+
+- Après chaque requête count(*), le script exige désormais une valeur correspondant à ^[0-9]+$. Une sortie non numérique ou contenant un caractère de contrôle est rejetée immédiatement avec un diagnostic constant, avant la requête suivante.
+- Le diagnostic des ressources résiduelles ne réimprime plus les compteurs : il indique uniquement que des ressources QA266 restent et que la restauration n'est pas confirmée.
+- tests/sql/test-prepared-transactions-config-restore.sh ajoute des scénarios pour les deux compteurs : texte non numérique, LF, CR, TAB et SOH ; les valeurs mal formées sont rejetées avec une seule ligne constante, sans marqueur injecté ni identifiant.
+- Les scénarios vérifient l'ordre des opérations : un compteur de transactions préparées mal formé arrête le script avant la requête pg_database ; un compteur de base mal formé arrête après sa propre lecture.
+- Les compteurs non nuls 1 et les valeurs numériques de 512 chiffres sont également vérifiés : le script signale les ressources résiduelles sans réfléchir la valeur. Les chemins normaux 0, les erreurs psql, la restauration, les délais de reprise et les cas QA351/QA352 existants sont conservés.
+
+### Publication et validation
+
+- Branche de travail propre : work/qima-restore-postcondition-diagnostics-qa442-clean-20261125-0227, créée depuis le HEAD PR 42dd1969.
+- Commits de code/test : c311700f93690e446ccb45ec20b93fd886634e15 (validateur) et c1fa0eaa189b90da8eaa4bea42febb62e5f8ddb4 (régressions).
+- Aucun test local n'a été exécuté dans cette session. La validation complète de QA442 est EN ATTENTE du nouveau cycle GitHub Actions après synchronisation du HEAD PR. Les résultats de CI #1902 et CodeQL #1830 appartiennent au HEAD parent et ne sont pas attribués à QA442.
+- Vercel reste bloqué par la limite de builds du compte ; un nouveau Preview ne peut pas être considéré comme réussi tant que cette limite n'est pas levée.
+
+### Périmètre
+
+- Aucun SQL de migration, aucune donnée Supabase Production, aucun secret, grant, policy RLS persistante ou paramètre PostgreSQL Production modifié.
+- Aucun déploiement Production, merge, force-push ou changement des règles de protection.
