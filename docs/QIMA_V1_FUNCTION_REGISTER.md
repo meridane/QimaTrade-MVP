@@ -14964,7 +14964,7 @@ La revue croisée des scripts de garde-fou PostgreSQL a révélé le même défa
 - Commit setup : `4cc1339175f397e8a2b8da35118c20792aaa5255`.
 - Commit restore : `734b5873a189c6aec6c33d3069fb853be6ed2a92`.
 - Le diff code/test contient uniquement les deux fichiers de régression, avec 46 insertions et aucune suppression. La branche PR a été avancée par fast-forward de `98021c85` à `734b5873` (2 commits, 0 derrière).
-- QIMA CI [#1912](https://github.com/meridane/QimaTrade-MVP/actions/runs/45498305436) est IN PROGRESS. Dans Verify, npm audit, TypeScript, build Next.js et installation de Chromium sont SUCCESS ; les tests navigateur sont en cours. Les jobs PostgreSQL 16 et 17.6 sont actifs ; dans PostgreSQL 16, les étapes de garde-fou setup/restauration QA445/QA446 sont encore en attente. Aucun résultat final QA446 n'est revendiqué.
+- QIMA CI [#1912](https://github.com/meridane/QimaTrade-MVP/actions/runs/45498305436) est IN PROGRESS. Le job Verify est SUCCESS : npm audit (0 finding), TypeScript, build Next.js, Chromium et tests navigateur réussis ; le journal Playwright confirme 423 passed. Les jobs PostgreSQL 16 et 17.6 restent actifs ; dans PostgreSQL 16, les étapes « Verify prepared-transaction configuration restoration guard », « Verify prepared-transaction setup records restoration intent before mutation » et la restauration QA445/QA446 sont encore en attente. Aucun résultat final QA446 n'est revendiqué.
 - CodeQL [#1839](https://github.com/meridane/QimaTrade-MVP/actions/runs/45498305099) : SUCCESS.
 - Le statut Vercel du commit code/test est PENDING au dernier relevé. Aucun Preview réussi ou échec de compilation n'est revendiqué.
 - Aucun test local n'a été exécuté ; la validation fonctionnelle est en attente de GitHub Actions.
