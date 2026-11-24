@@ -39,7 +39,7 @@ This is a test-runner guard-contract gap only; it is not evidence of an exploita
 
 - Work branch: `work/qima-aux-controlchars-qa434-20261124-1836`, created from reviewed HEAD `36b56e60a91eb461892600821831faa544aabd15`.
 - QA433 parent validation: CI #1891, CodeQL #1819 and Vercel all **SUCCESS**.
-- QA434 is **pending CI**. After publication, verify the auxiliary runner guard step in PostgreSQL 16 and 17.6. Each runner must reject all 15 unsafe URLs, unset and empty configuration before the stub is called, and accept the three loopback forms only through the inert stub.
+- QA434 is **pending CI**. The dedicated `test-auxiliary-postgres-runner-guards.sh` matrix runs in the PostgreSQL 16 integration job and must show that both runners reject all 15 unsafe URLs plus unset/empty configuration before the stub is called, while accepting the three loopback forms only through the inert stub. The PostgreSQL 17.6 job separately exercises the wrapper-owner and function EXECUTE ACL runtime regressions against its disposable server; it is compatibility coverage, not a second execution of the 15-case negative URL matrix.
 - No full local shell suite is claimed.
 
 ### Limits and safety
