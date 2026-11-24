@@ -14583,3 +14583,26 @@ La revue croisée des scripts de garde-fou PostgreSQL a révélé le même défa
 - CodeQL [#1813](https://github.com/meridane/QimaTrade-MVP/actions/runs/45314911369) est **SUCCESS**. Le statut Vercel du HEAD `549eef87` est **SUCCESS**. Les conclusions négatives des jobs de simulation prepared-transaction sont intentionnelles ; leurs assertions de contrôle sont **SUCCESS**, et le job de cleanup `skipped` est attendu.
 - **Validation du correctif : PENDING.** Le nouveau fichier de test a été corrigé sur une branche isolée ; le cycle GitHub Actions du HEAD corrigé n'a pas encore fourni de résultat. Le succès de Verify 423/423, PostgreSQL 17.6 et CodeQL #1813 sur le HEAD parent ne valide pas le correctif.
 - Aucun test local n'a été exécuté. L'échec #1885 est un défaut de syntaxe/nommage du test, pas une preuve de vulnérabilité du runner ni de Supabase Production. Aucun secret, donnée ou migration Supabase Production, grant ou policy RLS persistante, déploiement Production, merge, force-push ou règle de protection n'a été modifié.
+
+
+---
+
+## État vérifié — clôture CI #1886 et précision du contrat argv participant (24 novembre 2026, 13:38 KST)
+
+- HEAD PR avant cette amélioration : `71be4e7692ae4677e67e3204a164bca9e361f5bd`. PR #26 est **OPEN / DRAFT / non fusionnée**, base `main`, 2 361 commits devant `main`, 0 derrière, 289 fichiers modifiés ; GitHub indique `mergeable=true`.
+- QIMA CI [#1886](https://github.com/meridane/QimaTrade-MVP/actions/runs/45320819676) est **SUCCESS** sur ce HEAD : job Verify **SUCCESS**, **423/423 Playwright (36,0 s)**, npm audit, TypeScript, build Next.js, Chromium et fixture QIMA réussis ; PostgreSQL 16 et PostgreSQL 17.6 **SUCCESS**.
+- Le job PostgreSQL 16 confirme explicitement le test participant self-enrollment : **11 URL non autorisées** et les cas `DATABASE_URL` absente/vide sont rejetés avant `psql`, les **3 URL loopback** autorisées atteignent le stub, puis la régression RLS synthétique participant réussit. Le job PostgreSQL 17.6 et les tests CREATE_OFFER/ACL qu'il exécute sont **SUCCESS**.
+- CodeQL [#1814](https://github.com/meridane/QimaTrade-MVP/actions/runs/45320819748) est **SUCCESS**. Le statut Vercel du HEAD `71be4e76` est **SUCCESS**. Les jobs prepared-transaction à conclusion négative simulent des échecs attendus ; les assertions de propagation/restauration sont **SUCCESS**, et le job de cleanup `skipped` est attendu.
+- La régression unset/empty ajoutée au test participant est donc maintenant validée sur le HEAD `71be4e76` par CI #1886, après correction du défaut de fixture identifié dans #1885.
+
+### Amélioration complémentaire en cours — argument vector du stub psql
+
+- Dans `tests/sql/test-participant-self-enrollment-runner-guard.sh`, le stub `psql` enregistrait auparavant `$*` et les cas loopback vérifiaient seulement que le fichier d'appels était non vide. Cela prouvait qu'un appel avait eu lieu, sans verrouiller précisément les arguments transmis.
+- Le test est renforcé pour enregistrer chaque argument séparément (`<arg>` par ligne) et comparer exactement le vecteur attendu : URL loopback courante, `-X`, `-v`, `ON_ERROR_STOP=1`, `-f`, puis le chemin de la fixture `participant-self-enrollment-regression.sql`. Cette assertion garantit également un seul appel et l'absence d'arguments supplémentaires.
+- Les scénarios unset/empty, les 11 URL interdites, les trois URL loopback, les codes de sortie et le contrôle de non-divulgation restent inchangés. Seul le test est modifié ; aucun runner, SQL, migration ou code applicatif ne change.
+- **Validation de cette amélioration : EN ATTENTE** du prochain workflow GitHub Actions sur le nouveau HEAD. Aucun test local n'a été exécuté dans cette session.
+
+### Périmètre et prochaine étape
+
+- Après publication, confirmer dans PostgreSQL 16 l'étape `Verify participant self-enrollment runner rejects unsafe database URLs` et la sortie `Participant self-enrollment runner URL guard regression PASS`, puis vérifier PostgreSQL 16/17.6, Verify/Playwright, CodeQL et Preview du HEAD exact.
+- Aucun code applicatif, SQL de migration, schéma ou donnée Supabase Production n'a changé. Aucun secret, grant, policy RLS persistante ou configuration PostgreSQL Production n'a été modifié. Aucun déploiement Production, merge, force-push ou changement des protections GitHub n'a été effectué. Les tests synthétiques caractérisent les contrats du runner et ne prouvent pas une vulnérabilité exploitable.

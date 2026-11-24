@@ -13,7 +13,7 @@ mkdir -p "$MOCK_BIN"
 cat > "$MOCK_BIN/psql" <<'PSQL'
 #!/usr/bin/env bash
 set -euo pipefail
-printf '%s\n' "$*" >> "$MOCK_PSQL_CALLS"
+printf '<%s>\n' "$@" >> "$MOCK_PSQL_CALLS"
 echo "mock psql reached after URL validation" >&2
 exit 99
 PSQL
@@ -120,9 +120,11 @@ for safe_url in "${safe_urls[@]}"; do
   runner_status=$?
   set -e
 
-  if [[ "$runner_status" -ne 99 || ! -s "$CALLS" ]]; then
-    echo "ERROR: supported loopback DATABASE_URL did not pass validation and reach the psql stub." >&2
+  expected_psql_args="$(printf '<%s>\n' "$safe_url" "-X" "-v" "ON_ERROR_STOP=1" "-f" "$ROOT/tests/sql/participant-self-enrollment-regression.sql")"
+  if [[ "$runner_status" -ne 99 || "$(cat "$CALLS")" != "$expected_psql_args" ]]; then
+    echo "ERROR: supported loopback DATABASE_URL did not reach psql with the exact expected argument vector." >&2
     cat "$OUTPUT" >&2
+    cat "$CALLS" >&2
     exit 1
   fi
   if grep -Fq "Refusing participant self-enrollment regression" "$OUTPUT"; then
