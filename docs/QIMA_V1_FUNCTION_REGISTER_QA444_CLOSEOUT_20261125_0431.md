@@ -18,6 +18,15 @@ Date: 2026-11-25 (Asia/Seoul)
 - Six cases cover empty, non-numeric, LF, CR, TAB and SOH output. Each expects exit 1, the exact one-line diagnostic, no reflected marker, no retry sleep, and the restoration intent to remain present.
 - The existing successful value `10`, psql-error path, and retry behavior for a numeric but not-yet-converged value remain unchanged.
 - No workflow edit was required: the existing PostgreSQL 16 Verify step already executes `tests/sql/test-prepared-transactions-config-setup.sh` before the disposable PostgreSQL setup operation.
+- Pre-publication review found that a JavaScript replacement-string token (`
+
+## Safety and scope
+
+- Tests use the repository's disposable PostgreSQL CI harness and mocks; they do not establish a production vulnerability.
+- No Supabase Production data, migration, secret, persistent grant/RLS policy, production configuration, or production deployment was touched.
+- No PR merge, force-push, or branch-protection change was performed.
+- The canonical `docs/QIMA_V1_FUNCTION_REGISTER.md` fetch returned a valid blob SHA but no file content through the connector, including line-range retrieval. It was not overwritten. This append-only companion records the QA443 closeout and QA444 work without risking the large canonical history.
+`) could duplicate the suffix of the shell test fixture. The test file was reconstructed from the untouched PR-base blob, then the QA444 block was inserted with a callback replacement. The final fixture is 627 lines, contains one QA444 block and one readiness-exhaustion scenario, and each of the six malformed-value cases occurs exactly once.
 - QA444 validation is pending the GitHub Actions run for the resulting PR HEAD. No local execution is claimed.
 
 ## Safety and scope
