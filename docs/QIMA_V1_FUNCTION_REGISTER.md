@@ -14714,3 +14714,44 @@ La revue croisée des scripts de garde-fou PostgreSQL a révélé le même défa
 - Aucun test local complet n'a été exécuté dans cette session ; la validation complète est confiée à l'étape Verify existante.
 - Aucun SQL, migration, donnée Supabase Production, secret, grant, policy RLS persistante ou configuration PostgreSQL Production n'a été modifié.
 - Aucun déploiement Production, merge, force-push ou changement des protections GitHub. Ce test synthétique caractérise uniquement le format du diagnostic et ne démontre pas une vulnérabilité exploitable en production.
+
+
+---
+
+## QA440 — diagnostics bornés pour les versions PostgreSQL numériques inattendues (25 novembre 2026, KST)
+
+### État de référence vérifié avant QA440
+
+- PR #26 : OPEN / DRAFT / non fusionnée ; branche `fix/create-offer-status-contract`, base `main`, 2 388 commits devant `main`, 0 derrière, 297 fichiers modifiés ; aucun review thread ouvert.
+- HEAD de référence : `431023ed2e95d6ddd5f524aa97b0404824dc272a`.
+- QIMA CI #1899 : SUCCESS. Verify, npm audit, TypeScript, build Next.js, Chromium et 423/423 Playwright réussis ; PostgreSQL 16 et PostgreSQL 17.6 réussis.
+- Les jobs PostgreSQL 16 et 17.6 confirment les régressions CREATE_OFFER, les contrats wrapper-owner / EXECUTE ACL, les tests RLS legacy et participant, ainsi que les contrôles de configuration des prepared transactions.
+- CodeQL #1827 SUCCESS ; statut Vercel du HEAD de référence SUCCESS.
+- QA439 est donc clôturé sur ce HEAD : la valeur exacte 170006 est acceptée ; les versions non numériques, les quatre caractères de contrôle, les valeurs vides/absentes et les arguments supplémentaires sont rejetés.
+
+### Constat QA440
+
+- `tests/sql/assert-postgres-17-6-version.sh` avait déjà remplacé le reflet des valeurs non numériques par un diagnostic constant.
+- La branche qui rejette une valeur numérique différente de `170006` réimprimait encore la valeur reçue. La validation numérique évite les caractères de contrôle, mais une valeur arbitrairement longue pouvait produire un diagnostic inutilement volumineux.
+- Il s'agit d'une amélioration de bornage des diagnostics et de robustesse du test ; aucun incident ni vulnérabilité exploitable n'est établi.
+
+### Modification QA440
+
+- Le diagnostic des valeurs numériques incorrectes est maintenant constant : `Expected PostgreSQL 17.6 (server_version_num=170006); received a different numeric value.`
+- Aucune valeur numérique incorrecte n'est réimprimée.
+- `tests/sql/test-postgres-17-6-version-guard.sh` vérifie exactement le diagnostic constant sur une seule ligne pour les versions 17.5, 17.7, 17.11, 16.6 et 18.0.
+- Un cas supplémentaire de 512 chiffres vérifie que la sortie reste constante et bornée, sans reflet de l'entrée.
+- Le cas valide exact `170006`, les valeurs non numériques (dont LF, CR, TAB et SOH), `17.6`, la valeur vide, l'argument absent et l'argument supplémentaire restent couverts.
+- La matrice passe de 14 à 15 cas négatifs.
+
+### Validation du travail
+
+- Contrôle local : `bash -n` réussi sur les deux scripts ; exécution complète de `test-postgres-17-6-version-guard.sh` réussie avec le message final attendu : exact 170006 accepted; 15 invalid/missing/arity cases rejected; numeric and non-numeric diagnostics sanitized.
+- Le nouveau cycle GitHub Actions n'a pas encore été lancé sur le HEAD QA440 au moment de cette entrée ; aucun résultat de CI #1899 n'est attribué à QA440.
+- La validation GitHub Actions de QA440 doit confirmer le test Verify, PostgreSQL 16/17.6, Playwright, audit, TypeScript, build, CodeQL et Vercel sur le nouveau HEAD.
+
+### Périmètre et limites
+
+- Aucun SQL, migration, donnée Supabase Production, secret, grant, policy RLS persistante ou configuration PostgreSQL Production modifié.
+- Aucun déploiement Production, merge, force-push ou changement des règles de protection.
+- Cette régression caractérise uniquement le diagnostic du validateur de version PostgreSQL ; elle ne démontre pas une vulnérabilité exploitable en production.
