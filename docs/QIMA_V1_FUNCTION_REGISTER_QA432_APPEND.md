@@ -40,7 +40,7 @@ This is a guard-contract gap in the CI runner input validation. It is not eviden
 
 ### Validation status
 
-- Work branch: `work/qima-legacy-url-controlchars-20261124-1641`, created from reviewed HEAD `d7e448adcedf6759ab6136293c27d9e5faf3afb3`.
+- Work branch: `work/qima-legacy-url-controlchars-qa432-20261124-1642`, created from reviewed HEAD `d7e448adcedf6759ab6136293c27d9e5faf3afb3`.
 - QA431 is validated by QIMA CI #1889 as described above.
 - QA432 is a new change and is **not yet validated by CI**. The next QIMA CI run must execute `test-legacy-messages-runner-guard.sh` in the PostgreSQL integration job and confirm all 15 unsafe destinations are rejected before the inert `psql` stub.
 - No local shell run is claimed in this environment.
