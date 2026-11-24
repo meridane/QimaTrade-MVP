@@ -49,6 +49,10 @@ if [[ "${#postgres_containers[@]}" -ne 1 ]]; then
   exit 1
 fi
 container_id="${postgres_containers[0]}"
+if [[ ! "$container_id" =~ ^[0-9a-f]{12,64}$ ]]; then
+  echo "::error::Docker returned an invalid PostgreSQL 16 service container ID during restoration; no readiness or configuration operation was attempted." >&2
+  exit 1
+fi
 
 # Wait for the disposable service before issuing ALTER SYSTEM RESET. This also
 # covers the always() path when the preceding setup step failed during a restart.
