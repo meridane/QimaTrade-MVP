@@ -58,3 +58,16 @@ No production PostgreSQL service is contacted by this mock contract. No workflow
 - No Supabase Production data or migrations were accessed or modified.
 - No production secrets, grants, persistent RLS policies, or PostgreSQL production settings were changed.
 - No production deployment, PR merge, force-push, or branch-protection change was performed.
+
+
+## Validation progress — 2026-11-25, 08:50 KST
+
+- QA448's exact `pg_isready` argument guard is exercised by QIMA CI [#1920](https://github.com/meridane/QimaTrade-MVP/actions/runs/45513529795) on code commit `eaf7e2d47d7d0c1729fa1260a96920d30808bbb1`.
+- The normal always-cleanup runtime job's actual restore-script step completed **SUCCESS**; its separate assertion job `Assert prepared-transaction always-cleanup runtime contract` completed **SUCCESS**. Because the mock rejects any readiness probe that is not exactly the eight expected arguments, these results confirm the normal runtime path satisfied the QA448 probe contract.
+- The expected cleanup-failure runtime job's actual restore-script step returned the deliberately injected exit 52; its separate `Assert prepared-transaction cleanup failures remain blocking` job completed **SUCCESS**. The log retains the QA354 success message, confirming the script did not restart or run postcondition checks after the injected RESET failure. The mock also accepted the readiness probe preceding RESET.
+- The two runtime jobs themselves conclude **FAILURE** intentionally: the setup simulation exits 47, and the cleanup-failure scenario exits 52. Their dedicated blocking assertion jobs are **SUCCESS**. The skipped-result job is intentionally **SKIPPED**, and its assertion job is **SUCCESS**.
+- In CI #1920, the Verify job's workflow-wiring check, npm audit, TypeScript check, and Next.js production build are **SUCCESS**. Chromium installation, Playwright, and the isolated QIMA security-contract fixture were still pending at the latest poll. PostgreSQL 16 and PostgreSQL 17.6 integration jobs were still **IN PROGRESS**; their prepared-transaction SQL steps had not yet been reached.
+- CodeQL [#1847](https://github.com/meridane/QimaTrade-MVP/actions/runs/45513529885) remains **IN PROGRESS**.
+- Vercel Preview for code commit `eaf7e2d` is **SUCCESS** ([Preview](https://vercel.com/bmk1/qimatrade-mvp/dnEe8zJh3vGNMFzRjQraGEF4q2vp)).
+- The documentation HEAD `3600667838bf035450b9b5f64b663f08bf376311` has QIMA CI [#1921](https://github.com/meridane/QimaTrade-MVP/actions/runs/45513581691) **PENDING**, CodeQL [#1848](https://github.com/meridane/QimaTrade-MVP/actions/runs/45513581687) **IN PROGRESS**, and Vercel Preview **PENDING**. These are documentation-HEAD checks and do not replace the code/test validation on #1920.
+- No local Bash test execution is claimed. QA448 is **partially validated** by the successful runtime harness and its assertion jobs; full CI/CodeQL closure remains pending.
