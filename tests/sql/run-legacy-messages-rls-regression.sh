@@ -5,6 +5,12 @@ set -euo pipefail
 # This runner drops and recreates a named database. Fail closed before invoking psql:
 # accept only the dedicated qima_test database on an explicit loopback URI.
 # Do not print DATABASE_URL because it may contain credentials.
+# Reject control characters in every URI component, including credentials, before the allowlist.
+if printf '%s' "$DATABASE_URL" | LC_ALL=C grep -zq '[[:cntrl:]]'; then
+  echo "::error::Refusing to run destructive migration fixture: DATABASE_URL must not contain control characters; no database connection was attempted." >&2
+  exit 2
+fi
+
 if [[ ! "$DATABASE_URL" =~ ^postgres(ql)?://[^@]+@(localhost|127\.0\.0\.1|\[::1\]):5432/qima_test$ ]]; then
   echo "::error::Refusing to run destructive migration fixture: DATABASE_URL must target qima_test on localhost, 127.0.0.1, or [::1] at port 5432; no database connection was attempted." >&2
   exit 2
