@@ -2,6 +2,11 @@
 set -euo pipefail
 : "${DATABASE_URL:?DATABASE_URL must point to the disposable PostgreSQL test database}"
 
+if printf '%s' "$DATABASE_URL" | LC_ALL=C grep -zq '[[:cntrl:]]'; then
+  echo "::error::Refusing to inspect migration cleanup: DATABASE_URL must not contain control characters; no database connection was attempted." >&2
+  exit 2
+fi
+
 # This check is read-only, but still fail closed to the same dedicated CI database.
 # Never print DATABASE_URL because it may contain credentials.
 if [[ ! "$DATABASE_URL" =~ ^postgres(ql)?://[^@]+@(localhost|127\.0\.0\.1|\[::1\]):5432/qima_test$ ]]; then
