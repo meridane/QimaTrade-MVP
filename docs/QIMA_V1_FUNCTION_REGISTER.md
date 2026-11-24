@@ -14606,3 +14606,38 @@ La revue croisée des scripts de garde-fou PostgreSQL a révélé le même défa
 
 - Après publication, confirmer dans PostgreSQL 16 l'étape `Verify participant self-enrollment runner rejects unsafe database URLs` et la sortie `Participant self-enrollment runner URL guard regression PASS`, puis vérifier PostgreSQL 16/17.6, Verify/Playwright, CodeQL et Preview du HEAD exact.
 - Aucun code applicatif, SQL de migration, schéma ou donnée Supabase Production n'a changé. Aucun secret, grant, policy RLS persistante ou configuration PostgreSQL Production n'a été modifié. Aucun déploiement Production, merge, force-push ou changement des protections GitHub n'a été effectué. Les tests synthétiques caractérisent les contrats du runner et ne prouvent pas une vulnérabilité exploitable.
+
+## QA437 — prepared-transaction configuration URL credential controls (24 novembre 2026 KST)
+
+### État de référence avant QA437
+
+- PR #26 : **OPEN / DRAFT / non fusionnée**, `mergeable=true`, HEAD `92a0aadff87e98b61503d37c3840f8e26250d980`, base `main`, 2 380 commits devant `main`, 0 derrière, 297 fichiers modifiés.
+- QIMA CI [#1895](https://github.com/meridane/QimaTrade-MVP/actions/runs/45384339919) : **SUCCESS**. Verify : npm audit, TypeScript, build Next.js et Chromium **SUCCESS** ; Playwright **423 passed (35,5 s)**. PostgreSQL 16 et PostgreSQL 17.6 **SUCCESS**, y compris les tests d'intégration CREATE_OFFER, les gardes URL, les tests RLS legacy/participant, wrapper-owner et EXECUTE ACL.
+- QA436, `Verify CREATE_OFFER geography committed-replay runner rejects unsafe database URLs`, **SUCCESS** dans Verify. CodeQL [#1823](https://github.com/meridane/QimaTrade-MVP/actions/runs/45384340473) **SUCCESS**. Vercel Preview **SUCCESS** : [Preview](https://vercel.com/bmk1/qimatrade-mvp/7LGAZfbtx1515hqdENaC58Tf9MRm).
+
+### Constat QA437
+
+- L'audit des scripts shell de `tests/sql` a identifié deux scripts qui modifient la configuration du service PostgreSQL jetable et redémarrent son conteneur : `enable-prepared-transactions-config.sh` et `restore-prepared-transactions-config.sh`.
+- Les deux scripts imposaient déjà une allowlist stricte sur l'hôte loopback, le port 5432 et la base `qima_test`, mais leur motif d'identifiants `[^@]+` n'excluait pas explicitement les caractères de contrôle dans username/password.
+- QA437 ajoute un rejet préalable LF/CR/TAB/SOH avant l'allowlist. Le diagnostic est générique, sur une seule ligne, ne reflète pas l'URL et précède tout accès Docker, readiness, psql, ALTER SYSTEM ou redémarrage.
+- Aucun paramètre PostgreSQL de production n'a été consulté ou modifié ; les scripts ciblent uniquement le service PostgreSQL 16 jetable de CI.
+
+### Modifications et régressions
+
+- `tests/sql/enable-prepared-transactions-config.sh` : rejet des caractères de contrôle avant la validation de destination.
+- `tests/sql/restore-prepared-transactions-config.sh` : même garde avant toute opération de restauration.
+- `tests/sql/test-prepared-transactions-config-setup.sh` : quatre cas de contrôle dans les identifiants (LF, CR, TAB, SOH), avec vérification du code 2, absence d'événements Docker/psql, absence de marqueur GITHUB_OUTPUT et diagnostic sans fuite.
+- `tests/sql/test-prepared-transactions-config-restore.sh` : cas unset/empty et quatre cas LF/CR/TAB/SOH, avec vérification du code 2 et absence d'appel Docker/psql ou de fuite dans le diagnostic.
+- Les trois formes loopback autorisées, les scénarios de restauration, l'ordre SET/RESET/restart, les contrôles de baseline et les tests de propagation d'échec sont conservés.
+
+### Validation du nouveau HEAD
+
+- Les scripts de test setup et restore sont déjà câblés dans le workflow CI via les étapes de contrôle de configuration/restauration. Aucun changement de workflow n'est nécessaire.
+- **QA437 : EN ATTENTE** de l'exécution GitHub Actions sur le nouveau HEAD. Aucun résultat du cycle précédent n'est attribué à ces nouveaux cas.
+- Les tests utilisent les mocks locaux existants ; les URL rejetées doivent s'arrêter avant Docker et psql. Aucun test local complet n'est revendiqué.
+
+### Périmètre et limites
+
+- Aucun schéma, migration ou donnée Supabase Production, secret, grant, policy RLS persistante ou configuration PostgreSQL Production modifié.
+- Aucun déploiement Production, merge, force-push ou changement des règles de protection.
+- Ces tests caractérisent des garde-fous de scripts CI ; ils ne constituent pas une preuve de vulnérabilité exploitable en production.

@@ -5,6 +5,11 @@ DATABASE_URL="${DATABASE_URL-}"
 GITHUB_OUTPUT="${GITHUB_OUTPUT-}"
 
 # This mutates and restarts PostgreSQL; fail closed outside the dedicated CI database.
+if printf '%s' "$DATABASE_URL" | LC_ALL=C grep -zq '[[:cntrl:]]'; then
+  echo "::error::Refusing prepared-transaction setup: DATABASE_URL must not contain control characters; no database operation was attempted." >&2
+  exit 2
+fi
+
 if [[ ! "$DATABASE_URL" =~ ^postgres(ql)?://[^@]+@(localhost|127\.0\.0\.1|\[::1\]):5432/qima_test$ ]]; then
   echo "::error::Refusing prepared-transaction setup: DATABASE_URL must target qima_test on loopback port 5432." >&2
   exit 2
