@@ -14477,3 +14477,31 @@ La revue croisée des scripts de garde-fou PostgreSQL a révélé le même défa
 - Aucun code applicatif, SQL de migration, schéma ou donnée Supabase Production n'a changé. Aucun secret, grant, policy RLS persistante ou configuration PostgreSQL Production n'a été modifié.
 - Aucun déploiement Production, merge, force-push ou changement de protection n'a été effectué. Les tests synthétiques de garde-fou ne prouvent pas une vulnérabilité exploitable.
 - Vérifier dans la prochaine QIMA CI l'étape `Verify wrapper-owner and function ACL runners reject unsafe database URLs`, confirmer séparément les cas unset/empty et le maintien du non-appel `psql`, puis clôturer CodeQL et Vercel du nouveau HEAD.
+
+
+---
+
+## Clôture QIMA CI #1881 et extension QA328 à la configuration DATABASE_URL vide — 24 novembre 2026, 09:46 KST
+
+### État vérifié avant la nouvelle extension
+
+- PR #26 : **OPEN / DRAFT / non fusionnée**, branche `fix/create-offer-status-contract`, base `main`, HEAD `cd764483916f9faeca8d2f190ea1658a0f574af2`, 2 353 commits, 289 fichiers modifiés (93 364 insertions / 266 suppressions), `mergeable=true` avant le nouveau push.
+- QIMA CI [#1881](https://github.com/meridane/QimaTrade-MVP/actions/runs/45291285832) sur `cd764483` : **SUCCESS**. Verify : npm install, audit npm au seuil `high`, TypeScript, build Next.js, Chromium et **423 Playwright passed (38,6 s)**.
+- PostgreSQL 16 et PostgreSQL 17.6 : jobs complets **SUCCESS**. Le journal PostgreSQL 16 confirme `Auxiliary PostgreSQL runner URL guard regression PASS` : deux runners, 11 URL non autorisées, `DATABASE_URL` non définie et vide rejetées avant `psql`, trois URL loopback acceptées par runner. QA262 et QA328 sont également **PASS** pour les scénarios présents sur ce HEAD.
+- CodeQL [#1809](https://github.com/meridane/QimaTrade-MVP/actions/runs/45291286074) : **SUCCESS**. Le statut combiné Vercel du HEAD `cd764483` : **SUCCESS** ([Preview](https://vercel.com/bmk1/qimatrade-mvp/HS1bSMYr5BgnbD2hADRh6yMqLQCz)).
+- Les deux jobs prepared-transaction dont l'échec est attendu ont leurs assertions dédiées **SUCCESS** ; le job de simulation de cleanup attendu en `skipped` est correctement ignoré. Le workflow global reste **SUCCESS**.
+
+### Extension QA328 — variable vide explicite
+
+- Revue de `tests/sql/test-prepared-transactions-config-setup.sh` et de `tests/sql/enable-prepared-transactions-config.sh` : le setup refuse les URL ne correspondant pas à la destination loopback `qima_test` sur le port 5432, avec code de sortie 2 avant Docker, PostgreSQL ou écriture du marqueur de restauration.
+- Le test QA328 couvrait déjà une variable `DATABASE_URL` non définie, mais pas séparément une variable définie à la chaîne vide. Le validateur commun traite les deux formes par le même refus explicite ; le cas vide méritait donc une assertion de non-régression dédiée.
+- Le test ajoute `assert_rejected_database_url`, exercé avec `env -u DATABASE_URL` et `env DATABASE_URL=""`. Les deux cas exigent le code de sortie exact **2**, le diagnostic de refus, aucun événement Docker/psql et aucun contenu dans le fichier `GITHUB_OUTPUT` (aucun marqueur de restauration publié).
+- Le résumé QA328 indique maintenant explicitement que les formes unset et empty sont couvertes. Les URL loopback autorisées, les sept URL non autorisées, le setup PostgreSQL, les scripts de restauration et le workflow restent inchangés.
+- Commit de test publié par fast-forward : [`f1e8e3fd`](https://github.com/meridane/QimaTrade-MVP/commit/f1e8e3fdb6f4d1e563d2a74f98ae0507f225ce5e). Fichier modifié : `tests/sql/test-prepared-transactions-config-setup.sh` uniquement. **Aucun test local n'a été exécuté.**
+
+### État post-publication et prochaine étape
+
+- Après publication du commit `f1e8e3fd`, la PR reste **OPEN / DRAFT / non fusionnée**, avec 2 354 commits, 289 fichiers modifiés (93 372 insertions / 266 suppressions). GitHub a temporairement indiqué `mergeable=false` pendant le recalcul des checks ; ne pas interpréter ce statut transitoire comme un conflit sans examiner les checks et le diff.
+- À la première lecture post-push, la liste des workflow runs associés au nouveau SHA n'était pas encore retournée par le connecteur GitHub ; le statut Vercel du nouveau HEAD était **PENDING**. Aucun numéro de QIMA CI ou de CodeQL n'est anticipé pour ce commit.
+- Vérifier la prochaine QIMA CI : étape QA328, cas unset et empty, code 2, diagnostic, absence d'événements Docker/psql et absence de marqueur ; confirmer PostgreSQL 16/17.6, Verify/Playwright, CodeQL et Preview Vercel du HEAD exact.
+- Aucun code applicatif, SQL de migration, schéma ou donnée Supabase Production n'a changé. Aucun secret, grant, policy RLS persistante ou configuration PostgreSQL Production n'a été modifié. Aucun déploiement Production, merge, force-push ou changement de protection n'a été effectué. Les tests synthétiques de garde-fou ne prouvent pas une vulnérabilité exploitable.
