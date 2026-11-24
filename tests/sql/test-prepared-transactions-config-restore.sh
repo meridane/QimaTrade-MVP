@@ -25,6 +25,10 @@ case "${1-}" in
     exit "${MOCK_DOCKER_PS_STATUS:-0}"
     ;;
   exec)
+    if [[ "${2-}" != "${MOCK_EXPECTED_CONTAINER_ID:-0123456789ab}" ]]; then
+      echo "Unexpected Docker container ID for restore exec." >&2
+      exit 93
+    fi
     if [[ "$*" != *"ALTER SYSTEM RESET max_prepared_transactions"* ]]; then
       echo "Unexpected docker exec command." >&2
       exit 90
@@ -38,6 +42,10 @@ case "${1-}" in
     exit "${MOCK_DOCKER_EXEC_STATUS:-0}"
     ;;
   restart)
+    if [[ "${2-}" != "${MOCK_EXPECTED_CONTAINER_ID:-0123456789ab}" ]]; then
+      echo "Unexpected Docker container ID for restore restart." >&2
+      exit 94
+    fi
     printf '%s\n' docker-restart >> "$MOCK_EVENTS"
     if [[ "${MOCK_DOCKER_RESTART_APPLY_THEN_FAIL:-false}" == "true" ]]; then
       : "${MOCK_RESTART_APPLIED_FILE:?MOCK_RESTART_APPLIED_FILE is required for ambiguous restart simulation}"
@@ -165,6 +173,20 @@ if [[ "$actual" != "$expected" ]] || ! grep -Fq "returned to baseline 0" "$OUTPU
   cat "$OUTPUT" >&2
   exit 1
 fi
+
+# QA446: accept the maximum 64-character Docker ID and forward it unchanged
+# to both the RESET and restart commands. The default success path covers 12.
+long_valid_container_id="$(printf 'a%.0s' {1..64})"
+run_restore 0 env MOCK_PS_OUTPUT="$long_valid_container_id" MOCK_EXPECTED_CONTAINER_ID="$long_valid_container_id"
+expected="$(printf '%s\n' docker-ps pg-isready docker-exec-reset docker-restart pg-isready psql-show psql-prepared psql-database)"
+if [[ "$(cat "$EVENTS")" != "$expected" ]] ||
+  ! grep -Fq "returned to baseline 0" "$OUTPUT"; then
+  echo "ERROR: the maximum-length Docker ID was not forwarded unchanged through restoration." >&2
+  cat "$EVENTS" >&2
+  cat "$OUTPUT" >&2
+  exit 1
+fi
+echo "QA446 restore ID forwarding PASS: valid 12- and 64-character Docker IDs are passed unchanged to exec and restart."
 
 # If setup never recorded a change, the always() restoration step must be a no-op.
 : > "$EVENTS"
