@@ -48,7 +48,7 @@ cat > "$MOCK_BIN/docker" <<'DOCKER'
 set -euo pipefail
 case "${1-}" in
   ps)
-    printf '%s\n' qima-postgres-container
+    printf '%s\n' 0123456789ab
     printf '%s\n' docker-ps >> "$MOCK_EVENTS"
     ;;
   exec)
