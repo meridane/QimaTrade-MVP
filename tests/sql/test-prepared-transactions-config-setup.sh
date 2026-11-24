@@ -27,6 +27,10 @@ case "${1-}" in
     exit "${MOCK_DOCKER_PS_STATUS:-0}"
     ;;
   exec)
+    if [[ "${2-}" != "${MOCK_EXPECTED_CONTAINER_ID:-0123456789ab}" ]]; then
+      echo "Unexpected Docker container ID for setup exec." >&2
+      exit 93
+    fi
     if [[ "$*" != *"ALTER SYSTEM SET max_prepared_transactions = '10'"* ]]; then
       echo "Unexpected docker exec command." >&2
       exit 90
@@ -40,6 +44,10 @@ case "${1-}" in
     exit "${MOCK_DOCKER_EXEC_STATUS:-0}"
     ;;
   restart)
+    if [[ "${2-}" != "${MOCK_EXPECTED_CONTAINER_ID:-0123456789ab}" ]]; then
+      echo "Unexpected Docker container ID for setup restart." >&2
+      exit 94
+    fi
     if ! grep -Fxq 'restore_required=true' "$MOCK_GITHUB_OUTPUT"; then
       echo "Restoration intent was lost before restart." >&2
       exit 92
@@ -215,6 +223,22 @@ if [[ "$actual" != "$expected" ]] || ! grep -Fq 'restarted with max_prepared_tra
   cat "$OUTPUT" >&2
   exit 1
 fi
+
+# QA446: the longest accepted Docker ID must be forwarded unchanged to both
+# setup operations. The default success path above covers the 12-character
+# minimum; this case covers the 64-character maximum.
+long_valid_container_id="$(printf 'a%.0s' {1..64})"
+run_setup 0 env MOCK_PS_OUTPUT="$long_valid_container_id" MOCK_EXPECTED_CONTAINER_ID="$long_valid_container_id"
+assert_restore_intent
+expected="$(printf '%s\n' docker-ps psql-show-1 docker-exec-set docker-restart pg-isready psql-show-2)"
+if [[ "$(cat "$EVENTS")" != "$expected" ]] ||
+  ! grep -Fq 'restarted with max_prepared_transactions=10' "$OUTPUT"; then
+  echo "ERROR: the maximum-length Docker ID was not forwarded unchanged through setup." >&2
+  cat "$EVENTS" >&2
+  cat "$OUTPUT" >&2
+  exit 1
+fi
+echo "QA446 setup ID forwarding PASS: valid 12- and 64-character Docker IDs are passed unchanged to exec and restart."
 
 # QA275: failure to read the initial baseline must stop before publishing
 # restoration intent or performing any configuration mutation.
