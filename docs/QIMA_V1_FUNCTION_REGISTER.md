@@ -14939,3 +14939,44 @@ La revue croisée des scripts de garde-fou PostgreSQL a révélé le même défa
 - Aucun SQL de migration, aucune donnée Supabase Production, aucun secret, grant, policy RLS persistante ou configuration PostgreSQL Production modifié.
 - Aucun déploiement Production, merge, force-push ou changement des protections GitHub.
 - Les tests à mocks caractérisent le comportement des runners CI ; ils ne démontrent pas une vulnérabilité exploitable en production.
+
+
+---
+
+## QA446 — transmission exacte des identifiants Docker validés (25 novembre 2026, 07:07 KST)
+
+### Constat et objectif
+
+- QA445 a ajouté une allowlist hexadécimale de 12 à 64 caractères pour les identifiants renvoyés par `docker ps`.
+- Les tests QA445 démontraient le rejet des sorties mal formées, mais ne vérifiaient pas explicitement que l'identifiant accepté était ensuite transmis sans altération à `docker exec` et `docker restart`.
+- QA446 complète cette frontière positive : les tests doivent couvrir les deux bornes acceptées (12 et 64 caractères) et comparer l'argument de conteneur réellement reçu par les mocks Docker à la valeur attendue.
+
+### Modification
+
+- `tests/sql/test-prepared-transactions-config-setup.sh` : les mocks `docker exec` et `docker restart` vérifient maintenant leur deuxième argument contre `MOCK_EXPECTED_CONTAINER_ID` (par défaut `0123456789ab`). Un nouveau cas setup utilise un identifiant hexadécimal de 64 caractères et exige que le même identifiant atteigne les deux commandes.
+- `tests/sql/test-prepared-transactions-config-restore.sh` : contrôle équivalent pour `docker exec` et `docker restart`, avec un cas de restauration utilisant un identifiant de 64 caractères.
+- Les chemins existants avec l'identifiant valide de 12 caractères continuent d'exercer la borne minimale. Les cas négatifs QA445 et les scénarios antérieurs restent présents.
+- Aucun script opérationnel, workflow CI, SQL, migration ou configuration Supabase n'a été modifié.
+
+### Publication et validation en cours
+
+- Branche de travail : `work/qima-container-id-forwarding-qa446-20261125-0707`, créée depuis le HEAD PR `98021c85af0544520631a29c0a64e6afe318e9b9`.
+- Commit setup : `4cc1339175f397e8a2b8da35118c20792aaa5255`.
+- Commit restore : `734b5873a189c6aec6c33d3069fb853be6ed2a92`.
+- Le diff code/test contient uniquement les deux fichiers de régression, avec 46 insertions et aucune suppression. La branche PR a été avancée par fast-forward de `98021c85` à `734b5873` (2 commits, 0 derrière).
+- QIMA CI [#1912](https://github.com/meridane/QimaTrade-MVP/actions/runs/45498305436) et CodeQL [#1839](https://github.com/meridane/QimaTrade-MVP/actions/runs/45498305099) sont visibles. Au dernier contrôle, CI #1912 est encore en file d'attente / démarrage ; les jobs PostgreSQL et Verify n'ont pas encore fourni de résultat final pour QA446. CodeQL #1839 est en cours.
+- Le statut Vercel du commit code/test est PENDING au dernier relevé. Aucun Preview réussi ou échec de compilation n'est revendiqué.
+- Aucun test local n'a été exécuté ; la validation fonctionnelle est en attente de GitHub Actions.
+
+### Résultat antérieur clôturé — QA445
+
+- QIMA CI [#1910](https://github.com/meridane/QimaTrade-MVP/actions/runs/45485599126) : jobs Verify/Build, PostgreSQL 16 et PostgreSQL 17.6 terminés SUCCESS. Les tests de garde-fou setup et restauration ont réussi. Les jobs de simulation de défaillance prepared-transaction terminent volontairement FAILURE et leurs assertions de contrôle réussissent ; le job SKIPPED est attendu.
+- QIMA CI [#1911](https://github.com/meridane/QimaTrade-MVP/actions/runs/45485724197) : SUCCESS sur le HEAD documentaire QA445.
+- CodeQL [#1837](https://github.com/meridane/QimaTrade-MVP/actions/runs/45485599103) et [#1838](https://github.com/meridane/QimaTrade-MVP/actions/runs/45485724127) : SUCCESS.
+- Le statut Vercel du HEAD QA445 retourne `upgradeToPro=build-rate-limit` ; il s'agit d'une limite de quota et non d'un échec de compilation confirmé.
+
+### Périmètre
+
+- Aucun SQL de migration, aucune donnée Supabase Production, aucun secret, grant, policy RLS persistante ou paramètre PostgreSQL Production modifié.
+- Aucun déploiement Production, merge, force-push ou changement des protections GitHub.
+- Les tests à mocks vérifient la transmission des arguments Docker dans les scripts CI ; ils ne démontrent pas une vulnérabilité exploitable en production.
