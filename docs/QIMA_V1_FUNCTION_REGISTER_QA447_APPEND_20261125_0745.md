@@ -1,0 +1,46 @@
+# QIMA V1 Function Register — QA447 append-only snapshot
+
+Date: 2026-11-25 (KST)
+Repository: `meridane/QimaTrade-MVP`
+PR: [#26](https://github.com/meridane/QimaTrade-MVP/pull/26)
+Target branch: `fix/create-offer-status-contract`
+
+## Baseline inspected before this change
+
+- PR #26 was OPEN / DRAFT / not merged; head `b65cfddd2194921ddc5d14622e14561ea7806468`, mergeable, with no review threads or submitted reviews.
+- Latest branch commits included QA446 test changes `4cc13391` and `734b5873`, followed by the QA446 documentation/status commits through `b65cfddd`.
+- QA446 code/test parent CI #1912 completed SUCCESS: Verify passed (npm audit, TypeScript, Next.js build, Chromium, 423/423 Playwright); PostgreSQL 16 and PostgreSQL 17.6 integration jobs passed, including the prepared-transaction setup/restore guards and always-cleanup restoration checks.
+- CodeQL #1839 completed SUCCESS. The documentation-only HEAD CI #1913 and CodeQL #1840 also completed SUCCESS.
+- The two prepared-transaction failure-propagation jobs intentionally conclude FAILURE and are asserted by separate successful contract-check jobs; the dedicated skipped-result job is intentionally SKIPPED. These are expected harness outcomes, not unexpected CI failures.
+- The canonical `docs/QIMA_V1_FUNCTION_REGISTER.md` has a valid blob SHA but the connected file reader returns empty content for this very large file. It was not replaced or truncated. This append-only companion preserves this run's evidence without risking the canonical history.
+
+## QA447 — exact Docker argument contract in the always-cleanup runtime harness
+
+### Changed file
+
+`tests/ci/test-prepared-transactions-always-cleanup-runtime.sh`
+
+The runtime harness invokes the actual restoration script with inert Docker/PostgreSQL mocks after a simulated setup failure. Its Docker mock previously checked the RESET SQL substring but did not assert the full discovery/target argument contract. QA447 adds explicit assertions for:
+
+1. `docker ps`: exactly five arguments, with `--filter ancestor=postgres:16 --format {{.ID}}`.
+2. `docker exec`: exactly eleven arguments, target ID `0123456789ab`, executable `psql`, the expected user/database/options, and the exact `ALTER SYSTEM RESET max_prepared_transactions` SQL.
+3. `docker restart`: exactly two arguments and the same validated container ID `0123456789ab`.
+
+The same mock is exercised in the normal always-cleanup path and in the intentionally failing RESET path. The latter must preserve exit code 52 and stop before restart or postcondition queries. No production database or PostgreSQL service is contacted by these mocked contract tests.
+
+### Validation status at publication
+
+- The QA446 baseline CI #1912 is SUCCESS, including PostgreSQL 16 and 17.6 and 423/423 Playwright. This does **not** validate the new QA447 assertions.
+- A new PR-branch CI run was not yet returned by the commit-workflow-runs endpoint immediately after the QA447 code commit. Therefore QA447 is **PENDING GitHub Actions validation**; no local execution is claimed.
+- No QA447 pass/fail result is inferred from QA446 or from the synthetic mock design.
+- CodeQL and Vercel results for the QA447 HEAD are not yet available.
+
+### Commit and safety boundary
+
+- QA447 code/test commit: `9d513ed27b253b5742affcdc6ff8313c82612de5`.
+- The commit was fast-forwarded to `fix/create-offer-status-contract` after comparing it with the inspected parent; no force-push was used.
+- No application runtime code, SQL migration, Supabase production data, secret, grant, persistent RLS policy, production deployment, PR merge, or branch-protection rule was changed.
+
+## Next action
+
+Inspect the CI run for the QA447 HEAD. Confirm the `Assert prepared-transaction always-cleanup runtime contract` and `Assert prepared-transaction cleanup failures remain blocking` jobs. If the runtime harness fails, inspect the exact mock argument mismatch before changing the script. On success, record the run IDs and conclusions in the next append-only register snapshot.
