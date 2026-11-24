@@ -14641,3 +14641,13 @@ La revue croisée des scripts de garde-fou PostgreSQL a révélé le même défa
 - Aucun schéma, migration ou donnée Supabase Production, secret, grant, policy RLS persistante ou configuration PostgreSQL Production modifié.
 - Aucun déploiement Production, merge, force-push ou changement des règles de protection.
 - Ces tests caractérisent des garde-fous de scripts CI ; ils ne constituent pas une preuve de vulnérabilité exploitable en production.
+
+
+### QA437 — correction du harness de régression avant clôture
+
+- La première révision publiée des deux fichiers de test contenait une expansion indésirable de blocs de texte lors de la génération des chaînes Bash ANSI-C ; les fichiers étaient anormalement volumineux. Ce défaut de fixture a été repéré par le contrôle post-publication de taille et de structure avant que l'étape QA437 dédiée soit atteinte dans PostgreSQL.
+- Les deux fichiers de test ont été reconstruits à partir de leurs blobs parents vérifiés, puis modifiés avec des remplacements littéraux sûrs. Les cinq shebangs d'origine (script principal et mocks intégrés) sont conservés ; aucune copie complète du harness n'est dupliquée.
+- Les nouvelles longueurs sont contrôlées avant publication : setup 22314 caractères ; restore 25265 caractères. Les quatre cas LF/CR/TAB/SOH restent présents dans chaque matrice.
+- Le run CI #1896 a été lancé sur le commit intermédiaire `f49534ccb08ab14b02dd54722593c8ec01f3eaf0`. Au moment du correctif, ses jobs Verify/PostgreSQL étaient encore en cours avant l'étape QA437 setup/restore ; aucun résultat de validation QA437 ne lui est attribué. Le nouveau HEAD déclenche un cycle complet distinct.
+- La validation QA437 reste **EN ATTENTE** du nouveau cycle GitHub Actions.
+
