@@ -113,6 +113,12 @@ chmod +x "$MOCK_BIN/psql"
 cat > "$MOCK_BIN/pg_isready" <<'READY'
 #!/usr/bin/env bash
 set -euo pipefail
+if [[ "$#" -ne 8 || "$1" != "-h" || "$2" != "127.0.0.1" ||
+  "$3" != "-p" || "$4" != "5432" || "$5" != "-U" ||
+  "$6" != "postgres" || "$7" != "-d" || "$8" != "qima_test" ]]; then
+  echo "Unexpected pg_isready target or argument contract." >&2
+  exit 92
+fi
 printf '%s\n' pg-isready >> "$MOCK_EVENTS"
 READY
 chmod +x "$MOCK_BIN/pg_isready"
