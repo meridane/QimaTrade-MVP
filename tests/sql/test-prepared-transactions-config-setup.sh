@@ -76,7 +76,7 @@ if [[ "$*" == *"SHOW max_prepared_transactions"* ]]; then
   if (( show_count == 1 )); then
     printf '%s\n' "${MOCK_INITIAL_CONFIGURED_VALUE:-0}"
   else
-    printf '%s\n' "${MOCK_CONFIGURED_VALUE:-10}"
+    printf '%s\n' "${MOCK_CONFIGURED_VALUE-10}"
   fi
   exit 0
 fi
@@ -516,6 +516,338 @@ if [[ "$(cat "$EVENTS")" != "$expected" ]] ||
   cat "$OUTPUT" >&2
   exit 1
 fi
+
+# QA444: malformed post-restart SHOW output must fail immediately while preserving cleanup intent.
+assert_malformed_post_restart_value_rejected() {
+  local label="$1"
+  local value="$2"
+  local expected_output="::error::PostgreSQL returned an invalid max_prepared_transactions value after setup restart; restoration remains required."
+  run_setup 1 env "MOCK_CONFIGURED_VALUE=$value"
+  assert_restore_intent
+  local expected_events
+  expected_events="$(printf '%s\n' docker-ps psql-show-1 docker-exec-set docker-restart pg-isready psql-show-2)"
+  if [[ "$(cat "$EVENTS")" != "$expected_events" ]] ||
+    [[ "$(cat "$OUTPUT")" != "$expected_output" ]] ||
+    [[ "$(wc -l < "$OUTPUT")" -ne 1 ]] ||
+    LC_ALL=C grep -q '[[:cntrl:]]' "$OUTPUT" ||
+    grep -Fq "qa444-injected" "$OUTPUT" ||
+    grep -Fq "sleep-1" "$EVENTS" ||
+    grep -Fq "restarted with max_prepared_transactions=10" "$OUTPUT"; then
+    echo "ERROR: $label post-restart SHOW output was reflected, retried, or treated as successful." >&2
+    cat "$EVENTS" >&2
+    cat "$GITHUB_OUTPUT_FILE" >&2
+    cat "$OUTPUT" >&2
+    exit 1
+  fi
+}
+
+assert_malformed_post_restart_value_rejected "empty" ""
+assert_malformed_post_restart_value_rejected "non-numeric" "not-a-number"
+assert_malformed_post_restart_value_rejected "LF-bearing" 
+run_setup 1 env MOCK_READY_STATUS=1
+assert_restore_intent
+if [[ "$(grep -Fxc 'pg-isready' "$EVENTS" || true)" -ne 60 ]] ||
+   [[ "$(grep -Fxc 'sleep-1' "$EVENTS" || true)" -ne 60 ]] ||
+   grep -Fq 'restarted with max_prepared_transactions=10' "$OUTPUT"; then
+  echo "ERROR: readiness exhaustion was not bounded or falsely reported setup success." >&2
+  cat "$EVENTS" >&2
+  cat "$OUTPUT" >&2
+  exit 1
+fi
+
+# The workflow must run the extracted setup script and always invoke restoration.
+grep -Fq 'run: bash tests/sql/enable-prepared-transactions-config.sh' "$WORKFLOW"
+grep -Fq 'run: bash tests/sql/test-prepared-transactions-config-setup.sh' "$WORKFLOW"
+restore_block="$(awk '/name: Restore prepared-transaction configuration and verify disposable resources/{show=1} show{print} show && /run: bash tests\/sql\/restore-prepared-transactions-config.sh/{exit}' "$WORKFLOW")"
+grep -Fq 'if: always()' <<< "$restore_block"
+grep -Fq 'RESTORE_REQUIRED: ${{ steps.enable_prepared.outputs.restore_required }}' <<< "$restore_block"
+grep -Fq 'BASELINE_MAX_PREPARED_TRANSACTIONS: ${{ steps.enable_prepared.outputs.baseline }}' <<< "$restore_block"
+
+
+# QA279: a partial GITHUB_OUTPUT append must not be mistaken for a complete
+# restoration marker. The hook writes the baseline line, then fails before
+# restore_required=true can be persisted; cleanup must remain a no-op.
+cat > "$TEMP_DIR/partial-marker-write.bash" <<'BASH_ENV'
+printf() {
+  case "$1" in
+    'baseline=%s\nrestore_required=true\n')
+      builtin printf 'baseline=%s\n' "$2"
+      builtin printf '%s\n' marker-write-partial >> "$MOCK_EVENTS"
+      return 53
+      ;;
+  esac
+  builtin printf "$@"
+}
+BASH_ENV
+
+run_setup 1 env BASH_ENV="$TEMP_DIR/partial-marker-write.bash"
+expected=$'docker-ps\npsql-show-1\nmarker-write-partial'
+if [[ "$(cat "$EVENTS")" != "$expected" ]] ||
+  [[ "$(cat "$GITHUB_OUTPUT_FILE")" != "baseline=0" ]] ||
+  grep -Fxq 'restore_required=true' "$GITHUB_OUTPUT_FILE" ||
+  ! grep -Fq "Could not persist PostgreSQL restoration intent; no configuration change was attempted." "$OUTPUT" ||
+  grep -Fq "docker-exec-set" "$EVENTS" ||
+  grep -Fq "docker-restart" "$EVENTS"; then
+  echo "ERROR: a partial GITHUB_OUTPUT marker write did not stop setup before PostgreSQL mutation." >&2
+  cat "$EVENTS" >&2
+  cat "$GITHUB_OUTPUT_FILE" >&2
+  cat "$OUTPUT" >&2
+  exit 1
+fi
+
+# A partial output may expose baseline=0 to the always() step, but without
+# restore_required=true the restoration script must still perform no operation.
+: > "$EVENTS"
+: > "$OUTPUT"
+set +e
+PATH="$MOCK_BIN:$PATH" MOCK_EVENTS="$EVENTS" DATABASE_URL="postgresql://postgres:postgres@localhost:5432/qima_test" RESTORE_REQUIRED="" BASELINE_MAX_PREPARED_TRANSACTIONS="0" bash "$RESTORE_SCRIPT" > "$OUTPUT" 2>&1
+restore_status=$?
+set -e
+if [[ "$restore_status" -ne 0 ]] ||
+  [[ -s "$EVENTS" ]] ||
+  ! grep -Fq "configuration was not changed; restoration is not required" "$OUTPUT"; then
+  echo "ERROR: always() restoration did not no-op when only the baseline line was persisted." >&2
+  cat "$EVENTS" >&2
+  cat "$OUTPUT" >&2
+  exit 1
+fi
+
+echo "Prepared-transaction setup regression passed: docker ps partial-output failures preserve the exit code; zero/multiple container discovery fails before database access; initial SHOW and non-pristine baseline failures stop before mutation; marker write failures and partial GITHUB_OUTPUT writes stop before mutation with safe always() no-op cleanup; SET, restart, post-restart SHOW and readiness failures preserve the cleanup marker; retry exhaustion is bounded; workflow invokes setup and always() restoration."
+
+echo "QA328 prepared-transaction setup URL guard PASS: 3 supported loopback URLs accepted; ${#unsafe_setup_urls[@]} unsafe URLs and unset/empty DATABASE_URL rejected before Docker/psql or restoration-marker writes."
+
+
+echo "QA437 setup credential-control regression: LF/CR/TAB/SOH are rejected before Docker/psql and before GITHUB_OUTPUT marker publication."
+10\nqa444-injected'
+assert_malformed_post_restart_value_rejected "CR-bearing" 
+run_setup 1 env MOCK_READY_STATUS=1
+assert_restore_intent
+if [[ "$(grep -Fxc 'pg-isready' "$EVENTS" || true)" -ne 60 ]] ||
+   [[ "$(grep -Fxc 'sleep-1' "$EVENTS" || true)" -ne 60 ]] ||
+   grep -Fq 'restarted with max_prepared_transactions=10' "$OUTPUT"; then
+  echo "ERROR: readiness exhaustion was not bounded or falsely reported setup success." >&2
+  cat "$EVENTS" >&2
+  cat "$OUTPUT" >&2
+  exit 1
+fi
+
+# The workflow must run the extracted setup script and always invoke restoration.
+grep -Fq 'run: bash tests/sql/enable-prepared-transactions-config.sh' "$WORKFLOW"
+grep -Fq 'run: bash tests/sql/test-prepared-transactions-config-setup.sh' "$WORKFLOW"
+restore_block="$(awk '/name: Restore prepared-transaction configuration and verify disposable resources/{show=1} show{print} show && /run: bash tests\/sql\/restore-prepared-transactions-config.sh/{exit}' "$WORKFLOW")"
+grep -Fq 'if: always()' <<< "$restore_block"
+grep -Fq 'RESTORE_REQUIRED: ${{ steps.enable_prepared.outputs.restore_required }}' <<< "$restore_block"
+grep -Fq 'BASELINE_MAX_PREPARED_TRANSACTIONS: ${{ steps.enable_prepared.outputs.baseline }}' <<< "$restore_block"
+
+
+# QA279: a partial GITHUB_OUTPUT append must not be mistaken for a complete
+# restoration marker. The hook writes the baseline line, then fails before
+# restore_required=true can be persisted; cleanup must remain a no-op.
+cat > "$TEMP_DIR/partial-marker-write.bash" <<'BASH_ENV'
+printf() {
+  case "$1" in
+    'baseline=%s\nrestore_required=true\n')
+      builtin printf 'baseline=%s\n' "$2"
+      builtin printf '%s\n' marker-write-partial >> "$MOCK_EVENTS"
+      return 53
+      ;;
+  esac
+  builtin printf "$@"
+}
+BASH_ENV
+
+run_setup 1 env BASH_ENV="$TEMP_DIR/partial-marker-write.bash"
+expected=$'docker-ps\npsql-show-1\nmarker-write-partial'
+if [[ "$(cat "$EVENTS")" != "$expected" ]] ||
+  [[ "$(cat "$GITHUB_OUTPUT_FILE")" != "baseline=0" ]] ||
+  grep -Fxq 'restore_required=true' "$GITHUB_OUTPUT_FILE" ||
+  ! grep -Fq "Could not persist PostgreSQL restoration intent; no configuration change was attempted." "$OUTPUT" ||
+  grep -Fq "docker-exec-set" "$EVENTS" ||
+  grep -Fq "docker-restart" "$EVENTS"; then
+  echo "ERROR: a partial GITHUB_OUTPUT marker write did not stop setup before PostgreSQL mutation." >&2
+  cat "$EVENTS" >&2
+  cat "$GITHUB_OUTPUT_FILE" >&2
+  cat "$OUTPUT" >&2
+  exit 1
+fi
+
+# A partial output may expose baseline=0 to the always() step, but without
+# restore_required=true the restoration script must still perform no operation.
+: > "$EVENTS"
+: > "$OUTPUT"
+set +e
+PATH="$MOCK_BIN:$PATH" MOCK_EVENTS="$EVENTS" DATABASE_URL="postgresql://postgres:postgres@localhost:5432/qima_test" RESTORE_REQUIRED="" BASELINE_MAX_PREPARED_TRANSACTIONS="0" bash "$RESTORE_SCRIPT" > "$OUTPUT" 2>&1
+restore_status=$?
+set -e
+if [[ "$restore_status" -ne 0 ]] ||
+  [[ -s "$EVENTS" ]] ||
+  ! grep -Fq "configuration was not changed; restoration is not required" "$OUTPUT"; then
+  echo "ERROR: always() restoration did not no-op when only the baseline line was persisted." >&2
+  cat "$EVENTS" >&2
+  cat "$OUTPUT" >&2
+  exit 1
+fi
+
+echo "Prepared-transaction setup regression passed: docker ps partial-output failures preserve the exit code; zero/multiple container discovery fails before database access; initial SHOW and non-pristine baseline failures stop before mutation; marker write failures and partial GITHUB_OUTPUT writes stop before mutation with safe always() no-op cleanup; SET, restart, post-restart SHOW and readiness failures preserve the cleanup marker; retry exhaustion is bounded; workflow invokes setup and always() restoration."
+
+echo "QA328 prepared-transaction setup URL guard PASS: 3 supported loopback URLs accepted; ${#unsafe_setup_urls[@]} unsafe URLs and unset/empty DATABASE_URL rejected before Docker/psql or restoration-marker writes."
+
+
+echo "QA437 setup credential-control regression: LF/CR/TAB/SOH are rejected before Docker/psql and before GITHUB_OUTPUT marker publication."
+10\rqa444-injected'
+assert_malformed_post_restart_value_rejected "TAB-bearing" 
+run_setup 1 env MOCK_READY_STATUS=1
+assert_restore_intent
+if [[ "$(grep -Fxc 'pg-isready' "$EVENTS" || true)" -ne 60 ]] ||
+   [[ "$(grep -Fxc 'sleep-1' "$EVENTS" || true)" -ne 60 ]] ||
+   grep -Fq 'restarted with max_prepared_transactions=10' "$OUTPUT"; then
+  echo "ERROR: readiness exhaustion was not bounded or falsely reported setup success." >&2
+  cat "$EVENTS" >&2
+  cat "$OUTPUT" >&2
+  exit 1
+fi
+
+# The workflow must run the extracted setup script and always invoke restoration.
+grep -Fq 'run: bash tests/sql/enable-prepared-transactions-config.sh' "$WORKFLOW"
+grep -Fq 'run: bash tests/sql/test-prepared-transactions-config-setup.sh' "$WORKFLOW"
+restore_block="$(awk '/name: Restore prepared-transaction configuration and verify disposable resources/{show=1} show{print} show && /run: bash tests\/sql\/restore-prepared-transactions-config.sh/{exit}' "$WORKFLOW")"
+grep -Fq 'if: always()' <<< "$restore_block"
+grep -Fq 'RESTORE_REQUIRED: ${{ steps.enable_prepared.outputs.restore_required }}' <<< "$restore_block"
+grep -Fq 'BASELINE_MAX_PREPARED_TRANSACTIONS: ${{ steps.enable_prepared.outputs.baseline }}' <<< "$restore_block"
+
+
+# QA279: a partial GITHUB_OUTPUT append must not be mistaken for a complete
+# restoration marker. The hook writes the baseline line, then fails before
+# restore_required=true can be persisted; cleanup must remain a no-op.
+cat > "$TEMP_DIR/partial-marker-write.bash" <<'BASH_ENV'
+printf() {
+  case "$1" in
+    'baseline=%s\nrestore_required=true\n')
+      builtin printf 'baseline=%s\n' "$2"
+      builtin printf '%s\n' marker-write-partial >> "$MOCK_EVENTS"
+      return 53
+      ;;
+  esac
+  builtin printf "$@"
+}
+BASH_ENV
+
+run_setup 1 env BASH_ENV="$TEMP_DIR/partial-marker-write.bash"
+expected=$'docker-ps\npsql-show-1\nmarker-write-partial'
+if [[ "$(cat "$EVENTS")" != "$expected" ]] ||
+  [[ "$(cat "$GITHUB_OUTPUT_FILE")" != "baseline=0" ]] ||
+  grep -Fxq 'restore_required=true' "$GITHUB_OUTPUT_FILE" ||
+  ! grep -Fq "Could not persist PostgreSQL restoration intent; no configuration change was attempted." "$OUTPUT" ||
+  grep -Fq "docker-exec-set" "$EVENTS" ||
+  grep -Fq "docker-restart" "$EVENTS"; then
+  echo "ERROR: a partial GITHUB_OUTPUT marker write did not stop setup before PostgreSQL mutation." >&2
+  cat "$EVENTS" >&2
+  cat "$GITHUB_OUTPUT_FILE" >&2
+  cat "$OUTPUT" >&2
+  exit 1
+fi
+
+# A partial output may expose baseline=0 to the always() step, but without
+# restore_required=true the restoration script must still perform no operation.
+: > "$EVENTS"
+: > "$OUTPUT"
+set +e
+PATH="$MOCK_BIN:$PATH" MOCK_EVENTS="$EVENTS" DATABASE_URL="postgresql://postgres:postgres@localhost:5432/qima_test" RESTORE_REQUIRED="" BASELINE_MAX_PREPARED_TRANSACTIONS="0" bash "$RESTORE_SCRIPT" > "$OUTPUT" 2>&1
+restore_status=$?
+set -e
+if [[ "$restore_status" -ne 0 ]] ||
+  [[ -s "$EVENTS" ]] ||
+  ! grep -Fq "configuration was not changed; restoration is not required" "$OUTPUT"; then
+  echo "ERROR: always() restoration did not no-op when only the baseline line was persisted." >&2
+  cat "$EVENTS" >&2
+  cat "$OUTPUT" >&2
+  exit 1
+fi
+
+echo "Prepared-transaction setup regression passed: docker ps partial-output failures preserve the exit code; zero/multiple container discovery fails before database access; initial SHOW and non-pristine baseline failures stop before mutation; marker write failures and partial GITHUB_OUTPUT writes stop before mutation with safe always() no-op cleanup; SET, restart, post-restart SHOW and readiness failures preserve the cleanup marker; retry exhaustion is bounded; workflow invokes setup and always() restoration."
+
+echo "QA328 prepared-transaction setup URL guard PASS: 3 supported loopback URLs accepted; ${#unsafe_setup_urls[@]} unsafe URLs and unset/empty DATABASE_URL rejected before Docker/psql or restoration-marker writes."
+
+
+echo "QA437 setup credential-control regression: LF/CR/TAB/SOH are rejected before Docker/psql and before GITHUB_OUTPUT marker publication."
+10\tqa444-injected'
+assert_malformed_post_restart_value_rejected "SOH-bearing" 
+run_setup 1 env MOCK_READY_STATUS=1
+assert_restore_intent
+if [[ "$(grep -Fxc 'pg-isready' "$EVENTS" || true)" -ne 60 ]] ||
+   [[ "$(grep -Fxc 'sleep-1' "$EVENTS" || true)" -ne 60 ]] ||
+   grep -Fq 'restarted with max_prepared_transactions=10' "$OUTPUT"; then
+  echo "ERROR: readiness exhaustion was not bounded or falsely reported setup success." >&2
+  cat "$EVENTS" >&2
+  cat "$OUTPUT" >&2
+  exit 1
+fi
+
+# The workflow must run the extracted setup script and always invoke restoration.
+grep -Fq 'run: bash tests/sql/enable-prepared-transactions-config.sh' "$WORKFLOW"
+grep -Fq 'run: bash tests/sql/test-prepared-transactions-config-setup.sh' "$WORKFLOW"
+restore_block="$(awk '/name: Restore prepared-transaction configuration and verify disposable resources/{show=1} show{print} show && /run: bash tests\/sql\/restore-prepared-transactions-config.sh/{exit}' "$WORKFLOW")"
+grep -Fq 'if: always()' <<< "$restore_block"
+grep -Fq 'RESTORE_REQUIRED: ${{ steps.enable_prepared.outputs.restore_required }}' <<< "$restore_block"
+grep -Fq 'BASELINE_MAX_PREPARED_TRANSACTIONS: ${{ steps.enable_prepared.outputs.baseline }}' <<< "$restore_block"
+
+
+# QA279: a partial GITHUB_OUTPUT append must not be mistaken for a complete
+# restoration marker. The hook writes the baseline line, then fails before
+# restore_required=true can be persisted; cleanup must remain a no-op.
+cat > "$TEMP_DIR/partial-marker-write.bash" <<'BASH_ENV'
+printf() {
+  case "$1" in
+    'baseline=%s\nrestore_required=true\n')
+      builtin printf 'baseline=%s\n' "$2"
+      builtin printf '%s\n' marker-write-partial >> "$MOCK_EVENTS"
+      return 53
+      ;;
+  esac
+  builtin printf "$@"
+}
+BASH_ENV
+
+run_setup 1 env BASH_ENV="$TEMP_DIR/partial-marker-write.bash"
+expected=$'docker-ps\npsql-show-1\nmarker-write-partial'
+if [[ "$(cat "$EVENTS")" != "$expected" ]] ||
+  [[ "$(cat "$GITHUB_OUTPUT_FILE")" != "baseline=0" ]] ||
+  grep -Fxq 'restore_required=true' "$GITHUB_OUTPUT_FILE" ||
+  ! grep -Fq "Could not persist PostgreSQL restoration intent; no configuration change was attempted." "$OUTPUT" ||
+  grep -Fq "docker-exec-set" "$EVENTS" ||
+  grep -Fq "docker-restart" "$EVENTS"; then
+  echo "ERROR: a partial GITHUB_OUTPUT marker write did not stop setup before PostgreSQL mutation." >&2
+  cat "$EVENTS" >&2
+  cat "$GITHUB_OUTPUT_FILE" >&2
+  cat "$OUTPUT" >&2
+  exit 1
+fi
+
+# A partial output may expose baseline=0 to the always() step, but without
+# restore_required=true the restoration script must still perform no operation.
+: > "$EVENTS"
+: > "$OUTPUT"
+set +e
+PATH="$MOCK_BIN:$PATH" MOCK_EVENTS="$EVENTS" DATABASE_URL="postgresql://postgres:postgres@localhost:5432/qima_test" RESTORE_REQUIRED="" BASELINE_MAX_PREPARED_TRANSACTIONS="0" bash "$RESTORE_SCRIPT" > "$OUTPUT" 2>&1
+restore_status=$?
+set -e
+if [[ "$restore_status" -ne 0 ]] ||
+  [[ -s "$EVENTS" ]] ||
+  ! grep -Fq "configuration was not changed; restoration is not required" "$OUTPUT"; then
+  echo "ERROR: always() restoration did not no-op when only the baseline line was persisted." >&2
+  cat "$EVENTS" >&2
+  cat "$OUTPUT" >&2
+  exit 1
+fi
+
+echo "Prepared-transaction setup regression passed: docker ps partial-output failures preserve the exit code; zero/multiple container discovery fails before database access; initial SHOW and non-pristine baseline failures stop before mutation; marker write failures and partial GITHUB_OUTPUT writes stop before mutation with safe always() no-op cleanup; SET, restart, post-restart SHOW and readiness failures preserve the cleanup marker; retry exhaustion is bounded; workflow invokes setup and always() restoration."
+
+echo "QA328 prepared-transaction setup URL guard PASS: 3 supported loopback URLs accepted; ${#unsafe_setup_urls[@]} unsafe URLs and unset/empty DATABASE_URL rejected before Docker/psql or restoration-marker writes."
+
+
+echo "QA437 setup credential-control regression: LF/CR/TAB/SOH are rejected before Docker/psql and before GITHUB_OUTPUT marker publication."
+10\x01qa444-injected'
+echo "QA444 setup post-restart SHOW guard PASS: empty, non-numeric and LF/CR/TAB/SOH results fail immediately, preserve cleanup intent, and do not retry or reflect values."
 
 # If PostgreSQL never becomes ready, setup fails after publishing the cleanup marker.
 run_setup 1 env MOCK_READY_STATUS=1
