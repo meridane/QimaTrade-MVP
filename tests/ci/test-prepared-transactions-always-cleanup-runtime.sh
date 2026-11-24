@@ -43,7 +43,8 @@ RESTORE_LOG="$TEMP_DIR/restore.log"
 mkdir -p "$MOCK_BIN"
 : > "$EVENTS"
 
-# QA447: lock down Docker discovery, exec target/SQL arguments, and restart target\ncat > "$MOCK_BIN/docker" <<'DOCKER'
+# QA447: lock down Docker discovery, exec target/SQL arguments, and restart target
+cat > "$MOCK_BIN/docker" <<'DOCKER'
 #!/usr/bin/env bash
 set -euo pipefail
 case "${1-}" in
