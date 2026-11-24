@@ -19,7 +19,7 @@ exit 99
 PSQL
 chmod +x "$MOCK_BIN/psql"
 
-un# Missing and explicitly empty configuration must fail before psql.
+# Missing and explicitly empty configuration must fail before psql.
 assert_missing_database_url_rejected() {
   local label="$1"
   local config_case="$2"
@@ -52,7 +52,7 @@ assert_missing_database_url_rejected() {
 assert_missing_database_url_rejected "unset" "unset"
 assert_missing_database_url_rejected "empty" "empty"
 
-safe_urls=(
+unsafe_urls=(
   "postgresql://postgres:postgres@db.example:5432/qima_test"
   "postgresql://postgres:postgres@localhost:5432/production"
   "postgresql://postgres:postgres@localhost:5432/qima_test?sslmode=require"
@@ -94,16 +94,16 @@ for unsafe_url in "${unsafe_urls[@]}"; do
     cat "$OUTPUT" >&2
     exit 1
   fi
-    if LC_ALL=C grep -q $'\r' "$OUTPUT" || LC_ALL=C grep -q $'\t' "$OUTPUT" || [[ "$(wc -l < "$OUTPUT")" -ne 1 ]]; then
-      echo "ERROR: participant runner refusal output was not a single control-character-free diagnostic line." >&2
-      cat "$OUTPUT" >&2
-      exit 1
-    fi
-    if grep -Fq "qa349-injected" "$OUTPUT"; then
-      echo "ERROR: participant runner refusal output reflected control-character payload content." >&2
-      cat "$OUTPUT" >&2
-      exit 1
-    fi
+  if LC_ALL=C grep -q $'\r' "$OUTPUT" || LC_ALL=C grep -q $'\t' "$OUTPUT" || [[ "$(wc -l < "$OUTPUT")" -ne 1 ]]; then
+    echo "ERROR: participant runner refusal output was not a single control-character-free diagnostic line." >&2
+    cat "$OUTPUT" >&2
+    exit 1
+  fi
+  if grep -Fq "qa349-injected" "$OUTPUT"; then
+    echo "ERROR: participant runner refusal output reflected control-character payload content." >&2
+    cat "$OUTPUT" >&2
+    exit 1
+  fi
 done
 
 safe_urls=(
