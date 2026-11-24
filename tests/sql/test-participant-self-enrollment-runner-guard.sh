@@ -64,6 +64,10 @@ unsafe_urls=(
   $'postgresql://postgres:postgres@localhost:5432/qima_test\r'
   $'postgresql://postgres:postgres@localhost:5432/qima_test\t'
   $'postgresql://postgres:postgres@localhost:5432/qima_test\r\nqa349-injected'
+  $'postgresql://post\ngres:postgres@localhost:5432/qima_test'
+  $'postgresql://postgres:post\rgres@localhost:5432/qima_test'
+  $'postgresql://postgres:post\tgres@localhost:5432/qima_test'
+  $'postgresql://post\001gres:postgres@localhost:5432/qima_test'
 )
 
 for unsafe_url in "${unsafe_urls[@]}"; do
@@ -94,7 +98,7 @@ for unsafe_url in "${unsafe_urls[@]}"; do
     cat "$OUTPUT" >&2
     exit 1
   fi
-  if LC_ALL=C grep -q $'\r' "$OUTPUT" || LC_ALL=C grep -q $'\t' "$OUTPUT" || [[ "$(wc -l < "$OUTPUT")" -ne 1 ]]; then
+  if LC_ALL=C grep -q '[[:cntrl:]]' "$OUTPUT" || [[ "$(wc -l < "$OUTPUT")" -ne 1 ]]; then
     echo "ERROR: participant runner refusal output was not a single control-character-free diagnostic line." >&2
     cat "$OUTPUT" >&2
     exit 1
