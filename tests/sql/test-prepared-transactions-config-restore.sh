@@ -306,21 +306,67 @@ if [[ "$containers_status" -ne 1 ]] || [[ "$(cat "$EVENTS")" != "docker-ps" ]]; 
   exit 1
 fi
 
-# A leftover QA266 prepared transaction must fail the post-restore verification.
-run_restore 1 env MOCK_PREPARED_COUNT=1
-if ! grep -Fq "disposable QA266 resources remain" "$OUTPUT"; then
-  echo "ERROR: leftover prepared transaction was not reported." >&2
-  cat "$OUTPUT" >&2
-  exit 1
-fi
+# QA442: validate resource-count output before accepting postconditions and keep diagnostics constant.
+prepared_count_events="$(printf '%s\n' docker-ps pg-isready docker-exec-reset docker-restart pg-isready psql-show psql-prepared)"
+all_resource_count_events="$(printf '%s\n' docker-ps pg-isready docker-exec-reset docker-restart pg-isready psql-show psql-prepared psql-database)"
+invalid_prepared_count_diagnostic="::error::PostgreSQL returned an invalid QA266 prepared-transaction count; restoration is not confirmed."
+invalid_database_count_diagnostic="::error::PostgreSQL returned an invalid disposable migration database count; restoration is not confirmed."
+remaining_resources_diagnostic="::error::PostgreSQL configuration was restored, but disposable QA266 resources remain; restoration is not confirmed."
 
-# A leftover disposable database must also fail the post-restore verification.
-run_restore 1 env MOCK_DATABASE_COUNT=1
-if ! grep -Fq "disposable QA266 resources remain" "$OUTPUT"; then
-  echo "ERROR: leftover disposable database was not reported." >&2
-  cat "$OUTPUT" >&2
-  exit 1
-fi
+assert_invalid_resource_count_rejected() {
+  local label="$1"
+  local expected_events="$2"
+  local expected_diagnostic="$3"
+  local variable="$4"
+  local value="$5"
+  run_restore 1 env "$variable=$value"
+  if [[ "$(cat "$EVENTS")" != "$expected_events" ]] ||
+    [[ "$(cat "$OUTPUT")" != "$expected_diagnostic" ]] ||
+    [[ "$(wc -l < "$OUTPUT")" -ne 1 ]] ||
+    LC_ALL=C grep -q '[[:cntrl:]]' "$OUTPUT" ||
+    grep -Fq "qa442-injected" "$OUTPUT" ||
+    grep -Fq "postgres:postgres" "$OUTPUT" ||
+    grep -Fq "QA267 passed" "$OUTPUT"; then
+    echo "ERROR: $label cleanup count was reflected or accepted without a valid decimal result." >&2
+    cat "$EVENTS" >&2
+    cat "$OUTPUT" >&2
+    exit 1
+  fi
+}
+
+assert_remaining_resource_count_is_constant() {
+  local label="$1"
+  local variable="$2"
+  local value="$3"
+  run_restore 1 env "$variable=$value"
+  if [[ "$(cat "$EVENTS")" != "$all_resource_count_events" ]] ||
+    [[ "$(cat "$OUTPUT")" != "$remaining_resources_diagnostic" ]] ||
+    [[ "$(wc -l < "$OUTPUT")" -ne 1 ]] ||
+    LC_ALL=C grep -q '[[:cntrl:]]' "$OUTPUT" ||
+    grep -Fq "$value" "$OUTPUT" ||
+    grep -Fq "postgres:postgres" "$OUTPUT" ||
+    grep -Fq "QA267 passed" "$OUTPUT"; then
+    echo "ERROR: $label remaining-resource count was reflected or restoration was incorrectly reported." >&2
+    cat "$EVENTS" >&2
+    cat "$OUTPUT" >&2
+    exit 1
+  fi
+}
+
+assert_remaining_resource_count_is_constant "prepared transaction count 1" MOCK_PREPARED_COUNT 1
+assert_remaining_resource_count_is_constant "disposable database count 1" MOCK_DATABASE_COUNT 1
+long_resource_count="$(printf '9%.0s' {1..512})"
+assert_remaining_resource_count_is_constant "512-digit prepared transaction count" MOCK_PREPARED_COUNT "$long_resource_count"
+assert_remaining_resource_count_is_constant "512-digit disposable database count" MOCK_DATABASE_COUNT "$long_resource_count"
+
+assert_invalid_resource_count_rejected "prepared transaction nonnumeric" "$prepared_count_events" "$invalid_prepared_count_diagnostic" MOCK_PREPARED_COUNT not-a-count
+assert_invalid_resource_count_rejected "disposable database nonnumeric" "$all_resource_count_events" "$invalid_database_count_diagnostic" MOCK_DATABASE_COUNT not-a-count
+backslash="$(printf '%c' 92)"
+for control_code in 012 015 011 001; do
+  invalid_count="$(printf '%b' "0$backslash$control_code"qa442-injected)"
+  assert_invalid_resource_count_rejected "prepared transaction control $control_code" "$prepared_count_events" "$invalid_prepared_count_diagnostic" MOCK_PREPARED_COUNT "$invalid_count"
+  assert_invalid_resource_count_rejected "disposable database control $control_code" "$all_resource_count_events" "$invalid_database_count_diagnostic" MOCK_DATABASE_COUNT "$invalid_count"
+done
 
 # A failed ALTER SYSTEM RESET must stop before restart or postcondition checks,
 # report the command failure, and preserve its exit status.
