@@ -3,6 +3,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$BASH_SOURCE")/../.." && pwd)"
 RUNTIME="$ROOT/tests/sql/run-create-offer-geography-default-committed-replay.sh"
+RUNTIME_GUARD="$ROOT/tests/sql/test-create-offer-geography-default-committed-replay-runner-guard.sh"
 WORKFLOW="$ROOT/.github/workflows/ci.yml"
 
 fail() {
@@ -10,7 +11,7 @@ fail() {
   exit 1
 }
 
-for file in "$RUNTIME" "$WORKFLOW"; do
+for file in "$RUNTIME" "$RUNTIME_GUARD" "$WORKFLOW"; do
   [[ -f "$file" ]] || fail "required QA427 file is missing: $file"
 done
 
@@ -100,6 +101,8 @@ pg17_job="$(job_section postgres17-create-offer-compatibility)"
 
 [[ "$(grep -Fc 'run: bash tests/sql/test-create-offer-geography-default-committed-replay-contract.sh' <<< "$verify_job" || true)" -eq 1 ]] ||
   fail "Verify must execute the QA427 static contract exactly once"
+[[ "$(grep -Fc 'run: bash tests/sql/test-create-offer-geography-default-committed-replay-runner-guard.sh' <<< "$verify_job" || true)" -eq 1 ]] ||
+  fail "Verify must execute the QA436 runtime URL-guard regression exactly once"
 [[ "$(grep -Fc 'run: bash tests/sql/run-create-offer-geography-default-committed-replay.sh' <<< "$pg16_job" || true)" -eq 1 ]] ||
   fail "PostgreSQL 16 must execute the QA427 committed-session runtime exactly once"
 [[ "$(grep -Fc 'run: bash tests/sql/run-create-offer-geography-default-committed-replay.sh' <<< "$pg17_job" || true)" -eq 1 ]] ||
