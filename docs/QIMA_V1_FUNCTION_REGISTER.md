@@ -14896,3 +14896,46 @@ La revue croisée des scripts de garde-fou PostgreSQL a révélé le même défa
 - Aucun SQL de migration, donnée Supabase Production, secret, grant, policy RLS persistante ou paramètre PostgreSQL Production modifié.
 - Aucun déploiement Production, merge, force-push ou changement des protections GitHub.
 - Les tests à mocks caractérisent le comportement du helper CI ; ils ne démontrent pas une vulnérabilité exploitable en production.
+
+
+---
+
+## Clôture QA444 — CI #1908 (25 novembre 2026, 05:48 KST)
+
+- HEAD documentaire vérifié : \`8192542b990b631d115feb74e1868fdf70023dbe\`, PR #26 OPEN / DRAFT / non fusionnée, mergeable=true, 2 414 commits devant \`main\`, 0 derrière, 298 fichiers modifiés.
+- QIMA CI [#1908](https://github.com/meridane/QimaTrade-MVP/actions/runs/45472250569) : SUCCESS. Verify, audit npm, TypeScript, build Next.js et Playwright réussis ; le journal Playwright confirme 423 tests passés. PostgreSQL 16 et PostgreSQL 17.6 ont terminé SUCCESS.
+- Dans PostgreSQL 16, les étapes « Verify prepared-transaction configuration restoration guard », « Verify prepared-transaction setup records restoration intent before mutation » et « Restore prepared-transaction configuration and verify disposable resources » sont SUCCESS. Les journaux confirment les régressions QA443 et QA444, puis la restauration effective à la baseline 0 et l'absence de ressources QA266 résiduelles.
+- CodeQL [#1836](https://github.com/meridane/QimaTrade-MVP/actions/runs/45472250028) : SUCCESS.
+- Le statut Vercel du HEAD est FAILURE avec la cible \`upgradeToPro=build-rate-limit\`. Il s'agit d'une limite de builds du compte, pas d'un échec de compilation observé ; aucun Preview réussi n'est revendiqué pour ce HEAD.
+- QA444 est clôturé par CI #1908 et CodeQL #1836. Les jobs de simulation de défaillance prepared-transaction en conclusion FAILURE sont intentionnels et leurs jobs d'assertion correspondants sont SUCCESS ; le job SKIPPED est attendu.
+
+## QA445 — validation des identifiants de conteneur PostgreSQL (25 novembre 2026, 05:48 KST)
+
+### Constat
+
+- Les runners de setup et de restauration lisent le résultat de \`docker ps --format '{{.ID}}'\`, puis vérifient qu'exactement un identifiant non vide a été découvert.
+- Ils ne vérifiaient pas encore la forme de l'identifiant avant de le transmettre à \`docker exec\`. Une sortie unique mal formée ou commençant par un tiret pouvait donc atteindre la frontière d'appel Docker et échouer plus tard, après des contrôles supplémentaires.
+- Il s'agit d'un durcissement du contrat des scripts CI et de leur diagnostic ; aucun incident ni vulnérabilité exploitable en production n'est établi.
+
+### Modification
+
+- \`tests/sql/enable-prepared-transactions-config.sh\` et \`tests/sql/restore-prepared-transactions-config.sh\` exigent maintenant un identifiant hexadécimal minuscule de 12 à 64 caractères (\`^[0-9a-f]{12,64}$\`) après le contrôle d'unicité et avant toute requête PostgreSQL, readiness probe, RESET ou SET.
+- Le rejet utilise un diagnostic constant et s'arrête avant toute opération de base ou de configuration.
+- Les tests setup et restore couvrent chacun sept sorties invalides : valeur de type option/flag (\`--help\`), caractère non hexadécimal, identifiant trop court, identifiant trop long, majuscules, espace final et CR.
+- Chaque scénario vérifie le code de sortie 1, le diagnostic exact sur une ligne, l'absence de marqueur injecté et l'absence d'appel psql/readiness/SET/RESET/GITHUB_OUTPUT après le rejet.
+- Les fixtures d'intégration de restauration utilisent maintenant un identifiant Docker valide de 12 caractères hexadécimaux minuscules.
+- Aucun changement du workflow CI n'est nécessaire : les tests setup, restore et always-cleanup sont déjà exécutés par les jobs existants.
+
+### Publication et validation
+
+- Branche de travail : \`work/qima-prepared-container-id-guard-qa445-20261125-0548\`, créée depuis le HEAD PR \`8192542b990b631d115feb74e1868fdf70023dbe\`.
+- Le diff code/test comprend six fichiers ; huit commits ont été créés sur la branche de travail après deux reconstructions des fixtures afin d'éviter tout caractère CR littéral dans les fichiers de test.
+- Le fast-forward vers la branche PR a été effectué avec contrôle du SHA attendu. Le HEAD code/test publié est \`1001ff1c3d5b07709cb7869fa26282f6ac6d6229\`.
+- Au moment de cette entrée, aucun workflow QIMA CI ou CodeQL n'était encore visible pour le nouveau HEAD. Le statut combiné Vercel reste FAILURE avec la cible build-rate-limit ; aucun résultat de compilation Preview n'est disponible.
+- Aucun test local n'est revendiqué. La validation fonctionnelle de QA445 est en attente du nouveau cycle GitHub Actions.
+
+### Périmètre
+
+- Aucun SQL de migration, aucune donnée Supabase Production, aucun secret, grant, policy RLS persistante ou configuration PostgreSQL Production modifié.
+- Aucun déploiement Production, merge, force-push ou changement des protections GitHub.
+- Les tests à mocks caractérisent le comportement des runners CI ; ils ne démontrent pas une vulnérabilité exploitable en production.
