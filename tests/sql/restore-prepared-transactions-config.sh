@@ -117,6 +117,11 @@ else
   exit "$prepared_status"
 fi
 
+if [[ ! "$prepared_count" =~ ^[0-9]+$ ]]; then
+  echo "::error::PostgreSQL returned an invalid QA266 prepared-transaction count; restoration is not confirmed." >&2
+  exit 1
+fi
+
 if database_count="$("$REAL_PSQL" "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -Atqc \
   "SELECT count(*) FROM pg_database WHERE datname = 'qima_message_migration_test'")"; then
   :
@@ -126,8 +131,13 @@ else
   exit "$database_status"
 fi
 
+if [[ ! "$database_count" =~ ^[0-9]+$ ]]; then
+  echo "::error::PostgreSQL returned an invalid disposable migration database count; restoration is not confirmed." >&2
+  exit 1
+fi
+
 if [[ "$prepared_count" != "0" || "$database_count" != "0" ]]; then
-  echo "::error::PostgreSQL configuration was restored, but disposable QA266 resources remain (prepared=$prepared_count database=$database_count)." >&2
+  echo "::error::PostgreSQL configuration was restored, but disposable QA266 resources remain; restoration is not confirmed." >&2
   exit 1
 fi
 
