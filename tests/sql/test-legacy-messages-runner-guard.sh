@@ -211,7 +211,7 @@ mkdir -p "$ASSERTION_MOCK_BIN"
 cat > "$ASSERTION_MOCK_BIN/psql" <<'PSQL'
 #!/usr/bin/env bash
 set -u
-printf '%s\n' "$*" >> "$MOCK_ASSERT_PSQL_CALLS"
+printf '%s\n' "$@" >> "$MOCK_ASSERT_PSQL_CALLS"
 printf '%s\n' "${MOCK_DATABASE_COUNT:-0}"
 exit "${MOCK_PSQL_STATUS:-0}"
 PSQL
@@ -248,8 +248,38 @@ run_absence_assertion_case() {
   fi
 }
 
+# Verify argument boundaries, order, and single-call behavior without printing the URL.
+assert_exact_psql_argv() {
+  local scenario="$1"
+  local expected_url="$2"
+  local -a expected_args=(
+    "$expected_url"
+    "-X"
+    "-v"
+    "ON_ERROR_STOP=1"
+    "-Atqc"
+    "SELECT count(*) FROM pg_database WHERE datname = 'qima_message_migration_test'"
+  )
+  local -a actual_args=()
+  mapfile -t actual_args < "$ASSERTION_CALLS"
+
+  if [[ "${#actual_args[@]}" -ne "${#expected_args[@]}" ]]; then
+    echo "ERROR: $scenario expected one psql call with six arguments; received ${#actual_args[@]} recorded arguments." >&2
+    exit 1
+  fi
+
+  local index
+  for index in "${!expected_args[@]}"; do
+    if [[ "${actual_args[$index]}" != "${expected_args[$index]}" ]]; then
+      echo "ERROR: $scenario psql argument $((index + 1)) did not match the expected contract." >&2
+      exit 1
+    fi
+  done
+}
+
 # A zero-row result confirms absence; the query must inspect pg_database.
 run_absence_assertion_case database-absent 0 0 0
+assert_exact_psql_argv database-absent "postgresql://postgres:postgres@localhost:5432/qima_test"
 if ! grep -Fq "is absent after the migration runner EXIT trap" "$OUTPUT"; then
   echo "ERROR: absent database was not positively reported" >&2
   cat "$OUTPUT" >&2
@@ -263,6 +293,7 @@ fi
 
 # A remaining database must fail the post-run assertion.
 run_absence_assertion_case database-still-exists 1 0 1
+assert_exact_psql_argv database-still-exists "postgresql://postgres:postgres@localhost:5432/qima_test"
 if ! grep -Fq "still exists after the runner completed" "$OUTPUT"; then
   echo "ERROR: a remaining migration database was not reported" >&2
   cat "$OUTPUT" >&2
@@ -271,10 +302,13 @@ fi
 
 # A PostgreSQL inspection error must propagate instead of being treated as absence.
 run_absence_assertion_case postgres-query-fails 0 91 91
+assert_exact_psql_argv postgres-query-fails "postgresql://postgres:postgres@localhost:5432/qima_test"
 
 # All supported loopback spellings must reach only the inert psql stub.
 run_absence_assertion_case database-absent-ipv4 0 0 0 "postgresql://postgres:postgres@127.0.0.1:5432/qima_test"
+assert_exact_psql_argv database-absent-ipv4 "postgresql://postgres:postgres@127.0.0.1:5432/qima_test"
 run_absence_assertion_case database-absent-ipv6 0 0 0 "postgresql://postgres:postgres@[::1]:5432/qima_test"
+assert_exact_psql_argv database-absent-ipv6 "postgresql://postgres:postgres@[::1]:5432/qima_test"
 
 # Every non-allowlisted destination must be rejected before the psql stub.
 unsafe_assertion_urls=(
