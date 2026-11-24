@@ -327,6 +327,11 @@ unsafe_assertion_urls=(
   $'postgresql://postgres:postgres@localhost:5432/qima_test\r'
   $'postgresql://postgres:postgres@localhost:5432/qima_test\t'
   $'postgresql://postgres:postgres@localhost:5432/qima_test\r\nqa349-injected'
+  # QA438: control characters inside the username/password must fail before psql.
+  $'postgresql://post\nqa438-injected:postgres@localhost:5432/qima_test'
+  $'postgresql://postgres:post\rqa438-injected@localhost:5432/qima_test'
+  $'postgresql://postgres:post\tqa438-injected@localhost:5432/qima_test'
+  $'postgresql://post\001qa438-injected:postgres@localhost:5432/qima_test'
 )
 
 for unsafe_url in "${unsafe_assertion_urls[@]}"; do
@@ -346,7 +351,7 @@ for unsafe_url in "${unsafe_assertion_urls[@]}"; do
     cat "$OUTPUT" >&2
     exit 1
   fi
-  if LC_ALL=C grep -q $'\r' "$OUTPUT" || LC_ALL=C grep -q $'\t' "$OUTPUT" || [[ "$(wc -l < "$OUTPUT")" -ne 1 ]] || grep -Fq "qa349-injected" "$OUTPUT"; then
+  if LC_ALL=C grep -q '[[:cntrl:]]' "$OUTPUT" || [[ "$(wc -l < "$OUTPUT")" -ne 1 ]] || grep -Fq "qa349-injected" "$OUTPUT" || grep -Fq "qa438-injected" "$OUTPUT"; then
     echo "ERROR: post-run assertion refusal output leaked control characters or payload content." >&2
     cat "$OUTPUT" >&2
     exit 1
