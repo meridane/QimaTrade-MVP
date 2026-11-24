@@ -1,6 +1,6 @@
 # QIMA Trade — Registre des fonctionnalités V1 et audit de départ
 
-Dernière vérification : 19 novembre 2026 (KST)
+Dernière vérification : 24 novembre 2026 (KST)
 Dépôt : meridane/QimaTrade-MVP — branche fix/create-offer-status-contract (PR #26, brouillon)
 Projet Supabase : `QIMA` (`yyulzlnrfcbaxovzjbnh`)
 
@@ -14651,3 +14651,31 @@ La revue croisée des scripts de garde-fou PostgreSQL a révélé le même défa
 - Le run CI #1896 a été lancé sur le commit intermédiaire `f49534ccb08ab14b02dd54722593c8ec01f3eaf0`. Au moment du correctif, ses jobs Verify/PostgreSQL étaient encore en cours avant l'étape QA437 setup/restore ; aucun résultat de validation QA437 ne lui est attribué. Le nouveau HEAD déclenche un cycle complet distinct.
 - La validation QA437 reste **EN ATTENTE** du nouveau cycle GitHub Actions.
 
+
+ 
+---
+
+## QA438 — garde-fou des caractères de contrôle pour l'assertion de nettoyage legacy
+
+### État de départ vérifié — 24 novembre 2026, 22:25 KST
+
+- PR #26 : OPEN, DRAFT, non fusionnée, mergeable=true, branche fix/create-offer-status-contract, base main, HEAD ea8fd384e6b4fae8f75f7a89269912415034a5c5, 2 382 commits devant main, 0 derrière, 297 fichiers modifiés.
+- CI [#1897](https://github.com/meridane/QimaTrade-MVP/actions/runs/45398901564) : SUCCESS. Verify 423/423 Playwright, npm audit, TypeScript, build Next.js et Chromium SUCCESS ; PostgreSQL 16 et PostgreSQL 17.6 SUCCESS.
+- Le journal PostgreSQL 16 confirme QA437 setup/restore, QA262 (11 URL interdites), les régressions RLS legacy, les assertions de nettoyage QA263–QA265 et la restauration de configuration QA267. CodeQL [#1825](https://github.com/meridane/QimaTrade-MVP/actions/runs/45398901655) SUCCESS ; statut Vercel du HEAD SUCCESS.
+- Le helper tests/sql/assert-legacy-migration-database-absent.sh est une assertion en lecture seule. Son allowlist [^@]+ acceptait les caractères de contrôle dans le userinfo, alors que les contrôles existants couvraient surtout le chemin de la base.
+
+### Modification QA438
+
+- Ajout d'un rejet des caractères de contrôle via LC_ALL=C grep -zq '[[:cntrl:]]' après la vérification requise de DATABASE_URL et avant l'allowlist/connexion.
+- Diagnostic générique : aucune URL, aucun identifiant ni payload n'est affiché ; code de sortie attendu 2 ; aucun appel psql.
+- Extension de unsafe_assertion_urls de 11 à 15 cas avec LF dans username, CR/TAB dans password et SOH dans username.
+- Renforcement de l'assertion de diagnostic : aucune classe [[:cntrl:]], une seule ligne, aucun marqueur qa349-injected ou qa438-injected.
+- Les cas unset/empty, les trois formes loopback autorisées, l'ordre exact des six arguments psql, la propagation d'erreur PostgreSQL et les postconditions absent/présent sont conservés.
+- Le test est déjà exécuté par tests/sql/test-legacy-messages-runner-guard.sh, lui-même inclus dans le job PostgreSQL 16 existant ; aucun changement de workflow n'est requis.
+
+### Validation du nouveau HEAD
+
+- QA438 : EN ATTENTE de l'exécution GitHub Actions après publication. Aucun résultat CI antérieur n'est attribué aux quatre nouveaux cas.
+- Aucun test local complet n'a été exécuté ; le contrôle final est confié au test existant dans le job PostgreSQL 16.
+- Aucun SQL, migration, donnée Supabase Production, secret, grant, policy RLS persistante ou configuration PostgreSQL Production n'a été modifié.
+- Aucun déploiement Production, merge, force-push ou changement de protection. Les tests synthétiques caractérisent le garde-fou du helper et ne démontrent pas une vulnérabilité exploitable en production.
