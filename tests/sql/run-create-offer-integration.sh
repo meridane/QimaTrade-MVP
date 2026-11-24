@@ -3,6 +3,13 @@ set -euo pipefail
 
 : "${DATABASE_URL:?DATABASE_URL must point to a disposable PostgreSQL database}"
 
+# Reject control characters across the complete URI, including username and
+# password components, before the loopback allowlist or any psql invocation.
+if printf '%s' "$DATABASE_URL" | LC_ALL=C grep -zq '[[:cntrl:]]'; then
+  echo "::error::Refusing CREATE_OFFER integration setup: DATABASE_URL must not contain control characters; no database connection was attempted." >&2
+  exit 2
+fi
+
 # This runner applies fixture DDL and branch migrations directly to DATABASE_URL.
 # Fail closed before psql unless it is the dedicated loopback qima_test service.
 if [[ ! "$DATABASE_URL" =~ ^postgres(ql)?://[^@]+@(localhost|127\.0\.0\.1|\[::1\]):5432/qima_test$ ]]; then
