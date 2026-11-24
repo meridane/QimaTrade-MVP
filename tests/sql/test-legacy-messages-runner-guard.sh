@@ -62,7 +62,7 @@ for unsafe_url in "${unsafe_urls[@]}"; do
     cat "$OUTPUT" >&2
     exit 1
   fi
-if LC_ALL=C grep -q '[[:cntrl:]]' "$OUTPUT" || [[ "$(wc -l < "$OUTPUT")" -ne 1 ]]; then
+    if LC_ALL=C grep -q '[[:cntrl:]]' "$OUTPUT" || [[ "$(wc -l < "$OUTPUT")" -ne 1 ]]; then
       echo "ERROR: legacy migration runner refusal output was not a single control-character-free diagnostic line." >&2
       cat "$OUTPUT" >&2
       exit 1
