@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 VALIDATOR="$SCRIPT_DIR/assert-postgres-17-6-version.sh"
 
 if [[ ! -f "$VALIDATOR" ]]; then
@@ -27,15 +27,38 @@ assert_rejected() {
   fi
 }
 
+assert_rejected_without_reflection() {
+  local label="$1"
+  local value="$2"
+  local output
+  local status=0
+  local expected="::error::Expected numeric PostgreSQL server_version_num=170006; received a non-numeric value."
+
+  if output="$(bash "$VALIDATOR" "$value" 2>&1)"; then
+    status=0
+  else
+    status=$?
+  fi
+
+  if [[ "$status" -ne 1 || "$output" != "$expected" ]]; then
+    echo "ERROR: validator did not emit the sanitized one-line diagnostic for: $label (exit $status)." >&2
+    exit 1
+  fi
+}
+
 assert_rejected "PostgreSQL 17.5" 170005
 assert_rejected "PostgreSQL 17.7" 170007
 assert_rejected "PostgreSQL 17.11" 170011
 assert_rejected "PostgreSQL 16.6" 160006
 assert_rejected "PostgreSQL 18.0" 180000
 assert_rejected "human-readable version" "17.6"
-assert_rejected "non-numeric server value" "not-a-version"
+assert_rejected_without_reflection "non-numeric server value" "not-a-version"
+assert_rejected_without_reflection "LF in server value" $'not-a-version\nqa439-injected'
+assert_rejected_without_reflection "CR in server value" $'not-a-version\rqa439-injected'
+assert_rejected_without_reflection "TAB in server value" $'not-a-version\tqa439-injected'
+assert_rejected_without_reflection "SOH in server value" $'not-a-version\x01qa439-injected'
 assert_rejected "empty server value" ""
 assert_rejected "missing server value"
 assert_rejected "extra positional argument" 170006 unexpected
 
-echo "PostgreSQL 17.6 version guard regression PASS: exact 170006 accepted; 10 invalid/missing/arity cases rejected."
+echo "PostgreSQL 17.6 version guard regression PASS: exact 170006 accepted; 14 invalid/missing/arity cases rejected; non-numeric diagnostics sanitized."
