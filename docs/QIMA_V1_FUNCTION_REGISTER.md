@@ -14780,7 +14780,7 @@ La revue croisée des scripts de garde-fou PostgreSQL a révélé le même défa
 - Le diagnostic de baseline non-pristine est désormais constant et tient sur une ligne ; la valeur reçue n'est plus réfléchie.
 - `tests/sql/test-prepared-transactions-config-setup.sh` ajoute six cas : texte inattendu, LF, CR, TAB, SOH et valeur numérique de 512 chiffres.
 - Chaque cas exige le code de sortie 1, le diagnostic exact, une seule ligne sans caractère de contrôle ni marqueur injecté, exactement les événements `docker-ps` puis `psql-show-1`, aucun marqueur `GITHUB_OUTPUT` et aucune commande SET/restart.
-- Le baseline valide `0`, le cas non-pristine `5`, les erreurs SHOW, les refus d'URL, la persistance de l'intention de restauration et les tests de cleanup existants restent couverts.
+- Le baseline valide `0`, le cas non-pristine `5`, les erreurs SHOW, les refus d'URL, la persistance de l'intention de restauration et les tests de cleanup existants restent couverts ; l'assertion QA276 attend désormais le diagnostic constant.
 - Le workflow existant exécute déjà le test de setup dans le job PostgreSQL 16 ; aucun changement de workflow n'est nécessaire.
 
 ### Validation
