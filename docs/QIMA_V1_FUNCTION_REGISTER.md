@@ -14834,3 +14834,12 @@ La revue croisée des scripts de garde-fou PostgreSQL a révélé le même défa
 
 - Aucun SQL de migration, aucune donnée Supabase Production, aucun secret, grant, policy RLS persistante ou paramètre PostgreSQL Production modifié.
 - Aucun déploiement Production, merge, force-push ou changement des règles de protection.
+
+
+### Suivi post-push — 25 novembre 2026, 02:35 KST
+
+- Le code et les tests QA442 ont été fast-forwardés sur la branche PR ; commit de code/test c1fa0eaa189b90da8eaa4bea42febb62e5f8ddb4, puis commit documentaire de référence cf04bbbaa7fc9527f365080cef2def4f0166aef5.
+- QIMA CI [#1903](https://github.com/meridane/QimaTrade-MVP/actions/runs/45449991168) est **IN PROGRESS**. Dans Verify, npm audit, TypeScript et build Next.js sont **SUCCESS** ; Chromium a réussi et Playwright est **IN PROGRESS**. PostgreSQL 16 et 17.6 exécutent leurs régressions d'intégration ; l'étape dédiée « Verify prepared-transaction configuration restoration guard » n'a pas encore commencé au dernier contrôle.
+- CodeQL [#1831](https://github.com/meridane/QimaTrade-MVP/actions/runs/45449991116) : **SUCCESS**.
+- Vercel du HEAD reste **failure** avec upgradeToPro=build-rate-limit, limite de builds du compte. Ce statut n'est pas assimilé à un échec de compilation.
+- QA442 n'est pas encore déclaré validé : les résultats complets du test de restauration et des deux jobs PostgreSQL restent en attente. Aucun résultat du parent CI #1902 n'est attribué au nouveau code.
