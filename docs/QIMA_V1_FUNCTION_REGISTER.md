@@ -14843,3 +14843,12 @@ La revue croisée des scripts de garde-fou PostgreSQL a révélé le même défa
 - CodeQL [#1831](https://github.com/meridane/QimaTrade-MVP/actions/runs/45449991116) : **SUCCESS**.
 - Vercel du HEAD reste **failure** avec upgradeToPro=build-rate-limit, limite de builds du compte. Ce statut n'est pas assimilé à un échec de compilation.
 - QA442 n'est pas encore déclaré validé : les résultats complets du test de restauration et des deux jobs PostgreSQL restent en attente. Aucun résultat du parent CI #1902 n'est attribué au nouveau code.
+
+
+### Actualisation des contrôles — 25 novembre 2026, 02:37 KST
+
+- QIMA CI [#1903](https://github.com/meridane/QimaTrade-MVP/actions/runs/45449991168), job Verify : **SUCCESS**. npm audit, TypeScript, build Next.js, Chromium et Playwright sont réussis ; le journal Playwright confirme **423 passed (39,5 s)**. Le fixture QIMA security-contract est également terminé avec succès.
+- CodeQL [#1831](https://github.com/meridane/QimaTrade-MVP/actions/runs/45449991116) : **SUCCESS**.
+- PostgreSQL 16 et PostgreSQL 17.6 restent **IN PROGRESS**, tous deux à la caractérisation des privilèges d'écriture du runner CREATE_OFFER. Dans PostgreSQL 16, l'étape QA442 « Verify prepared-transaction configuration restoration guard » et l'étape de restauration finale sont encore **PENDING** ; aucune validation QA442 complète n'est anticipée.
+- Les deux jobs de simulation prepared-transaction terminés en **failure** sont les scénarios négatifs attendus ; leurs jobs d'assertion correspondants sont **SUCCESS**. Le job de scénario skipped est **SKIPPED** comme prévu.
+- Le statut Vercel du HEAD reste **failure** avec la cible upgradeToPro=build-rate-limit. Aucun résultat de build Preview n'est disponible ; il s'agit d'une limite de quota, pas d'un échec de compilation.
