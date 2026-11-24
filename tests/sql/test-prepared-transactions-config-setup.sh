@@ -177,17 +177,25 @@ for unsafe_url in "${unsafe_setup_urls[@]}"; do
   fi
 done
 
-# An unset destination must also fail closed before Docker, psql, or output writes.
-run_setup 2 env -u DATABASE_URL
-if [[ -s "$EVENTS" ]] || [[ -s "$GITHUB_OUTPUT_FILE" ]] ||
-  ! grep -Fq "Refusing prepared-transaction setup" "$OUTPUT" ||
-  grep -Fq "postgres:postgres" "$OUTPUT"; then
-  echo "ERROR: missing DATABASE_URL was not rejected before external operations and marker publication." >&2
-  cat "$EVENTS" >&2
-  cat "$GITHUB_OUTPUT_FILE" >&2
-  cat "$OUTPUT" >&2
-  exit 1
-fi
+# Unset and explicitly empty destinations must fail closed before Docker,
+# psql, or restoration-marker writes. run_setup enforces the exact URL-guard
+# exit code (2) for both forms.
+assert_rejected_database_url() {
+  local label="$1"
+  shift
+  run_setup 2 "$@"
+  if [[ -s "$EVENTS" ]] || [[ -s "$GITHUB_OUTPUT_FILE" ]] ||
+    ! grep -Fq "Refusing prepared-transaction setup" "$OUTPUT" ||
+    grep -Fq "postgres:postgres" "$OUTPUT"; then
+    echo "ERROR: $label DATABASE_URL was not rejected before external operations and marker publication." >&2
+    cat "$EVENTS" >&2
+    cat "$GITHUB_OUTPUT_FILE" >&2
+    cat "$OUTPUT" >&2
+    exit 1
+  fi
+}
+assert_rejected_database_url "unset" env -u DATABASE_URL
+assert_rejected_database_url "empty" env DATABASE_URL=""
 
 # Success: baseline is captured, restoration intent is persisted, then SET/restart/verify run.
 run_setup 0
@@ -540,4 +548,4 @@ fi
 
 echo "Prepared-transaction setup regression passed: docker ps partial-output failures preserve the exit code; zero/multiple container discovery fails before database access; initial SHOW and non-pristine baseline failures stop before mutation; marker write failures and partial GITHUB_OUTPUT writes stop before mutation with safe always() no-op cleanup; SET, restart, post-restart SHOW and readiness failures preserve the cleanup marker; retry exhaustion is bounded; workflow invokes setup and always() restoration."
 
-echo "QA328 prepared-transaction setup URL guard PASS: 3 supported loopback URLs accepted; ${#unsafe_setup_urls[@]} unsafe URLs and an unset DATABASE_URL rejected before Docker/psql or restoration-marker writes."
+echo "QA328 prepared-transaction setup URL guard PASS: 3 supported loopback URLs accepted; ${#unsafe_setup_urls[@]} unsafe URLs and unset/empty DATABASE_URL rejected before Docker/psql or restoration-marker writes."
