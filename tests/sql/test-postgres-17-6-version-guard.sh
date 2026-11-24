@@ -27,6 +27,25 @@ assert_rejected() {
   fi
 }
 
+assert_rejected_with_constant_numeric_diagnostic() {
+  local label="$1"
+  local value="$2"
+  local output
+  local status=0
+  local expected="::error::Expected PostgreSQL 17.6 (server_version_num=170006); received a different numeric value."
+
+  if output="$(bash "$VALIDATOR" "$value" 2>&1)"; then
+    status=0
+  else
+    status=$?
+  fi
+
+  if [[ "$status" -ne 1 || "$output" != "$expected" ]]; then
+    echo "ERROR: validator did not emit the constant one-line numeric diagnostic for: $label (exit $status)." >&2
+    exit 1
+  fi
+}
+
 assert_rejected_without_reflection() {
   local label="$1"
   local value="$2"
@@ -46,11 +65,14 @@ assert_rejected_without_reflection() {
   fi
 }
 
-assert_rejected "PostgreSQL 17.5" 170005
-assert_rejected "PostgreSQL 17.7" 170007
-assert_rejected "PostgreSQL 17.11" 170011
-assert_rejected "PostgreSQL 16.6" 160006
-assert_rejected "PostgreSQL 18.0" 180000
+assert_rejected_with_constant_numeric_diagnostic "PostgreSQL 17.5" 170005
+assert_rejected_with_constant_numeric_diagnostic "PostgreSQL 17.7" 170007
+assert_rejected_with_constant_numeric_diagnostic "PostgreSQL 17.11" 170011
+assert_rejected_with_constant_numeric_diagnostic "PostgreSQL 16.6" 160006
+assert_rejected_with_constant_numeric_diagnostic "PostgreSQL 18.0" 180000
+long_numeric="$(printf '%512s' '')"
+long_numeric="${long_numeric// /9}"
+assert_rejected_with_constant_numeric_diagnostic "oversized numeric server value" "$long_numeric"
 assert_rejected "human-readable version" "17.6"
 assert_rejected_without_reflection "non-numeric server value" "not-a-version"
 assert_rejected_without_reflection "LF in server value" $'not-a-version\nqa439-injected'
@@ -61,4 +83,4 @@ assert_rejected "empty server value" ""
 assert_rejected "missing server value"
 assert_rejected "extra positional argument" 170006 unexpected
 
-echo "PostgreSQL 17.6 version guard regression PASS: exact 170006 accepted; 14 invalid/missing/arity cases rejected; non-numeric diagnostics sanitized."
+echo "PostgreSQL 17.6 version guard regression PASS: exact 170006 accepted; 15 invalid/missing/arity cases rejected; numeric and non-numeric diagnostics sanitized."
