@@ -95,6 +95,10 @@ for attempt in {1..60}; do
       echo "::error::Could not read max_prepared_transactions after PostgreSQL restart (psql exit $show_status); configuration restoration is not confirmed." >&2
       exit "$show_status"
     fi
+    if [[ ! "$configured" =~ ^[0-9]+$ ]]; then
+      echo "::error::PostgreSQL returned an invalid max_prepared_transactions value after restart; configuration restoration is not confirmed." >&2
+      exit 1
+    fi
     if [[ "$configured" == "$BASELINE" ]]; then
       restored=true
       break
