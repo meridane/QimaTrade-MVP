@@ -3,6 +3,12 @@ set -euo pipefail
 
 : "${DATABASE_URL:?DATABASE_URL must point to the disposable PostgreSQL CI database}"
 
+# Reject control characters in every URI component, including credentials, before the allowlist.
+if printf '%s' "$DATABASE_URL" | LC_ALL=C grep -zq '[[:cntrl:]]'; then
+  echo "::error::Refusing wrapper-owner regression: DATABASE_URL must not contain control characters; no database connection was attempted." >&2
+  exit 2
+fi
+
 # This runner creates and drops dedicated databases and roles. Fail closed
 # unless DATABASE_URL is the exact loopback qima_test service used by CI.
 if [[ ! "$DATABASE_URL" =~ ^postgres(ql)?://[^@]+@(localhost|127\.0\.0\.1|\[::1\]):5432/qima_test$ ]]; then

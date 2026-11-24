@@ -31,6 +31,10 @@ unsafe_urls=(
   $'postgresql://postgres:postgres@localhost:5432/qima_test\r'
   $'postgresql://postgres:postgres@localhost:5432/qima_test\t'
   $'postgresql://postgres:postgres@localhost:5432/qima_test\r\nqa349-injected'
+  $'postgresql://post\nqa350-injectedgres:postgres@localhost:5432/qima_test'
+  $'postgresql://postgres:post\rqa350-injectedgres@localhost:5432/qima_test'
+  $'postgresql://postgres:post\tqa350-injectedgres@localhost:5432/qima_test'
+  $'postgresql://post\001qa350-injectedgres:postgres@localhost:5432/qima_test'
 )
 
 safe_urls=(
@@ -75,12 +79,12 @@ check_runner() {
       cat "$OUTPUT" >&2
       exit 1
     fi
-    if LC_ALL=C grep -q $'\r' "$OUTPUT" || LC_ALL=C grep -q $'\t' "$OUTPUT" || [[ "$(wc -l < "$OUTPUT")" -ne 1 ]]; then
+    if LC_ALL=C grep -q '[[:cntrl:]]' "$OUTPUT" || [[ "$(wc -l < "$OUTPUT")" -ne 1 ]]; then
       echo "ERROR: auxiliary runner refusal output was not a single control-character-free diagnostic line." >&2
       cat "$OUTPUT" >&2
       exit 1
     fi
-    if grep -Fq "qa349-injected" "$OUTPUT"; then
+    if grep -Fq "qa349-injected" "$OUTPUT" || grep -Fq "qa350-injected" "$OUTPUT"; then
       echo "ERROR: auxiliary runner refusal output reflected control-character payload content." >&2
       cat "$OUTPUT" >&2
       exit 1
@@ -136,4 +140,4 @@ check_runner() {
 check_runner "run-create-offer-wrapper-owner-regression.sh" "Refusing wrapper-owner regression"
 check_runner "run-function-execute-acl-regression.sh" "Refusing ACL regression setup"
 
-echo "Auxiliary PostgreSQL runner URL guard regression PASS: 2 runners; ${#unsafe_urls[@]} unsafe URLs and unset/empty DATABASE_URL rejected before psql; 3 supported loopback URLs accepted per runner."
+echo "Auxiliary PostgreSQL runner URL guard regression PASS: 2 runners; ${#unsafe_urls[@]} unsafe URLs (including credential control characters) and unset/empty DATABASE_URL rejected before psql; 3 supported loopback URLs accepted per runner."
