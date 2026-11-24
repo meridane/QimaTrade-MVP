@@ -14852,3 +14852,46 @@ La revue croisée des scripts de garde-fou PostgreSQL a révélé le même défa
 - PostgreSQL 16 et PostgreSQL 17.6 restent **IN PROGRESS**, tous deux à la caractérisation des privilèges d'écriture du runner CREATE_OFFER. Dans PostgreSQL 16, l'étape QA442 « Verify prepared-transaction configuration restoration guard » et l'étape de restauration finale sont encore **PENDING** ; aucune validation QA442 complète n'est anticipée.
 - Les deux jobs de simulation prepared-transaction terminés en **failure** sont les scénarios négatifs attendus ; leurs jobs d'assertion correspondants sont **SUCCESS**. Le job de scénario skipped est **SKIPPED** comme prévu.
 - Le statut Vercel du HEAD reste **failure** avec la cible upgradeToPro=build-rate-limit. Aucun résultat de build Preview n'est disponible ; il s'agit d'une limite de quota, pas d'un échec de compilation.
+
+
+---
+
+## Clôture QA442 — CI #1905 (25 novembre 2026, 03:30 KST)
+
+- HEAD vérifié avant QA443 : `3215eae59021c08040893737ce4cc3f3e2b8be96`, PR #26 **OPEN / DRAFT / non fusionnée**, `mergeable=true`, 2 401 commits devant `main`, 0 derrière, 297 fichiers modifiés.
+- QIMA CI [#1905](https://github.com/meridane/QimaTrade-MVP/actions/runs/45450599863) : **SUCCESS**. Verify, npm audit, TypeScript, build Next.js, Chromium et **423/423 Playwright** réussis ; PostgreSQL 16 et PostgreSQL 17.6 réussis.
+- Dans le job PostgreSQL 16, les étapes « Verify prepared-transaction configuration restoration guard », « Verify prepared-transaction setup records restoration intent before mutation » et « Restore prepared-transaction configuration and verify disposable resources » sont toutes **SUCCESS**. Le journal confirme `QA267 passed` : RESET, redémarrage, retour à la baseline 0 et absence de transaction préparée ou de base temporaire résiduelle.
+- Le job PostgreSQL 17.6 est **SUCCESS** ; les régressions CREATE_OFFER et les contrats wrapper-owner / EXECUTE ACL sont réussis.
+- CodeQL [#1833](https://github.com/meridane/QimaTrade-MVP/actions/runs/45450600077) : **SUCCESS**.
+- Vercel reste en échec de statut avec `upgradeToPro=build-rate-limit`. Il s'agit de la limite de builds du compte, pas d'un échec de compilation observé ; aucun Preview n'est déclaré réussi pour ce HEAD.
+- QA442 est donc **CLÔTURÉ** par CI #1905 et CodeQL #1833. Les deux jobs de simulation prepared-transaction en conclusion `failure` sont les échecs intentionnels attendus ; leurs jobs d'assertion sont **SUCCESS**, et le job `skipped` est attendu.
+
+## QA443 — validation du résultat SHOW après restauration PostgreSQL (25 novembre 2026, 03:30 KST)
+
+### Constat
+
+- Après `ALTER SYSTEM RESET` et le redémarrage du service, `restore-prepared-transactions-config.sh` compare la sortie de `SHOW max_prepared_transactions` à la baseline `0`.
+- La valeur n'est pas réimprimée, mais une sortie vide, non numérique ou contenant des caractères de contrôle est actuellement traitée comme une valeur temporairement différente. Le script répète alors jusqu'à 60 tentatives avant d'échouer, au lieu de signaler immédiatement une sortie de protocole invalide.
+- Il s'agit d'une amélioration de diagnostic et de convergence du nettoyage CI ; aucun incident ni vulnérabilité exploitable n'est établi.
+
+### Modification
+
+- Après un `psql SHOW` réussi, le script exige désormais une sortie décimale `^[0-9]+$` avant de comparer la baseline.
+- Une sortie vide/non numérique est rejetée immédiatement avec un diagnostic constant ; aucune valeur reçue n'est reflétée.
+- Le mock du test distingue maintenant une variable `MOCK_RESTORED_VALUE` vide d'une variable absente, afin de couvrir le résultat vide réel.
+- Le test de restauration ajoute six cas : vide, texte non numérique, LF, CR, TAB et SOH. Chaque cas exige le code 1, le diagnostic exact sur une seule ligne, aucune réflexion de marqueur, aucun délai/retry, et aucun contrôle des ressources résiduelles ni message de succès.
+- Le chemin valide `0`, la convergence transitoire depuis une valeur numérique différente, et les erreurs psql existantes restent inchangés.
+- Le workflow existant exécute déjà `tests/sql/test-prepared-transactions-config-restore.sh` dans le job PostgreSQL 16 ; aucun changement de workflow n'est requis.
+
+### Publication et validation
+
+- Branche de travail : `work/qima-restore-show-postcondition-qa443-20261125-0330`, créée depuis le HEAD PR `3215eae59021c08040893737ce4cc3f3e2b8be96`.
+- Les changements code/test sont publiés sur cette branche ; la validation GitHub Actions sera déclenchée après le fast-forward vers la branche PR.
+- QA443 reste **EN ATTENTE** du test de restauration PostgreSQL 16 et de la validation globale CI/CodeQL sur le nouveau HEAD. Aucun résultat de CI #1905 ou CodeQL #1833 n'est attribué à QA443.
+- Le statut Vercel du HEAD de référence reste bloqué par `build-rate-limit` ; aucun Preview du nouveau HEAD n'est anticipé.
+
+### Périmètre
+
+- Aucun SQL de migration, donnée Supabase Production, secret, grant, policy RLS persistante ou paramètre PostgreSQL Production modifié.
+- Aucun déploiement Production, merge, force-push ou changement des protections GitHub.
+- Les tests à mocks caractérisent le comportement du helper CI ; ils ne démontrent pas une vulnérabilité exploitable en production.
