@@ -54,8 +54,8 @@ case "${1-}" in
       echo "Unexpected Docker container discovery arguments." >&2
       exit 89
     fi
-    printf '%s\\n' 0123456789ab
-    printf '%s\\n' docker-ps >> "$MOCK_EVENTS"
+    printf '%s\n' 0123456789ab
+    printf '%s\n' docker-ps >> "$MOCK_EVENTS"
     ;;
   exec)
     if [[ "$#" -ne 11 || "$2" != "0123456789ab" || "$3" != "psql" ||
@@ -65,8 +65,8 @@ case "${1-}" in
       echo "Unexpected Docker exec target or argument contract." >&2
       exit 90
     fi
-    printf '%s\\n' 0 > "$MOCK_STATE_FILE"
-    printf '%s\\n' docker-exec-reset >> "$MOCK_EVENTS"
+    printf '%s\n' 0 > "$MOCK_STATE_FILE"
+    printf '%s\n' docker-exec-reset >> "$MOCK_EVENTS"
     if [[ "${MOCK_RESTORE_EXIT:-0}" != "0" ]]; then
       exit "$MOCK_RESTORE_EXIT"
     fi
@@ -76,7 +76,7 @@ case "${1-}" in
       echo "Unexpected Docker restart target." >&2
       exit 91
     fi
-    printf '%s\\n' docker-restart >> "$MOCK_EVENTS"
+    printf '%s\n' docker-restart >> "$MOCK_EVENTS"
     ;;
   *)
     echo "Unexpected docker invocation." >&2
