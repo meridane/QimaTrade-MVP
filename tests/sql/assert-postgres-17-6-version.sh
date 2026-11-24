@@ -13,7 +13,7 @@ if [[ ! "$version_num" =~ ^[0-9]+$ ]]; then
 fi
 
 if [[ "$version_num" != "170006" ]]; then
-  echo "::error::Expected PostgreSQL 17.6 (server_version_num=170006); received $version_num."
+  echo "::error::Expected PostgreSQL 17.6 (server_version_num=170006); received a different numeric value."
   exit 1
 fi
 
