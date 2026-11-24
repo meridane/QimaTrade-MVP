@@ -19,7 +19,40 @@ exit 99
 PSQL
 chmod +x "$MOCK_BIN/psql"
 
-unsafe_urls=(
+un# Missing and explicitly empty configuration must fail before psql.
+assert_missing_database_url_rejected() {
+  local label="$1"
+  local config_case="$2"
+  local runner_status
+
+  : > "$CALLS"
+  set +e
+  if [[ "$config_case" == "unset" ]]; then
+    PATH="$MOCK_BIN:$PATH" MOCK_PSQL_CALLS="$CALLS" env -u DATABASE_URL \
+      bash "$RUNNER" >"$OUTPUT" 2>&1
+  else
+    PATH="$MOCK_BIN:$PATH" MOCK_PSQL_CALLS="$CALLS" env DATABASE_URL="" \
+      bash "$RUNNER" >"$OUTPUT" 2>&1
+  fi
+  runner_status=$?
+  set -e
+
+  if [[ "$runner_status" -ne 1 ]] ||
+    [[ -s "$CALLS" ]] ||
+    ! grep -Fq "DATABASE_URL must point to a disposable PostgreSQL database" "$OUTPUT" ||
+    grep -Fq "mock psql reached" "$OUTPUT" ||
+    grep -Fq "postgres:postgres" "$OUTPUT"; then
+    echo "ERROR: participant self-enrollment runner did not safely reject a ${label} DATABASE_URL before psql (received $runner_status)." >&2
+    cat "$OUTPUT" >&2
+    cat "$CALLS" >&2
+    exit 1
+  fi
+}
+
+assert_missing_database_url_rejected "unset" "unset"
+assert_missing_database_url_rejected "empty" "empty"
+
+safe_urls=(
   "postgresql://postgres:postgres@db.example:5432/qima_test"
   "postgresql://postgres:postgres@localhost:5432/production"
   "postgresql://postgres:postgres@localhost:5432/qima_test?sslmode=require"
@@ -99,4 +132,4 @@ for safe_url in "${safe_urls[@]}"; do
   fi
 done
 
-echo "Participant self-enrollment runner URL guard regression PASS: ${#unsafe_urls[@]} unsafe URLs rejected before psql; 3 supported loopback URLs accepted."
+echo "Participant self-enrollment runner URL guard regression PASS: ${#unsafe_urls[@]} unsafe URLs plus unset/empty DATABASE_URL rejected before psql; 3 supported loopback URLs accepted."
