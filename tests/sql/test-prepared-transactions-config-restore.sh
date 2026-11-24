@@ -472,6 +472,7 @@ if ! grep -Fq "PostgreSQL did not return to max_prepared_transactions=0" "$OUTPU
 fi
 
 
+
 # QA443: a successful post-restart SHOW must return a decimal integer before it can
 # satisfy the restoration postcondition. Malformed output must fail immediately.
 assert_invalid_restored_configuration_rejected() {
