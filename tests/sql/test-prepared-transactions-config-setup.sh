@@ -265,6 +265,39 @@ if [[ "$(cat "$EVENTS")" != "$expected" ]] ||
   exit 1
 fi
 
+# QA441: a malformed or oversized SHOW result must not be reflected in the setup diagnostic.
+# The baseline is expected to be exactly 0; unexpected server output is reported with a constant line.
+assert_nonpristine_baseline_rejected_without_reflection() {
+  local label="$1"
+  local value="$2"
+  local expected_output="::error::Expected the pristine disposable PostgreSQL max_prepared_transactions baseline 0; received a different value. No configuration change was attempted."
+  run_setup 1 env "MOCK_INITIAL_CONFIGURED_VALUE=$value"
+  local expected_events
+  expected_events="$(printf '%s\n' docker-ps psql-show-1)"
+  if [[ "$(cat "$EVENTS")" != "$expected_events" ]] ||
+    [[ -s "$GITHUB_OUTPUT_FILE" ]] ||
+    [[ "$(cat "$OUTPUT")" != "$expected_output" ]] ||
+    [[ "$(wc -l < "$OUTPUT")" -ne 1 ]] ||
+    LC_ALL=C grep -q '[[:cntrl:]]' "$OUTPUT" ||
+    grep -Fq "qa441-injected" "$OUTPUT" ||
+    grep -Fq "docker-exec-set" "$EVENTS" ||
+    grep -Fq "docker-restart" "$EVENTS"; then
+    echo "ERROR: $label baseline was reflected or setup continued after a non-pristine SHOW result." >&2
+    cat "$EVENTS" >&2
+    cat "$GITHUB_OUTPUT_FILE" >&2
+    cat "$OUTPUT" >&2
+    exit 1
+  fi
+}
+long_baseline="$(printf '9%.0s' {1..512})"
+assert_nonpristine_baseline_rejected_without_reflection "unexpected text" "unexpected"
+assert_nonpristine_baseline_rejected_without_reflection "LF-bearing output" $'0\nqa441-injected'
+assert_nonpristine_baseline_rejected_without_reflection "CR-bearing output" $'0\rqa441-injected'
+assert_nonpristine_baseline_rejected_without_reflection "TAB-bearing output" $'0\tqa441-injected'
+assert_nonpristine_baseline_rejected_without_reflection "SOH-bearing output" $'0\x01qa441-injected'
+assert_nonpristine_baseline_rejected_without_reflection "oversized numeric output" "$long_baseline"
+echo "QA441 baseline diagnostic guard PASS: malformed, control-character and oversized SHOW values were rejected without reflection or configuration mutation."
+
 # The workflow's always() cleanup must remain a no-op when the baseline was
 # readable but did not match the pristine disposable-service contract.
 : > "$EVENTS"
