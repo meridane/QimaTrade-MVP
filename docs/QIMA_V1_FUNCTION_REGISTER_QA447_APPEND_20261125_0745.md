@@ -44,3 +44,14 @@ The same mock is exercised in the normal always-cleanup path and in the intentio
 ## Next action
 
 Inspect the CI run for the QA447 HEAD. Confirm the `Assert prepared-transaction always-cleanup runtime contract` and `Assert prepared-transaction cleanup failures remain blocking` jobs. If the runtime harness fails, inspect the exact mock argument mismatch before changing the script. On success, record the run IDs and conclusions in the next append-only register snapshot.
+
+
+## QA447 follow-up — CI-detected fixture-generation defect
+
+The first QA447 CI attempt on code commit `9d513ed27b253b5742affcdc6ff8313c82612de5` failed in the always-cleanup mock harness before it could publish its cleanup outputs. The job log showed `Unexpected docker invocation.`; the downstream cleanup-contract assertion then correctly rejected the missing `CLEANUP_OUTCOME=success` / `CLEANUP_EXIT_CODE=52` outputs. Audit, TypeScript, build, and browser steps were skipped as a consequence of the earlier Verify failure; this was not an npm or compilation finding.
+
+Root cause: the first generated test-file edit placed a literal `\\n` between a shell comment and the `cat <<'DOCKER'` command, so the heredoc creation command was commented out and the mock body was interpreted by the parent test script. The generated mock also contained over-escaped `printf` format strings. This was a test-fixture construction error, not evidence of an application or production vulnerability.
+
+Correction commit: `ecb2cb8eb44237ee5abdd839edc1d53600a3fe11` (`fix(test): restore QA447 Docker mock heredoc boundaries`). It restores a real line break before the heredoc and the intended single-backslash `printf '%s\\n'` formats. The PR branch was advanced by a one-commit fast-forward from the previous HEAD; no force-push was used.
+
+Validation for the corrected commit was not yet returned at the time of this snapshot. The initial QA447 failure remains recorded as a failure; no passing result is inferred until the corrected HEAD's GitHub Actions run completes.
