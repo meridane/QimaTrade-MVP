@@ -14679,3 +14679,38 @@ La revue croisée des scripts de garde-fou PostgreSQL a révélé le même défa
 - Aucun test local complet n'a été exécuté ; le contrôle final est confié au test existant dans le job PostgreSQL 16.
 - Aucun SQL, migration, donnée Supabase Production, secret, grant, policy RLS persistante ou configuration PostgreSQL Production n'a été modifié.
 - Aucun déploiement Production, merge, force-push ou changement de protection. Les tests synthétiques caractérisent le garde-fou du helper et ne démontrent pas une vulnérabilité exploitable en production.
+
+
+---
+
+## QA439 — diagnostics assainis du garde-fou PostgreSQL 17.6 (24 novembre 2026, 23:45 KST)
+
+### État de référence vérifié avant QA439
+
+- PR #26 : **OPEN / DRAFT / non fusionnée**, mergeable=true, branche fix/create-offer-status-contract, base main, HEAD f596f9442103af5c8fd24d7dc4f8003dbc5ad6c3, 2 385 commits devant main, 0 derrière, 297 fichiers modifiés.
+- QIMA CI #1898 : **SUCCESS**. Verify **SUCCESS**, npm audit, TypeScript, build Next.js, Chromium et **423/423 Playwright (36,3 s)** réussis ; PostgreSQL 16 et PostgreSQL 17.6 **SUCCESS**.
+- Le job PostgreSQL 16 confirme QA438 : l'étape « Verify legacy migration runner rejects unsafe database URLs » est **SUCCESS** ; le journal d'assertion confirme les 15 URL non autorisées, les cas unset/empty, les trois destinations loopback autorisées et l'absence d'appel psql avant rejet. Le nettoyage SQL réel et les tests RLS legacy/participant réussissent également.
+- CodeQL #1826 **SUCCESS** ; le statut Vercel du HEAD est **SUCCESS**.
+- L'audit des scripts shell CI n'a trouvé aucun autre runner PostgreSQL avec une allowlist userinfo non couverte : les scripts de setup/restore, CREATE_OFFER, wrapper-owner, ACL, participant, RLS legacy et assertion de nettoyage ont des garde-fous explicites ; le replay géographique impose l'URL exacte. Le validateur de version PostgreSQL 17.6 est indépendant de DATABASE_URL.
+
+### Constat QA439
+
+- tests/sql/assert-postgres-17-6-version.sh rejette déjà les valeurs server_version_num non numériques, mais son diagnostic réimprimait la valeur reçue entre quotes.
+- Ce champ provient de la sortie de la commande de vérification PostgreSQL. Une valeur mal formée contenant LF/CR/TAB/SOH pouvait donc être reflétée dans le journal GitHub Actions et rendre le diagnostic multiligne.
+- Il s'agit d'une amélioration d'hygiène des diagnostics et de robustesse des tests ; aucun incident ni vulnérabilité exploitable n'est établi.
+
+### Modification QA439
+
+- Le diagnostic de la branche non numérique est maintenant constant : Expected numeric PostgreSQL server_version_num=170006; received a non-numeric value.
+- Aucune valeur d'entrée non numérique n'est réimprimée.
+- tests/sql/test-postgres-17-6-version-guard.sh vérifie exactement ce diagnostic à une seule ligne pour une valeur ordinaire et pour quatre valeurs contenant LF, CR, TAB et SOH ; le marqueur qa439-injected ne peut pas apparaître dans la sortie attendue.
+- Les cinq versions numériques incorrectes, la valeur humaine 17.6, la valeur vide, l'argument absent et l'argument supplémentaire restent couverts.
+- Le nombre de cas négatifs passe de 10 à 14. Le cas valide exact 170006 reste accepté.
+- Le workflow existant exécute déjà test-postgres-17-6-version-guard.sh dans Verify ; aucun changement de workflow n'est requis.
+
+### Validation du nouveau HEAD
+
+- **QA439 : EN ATTENTE** du nouveau cycle GitHub Actions après publication sur la branche PR. Aucun résultat du CI #1898 précédent n'est attribué à cette modification.
+- Aucun test local complet n'a été exécuté dans cette session ; la validation complète est confiée à l'étape Verify existante.
+- Aucun SQL, migration, donnée Supabase Production, secret, grant, policy RLS persistante ou configuration PostgreSQL Production n'a été modifié.
+- Aucun déploiement Production, merge, force-push ou changement des protections GitHub. Ce test synthétique caractérise uniquement le format du diagnostic et ne démontre pas une vulnérabilité exploitable en production.
