@@ -91,6 +91,10 @@ for attempt in {1..60}; do
       echo "::error::Could not verify prepared-transaction setup (psql exit $show_status); restoration remains required." >&2
       exit "$show_status"
     fi
+    if [[ ! "$configured" =~ ^[0-9]+$ ]]; then
+      echo "::error::PostgreSQL returned an invalid max_prepared_transactions value after setup restart; restoration remains required." >&2
+      exit 1
+    fi
     if [[ "$configured" == "10" ]]; then
       echo "Disposable PostgreSQL service restarted with max_prepared_transactions=10 (captured baseline=$baseline)."
       exit 0
