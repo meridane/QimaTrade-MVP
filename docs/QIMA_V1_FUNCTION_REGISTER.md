@@ -14755,3 +14755,42 @@ La revue croisée des scripts de garde-fou PostgreSQL a révélé le même défa
 - Aucun SQL, migration, donnée Supabase Production, secret, grant, policy RLS persistante ou configuration PostgreSQL Production modifié.
 - Aucun déploiement Production, merge, force-push ou changement des règles de protection.
 - Cette régression caractérise uniquement le diagnostic du validateur de version PostgreSQL ; elle ne démontre pas une vulnérabilité exploitable en production.
+
+
+---
+
+## QA441 — diagnostics constants pour un baseline PostgreSQL inattendu (25 novembre 2026, 01:28 KST)
+
+### État vérifié avant QA441
+
+- PR #26 ouverte, branche `fix/create-offer-status-contract`, base `main`, 2 391 commits devant `main`, 0 derrière ; 297 fichiers modifiés. HEAD de référence : `3eff732b804feb550016ffb0323f5364b2801021`.
+- QIMA CI #1900 : SUCCESS. Le job Verify est réussi, avec npm audit, TypeScript, build Next.js, Chromium et 423/423 Playwright ; PostgreSQL 16 et PostgreSQL 17.6 ont réussi.
+- Les étapes PostgreSQL de #1900 couvrent les runners CREATE_OFFER, wrapper-owner / EXECUTE ACL, RLS legacy et participant, le nettoyage des migrations temporaires, ainsi que la configuration/restauration des prepared transactions.
+- CodeQL #1828 : SUCCESS. Statut Vercel du HEAD de référence : SUCCESS.
+- QA440 est clôturé : le validateur PostgreSQL 17.6 accepte uniquement `170006` et rejette les 15 cas négatifs.
+
+### Constat QA441
+
+- `tests/sql/enable-prepared-transactions-config.sh` rejette un baseline `max_prepared_transactions` différent de `0` avant de publier l'intention de restauration ou de modifier la configuration.
+- Son diagnostic réimprimait cependant la sortie brute de `SHOW max_prepared_transactions`. Le résultat attendu est numérique, mais une sortie inattendue du client ou du stub pouvait ajouter plusieurs lignes ou un contenu volumineux au journal.
+- Il s'agit d'un durcissement de diagnostic et de régression du harness ; aucun incident ni vulnérabilité exploitable n'est établi.
+
+### Modification QA441
+
+- Le diagnostic de baseline non-pristine est désormais constant et tient sur une ligne ; la valeur reçue n'est plus réfléchie.
+- `tests/sql/test-prepared-transactions-config-setup.sh` ajoute six cas : texte inattendu, LF, CR, TAB, SOH et valeur numérique de 512 chiffres.
+- Chaque cas exige le code de sortie 1, le diagnostic exact, une seule ligne sans caractère de contrôle ni marqueur injecté, exactement les événements `docker-ps` puis `psql-show-1`, aucun marqueur `GITHUB_OUTPUT` et aucune commande SET/restart.
+- Le baseline valide `0`, le cas non-pristine `5`, les erreurs SHOW, les refus d'URL, la persistance de l'intention de restauration et les tests de cleanup existants restent couverts.
+- Le workflow existant exécute déjà le test de setup dans le job PostgreSQL 16 ; aucun changement de workflow n'est nécessaire.
+
+### Validation
+
+- Le contrôle local complet n'a pas été exécuté dans cette session ; la validation sera faite par l'étape GitHub Actions existante sur le nouveau HEAD.
+- Les résultats de CI #1900, CodeQL #1828 et Vercel cités ci-dessus appartiennent au HEAD parent `3eff732b804feb550016ffb0323f5364b2801021` et ne sont pas attribués à QA441.
+- Le nouveau cycle CI doit confirmer l'étape de setup, les deux jobs PostgreSQL, Playwright, audit, TypeScript, build, CodeQL et Preview.
+
+### Périmètre
+
+- Aucun SQL, migration, donnée Supabase Production, secret, grant, policy RLS persistante ou configuration PostgreSQL Production modifié.
+- Aucun déploiement Production, merge, force-push ou changement des protections GitHub.
+- Les tests à mocks caractérisent le comportement du harness ; ils ne prouvent pas une vulnérabilité exploitable en production.
