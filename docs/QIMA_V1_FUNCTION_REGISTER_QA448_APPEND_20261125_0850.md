@@ -71,3 +71,14 @@ No production PostgreSQL service is contacted by this mock contract. No workflow
 - Vercel Preview for code commit `eaf7e2d` is **SUCCESS** ([Preview](https://vercel.com/bmk1/qimatrade-mvp/dnEe8zJh3vGNMFzRjQraGEF4q2vp)).
 - The documentation HEAD `3600667838bf035450b9b5f64b663f08bf376311` has QIMA CI [#1921](https://github.com/meridane/QimaTrade-MVP/actions/runs/45513581691) **PENDING**, CodeQL [#1848](https://github.com/meridane/QimaTrade-MVP/actions/runs/45513581687) **IN PROGRESS**, and Vercel Preview **PENDING**. These are documentation-HEAD checks and do not replace the code/test validation on #1920.
 - No local Bash test execution is claimed. QA448 is **partially validated** by the successful runtime harness and its assertion jobs; full CI/CodeQL closure remains pending.
+
+
+## Verification refresh — 2026-11-25, 08:51 KST
+
+- QIMA CI [#1920](https://github.com/meridane/QimaTrade-MVP/actions/runs/45513529795) Verify job completed **SUCCESS**. It passed the prepared-transaction workflow wiring and cleanup assertion checks, npm audit, TypeScript, Next.js production build, Chromium installation, **423/423 Playwright tests**, and the isolated QIMA security-contract fixture.
+- Both QA448 always-cleanup runtime paths remain confirmed: the normal runtime job's restore-script step and its dedicated blocking assertion job completed SUCCESS; the simulated RESET-failure job returned the expected code 52, and its dedicated blocking assertion job completed SUCCESS. The two runtime jobs' overall FAILURE conclusions are deliberate because their setup/failure scenarios exit 47/52. The skipped-result job is deliberately SKIPPED and its blocking assertion passed.
+- PostgreSQL 16 and PostgreSQL 17.6 CREATE_OFFER integration jobs remain **IN PROGRESS**. Their broad integration/replay and bootstrap characterization steps have passed so far. PostgreSQL 16 had not yet reached the prepared-transaction setup/restore steps at this poll; no PostgreSQL cleanup result is inferred from the runtime mocks.
+- CodeQL [#1847](https://github.com/meridane/QimaTrade-MVP/actions/runs/45513529885) completed **SUCCESS** on code commit `eaf7e2d`.
+- Vercel Preview for code commit `eaf7e2d` is **SUCCESS** ([Preview](https://vercel.com/bmk1/qimatrade-mvp/dnEe8zJh3vGNMFzRjQraGEF4q2vp)).
+- On documentation commit `490f18660d50d2f85054738fcd988401860b20fc`, QIMA CI [#1922](https://github.com/meridane/QimaTrade-MVP/actions/runs/45513728569) is **PENDING**, CodeQL [#1849](https://github.com/meridane/QimaTrade-MVP/actions/runs/45513728816) is **IN PROGRESS**, and Vercel is **RATE-LIMITED** (`upgradeToPro=build-rate-limit`). The rate limit is not a compilation result.
+- QA448 is **partially validated**: its targeted runtime harness and all Verify checks are successful, but the full CI #1920 run is not closed until the PostgreSQL integration jobs finish. No local Bash test execution is claimed.
