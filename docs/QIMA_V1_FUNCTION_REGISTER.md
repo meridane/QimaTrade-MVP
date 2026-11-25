@@ -15111,3 +15111,13 @@ La revue croisée des scripts de garde-fou PostgreSQL a révélé le même défa
 - PostgreSQL 16 and PostgreSQL 17.6 jobs remain **IN PROGRESS**. Their main CREATE_OFFER integration/concurrency steps have succeeded; the full replay, RLS/ACL, prepared-transaction restoration, and cleanup sequences have not yet fully closed. No final database-job result is claimed.
 - The QA457 runtime log and both dedicated cleanup assertions are **SUCCESS**. The injected setup failure (exit 47) and cleanup failure (exit 52) jobs intentionally conclude **FAILURE**; their assertions confirm the failures remain blocking. The skipped-result job is intentionally **SKIPPED**.
 - No final QIMA CI #1953 result or final Playwright total is claimed at this poll. No local Bash execution is claimed.
+
+
+### QA457 Verify closeout — 2026-11-25 (KST)
+
+- In QIMA CI [#1953](https://github.com/meridane/QimaTrade-MVP/actions/runs/45568740935), the Verify job completed **SUCCESS**. Dependency audit, TypeScript, Next.js production build, Chromium installation, browser smoke tests, and the isolated QIMA security-contract fixture all completed successfully. The Playwright log reports **423 passed (33.8s)**.
+- The QA457 runtime log reports both negative paths passed: invalid `SHOW` output exits 1 with the invalid-value diagnostic; psql exit 73 is preserved with the read-failure diagnostic. Both paths stop before prepared-transaction/database resource postconditions and do not emit the QA267 success marker.
+- CodeQL [#1880](https://github.com/meridane/QimaTrade-MVP/actions/runs/45568741010) completed **SUCCESS**. Vercel Preview for code/test commit `60cee849` completed **SUCCESS**.
+- PostgreSQL 16 and PostgreSQL 17.6 integration jobs remain **IN PROGRESS** at this poll; prepared-transaction configuration restoration and final disposable-resource postconditions have not yet completed. CI #1953 is therefore not globally closed.
+- The two injected-failure jobs intentionally conclude **FAILURE** for setup exit 47 and cleanup exit 52; their dedicated assertions are **SUCCESS**. The skipped-result job is intentionally **SKIPPED** with its assertion **SUCCESS**.
+- No production vulnerability is inferred from these inert mocks or synthetic failure cases. No local Bash run is claimed.
