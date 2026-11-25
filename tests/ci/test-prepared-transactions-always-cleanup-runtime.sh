@@ -59,7 +59,11 @@ case "${1-}" in
       echo "mock Docker discovery failure" >&2
       exit "$MOCK_DOCKER_PS_EXIT"
     fi
-    printf '%s\n' 0123456789ab
+    if [[ "${MOCK_DOCKER_PS_OUTPUT+x}" == "x" ]]; then
+      printf '%s' "$MOCK_DOCKER_PS_OUTPUT"
+    else
+      printf '%s\\n' 0123456789ab
+    fi
     ;;
   exec)
     if [[ "$#" -ne 11 || "$2" != "0123456789ab" || "$3" != "psql" ||
@@ -832,7 +836,75 @@ if [[ "$docker_discovery_failure_status" -ne 78 ]] ||
   cat "$DOCKER_DISCOVERY_FAILURE_LOG" >&2
   exit 1
 fi
+
 echo "QA462 Docker-discovery failure guard passed: docker ps exit 78 was preserved and all readiness, configuration, restart, and SQL operations were blocked."
+
+# QA464: successful Docker discovery must still fail closed unless exactly one
+# valid PostgreSQL service container ID is returned.
+run_docker_discovery_output_case() {
+  local output="$1"
+  local expected_diagnostic="$2"
+  local label="$3"
+  local failure_events="$TEMP_DIR/docker-discovery-${label}-events.log"
+  local failure_log="$TEMP_DIR/docker-discovery-${label}.log"
+  local expected_failure_events="$TEMP_DIR/docker-discovery-${label}-expected.log"
+  local failure_status=0
+
+  : > "$failure_events"
+  printf '10\\n' > "$STATE_FILE"
+  if PATH="$MOCK_BIN:$PATH" MOCK_EVENTS="$failure_events" MOCK_STATE_FILE="$STATE_FILE" \\
+    MOCK_RESTORE_EXIT=0 MOCK_DOCKER_PS_EXIT=0 MOCK_DOCKER_PS_OUTPUT="$output" \\
+    MOCK_READY_MODE=ready \\
+    DATABASE_URL="postgresql://postgres:postgres@localhost:5432/qima_test" \\
+    RESTORE_REQUIRED="$RESTORE_REQUIRED" \\
+    BASELINE_MAX_PREPARED_TRANSACTIONS="$BASELINE_MAX_PREPARED_TRANSACTIONS" \\
+    bash "$RESTORE_SCRIPT" > "$failure_log" 2>&1; then
+    failure_status=0
+  else
+    failure_status=$?
+  fi
+
+  printf '%s\\n' docker-ps > "$expected_failure_events"
+  if [[ "$failure_status" -ne 1 ]] || \\
+    [[ "$(cat "$failure_events")" != "$(cat "$expected_failure_events")" ]] || \\
+    [[ "$(cat "$STATE_FILE")" != "10" ]] || \\
+    ! grep -Fqx "$expected_diagnostic" "$failure_log" || \\
+    grep -Eq 'pg-isready|docker-exec-reset|docker-restart|psql-' "$failure_events" || \\
+    grep -Fq "QA267 passed" "$failure_log" || \\
+    grep -Fq "postgres:postgres" "$failure_log"; then
+    echo "ERROR: Docker discovery output case $label did not fail closed before readiness or configuration operations." >&2
+    cat "$failure_events" >&2
+    cat "$failure_log" >&2
+    exit 1
+  fi
+}
+
+run_docker_discovery_output_case \\
+  "" \\
+  "::error::Expected exactly one PostgreSQL 16 service container during restoration; found 0. No readiness, database, or configuration operation was attempted." \\
+  no-container
+run_docker_discovery_output_case \\
+  
+
+
+
+
+
+0123456789ab\\nabcdef012345\\n' \\
+  "::error::Expected exactly one PostgreSQL 16 service container during restoration; found 2. No readiness, database, or configuration operation was attempted." \\
+  multiple-containers
+run_docker_discovery_output_case \\
+  
+
+
+
+
+
+not-a-valid-container-id\\n' \\
+  "::error::Docker returned an invalid PostgreSQL 16 service container ID during restoration; no readiness or configuration operation was attempted." \\
+  invalid-container-id
+
+echo "QA464 Docker-discovery output guard passed: empty, multiple, and malformed container IDs were rejected before readiness, SQL, reset, or restart."
 
 
 
