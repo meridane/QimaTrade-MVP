@@ -320,3 +320,12 @@ Code/test commit: [`f49a6c19`](https://github.com/meridane/QimaTrade-MVP/commit/
 - The two underlying runtime jobs still intentionally conclude **FAILURE** because they inject setup exit 47 and cleanup exit 52. The skipped-result job is intentionally **SKIPPED**. These are expected harness outcomes, not unexpected failures.
 - At this update, Verify remains **IN PROGRESS** (npm audit and TypeScript have passed; production build is active; Playwright is pending). PostgreSQL 16 and PostgreSQL 17.6 integration jobs remain **IN PROGRESS**. CodeQL [#1864](https://github.com/meridane/QimaTrade-MVP/actions/runs/45540657230) remains **IN PROGRESS**; Vercel Preview remains **PENDING**.
 - QA453 runtime behavior is validated in GitHub Actions, but full CI, Playwright, both PostgreSQL jobs, and CodeQL closure are not claimed yet.
+
+### QA453 CI progress update — 2026-11-25 (KST)
+
+- CodeQL [#1864](https://github.com/meridane/QimaTrade-MVP/actions/runs/45540657230) on code/test commit `f49a6c191c94cd1b23166f740d1e4b55b2aeac35` completed **SUCCESS**.
+- QIMA CI [#1937](https://github.com/meridane/QimaTrade-MVP/actions/runs/45540657320) remains **IN PROGRESS**. Verify has completed npm audit, TypeScript, and the Next.js production build successfully; Chromium installation is still **IN PROGRESS**, so Playwright has not started and no test total is claimed.
+- PostgreSQL 16 integration and PostgreSQL 17.6 compatibility jobs remain **IN PROGRESS**. At the latest step poll, both are still in their CREATE_OFFER integration/concurrency sequence; the prepared-transaction setup/restore steps later in each job have not yet run.
+- The dedicated runtime assertion jobs for QA353/QA453 and QA354 remain **SUCCESS**. The actual runtime logs explicitly contain the QA453 transient-readiness pass line.
+- Vercel Preview for code/test commit `f49a6c19` is **SUCCESS** ([Preview](https://vercel.com/bmk1/qimatrade-mvp/FcedoKUKWpjvqYeVXKVPd8DxjzGR)). The newer documentation HEAD is separately **PENDING** ([status](https://vercel.com/bmk1/qimatrade-mvp/6QJKvJHEmDUhsx1nVxwxLQPxmLdh)); no build failure is reported.
+- No new QIMA CI/CodeQL run was returned for the documentation-only commit at this poll. CI #1937 and CodeQL #1864 remain the authoritative code/test validation for QA453.
