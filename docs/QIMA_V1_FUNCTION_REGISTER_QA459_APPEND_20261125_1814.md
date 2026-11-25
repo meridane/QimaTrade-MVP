@@ -51,3 +51,13 @@ This covers the explicit `docker restart` failure branch in the existing restore
 - This is a synthetic regression for the disposable CI restore harness. It is not evidence of a production vulnerability.
 - No Supabase Production data or migrations, secrets, persistent grants, persistent RLS policies, or production PostgreSQL settings were changed.
 - No production deployment, PR merge, force-push, or branch-protection change was performed.
+
+
+### Post-push runtime update — 2026-11-25 (KST)
+
+- After the code and snapshot were fast-forwarded to the PR branch at `f512ac0af4120a2162f71a76fdf238844cfa51a8`, QIMA CI [#1961](https://github.com/meridane/QimaTrade-MVP/actions/runs/45583824548) and CodeQL [#1888](https://github.com/meridane/QimaTrade-MVP/actions/runs/45583824558) started for this exact HEAD.
+- The runtime job log explicitly reports: `QA459 restart-failure guard passed: Docker restart exit 74 was preserved and no post-restart readiness or psql postconditions ran.`
+- The setup-failure harness job's overall **FAILURE** is expected because the fixture deliberately exits 47 after exercising the always-cleanup path. The dedicated runtime assertion job completed **SUCCESS**; the cleanup-failure fixture's expected exit 52 is also separately asserted.
+- At this update, Verify is still **IN PROGRESS** (dependency installation active; audit, TypeScript, build and Playwright not yet concluded), PostgreSQL 16 and PostgreSQL 17.6 jobs are **IN PROGRESS**, and CodeQL #1888 is **IN PROGRESS**. No final Playwright count or PostgreSQL conclusion is claimed.
+- Vercel Preview for this HEAD is **PENDING**. No compilation failure is inferred from a pending status.
+- QA459 is therefore **runtime-validated**, but the full CI/CodeQL cycle remains open until the main Verify, PostgreSQL 16/17.6 and CodeQL jobs finish successfully.
