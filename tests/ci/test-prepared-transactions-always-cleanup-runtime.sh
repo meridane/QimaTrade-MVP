@@ -101,7 +101,7 @@ cat > "$MOCK_BIN/psql" <<'PSQL'
 #!/usr/bin/env bash
 set -euo pipefail
 if [[ "$#" -ne 6 ||
-  "$1" != "postgresql://postgres:postgres@localhost:5432/qima_test" ||
+  "$1" != "${MOCK_PSQL_EXPECTED_URL:-postgresql://postgres:postgres@localhost:5432/qima_test}" ||
   "$2" != "-X" || "$3" != "-v" || "$4" != "ON_ERROR_STOP=1" ||
   "$5" != "-Atqc" ]]; then
   echo "Unexpected psql target or argument contract." >&2
@@ -1099,3 +1099,50 @@ if [[ "$(cat "$NOOP_LOG")" != "Prepared-transaction configuration was not change
 fi
 
 echo "QA468 restore-target preflight guard passed: external host, wrong port/database, control characters, and nonzero baseline were rejected before Docker/readiness/SQL; RESTORE_REQUIRED=false remained a no-op."
+
+# QA470: preserve every explicitly supported disposable loopback URL form.
+# The mock psql asserts the exact URL passed by the restore script; no real
+# PostgreSQL connection is made by these allowlist compatibility cases.
+run_restore_allowed_target_case() {
+  local label="$1"
+  local database_url="$2"
+  local allowed_events="$TEMP_DIR/restore-allowed-$label-events.log"
+  local allowed_log="$TEMP_DIR/restore-allowed-$label.log"
+  local allowed_status=0
+  : > "$allowed_events"
+  printf '10\\n' > "$STATE_FILE"
+
+  if PATH="$MOCK_BIN:$PATH" \\
+    MOCK_EVENTS="$allowed_events" MOCK_STATE_FILE="$STATE_FILE" \\
+    MOCK_PSQL_EXPECTED_URL="$database_url" MOCK_RESTORE_EXIT=0 MOCK_READY_MODE=ready \\
+    DATABASE_URL="$database_url" RESTORE_REQUIRED=true \\
+    BASELINE_MAX_PREPARED_TRANSACTIONS=0 \\
+    bash "$RESTORE_SCRIPT" > "$allowed_log" 2>&1; then
+    allowed_status=0
+  else
+    allowed_status=$?
+  fi
+
+  local expected_allowed_events
+  expected_allowed_events="$(printf '%s\\n' docker-ps pg-isready docker-exec-reset docker-restart pg-isready psql-show psql-prepared psql-database)"
+  if [[ "$allowed_status" -ne 0 ]] || \\
+    [[ "$(cat "$allowed_events")" != "$expected_allowed_events" ]] || \\
+    [[ "$(cat "$STATE_FILE")" != "0" ]] || \\
+    ! grep -Fq "QA267 passed" "$allowed_log" || \\
+    grep -Fq "postgres:postgres" "$allowed_log"; then
+    echo "ERROR: supported loopback URL case $label was not accepted through the mocked restoration path." >&2
+    cat "$allowed_events" >&2
+    cat "$allowed_log" >&2
+    exit 1
+  fi
+}
+
+run_restore_allowed_target_case postgresql-localhost "postgresql://postgres:postgres@localhost:5432/qima_test"
+run_restore_allowed_target_case postgres-localhost "postgres://postgres:postgres@localhost:5432/qima_test"
+run_restore_allowed_target_case postgresql-ipv4 "postgresql://postgres:postgres@127.0.0.1:5432/qima_test"
+run_restore_allowed_target_case postgres-ipv4 "postgres://postgres:postgres@127.0.0.1:5432/qima_test"
+run_restore_allowed_target_case postgresql-ipv6 "postgresql://postgres:postgres@[::1]:5432/qima_test"
+run_restore_allowed_target_case postgres-ipv6 "postgres://postgres:postgres@[::1]:5432/qima_test"
+
+echo "QA470 supported-loopback URL allowlist passed: postgres/postgresql schemes with localhost, IPv4 loopback, and IPv6 loopback completed the mocked restoration sequence; psql received each URL unchanged."
+
