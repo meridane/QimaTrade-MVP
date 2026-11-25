@@ -15031,3 +15031,13 @@ La revue croisée des scripts de garde-fou PostgreSQL a révélé le même défa
 
 - No Supabase Production data or migrations, production secrets, grants, persistent RLS policies, or production PostgreSQL settings were accessed or modified.
 - No production deployment, PR merge, force-push, or branch-protection change was performed.
+
+
+### QA456 runtime result update — 2026-11-25 (KST)
+
+- QIMA CI [#1946](https://github.com/meridane/QimaTrade-MVP/actions/runs/45560277495) has started on code/test commit `0cee7fd9b37307dd5088118b8a6a35af208f960c`; CodeQL [#1873](https://github.com/meridane/QimaTrade-MVP/actions/runs/45560277441) is also **IN PROGRESS**.
+- The dedicated normal-cleanup runtime job executed QA456. Its log explicitly contains: `QA456 configuration-convergence guard passed: three stale SHOW values and sleeps were followed by baseline 0; postconditions ran only after convergence.`
+- The runtime assertion job `Assert prepared-transaction always-cleanup runtime contract` completed **SUCCESS**. The separate failure-propagation assertion also completed **SUCCESS**; the underlying setup-failure (exit 47) and cleanup-failure (exit 52) jobs intentionally conclude **FAILURE**, and the skipped-result job is intentionally **SKIPPED** with its assertion **SUCCESS**.
+- At this poll, Verify's Next.js production build remains **IN PROGRESS**; Playwright has not yet completed. PostgreSQL 16 and PostgreSQL 17.6 integration jobs remain **IN PROGRESS**. No final CI or Playwright total is claimed.
+- CodeQL #1873 remains **IN PROGRESS**. Vercel Preview for code/test commit `0cee7fd9` and for the documentation HEAD are **PENDING**; no build failure is confirmed.
+- QA456 is **runtime-validated** in GitHub Actions, but full Verify/Playwright, PostgreSQL 16/17.6, CodeQL, and final Preview status remain pending. No local Bash execution is claimed.
