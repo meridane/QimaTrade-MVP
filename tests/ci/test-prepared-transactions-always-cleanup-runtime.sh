@@ -135,7 +135,19 @@ case "$6" in
     ;;
   "SELECT count(*) FROM pg_prepared_xacts WHERE gid = 'qa266_prepared_cleanup_blocker'")
     printf '%s\n' psql-prepared >> "$MOCK_EVENTS"
-    printf '0\n'
+    case "${MOCK_PSQL_PREPARED_MODE:-success}" in
+      success)
+        printf '0\n'
+        ;;
+      command-failure)
+        echo "mock psql prepared-count failure" >&2
+        exit 75
+        ;;
+      *)
+        echo "Unexpected psql prepared-count mock mode." >&2
+        exit 96
+        ;;
+    esac
     ;;
   "SELECT count(*) FROM pg_database WHERE datname = 'qima_message_migration_test'")
     printf '%s\n' psql-database >> "$MOCK_EVENTS"
@@ -700,5 +712,34 @@ if [[ "$restart_failure_status" -ne 74 ]] ||
   exit 1
 fi
 echo "QA459 restart-failure guard passed: Docker restart exit 74 was preserved and no post-restart readiness or psql postconditions ran."
+
+# QA460: a failed prepared-transaction count query must preserve its psql exit
+# status and prevent the later disposable-database query or success marker.
+PREPARED_COUNT_FAILURE_EVENTS="$TEMP_DIR/prepared-count-failure-events.log"
+PREPARED_COUNT_FAILURE_LOG="$TEMP_DIR/prepared-count-failure.log"
+EXPECTED_PREPARED_COUNT_FAILURE_EVENTS="$TEMP_DIR/prepared-count-failure-expected.log"
+: > "$PREPARED_COUNT_FAILURE_EVENTS"
+printf '10\n' > "$STATE_FILE"
+prepared_count_failure_status=0
+if PATH="$MOCK_BIN:$PATH" MOCK_EVENTS="$PREPARED_COUNT_FAILURE_EVENTS" MOCK_STATE_FILE="$STATE_FILE" MOCK_RESTORE_EXIT=0 MOCK_PSQL_PREPARED_MODE=command-failure MOCK_READY_MODE=ready DATABASE_URL="postgresql://postgres:postgres@localhost:5432/qima_test" RESTORE_REQUIRED="$RESTORE_REQUIRED" BASELINE_MAX_PREPARED_TRANSACTIONS="$BASELINE_MAX_PREPARED_TRANSACTIONS" bash "$RESTORE_SCRIPT" > "$PREPARED_COUNT_FAILURE_LOG" 2>&1; then
+  prepared_count_failure_status=0
+else
+  prepared_count_failure_status=$?
+fi
+printf '%s\n' docker-ps pg-isready docker-exec-reset docker-restart pg-isready psql-show psql-prepared > "$EXPECTED_PREPARED_COUNT_FAILURE_EVENTS"
+if [[ "$prepared_count_failure_status" -ne 75 ]] ||
+  [[ "$(cat "$PREPARED_COUNT_FAILURE_EVENTS")" != "$(cat "$EXPECTED_PREPARED_COUNT_FAILURE_EVENTS")" ]] ||
+  [[ "$(cat "$STATE_FILE")" != "0" ]] ||
+  ! grep -Fq "::error::Could not verify QA266 prepared-transaction cleanup (psql exit 75); restoration is not confirmed." "$PREPARED_COUNT_FAILURE_LOG" ||
+  grep -Fq "QA267 passed" "$PREPARED_COUNT_FAILURE_LOG" ||
+  grep -Fq "psql-database" "$PREPARED_COUNT_FAILURE_EVENTS" ||
+  grep -Fq "postgres:postgres" "$PREPARED_COUNT_FAILURE_LOG"; then
+  echo "ERROR: prepared-transaction count query failure was not preserved or later postconditions ran." >&2
+  cat "$PREPARED_COUNT_FAILURE_EVENTS" >&2
+  cat "$PREPARED_COUNT_FAILURE_LOG" >&2
+  exit 1
+fi
+echo "QA460 prepared-count failure guard passed: psql exit 75 was preserved and the disposable-database postcondition and success marker were blocked."
+
 
 

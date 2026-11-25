@@ -15147,3 +15147,22 @@ La revue croisée des scripts de garde-fou PostgreSQL a révélé le même défa
 - The documentation-only HEAD workflow QIMA CI [#1959](https://github.com/meridane/QimaTrade-MVP/actions/runs/45574610061) is **PENDING** with no jobs published at this poll. CodeQL [#1886](https://github.com/meridane/QimaTrade-MVP/actions/runs/45574610108) was still **IN PROGRESS** when first checked; the code/test CodeQL #1885 is the completed result for QA458 code.
 - Vercel Preview for code/test commit `4bc2ad73` is **SUCCESS**: https://vercel.com/bmk1/qimatrade-mvp/Hq8nuLbD2Ez3FqhhZVyMBtvRTKFE. The documentation-only HEAD reports the account's `build-rate-limit`; this is a quota limitation, not a build failure.
 - QA458 remains a synthetic regression of the disposable CI restore-script contract and is not evidence of a production vulnerability. No local Bash run is claimed. No Supabase Production data/migrations, secrets, persistent grants/RLS policies, production deployment, PR merge, force-push, or branch-protection settings were changed.
+
+
+---
+
+### QA459 closeout — 2026-11-25 (KST)
+
+- QIMA CI [#1962](https://github.com/meridane/QimaTrade-MVP/actions/runs/45583979700) completed **SUCCESS** for the QA459 code/test change. Verify completed dependency audit, TypeScript, Next.js production build, Chromium installation, browser smoke tests, and the isolated QIMA security-contract fixture successfully; Playwright reported **423 passed (37.4s)**.
+- PostgreSQL 16 CREATE_OFFER integration and prepared-transaction restoration completed **SUCCESS**. PostgreSQL 17.6 compatibility completed **SUCCESS**. The restore job's setup/cleanup steps, including the QA459 restart-failure runtime contract, completed successfully.
+- The two injected-failure harness jobs intentionally concluded **FAILURE** for setup exit 47 and cleanup exit 52; their dedicated blocking assertions completed **SUCCESS**. The intentionally skipped-result job was **SKIPPED**, with its separate assertion **SUCCESS**.
+- CodeQL [#1889](https://github.com/meridane/QimaTrade-MVP/actions/runs/45583979613) completed **SUCCESS**. The combined Vercel status for the current PR HEAD is **SUCCESS**.
+- QA459 is fully closed. Its restart-failure case is a synthetic regression against the disposable CI restore harness, not evidence of a production vulnerability. No production Supabase data/migrations, secrets, persistent grants/RLS policies, production PostgreSQL settings, production deployment, PR merge, force-push, or branch-protection changes were made.
+
+### QA460 — prepared-transaction resource postcondition command failure — 2026-11-25 (KST)
+
+- A new deterministic mode, `MOCK_PSQL_PREPARED_MODE=command-failure`, is added to the inert psql mock in `tests/ci/test-prepared-transactions-always-cleanup-runtime.sh`.
+- The QA460 case runs the real `tests/sql/restore-prepared-transactions-config.sh` with disposable mocks. After discovery, readiness, RESET, restart, and baseline SHOW, the first resource postcondition query (the QA266 prepared-transaction count) returns exit **75**.
+- Expected contract: preserve psql exit 75 and the existing diagnostic; stop before the disposable-database count query; do not emit `QA267 passed`; retain the mock baseline at 0 and do not expose credentials.
+- QA460 is **implemented but not yet CI-validated** at this snapshot. No local Bash execution is claimed. The next PR-triggered QIMA CI run must confirm the runtime marker and the full Verify/PostgreSQL 16/PostgreSQL 17.6 jobs.
+- This is a synthetic CI regression for failure propagation, not evidence of a production vulnerability. No Supabase Production data or migrations, secrets, persistent grants/RLS policies, production PostgreSQL settings, production deployment, PR merge, force-push, or branch-protection settings were changed.
