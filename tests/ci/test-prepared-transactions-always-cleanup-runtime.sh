@@ -117,6 +117,13 @@ case "$6" in
           cat "$MOCK_STATE_FILE"
         fi
         ;;
+      invalid-value)
+        printf 'not-a-number\\n'
+        ;;
+      command-failure)
+        echo "mock psql SHOW failure" >&2
+        exit 73
+        ;;
       *)
         echo "Unexpected psql SHOW mock mode." >&2
         exit 95
@@ -548,3 +555,56 @@ if [[ "$config_convergence_status" -ne 0 ]] ||
   exit 1
 fi
 echo "QA456 configuration-convergence guard passed: three stale SHOW values and sleeps were followed by baseline 0; postconditions ran only after convergence."
+
+# QA457: invalid or failed post-restart SHOW must stop before resource postconditions.
+run_post_restart_show_failure_case() {
+  local mode="$1"
+  local expected_status="$2"
+  local expected_diagnostic="$3"
+  local label="$4"
+  local failure_events="$TEMP_DIR/post-restart-show-\${label}-events.log"
+  local failure_log="$TEMP_DIR/post-restart-show-\${label}.log"
+  local expected_failure_events="$TEMP_DIR/post-restart-show-\${label}-expected.log"
+  local failure_status=0
+
+  : > "$failure_events"
+  printf '10\n' > "$STATE_FILE"
+  if PATH="$MOCK_BIN:$PATH" \
+    MOCK_EVENTS="$failure_events" MOCK_STATE_FILE="$STATE_FILE" MOCK_RESTORE_EXIT=0 \
+    MOCK_READY_MODE=ready MOCK_PSQL_SHOW_MODE="$mode" \
+    DATABASE_URL="postgresql://postgres:postgres@localhost:5432/qima_test" \
+    RESTORE_REQUIRED="$RESTORE_REQUIRED" \
+    BASELINE_MAX_PREPARED_TRANSACTIONS="$BASELINE_MAX_PREPARED_TRANSACTIONS" \
+    bash "$RESTORE_SCRIPT" > "$failure_log" 2>&1; then
+    failure_status=0
+  else
+    failure_status=$?
+  fi
+
+  printf '%s\n' docker-ps pg-isready docker-exec-reset docker-restart pg-isready psql-show > "$expected_failure_events"
+  if [[ "$failure_status" -ne "$expected_status" ]] ||
+    [[ "$(cat "$failure_events")" != "$(cat "$expected_failure_events")" ]] ||
+    [[ "$(cat "$STATE_FILE")" != "0" ]] ||
+    ! grep -Fq "$expected_diagnostic" "$failure_log" ||
+    grep -Fq "QA267 passed" "$failure_log" ||
+    grep -Eq 'psql-prepared|psql-database' "$failure_events" ||
+    grep -Fq "postgres:postgres" "$failure_log"; then
+    echo "ERROR: post-restart SHOW $label failure did not stop before resource postconditions or success reporting." >&2
+    cat "$failure_events" >&2
+    cat "$failure_log" >&2
+    exit 1
+  fi
+}
+
+run_post_restart_show_failure_case \
+  invalid-value \
+  1 \
+  "::error::PostgreSQL returned an invalid max_prepared_transactions value after restart; configuration restoration is not confirmed." \
+  invalid-value
+run_post_restart_show_failure_case \
+  command-failure \
+  73 \
+  "::error::Could not read max_prepared_transactions after PostgreSQL restart (psql exit 73); configuration restoration is not confirmed." \
+  command-failure
+echo "QA457 post-restart SHOW failure guard passed: invalid configuration output and psql exit 73 both stopped before resource postconditions or success reporting."
+
