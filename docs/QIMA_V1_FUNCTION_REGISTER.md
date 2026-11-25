@@ -15077,3 +15077,17 @@ La revue croisée des scripts de garde-fou PostgreSQL a révélé le même défa
 - The current documentation HEAD's combined Vercel status resolves to `upgradeToPro=build-rate-limit`, an account quota limitation. No production deployment was attempted.
 - QIMA CI #1946 remains **IN PROGRESS** with Verify **SUCCESS** (423/423 Playwright) and both PostgreSQL 16/17.6 integration jobs active. CodeQL #1873 is **SUCCESS**. The older documentation-head CI #1949 was cancelled before jobs; CodeQL #1876 remained in progress at the last check.
 - PR #26 remains **OPEN** and unmerged. The current PR HEAD is `56654e564261a2b4840c2601ab1acbba02e9bbc6`; comparison with `main` reports **2,467 ahead / 0 behind**. The work branch is synchronized with the PR branch (0 ahead / 0 behind); no review threads are open.
+
+
+---
+
+### QA457 — post-restart SHOW failure paths — 2026-11-25 (KST)
+
+- Code/test commits: `492b0dc1` (initial QA457 coverage) and `60cee849` (correction of the mock's newline format and case-specific temporary paths). The published test file is `tests/ci/test-prepared-transactions-always-cleanup-runtime.sh`.
+- QA457 adds two post-restart verification failure modes to the inert `psql` mock: `invalid-value` returns a non-numeric `SHOW max_prepared_transactions` result; `command-failure` returns exit 73 while preserving a diagnostic.
+- Both cases require the actual restore script to perform discovery, initial readiness, RESET, restart, post-restart readiness, and exactly one SHOW attempt, then stop. The expected event sequence excludes `psql-prepared` and `psql-database`; the state file confirms RESET reached baseline 0, while the script must not emit `QA267 passed` or expose credentials.
+- Expected outcomes: invalid SHOW value exits 1 with the existing invalid-value diagnostic; psql SHOW failure preserves exit 73 with the existing read-failure diagnostic. The tests assert both exact event sequence and absence of resource postconditions.
+- QIMA CI [#1953](https://github.com/meridane/QimaTrade-MVP/actions/runs/45568740935) is **IN PROGRESS** on code/test HEAD `60cee849`. At this snapshot, the Verify job and PostgreSQL 16/17.6 jobs are active; the cleanup runtime assertion is queued. No QA457 runtime pass, final Playwright total, or PostgreSQL closeout is claimed yet.
+- CodeQL [#1880](https://github.com/meridane/QimaTrade-MVP/actions/runs/45568741010) is **IN PROGRESS**. Vercel Preview is **PENDING**. These are pending statuses, not failures.
+- No local Bash execution is claimed. The new cases are synthetic CI mock regressions; they do not establish a production vulnerability or prove production behavior.
+- No Supabase Production data or migrations, secrets, persistent grants/RLS policies, production deployment, PR merge, force-push, or branch-protection settings were changed.
