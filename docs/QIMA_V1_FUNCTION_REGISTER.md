@@ -15227,3 +15227,13 @@ La revue croisée des scripts de garde-fou PostgreSQL a révélé le même défa
 - QIMA CodeQL Security run [45682234558](https://github.com/meridane/QimaTrade-MVP/actions/runs/45682234558) is **IN PROGRESS**. The Vercel status for QA468 commit `5e82270a` is **PENDING** at this snapshot.
 - QA468 is a synthetic regression for the disposable CI restore-script contract. It does not establish a production vulnerability. No local Bash execution is claimed.
 - No Supabase Production data or migrations, secrets, persistent grants/RLS policies, production PostgreSQL settings, production deployment, PR merge, force-push, or branch-protection settings were changed.
+
+
+### QA468 Verify and CodeQL update — 2026-11-26 (KST)
+
+- In QIMA CI [#1983](https://github.com/meridane/QimaTrade-MVP/actions/runs/45682234584), the Verify job completed **SUCCESS**. Dependency security audit, TypeScript, Next.js production build, Chromium installation, browser smoke tests, and the isolated QIMA security-contract fixture all completed successfully. Playwright reported **423 passed (35.7s)**.
+- The QA468 runtime step and the independent prepared-transaction always-cleanup assertion are **SUCCESS**. The runtime log explicitly confirms the external-host, wrong-port/database, control-character, and nonzero-baseline cases were rejected before any Docker/readiness/SQL event, and that `RESTORE_REQUIRED=false` remained a no-op.
+- QIMA CodeQL Security run [45682234558](https://github.com/meridane/QimaTrade-MVP/actions/runs/45682234558) completed **SUCCESS**. The combined Vercel status for code/test commit `5e82270a` is **SUCCESS**.
+- PostgreSQL 16 and PostgreSQL 17.6 integration jobs remain **IN PROGRESS** at this poll. Both have completed the main CREATE_OFFER integration/concurrency step and are at the full runner write-privilege characterization step. No final database-job result or full CI conclusion is claimed.
+- The setup-failure fixture (injected exit 47) and cleanup-failure fixture (injected exit 52) intentionally conclude **FAILURE**; their dedicated assertions are **SUCCESS**. The skipped-result fixture is intentionally **SKIPPED**, with its independent assertion **SUCCESS**.
+- No local Bash execution is claimed. QA468 is a synthetic regression for the disposable CI restore-script contract and does not establish a production vulnerability. No Supabase Production data/migrations, secrets, persistent grants/RLS policies, production PostgreSQL settings, production deployment, PR merge, force-push, or branch-protection settings were changed.
