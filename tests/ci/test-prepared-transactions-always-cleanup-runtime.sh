@@ -962,7 +962,7 @@ run_missing_dependency_case() {
 
   mkdir -p "$dependency_bin"
   : > "$dependency_events"
-  printf '10\\n' > "$STATE_FILE"
+  printf '10\n' > "$STATE_FILE"
   ln -s "$(command -v grep)" "$dependency_bin/grep"
 
   if [[ "$missing" != "psql" ]]; then
@@ -975,22 +975,22 @@ run_missing_dependency_case() {
     ln -s "$MOCK_BIN/pg_isready" "$dependency_bin/pg_isready"
   fi
 
-  if PATH="$dependency_bin" \\
-    MOCK_EVENTS="$dependency_events" MOCK_STATE_FILE="$STATE_FILE" \\
-    DATABASE_URL="postgresql://postgres:postgres@localhost:5432/qima_test" \\
-    RESTORE_REQUIRED="$RESTORE_REQUIRED" \\
-    BASELINE_MAX_PREPARED_TRANSACTIONS="$BASELINE_MAX_PREPARED_TRANSACTIONS" \\
+  if PATH="$dependency_bin" \
+    MOCK_EVENTS="$dependency_events" MOCK_STATE_FILE="$STATE_FILE" \
+    DATABASE_URL="postgresql://postgres:postgres@localhost:5432/qima_test" \
+    RESTORE_REQUIRED="$RESTORE_REQUIRED" \
+    BASELINE_MAX_PREPARED_TRANSACTIONS="$BASELINE_MAX_PREPARED_TRANSACTIONS" \
     "$BASH" "$RESTORE_SCRIPT" > "$dependency_log" 2>&1; then
     dependency_status=0
   else
     dependency_status=$?
   fi
 
-  if [[ "$dependency_status" -ne 127 ]] || \\
-    [[ "$(cat "$dependency_log")" != "$expected_diagnostic" ]] || \\
-    [[ -s "$dependency_events" ]] || \\
-    [[ "$(cat "$STATE_FILE")" != "10" ]] || \\
-    grep -Fq "QA267 passed" "$dependency_log" || \\
+  if [[ "$dependency_status" -ne 127 ]] || \
+    [[ "$(cat "$dependency_log")" != "$expected_diagnostic" ]] || \
+    [[ -s "$dependency_events" ]] || \
+    [[ "$(cat "$STATE_FILE")" != "10" ]] || \
+    grep -Fq "QA267 passed" "$dependency_log" || \
     grep -Fq "postgres:postgres" "$dependency_log"; then
     echo "ERROR: missing $missing executable did not stop restoration at the dependency preflight." >&2
     cat "$dependency_events" >&2
