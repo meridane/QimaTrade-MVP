@@ -158,7 +158,19 @@ if [[ "$#" -ne 8 || "$1" != "-h" || "$2" != "127.0.0.1" ||
   echo "Unexpected pg_isready target or argument contract." >&2
   exit 92
 fi
-printf '%s\n' pg-isready >> "$MOCK_EVENTS"
+case "${MOCK_READY_MODE:-ready}" in
+  ready)
+    printf '%s\n' pg-isready >> "$MOCK_EVENTS"
+    ;;
+  never)
+    printf '%s\n' pg-isready-failed >> "$MOCK_EVENTS"
+    exit 1
+    ;;
+  *)
+    echo "Unexpected pg_isready mock mode." >&2
+    exit 94
+    ;;
+esac
 READY
 chmod +x "$MOCK_BIN/pg_isready"
 
@@ -208,6 +220,7 @@ chmod +x "$MOCK_BIN/sleep"
 
 if PATH="$MOCK_BIN:$PATH" \
   MOCK_EVENTS="$EVENTS" MOCK_STATE_FILE="$STATE_FILE" MOCK_RESTORE_EXIT="$MOCK_RESTORE_EXIT" \
+  MOCK_READY_MODE=ready \
   DATABASE_URL="postgresql://postgres:postgres@localhost:5432/qima_test" \
   RESTORE_REQUIRED="$RESTORE_REQUIRED" \
   BASELINE_MAX_PREPARED_TRANSACTIONS="$BASELINE_MAX_PREPARED_TRANSACTIONS" \
@@ -255,3 +268,41 @@ fi
 
 printf 'cleanup_ran=true\ncleanup_exit_code=0\ncleanup_failure_observed=false\n' >> "$GITHUB_OUTPUT"
 echo "QA353 runtime contract passed: GitHub reported the setup step as failure, forwarded its restoration outputs, and the always() step executed the real restoration script with inert Docker/PostgreSQL mocks; baseline 0 and zero residual resources were verified."
+
+# QA452: a service that never becomes ready must block every database/configuration mutation.
+TIMEOUT_EVENTS="$TEMP_DIR/readiness-timeout-events.log"
+TIMEOUT_LOG="$TEMP_DIR/readiness-timeout.log"
+EXPECTED_TIMEOUT_EVENTS="$TEMP_DIR/readiness-timeout-expected.log"
+: > "$TIMEOUT_EVENTS"
+timeout_status=0
+if PATH="$MOCK_BIN:$PATH" \
+  MOCK_EVENTS="$TIMEOUT_EVENTS" MOCK_STATE_FILE="$STATE_FILE" MOCK_RESTORE_EXIT=0 \
+  MOCK_READY_MODE=never \
+  DATABASE_URL="postgresql://postgres:postgres@localhost:5432/qima_test" \
+  RESTORE_REQUIRED="$RESTORE_REQUIRED" \
+  BASELINE_MAX_PREPARED_TRANSACTIONS="$BASELINE_MAX_PREPARED_TRANSACTIONS" \
+  bash "$RESTORE_SCRIPT" > "$TIMEOUT_LOG" 2>&1; then
+  timeout_status=0
+else
+  timeout_status=$?
+fi
+{
+  printf 'docker-ps\n'
+  for attempt in {1..60}; do
+    printf 'pg-isready-failed\nsleep-1\n'
+  done
+} > "$EXPECTED_TIMEOUT_EVENTS"
+if [[ "$timeout_status" -ne 1 ]] ||
+  [[ "$(cat "$TIMEOUT_LOG")" != "::error::The disposable PostgreSQL service did not become ready before configuration restoration." ]] ||
+  [[ "$(cat "$TIMEOUT_EVENTS")" != "$(cat "$EXPECTED_TIMEOUT_EVENTS")" ]]; then
+  echo "ERROR: readiness timeout did not fail closed before ALTER SYSTEM RESET or restart." >&2
+  cat "$TIMEOUT_EVENTS" >&2
+  cat "$TIMEOUT_LOG" >&2
+  exit 1
+fi
+if grep -Eq 'docker-exec-reset|docker-restart|psql-' "$TIMEOUT_EVENTS"; then
+  echo "ERROR: readiness timeout reached a database/configuration operation." >&2
+  cat "$TIMEOUT_EVENTS" >&2
+  exit 1
+fi
+echo "QA452 readiness-timeout guard passed: 60 failed readiness probes blocked ALTER SYSTEM RESET, restart, and postcondition queries."
