@@ -77,6 +77,9 @@ case "${1-}" in
       exit 91
     fi
     printf '%s\n' docker-restart >> "$MOCK_EVENTS"
+    if [[ "${MOCK_RESTART_EXIT:-0}" != "0" ]]; then
+      exit "$MOCK_RESTART_EXIT"
+    fi
     ;;
   *)
     echo "Unexpected docker invocation." >&2
@@ -663,4 +666,39 @@ if [[ "$post_restart_transient_status" -ne 0 ]] ||
   exit 1
 fi
 echo "QA458 post-restart transient-readiness guard passed: three failed probes and sleeps were followed by readiness before SHOW and resource postconditions."
+
+# QA459: a failed Docker restart must preserve its exit status and block every
+# post-restart readiness probe, SQL postcondition, and success marker.
+RESTART_FAILURE_EVENTS="$TEMP_DIR/restart-failure-events.log"
+RESTART_FAILURE_LOG="$TEMP_DIR/restart-failure.log"
+EXPECTED_RESTART_FAILURE_EVENTS="$TEMP_DIR/restart-failure-expected.log"
+: > "$RESTART_FAILURE_EVENTS"
+printf '10\n' > "$STATE_FILE"
+restart_failure_status=0
+if PATH="$MOCK_BIN:$PATH" \
+  MOCK_EVENTS="$RESTART_FAILURE_EVENTS" MOCK_STATE_FILE="$STATE_FILE" MOCK_RESTORE_EXIT=0 \
+  MOCK_RESTART_EXIT=74 MOCK_READY_MODE=ready \
+  DATABASE_URL="postgresql://postgres:postgres@localhost:5432/qima_test" \
+  RESTORE_REQUIRED="$RESTORE_REQUIRED" \
+  BASELINE_MAX_PREPARED_TRANSACTIONS="$BASELINE_MAX_PREPARED_TRANSACTIONS" \
+  bash "$RESTORE_SCRIPT" > "$RESTART_FAILURE_LOG" 2>&1; then
+  restart_failure_status=0
+else
+  restart_failure_status=$?
+fi
+printf '%s\n' docker-ps pg-isready docker-exec-reset docker-restart > "$EXPECTED_RESTART_FAILURE_EVENTS"
+if [[ "$restart_failure_status" -ne 74 ]] ||
+  [[ "$(cat "$RESTART_FAILURE_EVENTS")" != "$(cat "$EXPECTED_RESTART_FAILURE_EVENTS")" ]] ||
+  [[ "$(cat "$STATE_FILE")" != "0" ]] ||
+  [[ "$(cat "$RESTART_FAILURE_LOG")" != "::error::PostgreSQL service restart failed (docker restart exit 74); configuration restoration is not confirmed." ]] ||
+  grep -Fq "QA267 passed" "$RESTART_FAILURE_LOG" ||
+  grep -Eq 'psql-' "$RESTART_FAILURE_EVENTS" ||
+  grep -Fq "postgres:postgres" "$RESTART_FAILURE_LOG"; then
+  echo "ERROR: Docker restart failure was not preserved or post-restart verification ran after failure." >&2
+  cat "$RESTART_FAILURE_EVENTS" >&2
+  cat "$RESTART_FAILURE_LOG" >&2
+  exit 1
+fi
+echo "QA459 restart-failure guard passed: Docker restart exit 74 was preserved and no post-restart readiness or psql postconditions ran."
+
 
