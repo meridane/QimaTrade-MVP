@@ -185,6 +185,20 @@ case "${MOCK_READY_MODE:-ready}" in
     fi
     printf '%s\n' pg-isready >> "$MOCK_EVENTS"
     ;;
+  after-restart-never)
+    if grep -Fxq docker-restart "${MOCK_EVENTS:?MOCK_EVENTS is required for after-restart-never mode}"; then
+      ready_count_file="${MOCK_READY_COUNT_FILE:?MOCK_READY_COUNT_FILE is required for after-restart-never mode}"
+      ready_count=0
+      if [[ -f "$ready_count_file" ]]; then
+        read -r ready_count < "$ready_count_file"
+      fi
+      ready_count=$((ready_count + 1))
+      printf '%s\n' "$ready_count" > "$ready_count_file"
+      printf '%s\n' pg-isready-failed >> "$MOCK_EVENTS"
+      exit 1
+    fi
+    printf '%s\n' pg-isready >> "$MOCK_EVENTS"
+    ;;
   *)
     echo "Unexpected pg_isready mock mode." >&2
     exit 94
@@ -429,3 +443,42 @@ run_readiness_boundary_case() {
 run_readiness_boundary_case after-fifty-nine 59 0
 run_readiness_boundary_case after-sixty 60 1
 echo "QA454 readiness boundary passed: probe 60 is accepted; readiness first observed on probe 61 is rejected after exactly 60 probes with no RESET, restart, or postcondition query."
+
+# QA455: readiness lost after restart must block postcondition queries and success.
+POST_RESTART_EVENTS="$TEMP_DIR/post-restart-readiness-events.log"
+POST_RESTART_LOG="$TEMP_DIR/post-restart-readiness.log"
+POST_RESTART_COUNT_FILE="$TEMP_DIR/post-restart-readiness-count"
+EXPECTED_POST_RESTART_EVENTS="$TEMP_DIR/post-restart-readiness-expected.log"
+: > "$POST_RESTART_EVENTS"
+rm -f "$POST_RESTART_COUNT_FILE"
+printf '10\n' > "$STATE_FILE"
+post_restart_status=0
+if PATH="$MOCK_BIN:$PATH" \
+  MOCK_EVENTS="$POST_RESTART_EVENTS" MOCK_STATE_FILE="$STATE_FILE" MOCK_RESTORE_EXIT=0 \
+  MOCK_READY_MODE=after-restart-never MOCK_READY_COUNT_FILE="$POST_RESTART_COUNT_FILE" \
+  DATABASE_URL="postgresql://postgres:postgres@localhost:5432/qima_test" \
+  RESTORE_REQUIRED="$RESTORE_REQUIRED" \
+  BASELINE_MAX_PREPARED_TRANSACTIONS="$BASELINE_MAX_PREPARED_TRANSACTIONS" \
+  bash "$RESTORE_SCRIPT" > "$POST_RESTART_LOG" 2>&1; then
+  post_restart_status=0
+else
+  post_restart_status=$?
+fi
+{
+  printf 'docker-ps\npg-isready\ndocker-exec-reset\ndocker-restart\n'
+  for attempt in {1..60}; do
+    printf 'pg-isready-failed\nsleep-1\n'
+  done
+} > "$EXPECTED_POST_RESTART_EVENTS"
+if [[ "$post_restart_status" -ne 1 ]] ||
+  [[ "$(cat "$POST_RESTART_LOG")" != "::error::PostgreSQL did not return to max_prepared_transactions=0 after ALTER SYSTEM RESET and restart." ]] ||
+  [[ "$(cat "$POST_RESTART_EVENTS")" != "$(cat "$EXPECTED_POST_RESTART_EVENTS")" ]] ||
+  [[ "$(cat "$POST_RESTART_COUNT_FILE")" != "60" ]] ||
+  [[ "$(cat "$STATE_FILE")" != "0" ]] ||
+  grep -Eq 'psql-' "$POST_RESTART_EVENTS"; then
+  echo "ERROR: post-restart readiness timeout did not stop before postcondition queries or claim restoration." >&2
+  cat "$POST_RESTART_EVENTS" >&2
+  cat "$POST_RESTART_LOG" >&2
+  exit 1
+fi
+echo "QA455 post-restart readiness timeout passed: RESET and restart completed, then 60 failed readiness probes blocked all psql postconditions and success reporting."
