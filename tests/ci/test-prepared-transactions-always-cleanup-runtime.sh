@@ -389,12 +389,12 @@ run_readiness_boundary_case() {
   fi
 
   {
-    printf 'docker-ps\\n'
+    printf 'docker-ps\n'
     for ((attempt = 1; attempt <= expected_failures; attempt++)); do
-      printf 'pg-isready-failed\\nsleep-1\\n'
+      printf 'pg-isready-failed\nsleep-1\n'
     done
     if [[ "$mode" == "after-fifty-nine" ]]; then
-      printf '%s\\n' pg-isready docker-exec-reset docker-restart pg-isready psql-show psql-prepared psql-database
+      printf '%s\n' pg-isready docker-exec-reset docker-restart pg-isready psql-show psql-prepared psql-database
     fi
   } > "$expected_boundary_events"
 

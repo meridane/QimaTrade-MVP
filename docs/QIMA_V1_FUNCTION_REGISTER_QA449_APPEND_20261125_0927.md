@@ -370,3 +370,10 @@ The mock's existing `after-three` mode remains unchanged in behavior; the new mo
 - No production secrets, grants, persistent RLS policies, or PostgreSQL production settings were changed.
 - No production deployment, PR merge, force-push, or branch-protection change was performed.
 - QA454 is a deterministic mock-based regression of the CI restore script's retry boundary; it is not evidence of a production vulnerability.
+
+
+### QA454 pre-CI source review correction
+
+- A post-publication source inspection found that the newly generated QA454 expected-event `printf` formats contained doubled backslashes, which would have recorded literal `\n` text instead of line separators.
+- Corrected all four QA454 format strings to use a single Bash printf newline escape before the QA454 CI run. The fix is a test-harness correction only; no PostgreSQL operation or application code changed.
+- The corrected file was re-fetched from the PR branch and inspected. QA454 remains **PENDING CI** until the new workflow executes.
