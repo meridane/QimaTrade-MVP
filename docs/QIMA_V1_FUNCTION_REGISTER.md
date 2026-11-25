@@ -14981,3 +14981,17 @@ La revue croisée des scripts de garde-fou PostgreSQL a révélé le même défa
 - Aucun SQL de migration, aucune donnée Supabase Production, aucun secret, grant, policy RLS persistante ou paramètre PostgreSQL Production modifié.
 - Aucun déploiement Production, merge, force-push ou changement des protections GitHub.
 - Les tests à mocks vérifient la transmission des arguments Docker dans les scripts CI ; ils ne démontrent pas une vulnérabilité exploitable en production.
+
+---
+
+## QA455 — post-restart readiness timeout regression (2026-11-25 14:19 KST)
+
+- PR #26 remains **OPEN / DRAFT / not merged** on `fix/create-offer-status-contract`; the branch was at `1f0b6b1e240338885eb9c4af39868d99ae509f6f` before this cycle. GitHub reports `mergeable=true`, 2,459 commits ahead of `main`, 0 behind, and 301 changed files.
+- QA454 is now confirmed by QIMA CI [#1943](https://github.com/meridane/QimaTrade-MVP/actions/runs/45547253617): Verify passed with **423/423 Playwright tests**; PostgreSQL 16 and PostgreSQL 17.6 integration jobs both succeeded. The runtime log explicitly reports the QA454 60th/61st probe boundary passing. The two expected-failure cleanup harness jobs finish with failure by design; their assertion jobs succeeded. The expected skipped-result job is skipped.
+- CodeQL [#1870](https://github.com/meridane/QimaTrade-MVP/actions/runs/45547253616) completed **SUCCESS**.
+- QA455 adds `after-restart-never` to the inert `pg_isready` mock in `tests/ci/test-prepared-transactions-always-cleanup-runtime.sh`. The mode reports readiness before the restart, then records exactly 60 failed readiness probes after `docker restart`.
+- The new runtime scenario resets only its disposable mock state to 10, runs the actual restoration shell script with inert Docker/PostgreSQL mocks, and requires: RESET and restart occur once; the post-restart loop exits with status 1 after exactly 60 failed probes and 60 one-second sleeps; the exact existing restoration-timeout diagnostic is emitted; the mock state reaches baseline 0; no `psql` postcondition query runs; and no success marker is reported.
+- Code/test commit: [`eb4acd81`](https://github.com/meridane/QimaTrade-MVP/commit/eb4acd8175e599956a1f6ea7799cf88734120553). The code diff adds the new mock mode and QA455 scenario only. GitHub had not yet exposed a PR-triggered Actions run for this commit at the time of this register update; the combined commit status showed Vercel **PENDING**. **No QA455 runtime pass is claimed yet.**
+- The code change is on work branch `work/qima-post-restart-readiness-timeout-qa455-20261125-1419` and has been fast-forwarded to the PR branch. No force update was used.
+- No local test execution is claimed. QA455 is a synthetic regression contract for the CI restoration harness; it is not evidence of a production vulnerability.
+- No Supabase Production data or migrations, production secrets, grants, persistent RLS policies, or production PostgreSQL configuration were changed. No production deployment, PR merge, force-push, or branch-protection change was made.
