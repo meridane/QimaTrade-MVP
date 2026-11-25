@@ -1103,6 +1103,7 @@ echo "QA468 restore-target preflight guard passed: external host, wrong port/dat
 # QA470: preserve every explicitly supported disposable loopback URL form.
 # The mock psql asserts the exact URL passed by the restore script; no real
 # PostgreSQL connection is made by these allowlist compatibility cases.
+QA470_INITIAL_STATE="$(cat "$STATE_FILE")"
 run_restore_allowed_target_case() {
   local label="$1"
   local database_url="$2"
@@ -1143,6 +1144,14 @@ run_restore_allowed_target_case postgresql-ipv4 "postgresql://postgres:postgres@
 run_restore_allowed_target_case postgres-ipv4 "postgres://postgres:postgres@127.0.0.1:5432/qima_test"
 run_restore_allowed_target_case postgresql-ipv6 "postgresql://postgres:postgres@[::1]:5432/qima_test"
 run_restore_allowed_target_case postgres-ipv6 "postgres://postgres:postgres@[::1]:5432/qima_test"
+
+# Keep this appended coverage isolated from the outer QA355 state assertion.
+printf '%s\\n' "$QA470_INITIAL_STATE" > "$STATE_FILE"
+if [[ "$(cat "$STATE_FILE")" != "$QA470_INITIAL_STATE" ]]; then
+  echo "ERROR: QA470 did not restore the enclosing runtime harness state." >&2
+  cat "$STATE_FILE" >&2
+  exit 1
+fi
 
 echo "QA470 supported-loopback URL allowlist passed: postgres/postgresql schemes with localhost, IPv4 loopback, and IPv6 loopback completed the mocked restoration sequence; psql received each URL unchanged."
 
