@@ -15091,3 +15091,13 @@ La revue croisée des scripts de garde-fou PostgreSQL a révélé le même défa
 - CodeQL [#1880](https://github.com/meridane/QimaTrade-MVP/actions/runs/45568741010) is **IN PROGRESS**. Vercel Preview is **PENDING**. These are pending statuses, not failures.
 - No local Bash execution is claimed. The new cases are synthetic CI mock regressions; they do not establish a production vulnerability or prove production behavior.
 - No Supabase Production data or migrations, secrets, persistent grants/RLS policies, production deployment, PR merge, force-push, or branch-protection settings were changed.
+
+
+### QA457 validation progress — 2026-11-25 (KST)
+
+- QIMA CI [#1953](https://github.com/meridane/QimaTrade-MVP/actions/runs/45568740935) executed the updated runtime harness. The job log for the expected setup-failure path contains the explicit line: `QA457 post-restart SHOW failure guard passed: invalid configuration output and psql exit 73 both stopped before resource postconditions or success reporting.` The dedicated cleanup runtime assertion and the cleanup-failure propagation assertion are **SUCCESS**.
+- The Verify job has completed dependency audit, TypeScript, Next.js production build, and Playwright Chromium installation successfully. Browser smoke tests are **IN PROGRESS**; no final Playwright count is claimed yet.
+- PostgreSQL 16 integration and PostgreSQL 17.6 compatibility jobs remain **IN PROGRESS**. The prepared-transaction restoration steps on PostgreSQL 16 are still pending at this poll; no full database-job closeout is claimed.
+- CodeQL [#1880](https://github.com/meridane/QimaTrade-MVP/actions/runs/45568741010) remains **IN PROGRESS**.
+- Vercel Preview for code/test commit `60cee849` is **PENDING**. The documentation HEAD reports `upgradeToPro=build-rate-limit`, which is an account quota status, not a confirmed compilation failure.
+- QA457 is runtime-validated in the CI job log, but full Verify/Playwright, PostgreSQL 16/17.6, CodeQL, and final Preview closeout remain pending. No local Bash execution is claimed.
