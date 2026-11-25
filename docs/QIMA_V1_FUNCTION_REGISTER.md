@@ -15175,3 +15175,12 @@ La revue croisée des scripts de garde-fou PostgreSQL a révélé le même défa
 - In Verify, the dependency security audit and TypeScript check are **SUCCESS**; the Next.js production build is **IN PROGRESS**, while Chromium installation, Playwright, and the isolated QIMA security-contract fixture are still pending. PostgreSQL 16 and PostgreSQL 17.6 integration jobs are **IN PROGRESS**. CodeQL [#1890](https://github.com/meridane/QimaTrade-MVP/actions/runs/45599059442) is **IN PROGRESS**. The combined Vercel status for this HEAD is **PENDING**.
 - No final Playwright count, full CI conclusion, PostgreSQL 16/17.6 closeout, CodeQL conclusion, or Vercel build result is claimed. QA460 is **runtime-validated**, while full CI closeout remains pending.
 - No local Bash execution is claimed. This is a synthetic regression against the disposable CI restore harness, not evidence of a production vulnerability. No Supabase Production data/migrations, secrets, persistent grants/RLS policies, production PostgreSQL settings, production deployment, PR merge, force-push, or branch-protection changes were made.
+
+
+### QA460 security and Verify progress — 2026-11-25 (KST)
+
+- CodeQL [#1890](https://github.com/meridane/QimaTrade-MVP/actions/runs/45599059442) on code/test commit `5b62d0e806a424776d019e3c81361562c2e59b92` completed **SUCCESS**.
+- QIMA CI [#1963](https://github.com/meridane/QimaTrade-MVP/actions/runs/45599059437) remains **IN PROGRESS**. Verify has completed dependency audit, TypeScript, Next.js production build, and Playwright Chromium installation successfully; the browser smoke test is still active and the isolated QIMA security-contract fixture is pending.
+- PostgreSQL 16 integration and PostgreSQL 17.6 compatibility remain **IN PROGRESS**. The prepared-transaction always-cleanup runtime step and its blocking assertion are **SUCCESS**; the separate cleanup-failure assertion and skipped-result assertion are also **SUCCESS**. The underlying setup/cleanup failure fixtures retain their expected failure outcomes (47 and 52), and the skipped fixture remains intentionally skipped.
+- The combined Vercel status for the documentation HEAD is **PENDING**. No successful Preview or compilation failure is claimed.
+- No final Playwright total or PostgreSQL 16/17.6 closeout is claimed. QA460 remains runtime-validated; full CI closeout is pending.
