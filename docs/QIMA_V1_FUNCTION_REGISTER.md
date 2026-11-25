@@ -15069,3 +15069,11 @@ La revue croisée des scripts de garde-fou PostgreSQL a révélé le même défa
 - Documentation commit `50fe0fe6` QIMA CI [#1949](https://github.com/meridane/QimaTrade-MVP/actions/runs/45560440153) was **CANCELLED** before jobs were published; no test result is attributed to it. CodeQL [#1876](https://github.com/meridane/QimaTrade-MVP/actions/runs/45560440217) remains **IN PROGRESS** on that earlier documentation commit.
 - Current documentation HEAD is `67889f7bb1dbdb57bba24576cbf02125eba88fd9`; its combined Vercel status is `upgradeToPro=build-rate-limit`. This is a quota limitation, not a confirmed build failure. No separate QIMA CI run was returned for this latest docs-only commit at the latest poll.
 - QA456 is runtime-validated and Verify/423 Playwright plus CodeQL are **SUCCESS**. PostgreSQL 16/17.6 closeout remains pending. No local Bash execution is claimed.
+
+
+### QA456 Vercel and PR status clarification — 2026-11-25 (KST)
+
+- Vercel deployment `dpl_3jaWx4WxZBN21M4BQkSSVCYKdYbp` for code/test commit `0cee7fd9` is **CANCELED** (`readyState=CANCELED`); its deployment event endpoint returned no build events. This is not classified as a compilation failure, and no successful Vercel build is claimed for that commit.
+- The current documentation HEAD's combined Vercel status resolves to `upgradeToPro=build-rate-limit`, an account quota limitation. No production deployment was attempted.
+- QIMA CI #1946 remains **IN PROGRESS** with Verify **SUCCESS** (423/423 Playwright) and both PostgreSQL 16/17.6 integration jobs active. CodeQL #1873 is **SUCCESS**. The older documentation-head CI #1949 was cancelled before jobs; CodeQL #1876 remained in progress at the last check.
+- PR #26 remains **OPEN** and unmerged. The current PR HEAD is `56654e564261a2b4840c2601ab1acbba02e9bbc6`; comparison with `main` reports **2,467 ahead / 0 behind**. The work branch is synchronized with the PR branch (0 ahead / 0 behind); no review threads are open.
