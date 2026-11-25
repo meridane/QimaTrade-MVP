@@ -154,3 +154,37 @@ Each case requires exit 92, the exact fixed diagnostic `Unexpected pg_isready ta
 - CodeQL [#1855](https://github.com/meridane/QimaTrade-MVP/actions/runs/45527358151) is **IN PROGRESS** on the code/test commit. CodeQL [#1856](https://github.com/meridane/QimaTrade-MVP/actions/runs/45527434525) is **IN PROGRESS** on the subsequent documentation HEAD.
 - QIMA CI [#1929](https://github.com/meridane/QimaTrade-MVP/actions/runs/45527434223) is **PENDING** on documentation HEAD `f07e2627`, with no jobs published at the latest poll.
 - QA450 is **partially validated**: all seven negative pg_isready mock cases passed in both runtime paths, and the dedicated runtime assertions passed. Full Verify/Playwright, PostgreSQL 16/17.6, and CodeQL closure remain pending.
+
+
+## QA451 — reject empty pg_isready target fields
+
+### Changed file
+
+`tests/ci/test-prepared-transactions-always-cleanup-runtime.sh`
+
+QA450 already rejected missing/extra arguments, wrong host/port/user/database, and reordered options. QA451 adds four explicit empty-value cases so the exact eight-argument contract is covered when an option is present but its value is empty:
+
+- empty host (`-h ""`);
+- empty port (`-p ""`);
+- empty user (`-U ""`);
+- empty database (`-d ""`).
+
+Each case must return exit 92, emit exactly `Unexpected pg_isready target or argument contract.`, and leave the mock event file empty. The existing seven QA450 negative cases and the normal valid readiness calls are retained. The four new cases execute in both runtime paths, adding eight rejection assertions.
+
+### Publication and validation state
+
+- Working branch: `work/qima-pg-isready-empty-args-qa451-20261125-1045`.
+- Code/test commit: [`91364449`](https://github.com/meridane/QimaTrade-MVP/commit/91364449d324bb95cae565eebfe46f74ab27eb96).
+- The code/test commit was fast-forwarded to `fix/create-offer-status-contract` from expected prior HEAD `204fe337`; branch comparison reports 2,447 commits ahead of `main`, 0 behind.
+- The exact updated file was fetched back from GitHub. Each of the four new labels occurs exactly once, and the updated summary is present.
+- No local Bash execution is claimed. QA451 remains pending until GitHub Actions executes the new cases in both runtime paths.
+- The prior QA450 workflow, QIMA CI [#1928](https://github.com/meridane/QimaTrade-MVP/actions/runs/45527358286), has Verify **SUCCESS** and both dedicated runtime assertion jobs **SUCCESS**. PostgreSQL 16 and PostgreSQL 17.6 integration jobs remain **IN PROGRESS** at their CREATE_OFFER runner privilege characterization steps.
+- The documentation-only HEAD before QA451, `204fe337`, had QIMA CI [#1930](https://github.com/meridane/QimaTrade-MVP/actions/runs/45527587808) **PENDING** with no jobs returned at the last poll, CodeQL [#1857](https://github.com/meridane/QimaTrade-MVP/actions/runs/45527587755) **SUCCESS**, and Vercel **FAILURE** due to `build-rate-limit`. The code/test commit's combined status also reports the Vercel quota limitation; this is not a confirmed compilation failure.
+- The canonical `docs/QIMA_V1_FUNCTION_REGISTER.md` was fetched at the current PR ref but returned an empty content payload with a valid blob SHA. It was not overwritten; this append-only companion remains the auditable record.
+
+### Safety boundary
+
+- No Supabase Production data or migrations were accessed or modified.
+- No production secrets, grants, persistent RLS policies, or PostgreSQL production settings were changed.
+- No production deployment, PR merge, force-push, or branch-protection change was performed.
+- QA450/QA451 are CI mock-contract tests; they do not establish a production vulnerability.
