@@ -311,3 +311,12 @@ Code/test commit: [`f49a6c19`](https://github.com/meridane/QimaTrade-MVP/commit/
 - No Supabase Production data or migrations were accessed or modified.
 - No production secrets, grants, persistent RLS policies, or PostgreSQL production settings were changed.
 - No production deployment, PR merge, force-push, or branch-protection change was performed.
+
+### QA453 runtime result update — 2026-11-25 (KST)
+
+- QIMA CI [#1937](https://github.com/meridane/QimaTrade-MVP/actions/runs/45540657320) executed the new QA453 scenario in the actual normal-cleanup runtime harness. The job log contains: `QA453 transient-readiness guard passed: three failed probes and sleeps were followed by readiness, then RESET, restart, and all postconditions completed.`
+- The event-sequence assertion passed: three failed `pg_isready` probes each paired with `sleep 1`, followed by readiness success before RESET, then restart, post-restart readiness, baseline SHOW, and both zero-residual-resource queries. The harness also checked exit 0, five total readiness invocations, baseline `0`, the `QA267 passed` marker, and absence of credential text.
+- The same run confirms `QA353 runtime contract passed`; the separate failure-propagation path confirms `QA354 runtime contract passed` and preserves the expected RESET exit 52 without restart or postconditions. The dedicated assertions for both paths and the skipped-result contract are **SUCCESS**.
+- The two underlying runtime jobs still intentionally conclude **FAILURE** because they inject setup exit 47 and cleanup exit 52. The skipped-result job is intentionally **SKIPPED**. These are expected harness outcomes, not unexpected failures.
+- At this update, Verify remains **IN PROGRESS** (npm audit and TypeScript have passed; production build is active; Playwright is pending). PostgreSQL 16 and PostgreSQL 17.6 integration jobs remain **IN PROGRESS**. CodeQL [#1864](https://github.com/meridane/QimaTrade-MVP/actions/runs/45540657230) remains **IN PROGRESS**; Vercel Preview remains **PENDING**.
+- QA453 runtime behavior is validated in GitHub Actions, but full CI, Playwright, both PostgreSQL jobs, and CodeQL closure are not claimed yet.
