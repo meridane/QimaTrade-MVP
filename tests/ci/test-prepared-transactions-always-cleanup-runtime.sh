@@ -54,8 +54,12 @@ case "${1-}" in
       echo "Unexpected Docker container discovery arguments." >&2
       exit 89
     fi
-    printf '%s\n' 0123456789ab
     printf '%s\n' docker-ps >> "$MOCK_EVENTS"
+    if [[ "${MOCK_DOCKER_PS_EXIT:-0}" != "0" ]]; then
+      echo "mock Docker discovery failure" >&2
+      exit "$MOCK_DOCKER_PS_EXIT"
+    fi
+    printf '%s\n' 0123456789ab
     ;;
   exec)
     if [[ "$#" -ne 11 || "$2" != "0123456789ab" || "$3" != "psql" ||
@@ -802,6 +806,34 @@ run_database_count_failure_case \
   "::error::PostgreSQL returned an invalid disposable migration database count; restoration is not confirmed." \
   invalid-value
 echo "QA461 disposable-database postcondition guard passed: psql exit 76 and non-numeric counts both blocked the success marker."
+
+# QA462: Docker discovery failure must preserve its exit status and prevent all
+# readiness, configuration, restart, and SQL operations.
+DOCKER_DISCOVERY_FAILURE_EVENTS="$TEMP_DIR/docker-discovery-failure-events.log"
+DOCKER_DISCOVERY_FAILURE_LOG="$TEMP_DIR/docker-discovery-failure.log"
+EXPECTED_DOCKER_DISCOVERY_FAILURE_EVENTS="$TEMP_DIR/docker-discovery-failure-expected.log"
+: > "$DOCKER_DISCOVERY_FAILURE_EVENTS"
+printf '10\n' > "$STATE_FILE"
+docker_discovery_failure_status=0
+if PATH="$MOCK_BIN:$PATH" MOCK_EVENTS="$DOCKER_DISCOVERY_FAILURE_EVENTS" MOCK_STATE_FILE="$STATE_FILE" MOCK_RESTORE_EXIT=0 MOCK_DOCKER_PS_EXIT=78 MOCK_READY_MODE=ready DATABASE_URL="postgresql://postgres:postgres@localhost:5432/qima_test" RESTORE_REQUIRED="$RESTORE_REQUIRED" BASELINE_MAX_PREPARED_TRANSACTIONS="$BASELINE_MAX_PREPARED_TRANSACTIONS" bash "$RESTORE_SCRIPT" > "$DOCKER_DISCOVERY_FAILURE_LOG" 2>&1; then
+  docker_discovery_failure_status=0
+else
+  docker_discovery_failure_status=$?
+fi
+printf '%s\n' docker-ps > "$EXPECTED_DOCKER_DISCOVERY_FAILURE_EVENTS"
+if [[ "$docker_discovery_failure_status" -ne 78 ]] ||
+  [[ "$(cat "$DOCKER_DISCOVERY_FAILURE_EVENTS")" != "$(cat "$EXPECTED_DOCKER_DISCOVERY_FAILURE_EVENTS")" ]] ||
+  [[ "$(cat "$STATE_FILE")" != "10" ]] ||
+  [[ "$(cat "$DOCKER_DISCOVERY_FAILURE_LOG")" != "::error::Could not discover the disposable PostgreSQL 16 service container for restoration (docker ps exit 78); no readiness, database, or configuration operation was attempted." ]] ||
+  grep -Eq 'pg-isready|docker-exec-reset|docker-restart|psql-' "$DOCKER_DISCOVERY_FAILURE_EVENTS" ||
+  grep -Fq "postgres:postgres" "$DOCKER_DISCOVERY_FAILURE_LOG"; then
+  echo "ERROR: Docker discovery failure was not preserved or a later readiness/database/configuration operation ran." >&2
+  cat "$DOCKER_DISCOVERY_FAILURE_EVENTS" >&2
+  cat "$DOCKER_DISCOVERY_FAILURE_LOG" >&2
+  exit 1
+fi
+echo "QA462 Docker-discovery failure guard passed: docker ps exit 78 was preserved and all readiness, configuration, restart, and SQL operations were blocked."
+
 
 
 
