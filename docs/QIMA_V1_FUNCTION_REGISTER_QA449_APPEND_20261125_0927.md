@@ -67,3 +67,17 @@ This is a CI mock-contract improvement. It does not establish a production vulne
 - No Supabase Production data or migrations were accessed or modified.
 - No production secrets, grants, persistent RLS policies, or PostgreSQL production settings were changed.
 - No production deployment, PR merge, force-push, or branch-protection change was performed.
+
+
+## Validation progress — 2026-11-25, 09:27 KST
+
+- QIMA CI [#1924](https://github.com/meridane/QimaTrade-MVP/actions/runs/45518420085) started on code/test commit `09118e983155822efb320aa4b0e100312338bd54`.
+- The QA449 psql mock's five direct negative self-checks ran successfully in both runtime paths. Both job logs contain: `QA449 psql mock contract passed: missing, extra, wrong-target, reordered-option, and unknown-query invocations were rejected before recording an event.`
+- In the normal always-cleanup runtime job, the actual restore-script step completed SUCCESS and the dedicated `Assert prepared-transaction always-cleanup runtime contract` job completed SUCCESS; the script reached its normal baseline/resource postconditions.
+- In the simulated cleanup-failure runtime job, the actual restore-script step returned the deliberately injected exit 52; the dedicated `Assert prepared-transaction cleanup failures remain blocking` job completed SUCCESS. The script did not restart or run postcondition queries after the failed RESET. These overall runtime-job FAILURE conclusions are expected test outcomes, not unexpected suite failures.
+- The skipped-result assertion job completed SUCCESS; the corresponding intentionally skipped runtime job remains SKIPPED.
+- Verify has passed the cleanup workflow wiring and cleanup assertion checks, npm audit, TypeScript, and the Next.js production build. Playwright and the isolated security-contract fixture were still pending at the latest poll.
+- PostgreSQL 16 and PostgreSQL 17.6 integration jobs are still IN PROGRESS. The prepared-transaction configuration, setup-intent, and restoration steps remain pending in both jobs; no PostgreSQL integration outcome is inferred from the mock runtime harness.
+- CodeQL [#1851](https://github.com/meridane/QimaTrade-MVP/actions/runs/45518420023) is IN PROGRESS; CodeQL initialization and autobuild succeeded, analysis is still running.
+- Vercel Preview for code/test commit `09118e98` is SUCCESS. The subsequent documentation HEAD is rate-limited by the Vercel deployment quota; this is not a compilation result.
+- QA449 is **partially validated**: its exact psql mock contract and both runtime assertions passed, while the complete CI run and CodeQL analysis remain open. No local Bash execution is claimed.
