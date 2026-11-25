@@ -72,3 +72,14 @@ Correction published on the work branch in commit [e8d993069b17b6b133c7d352b99e5
 - PostgreSQL 16 integration and PostgreSQL 17.6 compatibility jobs were both **IN PROGRESS**. The runtime contract assertion jobs and skipped-result assertion job were **SUCCESS**; the two expected-failure harness jobs and one expected-skipped job retain their intentional conclusions.
 - CodeQL #1900: https://github.com/meridane/QimaTrade-MVP/actions/runs/45628925439 was **IN PROGRESS**.
 - No final CI #1973 or CodeQL #1900 conclusion is claimed in this snapshot.
+
+
+## Validation progression — 2026-11-25 22:58 KST
+
+- CodeQL #1900 completed **SUCCESS**: https://github.com/meridane/QimaTrade-MVP/actions/runs/45628925439
+- Vercel Preview for the PR head completed **SUCCESS**: https://vercel.com/bmk1/qimatrade-mvp/3e1GCoPxRZdVrwXiUVZQm7L4Zjfj
+- In QIMA CI #1973, dependency audit, TypeScript, production build, Chromium installation, workflow wiring, cleanup assertion validation, and the QA463 parallel-isolation step are **SUCCESS**.
+- Playwright browser smoke tests remain **IN PROGRESS**.
+- PostgreSQL 16 integration and PostgreSQL 17.6 compatibility remain **IN PROGRESS**; no failures were reported at this snapshot.
+- QA462 runtime and its independent assertion remain successful in this run; the expected-failure and expected-skipped job conclusions are intentional and their assertion jobs succeeded.
+- CI #1973 remains **IN PROGRESS**; no overall success is claimed.
