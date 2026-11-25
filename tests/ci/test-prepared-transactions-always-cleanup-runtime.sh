@@ -1110,13 +1110,13 @@ run_restore_allowed_target_case() {
   local allowed_log="$TEMP_DIR/restore-allowed-$label.log"
   local allowed_status=0
   : > "$allowed_events"
-  printf '10\\n' > "$STATE_FILE"
+  printf '10\n' > "$STATE_FILE"
 
-  if PATH="$MOCK_BIN:$PATH" \\
-    MOCK_EVENTS="$allowed_events" MOCK_STATE_FILE="$STATE_FILE" \\
-    MOCK_PSQL_EXPECTED_URL="$database_url" MOCK_RESTORE_EXIT=0 MOCK_READY_MODE=ready \\
-    DATABASE_URL="$database_url" RESTORE_REQUIRED=true \\
-    BASELINE_MAX_PREPARED_TRANSACTIONS=0 \\
+  if PATH="$MOCK_BIN:$PATH" \
+    MOCK_EVENTS="$allowed_events" MOCK_STATE_FILE="$STATE_FILE" \
+    MOCK_PSQL_EXPECTED_URL="$database_url" MOCK_RESTORE_EXIT=0 MOCK_READY_MODE=ready \
+    DATABASE_URL="$database_url" RESTORE_REQUIRED=true \
+    BASELINE_MAX_PREPARED_TRANSACTIONS=0 \
     bash "$RESTORE_SCRIPT" > "$allowed_log" 2>&1; then
     allowed_status=0
   else
@@ -1124,11 +1124,11 @@ run_restore_allowed_target_case() {
   fi
 
   local expected_allowed_events
-  expected_allowed_events="$(printf '%s\\n' docker-ps pg-isready docker-exec-reset docker-restart pg-isready psql-show psql-prepared psql-database)"
-  if [[ "$allowed_status" -ne 0 ]] || \\
-    [[ "$(cat "$allowed_events")" != "$expected_allowed_events" ]] || \\
-    [[ "$(cat "$STATE_FILE")" != "0" ]] || \\
-    ! grep -Fq "QA267 passed" "$allowed_log" || \\
+  expected_allowed_events="$(printf '%s\n' docker-ps pg-isready docker-exec-reset docker-restart pg-isready psql-show psql-prepared psql-database)"
+  if [[ "$allowed_status" -ne 0 ]] || \
+    [[ "$(cat "$allowed_events")" != "$expected_allowed_events" ]] || \
+    [[ "$(cat "$STATE_FILE")" != "0" ]] || \
+    ! grep -Fq "QA267 passed" "$allowed_log" || \
     grep -Fq "postgres:postgres" "$allowed_log"; then
     echo "ERROR: supported loopback URL case $label was not accepted through the mocked restoration path." >&2
     cat "$allowed_events" >&2
