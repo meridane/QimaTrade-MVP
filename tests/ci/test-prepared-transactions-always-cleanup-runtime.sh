@@ -946,6 +946,12 @@ run_docker_container_id_boundary_case "$too_long_container_id" 1 too-long "$inva
 run_docker_container_id_boundary_case "ABCDEF012345" 1 uppercase "$invalid_id_diagnostic"
 echo "QA465 Docker container-ID boundary guard passed: a 64-character lowercase hexadecimal ID was forwarded unchanged; 11-character, 65-character, and uppercase IDs were rejected before readiness or mutation."
 
+# QA469: reject same-length Docker IDs containing non-hex characters or whitespace.
+# These cases distinguish the hexadecimal allowlist from a length-only check.
+run_docker_container_id_boundary_case "0123456789ag" 1 non-hex "$invalid_id_diagnostic"
+run_docker_container_id_boundary_case "0123456789a " 1 trailing-space "$invalid_id_diagnostic"
+echo "QA469 Docker container-ID character-class guard passed: same-length non-hex and whitespace IDs were rejected before readiness or mutation."
+
 
 
 
