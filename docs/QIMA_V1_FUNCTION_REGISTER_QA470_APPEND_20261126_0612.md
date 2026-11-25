@@ -23,9 +23,12 @@ The mock `psql` receives `MOCK_PSQL_EXPECTED_URL` and rejects any URL that diffe
 - The Verify job then failed in `test-prepared-transactions-harness-isolation.sh`: the newly appended positive restore cases correctly ended with mock state `0`, but they contaminated the enclosing QA355 sentinel, which expected its initial state `10` after the later no-mutation checks. This was a test-harness isolation failure, not a production database finding.
 - Commit `02de49936fab149a431d94e20a3b4ccbd7c3ba03` captures the initial QA470 state and restores it after the six cases.
 - Commit `af38ee93399f2be069d178f19da68b0de0577cb5` corrects the state-restore `printf` escape.
-- Corrected CI run [#1989](https://github.com/meridane/QimaTrade-MVP/actions/runs/45702685944) is queued behind the still-running prior PR workflow. Its result is pending.
-- CodeQL run [#1989](https://github.com/meridane/QimaTrade-MVP/actions/runs/45702685865) is in progress; initialization and autobuild have passed, analysis is still running.
-- The Vercel check suite for the corrected head was queued at the last inspection; no new Preview result is confirmed.
+- CI run [#1989](https://github.com/meridane/QimaTrade-MVP/actions/runs/45702685944) was cancelled after the PR head advanced to the append-only register update; no test result is attributed to that run.
+- CodeQL run [#1915](https://github.com/meridane/QimaTrade-MVP/actions/runs/45702685865) for the corrected code head `af38ee93` completed successfully.
+- CodeQL run [#1916](https://github.com/meridane/QimaTrade-MVP/actions/runs/45702873026) for the current register head is in progress; initialization and autobuild passed, analysis is still running.
+- Corrected CI run [#1990](https://github.com/meridane/QimaTrade-MVP/actions/runs/45702873168) is pending behind the still-running prior PR workflow.
+- CI run [#1988](https://github.com/meridane/QimaTrade-MVP/actions/runs/45702507061) remains in progress. Its Verify job failed only at the QA355 outer-state assertion; the PostgreSQL 16 and 17.6 jobs were still at runner write-privilege characterization when last inspected.
+- The Vercel combined status currently reports `build-rate-limit`; this is a provider/quota status, not evidence of an application compilation failure. No successful Preview for the current head is confirmed.
 
 ## Files and commits
 
