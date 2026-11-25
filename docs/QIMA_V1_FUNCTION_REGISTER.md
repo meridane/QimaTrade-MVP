@@ -15194,3 +15194,13 @@ La revue croisée des scripts de garde-fou PostgreSQL a révélé le même défa
 - Two QA461 cases execute the actual disposable CI restore script. Both require the exact event sequence through `psql-database`, baseline state 0, preservation of the expected diagnostic/status, no `QA267 passed` marker, and no credential disclosure. The command-failure case expects exit 76; the malformed-count case expects exit 1.
 - QA461 is **implemented; PR-triggered runtime and full CI validation are pending**. No local Bash execution is claimed. The synthetic mock contract is not evidence of a production vulnerability.
 - No Supabase Production data/migrations, secrets, persistent grants/RLS policies, production PostgreSQL settings, production deployment, PR merge, force-push, or branch-protection changes were made.
+
+
+### QA461 runtime validation update — 2026-11-25 (KST)
+
+- On code/test HEAD `1e05e92bd8505b4ead7b017c5554d65555ba84c5`, QIMA CI [run #1964](https://github.com/meridane/QimaTrade-MVP/actions/runs/45602663540) has executed the QA461 runtime scenario. The runtime log explicitly reports: `QA461 disposable-database postcondition guard passed: psql exit 76 and non-numeric counts both blocked the success marker.`
+- The runtime harness job intentionally concludes **FAILURE** because it is the expected setup-failure fixture (injected exit 47); the separate blocking runtime assertion job **SUCCESS** confirms the harness contract, including QA461. The cleanup-failure fixture likewise concludes with its expected injected exit 52 and its dedicated assertion **SUCCESS**. The skipped-result assertion is **SUCCESS** and its fixture remains intentionally **SKIPPED**.
+- At this snapshot, the main Verify job, PostgreSQL 16 integration, PostgreSQL 17.6 compatibility, and CodeQL [run](https://github.com/meridane/QimaTrade-MVP/actions/runs/45602663559) remain **IN PROGRESS**. No Playwright total or full CI closeout is claimed.
+- The combined Vercel status reports `upgradeToPro=build-rate-limit`; this is a build-quota limitation, not evidence of a compilation failure.
+- QA461 is now **runtime-validated**. Full CI closeout remains pending. The regression uses disposable CI mocks and is not evidence of a production vulnerability.
+- No Supabase Production data/migrations, secrets, persistent grants/RLS policies, production PostgreSQL settings, production deployment, PR merge, force-push, or branch-protection changes were made.
