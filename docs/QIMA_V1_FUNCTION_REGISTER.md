@@ -15204,3 +15204,11 @@ La revue croisée des scripts de garde-fou PostgreSQL a révélé le même défa
 - The combined Vercel status reports `upgradeToPro=build-rate-limit`; this is a build-quota limitation, not evidence of a compilation failure.
 - QA461 is now **runtime-validated**. Full CI closeout remains pending. The regression uses disposable CI mocks and is not evidence of a production vulnerability.
 - No Supabase Production data/migrations, secrets, persistent grants/RLS policies, production PostgreSQL settings, production deployment, PR merge, force-push, or branch-protection changes were made.
+
+
+### QA461 post-push check update — 2026-11-25 (KST)
+
+- QIMA CodeQL [#1893](https://github.com/meridane/QimaTrade-MVP/actions/runs/45602663559) completed **SUCCESS** on code/test commit `1e05e92bd8505b4ead7b017c5554d65555ba84c5`.
+- QIMA CI [#1966](https://github.com/meridane/QimaTrade-MVP/actions/runs/45602663540) remains **IN PROGRESS**. The QA461 runtime marker and both blocking assertion jobs are **SUCCESS**; the setup-failure and cleanup-failure fixtures retain their expected injected failure outcomes (47 and 52), and the skipped fixture remains intentionally **SKIPPED**. At the latest poll, Verify is still building before Chromium/Playwright, and PostgreSQL 16/17.6 integration jobs remain active.
+- The Vercel status for the code/test commit is now **SUCCESS** with Preview [deployment](https://vercel.com/bmk1/qimatrade-mvp/7t2N6KY9neMXBwHDnYzNrn1YvjiY). This supersedes the earlier transient `build-rate-limit` status; no compilation failure is reported.
+- No Playwright total or full QIMA CI closeout is claimed yet. QA461 remains runtime-validated pending full CI.
