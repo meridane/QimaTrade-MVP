@@ -166,6 +166,20 @@ case "${MOCK_READY_MODE:-ready}" in
     printf '%s\n' pg-isready-failed >> "$MOCK_EVENTS"
     exit 1
     ;;
+  after-three)
+    ready_count_file="${MOCK_READY_COUNT_FILE:?MOCK_READY_COUNT_FILE is required for after-three mode}"
+    ready_count=0
+    if [[ -f "$ready_count_file" ]]; then
+      read -r ready_count < "$ready_count_file"
+    fi
+    ready_count=$((ready_count + 1))
+    printf '%s\n' "$ready_count" > "$ready_count_file"
+    if (( ready_count <= 3 )); then
+      printf '%s\n' pg-isready-failed >> "$MOCK_EVENTS"
+      exit 1
+    fi
+    printf '%s\n' pg-isready >> "$MOCK_EVENTS"
+    ;;
   *)
     echo "Unexpected pg_isready mock mode." >&2
     exit 94
@@ -306,3 +320,41 @@ if grep -Eq 'docker-exec-reset|docker-restart|psql-' "$TIMEOUT_EVENTS"; then
   exit 1
 fi
 echo "QA452 readiness-timeout guard passed: 60 failed readiness probes blocked ALTER SYSTEM RESET, restart, and postcondition queries."
+
+# QA453: transient startup failures must delay, not suppress, restoration.
+TRANSIENT_EVENTS="$TEMP_DIR/readiness-transient-events.log"
+TRANSIENT_LOG="$TEMP_DIR/readiness-transient.log"
+TRANSIENT_COUNT_FILE="$TEMP_DIR/readiness-transient-count"
+EXPECTED_TRANSIENT_EVENTS="$TEMP_DIR/readiness-transient-expected.log"
+: > "$TRANSIENT_EVENTS"
+transient_status=0
+if PATH="$MOCK_BIN:$PATH" \
+  MOCK_EVENTS="$TRANSIENT_EVENTS" MOCK_STATE_FILE="$STATE_FILE" MOCK_RESTORE_EXIT=0 \
+  MOCK_READY_MODE=after-three MOCK_READY_COUNT_FILE="$TRANSIENT_COUNT_FILE" \
+  DATABASE_URL="postgresql://postgres:postgres@localhost:5432/qima_test" \
+  RESTORE_REQUIRED="$RESTORE_REQUIRED" \
+  BASELINE_MAX_PREPARED_TRANSACTIONS="$BASELINE_MAX_PREPARED_TRANSACTIONS" \
+  bash "$RESTORE_SCRIPT" > "$TRANSIENT_LOG" 2>&1; then
+  transient_status=0
+else
+  transient_status=$?
+fi
+{
+  printf 'docker-ps\n'
+  for attempt in {1..3}; do
+    printf 'pg-isready-failed\nsleep-1\n'
+  done
+  printf '%s\n' pg-isready docker-exec-reset docker-restart pg-isready psql-show psql-prepared psql-database
+} > "$EXPECTED_TRANSIENT_EVENTS"
+if [[ "$transient_status" -ne 0 ]] ||
+  [[ "$(cat "$TRANSIENT_EVENTS")" != "$(cat "$EXPECTED_TRANSIENT_EVENTS")" ]] ||
+  [[ "$(cat "$TRANSIENT_COUNT_FILE")" != "5" ]] ||
+  [[ "$(cat "$STATE_FILE")" != "0" ]] ||
+  ! grep -Fq "QA267 passed" "$TRANSIENT_LOG" ||
+  grep -Fq "postgres:postgres" "$TRANSIENT_LOG"; then
+  echo "ERROR: transient readiness failures did not converge before restoration and postcondition verification." >&2
+  cat "$TRANSIENT_EVENTS" >&2
+  cat "$TRANSIENT_LOG" >&2
+  exit 1
+fi
+echo "QA453 transient-readiness guard passed: three failed probes and sleeps were followed by readiness, then RESET, restart, and all postconditions completed."
