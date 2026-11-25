@@ -99,7 +99,29 @@ fi
 case "$6" in
   "SHOW max_prepared_transactions")
     printf '%s\n' psql-show >> "$MOCK_EVENTS"
-    cat "$MOCK_STATE_FILE"
+    case "${MOCK_PSQL_SHOW_MODE:-state}" in
+      state)
+        cat "$MOCK_STATE_FILE"
+        ;;
+      after-three-stale)
+        show_count_file="${MOCK_PSQL_SHOW_COUNT_FILE:?MOCK_PSQL_SHOW_COUNT_FILE is required for after-three-stale mode}"
+        show_count=0
+        if [[ -f "$show_count_file" ]]; then
+          read -r show_count < "$show_count_file"
+        fi
+        show_count=$((show_count + 1))
+        printf '%s\n' "$show_count" > "$show_count_file"
+        if (( show_count <= 3 )); then
+          printf '10\n'
+        else
+          cat "$MOCK_STATE_FILE"
+        fi
+        ;;
+      *)
+        echo "Unexpected psql SHOW mock mode." >&2
+        exit 95
+        ;;
+    esac
     ;;
   "SELECT count(*) FROM pg_prepared_xacts WHERE gid = 'qa266_prepared_cleanup_blocker'")
     printf '%s\n' psql-prepared >> "$MOCK_EVENTS"
@@ -482,3 +504,47 @@ if [[ "$post_restart_status" -ne 1 ]] ||
   exit 1
 fi
 echo "QA455 post-restart readiness timeout passed: RESET and restart completed, then 60 failed readiness probes blocked all psql postconditions and success reporting."
+
+
+# QA456: a ready server may still report the pre-RESET setting briefly. Keep
+# retrying SHOW until the baseline is observed; do not run resource postconditions early.
+CONFIG_CONVERGENCE_EVENTS="$TEMP_DIR/config-convergence-events.log"
+CONFIG_CONVERGENCE_LOG="$TEMP_DIR/config-convergence.log"
+CONFIG_CONVERGENCE_COUNT_FILE="$TEMP_DIR/config-convergence-show-count"
+EXPECTED_CONFIG_CONVERGENCE_EVENTS="$TEMP_DIR/config-convergence-expected.log"
+: > "$CONFIG_CONVERGENCE_EVENTS"
+rm -f "$CONFIG_CONVERGENCE_COUNT_FILE"
+printf '10\n' > "$STATE_FILE"
+config_convergence_status=0
+if PATH="$MOCK_BIN:$PATH" \
+  MOCK_EVENTS="$CONFIG_CONVERGENCE_EVENTS" MOCK_STATE_FILE="$STATE_FILE" MOCK_RESTORE_EXIT=0 \
+  MOCK_READY_MODE=ready MOCK_PSQL_SHOW_MODE=after-three-stale \
+  MOCK_PSQL_SHOW_COUNT_FILE="$CONFIG_CONVERGENCE_COUNT_FILE" \
+  DATABASE_URL="postgresql://postgres:postgres@localhost:5432/qima_test" \
+  RESTORE_REQUIRED="$RESTORE_REQUIRED" \
+  BASELINE_MAX_PREPARED_TRANSACTIONS="$BASELINE_MAX_PREPARED_TRANSACTIONS" \
+  bash "$RESTORE_SCRIPT" > "$CONFIG_CONVERGENCE_LOG" 2>&1; then
+  config_convergence_status=0
+else
+  config_convergence_status=$?
+fi
+{
+  printf 'docker-ps\npg-isready\ndocker-exec-reset\ndocker-restart\n'
+  for attempt in {1..3}; do
+    printf 'pg-isready\npsql-show\nsleep-1\n'
+  done
+  printf '%s\n' pg-isready psql-show psql-prepared psql-database
+} > "$EXPECTED_CONFIG_CONVERGENCE_EVENTS"
+if [[ "$config_convergence_status" -ne 0 ]] ||
+  [[ "$(cat "$CONFIG_CONVERGENCE_EVENTS")" != "$(cat "$EXPECTED_CONFIG_CONVERGENCE_EVENTS")" ]] ||
+  [[ "$(cat "$CONFIG_CONVERGENCE_COUNT_FILE")" != "4" ]] ||
+  [[ "$(cat "$STATE_FILE")" != "0" ]] ||
+  ! grep -Fq "QA267 passed" "$CONFIG_CONVERGENCE_LOG" ||
+  grep -Fq "PostgreSQL did not return to max_prepared_transactions=0" "$CONFIG_CONVERGENCE_LOG" ||
+  grep -Fq "postgres:postgres" "$CONFIG_CONVERGENCE_LOG"; then
+  echo "ERROR: restoration did not retry stale SHOW values until the baseline was observed before resource postconditions." >&2
+  cat "$CONFIG_CONVERGENCE_EVENTS" >&2
+  cat "$CONFIG_CONVERGENCE_LOG" >&2
+  exit 1
+fi
+echo "QA456 configuration-convergence guard passed: three stale SHOW values and sleeps were followed by baseline 0; postconditions ran only after convergence."
