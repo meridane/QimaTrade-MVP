@@ -151,7 +151,22 @@ case "$6" in
     ;;
   "SELECT count(*) FROM pg_database WHERE datname = 'qima_message_migration_test'")
     printf '%s\n' psql-database >> "$MOCK_EVENTS"
-    printf '0\n'
+    case "${MOCK_PSQL_DATABASE_MODE:-success}" in
+      success)
+        printf '0\n'
+        ;;
+      command-failure)
+        echo "mock psql disposable-database count failure" >&2
+        exit 76
+        ;;
+      invalid-value)
+        printf 'not-a-number\n'
+        ;;
+      *)
+        echo "Unexpected psql database-count mock mode." >&2
+        exit 97
+        ;;
+    esac
     ;;
   *)
     echo "Unexpected psql target or argument contract." >&2
@@ -739,7 +754,55 @@ if [[ "$prepared_count_failure_status" -ne 75 ]] ||
   cat "$PREPARED_COUNT_FAILURE_LOG" >&2
   exit 1
 fi
+
 echo "QA460 prepared-count failure guard passed: psql exit 75 was preserved and the disposable-database postcondition and success marker were blocked."
+
+# QA461: the disposable migration-database postcondition must fail closed when
+# its psql query errors or returns a non-numeric count.
+run_database_count_failure_case() {
+  local mode="$1"
+  local expected_status="$2"
+  local expected_diagnostic="$3"
+  local label="$4"
+  local failure_events="$TEMP_DIR/database-count-${label}-events.log"
+  local failure_log="$TEMP_DIR/database-count-${label}.log"
+  local expected_failure_events="$TEMP_DIR/database-count-${label}-expected.log"
+  local failure_status=0
+
+  : > "$failure_events"
+  printf '10\n' > "$STATE_FILE"
+  if PATH="$MOCK_BIN:$PATH" MOCK_EVENTS="$failure_events" MOCK_STATE_FILE="$STATE_FILE" MOCK_RESTORE_EXIT=0 MOCK_READY_MODE=ready MOCK_PSQL_DATABASE_MODE="$mode" DATABASE_URL="postgresql://postgres:postgres@localhost:5432/qima_test" RESTORE_REQUIRED="$RESTORE_REQUIRED" BASELINE_MAX_PREPARED_TRANSACTIONS="$BASELINE_MAX_PREPARED_TRANSACTIONS" bash "$RESTORE_SCRIPT" > "$failure_log" 2>&1; then
+    failure_status=0
+  else
+    failure_status=$?
+  fi
+
+  printf '%s\n' docker-ps pg-isready docker-exec-reset docker-restart pg-isready psql-show psql-prepared psql-database > "$expected_failure_events"
+  if [[ "$failure_status" -ne "$expected_status" ]] ||
+    [[ "$(cat "$failure_events")" != "$(cat "$expected_failure_events")" ]] ||
+    [[ "$(cat "$STATE_FILE")" != "0" ]] ||
+    ! grep -Fq "$expected_diagnostic" "$failure_log" ||
+    grep -Fq "QA267 passed" "$failure_log" ||
+    grep -Fq "postgres:postgres" "$failure_log"; then
+    echo "ERROR: disposable migration-database postcondition $label failure was not preserved or success was reported." >&2
+    cat "$failure_events" >&2
+    cat "$failure_log" >&2
+    exit 1
+  fi
+}
+
+run_database_count_failure_case \
+  command-failure \
+  76 \
+  "::error::Could not verify disposable migration database cleanup (psql exit 76); restoration is not confirmed." \
+  command-failure
+run_database_count_failure_case \
+  invalid-value \
+  1 \
+  "::error::PostgreSQL returned an invalid disposable migration database count; restoration is not confirmed." \
+  invalid-value
+echo "QA461 disposable-database postcondition guard passed: psql exit 76 and non-numeric counts both blocked the success marker."
+
 
 
 
