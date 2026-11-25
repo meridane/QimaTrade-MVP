@@ -89,26 +89,65 @@ chmod +x "$MOCK_BIN/docker"
 cat > "$MOCK_BIN/psql" <<'PSQL'
 #!/usr/bin/env bash
 set -euo pipefail
-case "$*" in
-  *"SHOW max_prepared_transactions"*)
+if [[ "$#" -ne 6 ||
+  "$1" != "postgresql://postgres:postgres@localhost:5432/qima_test" ||
+  "$2" != "-X" || "$3" != "-v" || "$4" != "ON_ERROR_STOP=1" ||
+  "$5" != "-Atqc" ]]; then
+  echo "Unexpected psql target or argument contract." >&2
+  exit 93
+fi
+case "$6" in
+  "SHOW max_prepared_transactions")
     printf '%s\n' psql-show >> "$MOCK_EVENTS"
     cat "$MOCK_STATE_FILE"
     ;;
-  *"pg_prepared_xacts"*)
+  "SELECT count(*) FROM pg_prepared_xacts WHERE gid = 'qa266_prepared_cleanup_blocker'")
     printf '%s\n' psql-prepared >> "$MOCK_EVENTS"
     printf '0\n'
     ;;
-  *"pg_database"*)
+  "SELECT count(*) FROM pg_database WHERE datname = 'qima_message_migration_test'")
     printf '%s\n' psql-database >> "$MOCK_EVENTS"
     printf '0\n'
     ;;
   *)
-    echo "Unexpected psql invocation." >&2
-    exit 90
+    echo "Unexpected psql target or argument contract." >&2
+    exit 93
     ;;
 esac
 PSQL
 chmod +x "$MOCK_BIN/psql"
+
+# QA449: prove that malformed psql invocations are rejected before any mock event.
+PSQL_REJECT_EVENTS="$TEMP_DIR/psql-reject-events.log"
+PSQL_REJECT_LOG="$TEMP_DIR/psql-reject.log"
+: > "$PSQL_REJECT_EVENTS"
+assert_psql_rejects() {
+  local label="$1"
+  shift
+  local status=0
+  : > "$PSQL_REJECT_EVENTS"
+  if env MOCK_EVENTS="$PSQL_REJECT_EVENTS" MOCK_STATE_FILE="$STATE_FILE" \
+    "$MOCK_BIN/psql" "$@" > "$PSQL_REJECT_LOG" 2>&1; then
+    status=0
+  else
+    status=$?
+  fi
+  if [[ "$status" -ne 93 ]] ||
+    [[ "$(cat "$PSQL_REJECT_LOG")" != "Unexpected psql target or argument contract." ]] ||
+    [[ -s "$PSQL_REJECT_EVENTS" ]]; then
+    echo "ERROR: psql mock accepted or mishandled the QA449 $label rejection case." >&2
+    cat "$PSQL_REJECT_LOG" >&2
+    cat "$PSQL_REJECT_EVENTS" >&2
+    exit 1
+  fi
+}
+PSQL_URL="postgresql://postgres:postgres@localhost:5432/qima_test"
+assert_psql_rejects "missing-argument" "$PSQL_URL" -X -v ON_ERROR_STOP=1 -Atqc
+assert_psql_rejects "extra-argument" "$PSQL_URL" -X -v ON_ERROR_STOP=1 -Atqc "SHOW max_prepared_transactions" extra
+assert_psql_rejects "wrong-database" "postgresql://postgres:postgres@localhost:5432/other" -X -v ON_ERROR_STOP=1 -Atqc "SHOW max_prepared_transactions"
+assert_psql_rejects "reordered-options" "$PSQL_URL" -v ON_ERROR_STOP=1 -X -Atqc "SHOW max_prepared_transactions"
+assert_psql_rejects "unknown-query" "$PSQL_URL" -X -v ON_ERROR_STOP=1 -Atqc "SELECT 1"
+echo "QA449 psql mock contract passed: missing, extra, wrong-target, reordered-option, and unknown-query invocations were rejected before recording an event."
 
 cat > "$MOCK_BIN/pg_isready" <<'READY'
 #!/usr/bin/env bash
