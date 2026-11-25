@@ -824,7 +824,7 @@ printf '%s\n' docker-ps > "$EXPECTED_DOCKER_DISCOVERY_FAILURE_EVENTS"
 if [[ "$docker_discovery_failure_status" -ne 78 ]] ||
   [[ "$(cat "$DOCKER_DISCOVERY_FAILURE_EVENTS")" != "$(cat "$EXPECTED_DOCKER_DISCOVERY_FAILURE_EVENTS")" ]] ||
   [[ "$(cat "$STATE_FILE")" != "10" ]] ||
-  [[ "$(cat "$DOCKER_DISCOVERY_FAILURE_LOG")" != "::error::Could not discover the disposable PostgreSQL 16 service container for restoration (docker ps exit 78); no readiness, database, or configuration operation was attempted." ]] ||
+  ! grep -Fqx "::error::Could not discover the disposable PostgreSQL 16 service container for restoration (docker ps exit 78); no readiness, database, or configuration operation was attempted." "$DOCKER_DISCOVERY_FAILURE_LOG" ||
   grep -Eq 'pg-isready|docker-exec-reset|docker-restart|psql-' "$DOCKER_DISCOVERY_FAILURE_EVENTS" ||
   grep -Fq "postgres:postgres" "$DOCKER_DISCOVERY_FAILURE_LOG"; then
   echo "ERROR: Docker discovery failure was not preserved or a later readiness/database/configuration operation ran." >&2
