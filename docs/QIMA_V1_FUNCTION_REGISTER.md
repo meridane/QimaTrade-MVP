@@ -15050,3 +15050,11 @@ La revue croisée des scripts de garde-fou PostgreSQL a révélé le même défa
 - The separate QA354 failure-propagation assertion is **SUCCESS**. Its underlying job intentionally concludes **FAILURE** for injected cleanup exit 52; the setup-failure job intentionally concludes **FAILURE** for exit 47. The skipped-result job is intentionally **SKIPPED** with its assertion **SUCCESS**.
 - Vercel for code/test commit `0cee7fd9` remains **PENDING**. The documentation HEAD reports `upgradeToPro=build-rate-limit`; this is an account build/deployment quota limitation, not a confirmed build failure.
 - QA456 remains **runtime-validated**, but full CI/Playwright and PostgreSQL 16/17.6 closeout remain pending. No local Bash execution is claimed.
+
+
+### QA456 latest HEAD checks — 2026-11-25 (KST)
+
+- On code/test commit `0cee7fd9`, QIMA CI [#1946](https://github.com/meridane/QimaTrade-MVP/actions/runs/45560277495) remains **IN PROGRESS**. QA456's runtime log and dedicated assertion are **SUCCESS**. The Verify job has advanced to browser smoke tests; PostgreSQL 16 and PostgreSQL 17.6 remain in CREATE_OFFER integration/concurrency tests. No final Playwright total or PostgreSQL closeout is claimed.
+- CodeQL [#1873](https://github.com/meridane/QimaTrade-MVP/actions/runs/45560277441) on code/test commit `0cee7fd9` completed **SUCCESS**.
+- On documentation HEAD `50fe0fe6`, QIMA CI [#1949](https://github.com/meridane/QimaTrade-MVP/actions/runs/45560440153) is **PENDING** with no jobs published at this poll; CodeQL [#1876](https://github.com/meridane/QimaTrade-MVP/actions/runs/45560440217) is **IN PROGRESS**. The Vercel status is `upgradeToPro=build-rate-limit`, an account quota limitation rather than a confirmed build failure.
+- The new documentation HEAD is documentation-only relative to code/test commit `0cee7fd9`; CI #1946 remains the code/test validation reference. QA456 remains runtime-validated, while full CI/Playwright and PostgreSQL 16/17.6 results remain pending.
