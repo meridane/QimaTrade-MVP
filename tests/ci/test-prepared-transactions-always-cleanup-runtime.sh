@@ -118,7 +118,7 @@ case "$6" in
         fi
         ;;
       invalid-value)
-        printf 'not-a-number\\n'
+        printf 'not-a-number\n'
         ;;
       command-failure)
         echo "mock psql SHOW failure" >&2
@@ -562,9 +562,9 @@ run_post_restart_show_failure_case() {
   local expected_status="$2"
   local expected_diagnostic="$3"
   local label="$4"
-  local failure_events="$TEMP_DIR/post-restart-show-\${label}-events.log"
-  local failure_log="$TEMP_DIR/post-restart-show-\${label}.log"
-  local expected_failure_events="$TEMP_DIR/post-restart-show-\${label}-expected.log"
+  local failure_events="$TEMP_DIR/post-restart-show-${label}-events.log"
+  local failure_log="$TEMP_DIR/post-restart-show-${label}.log"
+  local expected_failure_events="$TEMP_DIR/post-restart-show-${label}-expected.log"
   local failure_status=0
 
   : > "$failure_events"
