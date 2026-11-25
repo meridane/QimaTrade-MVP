@@ -162,6 +162,39 @@ printf '%s\n' pg-isready >> "$MOCK_EVENTS"
 READY
 chmod +x "$MOCK_BIN/pg_isready"
 
+# QA450: prove that malformed pg_isready invocations are rejected before any mock event.
+READY_REJECT_EVENTS="$TEMP_DIR/ready-reject-events.log"
+READY_REJECT_LOG="$TEMP_DIR/ready-reject.log"
+: > "$READY_REJECT_EVENTS"
+assert_ready_rejects() {
+  local label="$1"
+  shift
+  local status=0
+  : > "$READY_REJECT_EVENTS"
+  if env MOCK_EVENTS="$READY_REJECT_EVENTS" "$MOCK_BIN/pg_isready" "$@" > "$READY_REJECT_LOG" 2>&1; then
+    status=0
+  else
+    status=$?
+  fi
+  if [[ "$status" -ne 92 ]] ||
+    [[ "$(cat "$READY_REJECT_LOG")" != "Unexpected pg_isready target or argument contract." ]] ||
+    [[ -s "$READY_REJECT_EVENTS" ]]; then
+    echo "ERROR: pg_isready mock accepted or mishandled the QA450 $label rejection case." >&2
+    cat "$READY_REJECT_LOG" >&2
+    cat "$READY_REJECT_EVENTS" >&2
+    exit 1
+  fi
+}
+READY_ARGS=(-h 127.0.0.1 -p 5432 -U postgres -d qima_test)
+assert_ready_rejects "missing-argument" -h 127.0.0.1 -p 5432 -U postgres -d
+assert_ready_rejects "extra-argument" "${READY_ARGS[@]}" extra
+assert_ready_rejects "wrong-host" -h 127.0.0.2 -p 5432 -U postgres -d qima_test
+assert_ready_rejects "wrong-port" -h 127.0.0.1 -p 5433 -U postgres -d qima_test
+assert_ready_rejects "wrong-user" -h 127.0.0.1 -p 5432 -U other -d qima_test
+assert_ready_rejects "wrong-database" -h 127.0.0.1 -p 5432 -U postgres -d other
+assert_ready_rejects "reordered-options" -p 5432 -h 127.0.0.1 -U postgres -d qima_test
+echo "QA450 pg_isready mock contract passed: missing, extra, wrong-host, wrong-port, wrong-user, wrong-database, and reordered-option invocations were rejected before recording an event."
+
 cat > "$MOCK_BIN/sleep" <<'SLEEP'
 #!/usr/bin/env bash
 set -euo pipefail
