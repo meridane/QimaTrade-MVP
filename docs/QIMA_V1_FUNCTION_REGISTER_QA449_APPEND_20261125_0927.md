@@ -92,3 +92,52 @@ This is a CI mock-contract improvement. It does not establish a production vulne
 - CodeQL [#1851](https://github.com/meridane/QimaTrade-MVP/actions/runs/45518420023) completed **SUCCESS**.
 - Vercel Preview for code/test commit `09118e98` is **SUCCESS**. The latest documentation HEAD is rate-limited by the Vercel deployment quota; this is not a compilation result.
 - QA449 is **partially validated**: all five malformed psql argument cases were rejected in both runtime scenarios, and Verify/Playwright/CodeQL passed. Full CI closure remains pending on PostgreSQL 16 and PostgreSQL 17.6. No local Bash execution is claimed.
+
+
+## QA449 final closeout — 2026-11-25, 10:38 KST
+
+- QIMA CI [#1927](https://github.com/meridane/QimaTrade-MVP/actions/runs/45518815449), associated with documentation HEAD `f961b527`, completed **SUCCESS**.
+- Verify job `Typecheck, audit, build and browser tests` completed **SUCCESS**. Its log confirms **423 Playwright passed (37.7s)**; dependency audit, TypeScript, Next.js production build, Chromium installation, workflow cleanup wiring/assertions, and the isolated QIMA security-contract fixture all completed successfully.
+- PostgreSQL 16 integration job completed **SUCCESS**. The prepared-transaction configuration guard, setup restoration-intent check, setup-failure cleanup, disposable prepared-transaction blocker, restore/postcondition checks, and all CREATE_OFFER integration, replay, ACL, and RLS steps completed successfully.
+- PostgreSQL 17.6 compatibility job completed **SUCCESS**, including the version assertion, CREATE_OFFER integration/replay coverage, wrapper-owner and EXECUTE ACL regressions.
+- QA449's five malformed psql argument self-checks ran in both runtime scenarios. Both logs contain `QA449 psql mock contract passed`. The normal path reached the baseline/resource postconditions and its QA353 assertion job passed. The simulated RESET-failure path preserved exit 52, did not restart or run postconditions, and its QA354 assertion job passed.
+- The two runtime jobs intentionally conclude **FAILURE** because they inject setup exit 47 and cleanup exit 52. Their dedicated assertion jobs are **SUCCESS**. The skipped runtime job is intentionally **SKIPPED** and its skipped-result assertion is **SUCCESS**. These are expected negative-contract outcomes, not unexpected suite failures.
+- CodeQL [#1854](https://github.com/meridane/QimaTrade-MVP/actions/runs/45518815502) completed **SUCCESS**.
+- The combined status for documentation HEAD `f961b527` reports Vercel **FAILURE** with `upgradeToPro=build-rate-limit`. This is an account deployment-quota limitation, not a confirmed build or compilation failure.
+- QA449 is now **fully validated** by Verify, PostgreSQL 16, PostgreSQL 17.6, the two runtime assertion paths, and CodeQL. No local Bash execution is claimed.
+
+## QA450 — strict pg_isready mock negative cases
+
+### Changed file
+
+`tests/ci/test-prepared-transactions-always-cleanup-runtime.sh`
+
+The pg_isready mock already enforced an exact eight-argument target contract (host `127.0.0.1`, port `5432`, user `postgres`, database `qima_test`) and returned exit 92 with a fixed diagnostic for mismatches. Before QA450, the runtime harness exercised only the valid call made by the restore script; it did not directly prove that the mock rejected malformed invocations.
+
+QA450 adds seven direct negative self-checks:
+- missing argument;
+- extra argument;
+- wrong host;
+- wrong port;
+- wrong user;
+- wrong database;
+- reordered options.
+
+Each case requires exit 92, the exact fixed diagnostic `Unexpected pg_isready target or argument contract.`, and an empty event file, proving rejection occurs before the mock records a readiness event. The checks run in both the normal-cleanup and simulated-cleanup-failure runtime paths.
+
+### Branch and commit
+
+- Working branch: `work/qima-pg-isready-mock-contract-qa450-20261125-1038`.
+- Code/test commit: [`d7c7fc70`](https://github.com/meridane/QimaTrade-MVP/commit/d7c7fc70be5fcfe039a2c9ba688650d346ee2866).
+- The code/test commit was fast-forwarded to `fix/create-offer-status-contract` from expected prior HEAD `f961b527`; branch comparison after publication reported 2,444 commits ahead of `main`, 0 behind.
+- The exact inserted diff was fetched back from GitHub and inspected. It adds seven direct negative calls and one success summary; no runtime production script or workflow was changed.
+- No local Bash execution is claimed.
+- At this documentation snapshot, `fetch_commit_workflow_runs` for code/test commit `d7c7fc70` returned no PR-triggered runs yet. Its combined status showed Vercel **PENDING**. QA450 remains **PENDING GitHub Actions validation** until a run for this commit or its descendant executes the new self-checks.
+- Next: inspect Verify logs for the QA450 success line in both runtime paths, then inspect PostgreSQL 16/17.6 and CodeQL on the final documentation HEAD before closing QA450.
+
+## Safety boundary refresh
+
+- No Supabase Production data or migrations were accessed or modified.
+- No production secrets, grants, persistent RLS policies, or PostgreSQL production settings were changed.
+- No production deployment, PR merge, force-push, or branch-protection change was performed.
+- QA449/QA450 are CI harness contract tests; synthetic mocks do not establish a production vulnerability.
