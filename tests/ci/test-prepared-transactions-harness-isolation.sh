@@ -87,9 +87,35 @@ expected_failure_output="$(printf '%s\n' 'cleanup_exit_code=52' 'cleanup_failure
   exit 1
 }
 
-[[ "$(cat "$SUCCESS_DIR/qima-prepared-cleanup-contract-state")" == "0" ]]
-[[ "$(cat "$FAILURE_DIR/qima-prepared-cleanup-contract-state")" == "0" ]]
-grep -Fq "QA353 runtime contract passed" "$SUCCESS_DIR/run.log"
-grep -Fq "QA354 runtime contract passed" "$FAILURE_DIR/run.log"
+# The full success path reaches QA462 last. Its deliberate Docker-discovery failure
+# must leave the initial configuration untouched (10); the earlier RESET succeeded.
+[[ "$(cat "$SUCCESS_DIR/qima-prepared-cleanup-contract-state")" == "10" ]] || {
+  echo "ERROR: the full success path did not preserve state 10 after QA462 discovery failure." >&2
+  cat "$SUCCESS_DIR/run.log" >&2
+  cat "$SUCCESS_DIR/qima-prepared-cleanup-contract-state" >&2
+  exit 1
+}
+# The failure path exits during the initial cleanup after RESET, so state is 0.
+[[ "$(cat "$FAILURE_DIR/qima-prepared-cleanup-contract-state")" == "0" ]] || {
+  echo "ERROR: the initial cleanup-failure path did not retain state 0 after RESET." >&2
+  cat "$FAILURE_DIR/run.log" >&2
+  cat "$FAILURE_DIR/qima-prepared-cleanup-contract-state" >&2
+  exit 1
+}
+grep -Fq "QA353 runtime contract passed" "$SUCCESS_DIR/run.log" || {
+  echo "ERROR: the successful path did not complete the QA353 runtime contract." >&2
+  cat "$SUCCESS_DIR/run.log" >&2
+  exit 1
+}
+grep -Fq "QA462 Docker-discovery failure guard passed" "$SUCCESS_DIR/run.log" || {
+  echo "ERROR: the successful path did not complete the QA462 no-mutation discovery guard." >&2
+  cat "$SUCCESS_DIR/run.log" >&2
+  exit 1
+}
+grep -Fq "QA354 runtime contract passed" "$FAILURE_DIR/run.log" || {
+  echo "ERROR: the failure path did not complete the QA354 cleanup-failure contract." >&2
+  cat "$FAILURE_DIR/run.log" >&2
+  exit 1
+}
 
-echo "QA355 passed: both cleanup paths ran concurrently with separate RUNNER_TEMP and GITHUB_OUTPUT files; success emitted only cleanup_ran=true and exit 0, while failure emitted only exit 52 and cleanup_failure_observed=true."
+echo "QA355 passed: concurrent cleanup paths kept separate RUNNER_TEMP and GITHUB_OUTPUT files; the full success path reached QA462 and preserved state 10 after its discovery failure, while the early RESET-failure path retained state 0 and emitted only exit 52 with cleanup_failure_observed=true."
