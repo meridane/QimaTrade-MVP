@@ -15101,3 +15101,13 @@ La revue croisée des scripts de garde-fou PostgreSQL a révélé le même défa
 - CodeQL [#1880](https://github.com/meridane/QimaTrade-MVP/actions/runs/45568741010) remains **IN PROGRESS**.
 - Vercel Preview for code/test commit `60cee849` is **PENDING**. The documentation HEAD reports `upgradeToPro=build-rate-limit`, which is an account quota status, not a confirmed compilation failure.
 - QA457 is runtime-validated in the CI job log, but full Verify/Playwright, PostgreSQL 16/17.6, CodeQL, and final Preview closeout remain pending. No local Bash execution is claimed.
+
+
+### QA457 security and validation poll — 2026-11-25 (KST)
+
+- CodeQL [#1880](https://github.com/meridane/QimaTrade-MVP/actions/runs/45568741010) completed **SUCCESS** on code/test commit `60cee849`.
+- Vercel Preview for code/test commit `60cee849` completed **SUCCESS**: https://vercel.com/bmk1/qimatrade-mvp/97Vd6ZViyS1d35AFP3znHE7fXpgY. The documentation-only HEAD still reports the account-level `build-rate-limit` status; no compilation failure is inferred from that quota result.
+- QIMA CI [#1953](https://github.com/meridane/QimaTrade-MVP/actions/runs/45568740935) remains **IN PROGRESS**. Verify has completed dependency audit, TypeScript, Next.js production build, and Chromium installation successfully; Playwright browser smoke tests remain **IN PROGRESS**, and the isolated QIMA security-contract fixture is pending.
+- PostgreSQL 16 and PostgreSQL 17.6 jobs remain **IN PROGRESS**. Their main CREATE_OFFER integration/concurrency steps have succeeded; the full replay, RLS/ACL, prepared-transaction restoration, and cleanup sequences have not yet fully closed. No final database-job result is claimed.
+- The QA457 runtime log and both dedicated cleanup assertions are **SUCCESS**. The injected setup failure (exit 47) and cleanup failure (exit 52) jobs intentionally conclude **FAILURE**; their assertions confirm the failures remain blocking. The skipped-result job is intentionally **SKIPPED**.
+- No final QIMA CI #1953 result or final Playwright total is claimed at this poll. No local Bash execution is claimed.
