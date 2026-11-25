@@ -83,3 +83,18 @@ Correction published on the work branch in commit [e8d993069b17b6b133c7d352b99e5
 - PostgreSQL 16 integration and PostgreSQL 17.6 compatibility remain **IN PROGRESS**; no failures were reported at this snapshot.
 - QA462 runtime and its independent assertion remain successful in this run; the expected-failure and expected-skipped job conclusions are intentional and their assertion jobs succeeded.
 - CI #1973 remains **IN PROGRESS**; no overall success is claimed.
+
+
+## Verify job closeout — CI #1973
+
+- The `Typecheck, audit, build and browser tests` job completed **SUCCESS**.
+- Browser suite: **423 passed (35.7s)**.
+- npm dependency audit: **SUCCESS**.
+- TypeScript check: **SUCCESS**.
+- Production build: **SUCCESS**.
+- Chromium installation: **SUCCESS**.
+- Isolated QIMA security-contract fixture: **SUCCESS**.
+- The parallel cleanup-harness isolation test printed the explicit QA355 success line. It confirms the full success path reached QA462 and preserved state `10`, while the early RESET-failure path retained state `0`.
+- The QA462 runtime job log in CI #1973 printed the expected Docker-discovery guard success marker. Its independent assertion job completed **SUCCESS**.
+- CodeQL #1900 and the Vercel Preview for the PR code/test head completed **SUCCESS**.
+- PostgreSQL 16 and PostgreSQL 17.6 integration jobs remained **IN PROGRESS** at this closeout; overall CI #1973 is not yet complete.
