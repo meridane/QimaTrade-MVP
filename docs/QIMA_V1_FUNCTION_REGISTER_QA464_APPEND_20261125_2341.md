@@ -90,3 +90,13 @@ The Docker mock now accepts an explicit `MOCK_DOCKER_EXPECTED_ID` for exec/resta
 - No production secrets, persistent grants, RLS policies, or production PostgreSQL settings were changed.
 - No Production deployment, PR merge, force-push, or branch-protection change was performed.
 - QA464/QA465 are synthetic CI contract tests with inert mocks; they do not establish a production vulnerability.
+
+
+## QA465 — runtime evidence update
+
+- The actual restore-script runtime step in QIMA CI #1977 completed SUCCESS: https://github.com/meridane/QimaTrade-MVP/actions/runs/45651860882
+- The runtime log explicitly contains: `QA465 Docker container-ID boundary guard passed: a 64-character lowercase hexadecimal ID was forwarded unchanged; 11-character, 65-character, and uppercase IDs were rejected before readiness or mutation.`
+- The runtime step also completed the existing QA462 and QA464 markers. The independent `Assert prepared-transaction always-cleanup runtime contract` job completed SUCCESS.
+- The enclosing setup-failure job intentionally concludes FAILURE because its setup step exits 47; the actual restoration step itself completed SUCCESS. This is an expected failure-propagation scenario, not a failing QA465 result.
+- At this update, QIMA CI #1977 remains IN PROGRESS: the Verify job is running Playwright browser tests, and PostgreSQL 16 and PostgreSQL 17.6 integration jobs are still active. No overall CI success is claimed.
+- QIMA CodeQL #1904 remains IN PROGRESS. QA465 is runtime-validated but awaits the complete CI and CodeQL cycle for closure.
