@@ -60,3 +60,15 @@ Correction published on the work branch in commit [e8d993069b17b6b133c7d352b99e5
 - No production secrets, persistent grants, RLS policies, or production PostgreSQL settings were changed.
 - No Production deployment, PR merge, force-push, or branch-protection change was performed.
 - These are synthetic CI contracts and do not establish a production vulnerability.
+
+
+## Post-push CI #1973 snapshot
+
+- The QA463 correction was fast-forwarded to `fix/create-offer-status-contract`; current PR head at this snapshot is `09d11fa9fa5a3822e981bb11cba69369d394bc0a`.
+- QIMA CI #1973: https://github.com/meridane/QimaTrade-MVP/actions/runs/45628925855 has started on the updated PR head.
+- Verify step `Verify parallel prepared-transaction cleanup harness isolation` completed **SUCCESS**. This is the direct regression check for the QA463 correction.
+- Dependency security audit completed **SUCCESS**; TypeScript check completed **SUCCESS**.
+- Production build completed its preceding checks and was still running at this snapshot; Chromium/Playwright were pending or progressing.
+- PostgreSQL 16 integration and PostgreSQL 17.6 compatibility jobs were both **IN PROGRESS**. The runtime contract assertion jobs and skipped-result assertion job were **SUCCESS**; the two expected-failure harness jobs and one expected-skipped job retain their intentional conclusions.
+- CodeQL #1900: https://github.com/meridane/QimaTrade-MVP/actions/runs/45628925439 was **IN PROGRESS**.
+- No final CI #1973 or CodeQL #1900 conclusion is claimed in this snapshot.
