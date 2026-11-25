@@ -38,11 +38,10 @@ This entry adds a CI regression for the restore script's required-executable pre
 - QIMA CI #1982: https://github.com/meridane/QimaTrade-MVP/actions/runs/45669912319 — IN PROGRESS at this snapshot.
 - The actual runtime job log explicitly reports: `QA467 dependency-preflight guard passed: missing psql, docker, or pg_isready returned 127 before any mock event, state change, or success marker.`
 - The independent prepared-transaction cleanup assertion job completed SUCCESS.
-- npm audit and TypeScript steps completed SUCCESS.
-- Next.js production build was still IN PROGRESS; Chromium/Playwright and the QIMA security fixture were pending.
-- PostgreSQL 16 CREATE_OFFER integration and PostgreSQL 17.6 compatibility jobs were still IN PROGRESS. No overall CI success is claimed.
-- QIMA CodeQL #1909: https://github.com/meridane/QimaTrade-MVP/actions/runs/45669912261 — IN PROGRESS at this snapshot; Initialize CodeQL and Autobuild succeeded, analysis was running.
-- Vercel status on the code/test commit was PENDING at the last status query.
+- npm audit and TypeScript completed SUCCESS; Next.js production build completed SUCCESS; Chromium installation completed SUCCESS; browser smoke tests were IN PROGRESS at this snapshot.
+- PostgreSQL 16 CREATE_OFFER integration was IN PROGRESS (9 of 47 steps completed); PostgreSQL 17.6 compatibility was IN PROGRESS (14 of 32 steps completed). No failures were reported in either job at this snapshot. No overall CI success is claimed.
+- QIMA CodeQL #1909 completed SUCCESS: https://github.com/meridane/QimaTrade-MVP/actions/runs/45669912261. Initialize CodeQL, Autobuild and Perform CodeQL analysis all completed successfully.
+- Vercel Preview status on the code/test commit is SUCCESS: https://vercel.com/bmk1/qimatrade-mvp/AZMsD6aJ4Bu39PpWSSBe72esY22M.
 
 ## Publication and branch state
 
