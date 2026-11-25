@@ -253,3 +253,15 @@ This verifies that a disposable PostgreSQL service which never becomes ready blo
 - No Supabase Production data or migrations were accessed or modified.
 - No production secrets, grants, persistent RLS policies, or PostgreSQL production settings were changed.
 - No production deployment, PR merge, force-push, or branch-protection change was performed.
+
+## QA452 runtime validation progress — 2026-11-25 (KST)
+
+- QIMA CI [#1934](https://github.com/meridane/QimaTrade-MVP/actions/runs/45531723547), on code/test commit `56af7ecfe`, is **IN PROGRESS**.
+- The normal-cleanup runtime job executed the new QA452 isolated timeout case. Its log contains `QA452 readiness-timeout guard passed: 60 failed readiness probes blocked ALTER SYSTEM RESET, restart, and postcondition queries.` The test verified exit 1, the exact timeout diagnostic, one Docker discovery, 60 failed readiness probes and 60 mocked sleeps, with no `docker exec`, restart, or `psql` postcondition event.
+- The same normal runtime job also contains the QA449 psql contract, QA450/QA451 pg_isready contract, and `QA353 runtime contract passed`. Its dedicated `Assert prepared-transaction always-cleanup runtime contract` job completed **SUCCESS**.
+- The separate simulated RESET-failure path continues to preserve exit 52, does not restart or run postconditions after the failed RESET, and its dedicated blocking assertion job completed **SUCCESS** (`QA354`). QA452's never-ready timeout case is intentionally exercised in the normal runtime path, not after the simulated RESET failure.
+- In Verify, npm audit, TypeScript, and the Next.js production build completed **SUCCESS**. Chromium installation is complete and Playwright is currently **IN PROGRESS** at the latest poll; no Playwright total is claimed for QA452 yet.
+- PostgreSQL 16 and PostgreSQL 17.6 jobs remain **IN PROGRESS** at CREATE_OFFER integration/concurrency steps. Their prepared-transaction setup/restore and full integration outcomes are not yet claimed for the QA452 commit.
+- CodeQL [#1861](https://github.com/meridane/QimaTrade-MVP/actions/runs/45531723396) on code/test commit `56af7ecfe` is **IN PROGRESS**. On the preceding documentation HEAD `764c264d`, CodeQL [#1862](https://github.com/meridane/QimaTrade-MVP/actions/runs/45531780578) is **IN PROGRESS** and QIMA CI [#1935](https://github.com/meridane/QimaTrade-MVP/actions/runs/45531780560) is **PENDING** with no jobs published at the latest poll.
+- Vercel Preview for code/test commit `56af7ecfe` is **PENDING**. The preceding documentation HEAD `764c264d` is rate-limited by `upgradeToPro=build-rate-limit`; this is a deployment-quota result, not a confirmed compilation failure.
+- QA452 is **runtime-validated in the normal cleanup path**. Full Verify/Playwright, PostgreSQL 16/17.6, and CodeQL closure remain pending. No local Bash execution is claimed.
