@@ -1003,3 +1003,93 @@ run_missing_dependency_case psql
 run_missing_dependency_case docker
 run_missing_dependency_case pg_isready
 echo "QA467 dependency-preflight guard passed: missing psql, docker, or pg_isready returned 127 before any mock event, state change, or success marker."
+
+
+# QA468: restoration must fail closed before Docker/readiness/SQL when the
+# target URL contains control characters, is not the disposable loopback
+# database, or the captured baseline is not the expected zero. A disabled
+# restoration request must remain a harmless no-op without any other inputs.
+run_restore_preflight_rejection_case() {
+  local label="$1"
+  local database_url="$2"
+  local baseline="$3"
+  local expected_diagnostic="$4"
+  local preflight_events="$TEMP_DIR/restore-preflight-$label-events.log"
+  local preflight_log="$TEMP_DIR/restore-preflight-$label.log"
+  local preflight_status=0
+
+  : > "$preflight_events"
+  printf '10\n' > "$STATE_FILE"
+  if PATH="$MOCK_BIN:$PATH" \
+    MOCK_EVENTS="$preflight_events" MOCK_STATE_FILE="$STATE_FILE" \
+    DATABASE_URL="$database_url" RESTORE_REQUIRED=true \
+    BASELINE_MAX_PREPARED_TRANSACTIONS="$baseline" \
+    bash "$RESTORE_SCRIPT" > "$preflight_log" 2>&1; then
+    preflight_status=0
+  else
+    preflight_status=$?
+  fi
+
+  if [[ "$preflight_status" -ne 2 ]] || \
+    [[ "$(cat "$preflight_log")" != "$expected_diagnostic" ]] || \
+    [[ -s "$preflight_events" ]] || \
+    [[ "$(cat "$STATE_FILE")" != "10" ]] || \
+    grep -Fq "QA267 passed" "$preflight_log" || \
+    grep -Fq "postgres:postgres" "$preflight_log"; then
+    echo "ERROR: restore preflight case $label did not reject the target before any operation." >&2
+    cat "$preflight_events" >&2
+    cat "$preflight_log" >&2
+    exit 1
+  fi
+}
+
+unsafe_target_diagnostic="::error::Refusing PostgreSQL configuration restoration: DATABASE_URL must target qima_test on loopback port 5432."
+control_character_diagnostic="::error::Refusing PostgreSQL configuration restoration: DATABASE_URL must not contain control characters; no database operation was attempted."
+baseline_diagnostic="::error::Expected the captured disposable-service baseline to be 0; refusing an unverified restoration target."
+
+run_restore_preflight_rejection_case \
+  external-host \
+  "postgresql://postgres:postgres@db.example.invalid:5432/qima_test" \
+  0 \
+  "$unsafe_target_diagnostic"
+run_restore_preflight_rejection_case \
+  wrong-port \
+  "postgresql://postgres:postgres@localhost:5433/qima_test" \
+  0 \
+  "$unsafe_target_diagnostic"
+run_restore_preflight_rejection_case \
+  wrong-database \
+  "postgresql://postgres:postgres@localhost:5432/production" \
+  0 \
+  "$unsafe_target_diagnostic"
+run_restore_preflight_rejection_case \
+  control-character \
+  $'postgresql://postgres:postgres@localhost:5432/qima_test\n' \
+  0 \
+  "$control_character_diagnostic"
+run_restore_preflight_rejection_case \
+  nonzero-baseline \
+  "postgresql://postgres:postgres@localhost:5432/qima_test" \
+  10 \
+  "$baseline_diagnostic"
+
+NOOP_BIN="$TEMP_DIR/restore-noop-bin"
+NOOP_LOG="$TEMP_DIR/restore-noop.log"
+mkdir -p "$NOOP_BIN"
+if PATH="$NOOP_BIN" RESTORE_REQUIRED=false "$BASH" "$RESTORE_SCRIPT" > "$NOOP_LOG" 2>&1; then
+  :
+else
+  noop_status=$?
+  echo "ERROR: disabled restoration did not remain a successful no-op (exit $noop_status)." >&2
+  cat "$NOOP_LOG" >&2
+  exit 1
+fi
+if [[ "$(cat "$NOOP_LOG")" != "Prepared-transaction configuration was not changed; restoration is not required." ]] || \
+  [[ "$(cat "$STATE_FILE")" != "10" ]] || \
+  grep -Fq "postgres:postgres" "$NOOP_LOG"; then
+  echo "ERROR: disabled restoration performed work or emitted an unexpected diagnostic." >&2
+  cat "$NOOP_LOG" >&2
+  exit 1
+fi
+
+echo "QA468 restore-target preflight guard passed: external host, wrong port/database, control characters, and nonzero baseline were rejected before Docker/readiness/SQL; RESTORE_REQUIRED=false remained a no-op."
