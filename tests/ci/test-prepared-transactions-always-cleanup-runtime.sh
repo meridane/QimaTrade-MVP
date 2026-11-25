@@ -193,7 +193,11 @@ assert_ready_rejects "wrong-port" -h 127.0.0.1 -p 5433 -U postgres -d qima_test
 assert_ready_rejects "wrong-user" -h 127.0.0.1 -p 5432 -U other -d qima_test
 assert_ready_rejects "wrong-database" -h 127.0.0.1 -p 5432 -U postgres -d other
 assert_ready_rejects "reordered-options" -p 5432 -h 127.0.0.1 -U postgres -d qima_test
-echo "QA450 pg_isready mock contract passed: missing, extra, wrong-host, wrong-port, wrong-user, wrong-database, and reordered-option invocations were rejected before recording an event."
+assert_ready_rejects "empty-host" -h "" -p 5432 -U postgres -d qima_test
+assert_ready_rejects "empty-port" -h 127.0.0.1 -p "" -U postgres -d qima_test
+assert_ready_rejects "empty-user" -h 127.0.0.1 -p 5432 -U "" -d qima_test
+assert_ready_rejects "empty-database" -h 127.0.0.1 -p 5432 -U postgres -d ""
+echo "QA450/QA451 pg_isready mock contract passed: missing, extra, empty host/port/user/database, wrong host/port/user/database, and reordered-option invocations were rejected before recording an event."
 
 cat > "$MOCK_BIN/sleep" <<'SLEEP'
 #!/usr/bin/env bash
