@@ -15249,3 +15249,14 @@ La revue croisée des scripts de garde-fou PostgreSQL a révélé le même défa
 - At this snapshot, the Verify job, PostgreSQL 16 integration, and PostgreSQL 17.6 compatibility jobs remain **IN PROGRESS**; no final Playwright total or full CI conclusion is claimed. CodeQL [#1912](https://github.com/meridane/QimaTrade-MVP/actions/runs/45691217655) is **IN PROGRESS**. Vercel status for this code/test HEAD is **PENDING**.
 - QA469 is a synthetic regression against disposable CI mocks. It does not establish a production vulnerability. No local Bash execution is claimed.
 - No Supabase Production data or migrations, secrets, persistent grants/RLS policies, production PostgreSQL settings, production deployment, PR merge, force-push, or branch-protection settings were changed.
+
+### QA469 closeout — CI #1986 completed — 2026-11-26 (KST)
+
+- QIMA CI [#1986](https://github.com/meridane/QimaTrade-MVP/actions/runs/45691217638) completed **SUCCESS** on code/test commit [341336468aad0a55ae7dc77444b426516ddbc1fb](https://github.com/meridane/QimaTrade-MVP/commit/341336468aad0a55ae7dc77444b426516ddbc1fb).
+- Verify completed **SUCCESS**: npm audit, TypeScript, Next.js production build, Chromium installation, browser smoke tests, isolated QIMA security-contract fixture, and **423 Playwright tests passed (34.7s)**.
+- PostgreSQL 16 CREATE_OFFER integration completed **SUCCESS**, including the prepared-transaction restore guard and disposable-resource cleanup checks. PostgreSQL 17.6 compatibility completed **SUCCESS**.
+- The runtime job log contains the exact QA469 marker: `QA469 Docker container-ID character-class guard passed: same-length non-hex and whitespace IDs were rejected before readiness or mutation.` The independent always-cleanup runtime assertion and cleanup-failure blocking assertion are **SUCCESS**.
+- The two fixture jobs whose conclusions are **FAILURE** are the expected injected setup/cleanup failures (exit codes 47 and 52); their dedicated assertions are **SUCCESS**. The skipped-result fixture is intentionally **SKIPPED**. These are expected harness outcomes, not failures of the main Verify or PostgreSQL jobs.
+- QIMA CodeQL [#1912](https://github.com/meridane/QimaTrade-MVP/actions/runs/45691217655) completed **SUCCESS**. The combined Vercel status for the code/test commit is **SUCCESS**.
+- QA469 is a synthetic regression using inert CI mocks. It validates the restore-script input contract only and does not establish a production vulnerability. No local Bash execution is claimed.
+- No Supabase Production data or migrations, secrets, persistent grants/RLS policies, production PostgreSQL settings, production deployment, PR merge, force-push, or branch-protection settings were changed.
