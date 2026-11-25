@@ -14995,3 +14995,39 @@ La revue croisée des scripts de garde-fou PostgreSQL a révélé le même défa
 - The code change is on work branch `work/qima-post-restart-readiness-timeout-qa455-20261125-1419` and has been fast-forwarded to the PR branch. No force update was used.
 - No local test execution is claimed. QA455 is a synthetic regression contract for the CI restoration harness; it is not evidence of a production vulnerability.
 - No Supabase Production data or migrations, production secrets, grants, persistent RLS policies, or production PostgreSQL configuration were changed. No production deployment, PR merge, force-push, or branch-protection change was made.
+
+
+---
+
+## QA455 closeout — post-restart readiness timeout (2026-11-25, KST)
+
+- Code/test commit: [`eb4acd81`](https://github.com/meridane/QimaTrade-MVP/commit/eb4acd8175e599956a1f6ea7799cf88734120553).
+- QIMA CI [#1945](https://github.com/meridane/QimaTrade-MVP/actions/runs/45553041761) completed **SUCCESS** on the PR validation merge ref containing QA455. Verify completed npm audit, TypeScript, Next.js build, Chromium and **423/423 Playwright tests**. PostgreSQL 16 integration and PostgreSQL 17.6 compatibility both completed **SUCCESS**.
+- The normal cleanup runtime log explicitly reports `QA455 post-restart readiness timeout passed`: RESET and restart occurred, then exactly 60 failed readiness probes and 60 mocked sleeps blocked all psql postcondition queries and success reporting. The dedicated QA353 runtime assertion completed **SUCCESS**.
+- The simulated RESET-failure path retained exit code 52, did not restart or run postconditions after the failed RESET, and its QA354 assertion completed **SUCCESS**. The underlying runtime jobs intentionally conclude **FAILURE** for injected setup exit 47 and cleanup exit 52; the skipped-result job is intentionally **SKIPPED** and its assertion is **SUCCESS**.
+- CodeQL [#1872](https://github.com/meridane/QimaTrade-MVP/actions/runs/45553041514) completed **SUCCESS**. Vercel Preview for the validated documentation HEAD was **SUCCESS**.
+- QA455 is fully validated for Verify, Playwright, PostgreSQL 16/17.6, runtime assertions, and CodeQL. It is a mock-based CI restoration contract, not evidence of a production vulnerability.
+
+## QA456 — retry configuration verification until the baseline converges (2026-11-25, KST)
+
+### Change
+
+- Working branch: `work/qima-restore-config-convergence-qa456-20261125-1521`, created from PR HEAD `6d9d8b8bc4c13889ae118d500f883f869b079681`.
+- Changed file: `tests/ci/test-prepared-transactions-always-cleanup-runtime.sh`.
+- The psql mock adds an opt-in `MOCK_PSQL_SHOW_MODE=after-three-stale`: after restart, the first three `SHOW max_prepared_transactions` reads return the pre-RESET value `10`; the fourth returns the captured baseline `0`. Default mock behavior is unchanged.
+- The new QA456 scenario runs the actual restoration script with inert Docker/PostgreSQL mocks. It requires three exact `pg_isready → psql-show → sleep-1` retries, then a fourth readiness/SHOW pair returning baseline 0, followed by the two zero-residual-resource postcondition queries. It also requires exit 0, exactly four SHOW reads, state 0, the existing `QA267 passed` marker, no timeout diagnostic, and no credential text.
+- The expected event sequence ensures resource postconditions cannot run before the baseline is observed. No operational restore/setup script, workflow, SQL migration, application route, or Supabase configuration was changed.
+
+### Publication and validation status
+
+- Code/test commit: [`0cee7fd9`](https://github.com/meridane/QimaTrade-MVP/commit/0cee7fd9b37307dd5088118b8a6a35af208f960c).
+- The code diff changes only the runtime test harness: 67 insertions and 1 deletion. The new file content was fetched back from GitHub; the opt-in mode, exact expected event sequence, four-read assertion, and fixed success diagnostic were inspected. No local Bash execution is claimed.
+- The code commit was fast-forwarded to `fix/create-offer-status-contract` from expected prior HEAD `6d9d8b8bc4c13889ae118d500f883f869b079681`; compare against `main` reports **2,462 ahead / 0 behind**.
+- At the time of this register update, `fetch_commit_workflow_runs` returned no PR-triggered run for `0cee7fd9`; its combined status showed Vercel **PENDING**. QA456 is therefore **PENDING GitHub Actions**, and no runtime pass is claimed.
+- The preceding CI #1945 validates QA455 on its checked-out PR merge ref; it does **not** validate the new QA456 code.
+- QA456 is a deterministic mock-based regression of the CI restoration script's retry behavior, not evidence of a production vulnerability.
+
+### Safety boundary
+
+- No Supabase Production data or migrations, production secrets, grants, persistent RLS policies, or production PostgreSQL settings were accessed or modified.
+- No production deployment, PR merge, force-push, or branch-protection change was performed.
