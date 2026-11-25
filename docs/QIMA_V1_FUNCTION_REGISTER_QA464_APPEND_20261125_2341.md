@@ -51,3 +51,42 @@ All cases assert that the event log contains only `docker-ps`, state remains `10
 - No production secrets, persistent grants, RLS policies, or production PostgreSQL settings were changed.
 - No Production deployment, PR merge, force-push, or branch-protection change was performed.
 - These mocked CI cases verify fail-closed control flow; they do not establish a production vulnerability.
+
+
+## QA464 — final verification
+
+- Corrected code commit: `e98c7df2303bce493cf45580b6c3b828e5382372`; documentation snapshot: `55ad3464a2772c0017336bba4c4646f8c23aab6e`.
+- QIMA CI #1976 completed SUCCESS: https://github.com/meridane/QimaTrade-MVP/actions/runs/45637515597
+  - Verify: 77/77 steps SUCCESS; 423/423 Playwright passed (38.6 s); npm audit, TypeScript, Next.js build, Chromium and QIMA security fixture SUCCESS.
+  - PostgreSQL 16 integration: 48/48 steps SUCCESS.
+  - PostgreSQL 17.6 compatibility: 33/33 steps SUCCESS.
+  - Runtime log explicitly printed the QA464 Docker-discovery output guard marker after rejecting empty, multiple and malformed container IDs.
+  - The two simulated setup/cleanup failure jobs intentionally concluded FAILURE; their independent blocking assertions succeeded. The skipped-result job was expected and its assertion succeeded.
+- QIMA CodeQL #1903 completed SUCCESS: https://github.com/meridane/QimaTrade-MVP/actions/runs/45637516153
+- Vercel status on the documentation-only HEAD was `failure` with `upgradeToPro=build-rate-limit`; this is an account build quota status, not evidence of a failed application build.
+- QA464 is fully closed by CI #1976 and CodeQL #1903.
+
+## QA465 — Docker container-ID boundary coverage
+
+The restoration script accepts a lowercase hexadecimal container ID from 12 through 64 characters. QA465 adds explicit restore-path boundary coverage without changing the operational restore script:
+
+1. A 64-character lowercase hexadecimal ID must be forwarded unchanged to both `docker exec` and `docker restart`; the full mocked restore sequence must reach QA267.
+2. An 11-character ID must be rejected before readiness or mutation.
+3. A 65-character ID must be rejected before readiness or mutation.
+4. A 12-character uppercase hexadecimal-looking ID must be rejected because the accepted Docker ID contract is lowercase hexadecimal.
+
+The Docker mock now accepts an explicit `MOCK_DOCKER_EXPECTED_ID` for exec/restart assertions; its default remains the existing 12-character ID, preserving earlier cases. Negative cases require only the `docker-ps` event and unchanged state `10`; the positive 64-character case requires the complete existing restoration event sequence, baseline `0`, and the QA267 success marker.
+
+- Code/test commit: `04dc817c0f3d44d6a3db03c1059ff38596ce4eb6`.
+- Corrected work branch and PR branch are fast-forward synchronized at this commit; no force-push.
+- QIMA CI #1977: IN PROGRESS at this snapshot: https://github.com/meridane/QimaTrade-MVP/actions/runs/45651860882. The new QA465 runtime assertion has not yet been observed; do not claim it passes until the run log confirms the marker and all required jobs finish.
+- QIMA CodeQL #1904: IN PROGRESS: https://github.com/meridane/QimaTrade-MVP/actions/runs/45651861011.
+- The PR currently reports `mergeable=false` while checks are active; this is not interpreted as a code defect.
+- No local test execution is claimed.
+
+## Safety
+
+- No Supabase Production data or migrations were changed.
+- No production secrets, persistent grants, RLS policies, or production PostgreSQL settings were changed.
+- No Production deployment, PR merge, force-push, or branch-protection change was performed.
+- QA464/QA465 are synthetic CI contract tests with inert mocks; they do not establish a production vulnerability.
