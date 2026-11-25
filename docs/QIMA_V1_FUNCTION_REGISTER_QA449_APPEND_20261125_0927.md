@@ -81,3 +81,14 @@ This is a CI mock-contract improvement. It does not establish a production vulne
 - CodeQL [#1851](https://github.com/meridane/QimaTrade-MVP/actions/runs/45518420023) is IN PROGRESS; CodeQL initialization and autobuild succeeded, analysis is still running.
 - Vercel Preview for code/test commit `09118e98` is SUCCESS. The subsequent documentation HEAD is rate-limited by the Vercel deployment quota; this is not a compilation result.
 - QA449 is **partially validated**: its exact psql mock contract and both runtime assertions passed, while the complete CI run and CodeQL analysis remain open. No local Bash execution is claimed.
+
+
+## Verification refresh — 2026-11-25, 09:27 KST
+
+- QIMA CI [#1924](https://github.com/meridane/QimaTrade-MVP/actions/runs/45518420085), on code/test commit `09118e98`, Verify completed **SUCCESS**. Its log confirms **423 Playwright passed (37.2s)**; npm audit, TypeScript, Next.js production build, Chromium installation, workflow cleanup wiring/assertions, and the isolated QIMA security-contract fixture all completed successfully.
+- The two QA449 direct negative self-check batches ran in both runtime jobs. Both logs contain the QA449 success message. The normal cleanup path's actual restore-script step and its dedicated assertion job completed SUCCESS; the simulated cleanup-failure path returned the expected exit 52 and its dedicated blocking assertion job completed SUCCESS.
+- The two runtime job conclusions FAILURE are intentional: the scenarios inject setup failure 47 and RESET failure 52. The corresponding assertion jobs pass. The skipped-result job is intentionally SKIPPED and its assertion passes.
+- PostgreSQL 16 and PostgreSQL 17.6 integration jobs remain **IN PROGRESS** at the full CREATE_OFFER runner write-privilege characterization step. Their prepared-transaction setup, blocker, and restore steps are still pending; no PostgreSQL 16/17.6 completion is claimed.
+- CodeQL [#1851](https://github.com/meridane/QimaTrade-MVP/actions/runs/45518420023) completed **SUCCESS**.
+- Vercel Preview for code/test commit `09118e98` is **SUCCESS**. The latest documentation HEAD is rate-limited by the Vercel deployment quota; this is not a compilation result.
+- QA449 is **partially validated**: all five malformed psql argument cases were rejected in both runtime scenarios, and Verify/Playwright/CodeQL passed. Full CI closure remains pending on PostgreSQL 16 and PostgreSQL 17.6. No local Bash execution is claimed.
