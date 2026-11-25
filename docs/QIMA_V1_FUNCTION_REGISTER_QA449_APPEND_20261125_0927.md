@@ -188,3 +188,23 @@ Each case must return exit 92, emit exactly `Unexpected pg_isready target or arg
 - No production secrets, grants, persistent RLS policies, or PostgreSQL production settings were changed.
 - No production deployment, PR merge, force-push, or branch-protection change was performed.
 - QA450/QA451 are CI mock-contract tests; they do not establish a production vulnerability.
+
+
+## QA451 runtime validation progress — 2026-11-25, 10:46 KST
+
+- QIMA CI [#1931](https://github.com/meridane/QimaTrade-MVP/actions/runs/45528212592), on code/test commit `91364449`, is **IN PROGRESS**.
+- The normal-cleanup runtime log contains `QA450/QA451 pg_isready mock contract passed` and `QA353 runtime contract passed`. Its dedicated `Assert prepared-transaction always-cleanup runtime contract` job is **SUCCESS**.
+- The simulated RESET-failure runtime log contains the same QA450/QA451 success line and `QA354 runtime contract passed`. It preserved expected cleanup exit 52, did not restart or run postconditions after the failed RESET, and its dedicated `Assert prepared-transaction cleanup failures remain blocking` job is **SUCCESS**.
+- The two runtime jobs themselves conclude **FAILURE** intentionally because they inject setup exit 47 and cleanup exit 52. The skipped runtime job is intentionally **SKIPPED**; its skipped-result assertion job is **SUCCESS**.
+- QA451's four empty-value cases (host, port, user, database), together with the seven QA450 malformed-argument cases, therefore passed in both runtime paths: 11 direct negative mock cases per path, 22 rejection assertions total.
+- At this poll, the Verify job and PostgreSQL 16/17.6 integration jobs are still **IN PROGRESS**. Their complete Playwright, PostgreSQL integration, prepared-transaction setup/restore, and compatibility results are not yet claimed.
+- CodeQL [#1858](https://github.com/meridane/QimaTrade-MVP/actions/runs/45528212583) is **IN PROGRESS** on code/test commit `91364449`.
+- Vercel combined status on code/test and documentation HEADs remains **FAILURE** with `upgradeToPro=build-rate-limit`; this is an account deployment-quota limitation, not a confirmed compilation failure.
+- QA451 is **runtime-validated** in both cleanup paths, but full CI/Verify/PostgreSQL/CodeQL closure remains pending.
+
+### Safety boundary refresh
+
+- No Supabase Production data or migrations were accessed or modified.
+- No production secrets, grants, persistent RLS policies, or PostgreSQL production settings were changed.
+- No production deployment, PR merge, force-push, or branch-protection change was performed.
+- QA450/QA451 are CI mock-contract tests; they do not establish a production vulnerability.
