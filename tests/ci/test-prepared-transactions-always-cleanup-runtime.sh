@@ -214,6 +214,22 @@ case "${MOCK_READY_MODE:-ready}" in
     fi
     printf '%s\n' pg-isready >> "$MOCK_EVENTS"
     ;;
+  after-restart-three)
+    if grep -Fxq docker-restart "${MOCK_EVENTS:?MOCK_EVENTS is required for after-restart-three mode}"; then
+      ready_count_file="${MOCK_READY_COUNT_FILE:?MOCK_READY_COUNT_FILE is required for after-restart-three mode}"
+      ready_count=0
+      if [[ -f "$ready_count_file" ]]; then
+        read -r ready_count < "$ready_count_file"
+      fi
+      ready_count=$((ready_count + 1))
+      printf '%s\n' "$ready_count" > "$ready_count_file"
+      if (( ready_count <= 3 )); then
+        printf '%s\n' pg-isready-failed >> "$MOCK_EVENTS"
+        exit 1
+      fi
+    fi
+    printf '%s\n' pg-isready >> "$MOCK_EVENTS"
+    ;;
   after-restart-never)
     if grep -Fxq docker-restart "${MOCK_EVENTS:?MOCK_EVENTS is required for after-restart-never mode}"; then
       ready_count_file="${MOCK_READY_COUNT_FILE:?MOCK_READY_COUNT_FILE is required for after-restart-never mode}"
@@ -607,4 +623,44 @@ run_post_restart_show_failure_case \
   "::error::Could not read max_prepared_transactions after PostgreSQL restart (psql exit 73); configuration restoration is not confirmed." \
   command-failure
 echo "QA457 post-restart SHOW failure guard passed: invalid configuration output and psql exit 73 both stopped before resource postconditions or success reporting."
+
+# QA458: transient unavailability after restart must be retried before SHOW and postconditions.
+POST_RESTART_TRANSIENT_EVENTS="$TEMP_DIR/post-restart-transient-events.log"
+POST_RESTART_TRANSIENT_LOG="$TEMP_DIR/post-restart-transient.log"
+POST_RESTART_TRANSIENT_COUNT_FILE="$TEMP_DIR/post-restart-transient-count"
+EXPECTED_POST_RESTART_TRANSIENT_EVENTS="$TEMP_DIR/post-restart-transient-expected.log"
+: > "$POST_RESTART_TRANSIENT_EVENTS"
+rm -f "$POST_RESTART_TRANSIENT_COUNT_FILE"
+printf '10\n' > "$STATE_FILE"
+post_restart_transient_status=0
+if PATH="$MOCK_BIN:$PATH" \
+  MOCK_EVENTS="$POST_RESTART_TRANSIENT_EVENTS" MOCK_STATE_FILE="$STATE_FILE" MOCK_RESTORE_EXIT=0 \
+  MOCK_READY_MODE=after-restart-three MOCK_READY_COUNT_FILE="$POST_RESTART_TRANSIENT_COUNT_FILE" \
+  DATABASE_URL="postgresql://postgres:postgres@localhost:5432/qima_test" \
+  RESTORE_REQUIRED="$RESTORE_REQUIRED" \
+  BASELINE_MAX_PREPARED_TRANSACTIONS="$BASELINE_MAX_PREPARED_TRANSACTIONS" \
+  bash "$RESTORE_SCRIPT" > "$POST_RESTART_TRANSIENT_LOG" 2>&1; then
+  post_restart_transient_status=0
+else
+  post_restart_transient_status=$?
+fi
+{
+  printf 'docker-ps\npg-isready\ndocker-exec-reset\ndocker-restart\n'
+  for attempt in {1..3}; do
+    printf 'pg-isready-failed\nsleep-1\n'
+  done
+  printf '%s\n' pg-isready psql-show psql-prepared psql-database
+} > "$EXPECTED_POST_RESTART_TRANSIENT_EVENTS"
+if [[ "$post_restart_transient_status" -ne 0 ]] ||
+  [[ "$(cat "$POST_RESTART_TRANSIENT_EVENTS")" != "$(cat "$EXPECTED_POST_RESTART_TRANSIENT_EVENTS")" ]] ||
+  [[ "$(cat "$POST_RESTART_TRANSIENT_COUNT_FILE")" != "4" ]] ||
+  [[ "$(cat "$STATE_FILE")" != "0" ]] ||
+  ! grep -Fq "QA267 passed" "$POST_RESTART_TRANSIENT_LOG" ||
+  grep -Fq "postgres:postgres" "$POST_RESTART_TRANSIENT_LOG"; then
+  echo "ERROR: post-restart transient readiness failures did not delay SHOW and postconditions until the service became ready." >&2
+  cat "$POST_RESTART_TRANSIENT_EVENTS" >&2
+  cat "$POST_RESTART_TRANSIENT_LOG" >&2
+  exit 1
+fi
+echo "QA458 post-restart transient-readiness guard passed: three failed probes and sleeps were followed by readiness before SHOW and resource postconditions."
 
