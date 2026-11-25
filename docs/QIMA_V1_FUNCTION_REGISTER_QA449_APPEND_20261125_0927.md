@@ -375,5 +375,14 @@ The mock's existing `after-three` mode remains unchanged in behavior; the new mo
 ### QA454 pre-CI source review correction
 
 - A post-publication source inspection found that the newly generated QA454 expected-event `printf` formats contained doubled backslashes, which would have recorded literal `\n` text instead of line separators.
-- Corrected all four QA454 format strings to use a single Bash printf newline escape before the QA454 CI run. The fix is a test-harness correction only; no PostgreSQL operation or application code changed.
+- Corrected all four QA454 format strings to use a single Bash printf newline escape before the corrected-commit QA454 CI run. The fix is a test-harness correction only; no PostgreSQL operation or application code changed.
 - The corrected file was re-fetched from the PR branch and inspected. QA454 remains **PENDING CI** until the new workflow executes.
+
+
+### QA454 CI correction-cycle status
+
+- QIMA CI [#1941](https://github.com/meridane/QimaTrade-MVP/actions/runs/45547045878) ran on the pre-correction test commit `b9145be5`. Verify **FAILED** because the four QA454 expected-event `printf` formats contained doubled backslashes, so the expected log separators did not match the runtime event lines. The harness then returned failure and the downstream QA353 result assertion correctly rejected the missing success outcome. This is a test-authoring failure in the pre-correction commit, not an application or production finding.
+- The QA454 format correction is committed in `a612caa52a31e5b4945f383e7dd959682b3ea07a`; the current PR head is this corrected commit.
+- QIMA CI [#1942](https://github.com/meridane/QimaTrade-MVP/actions/runs/45547105471) for the corrected HEAD is **PENDING** with no jobs published at the latest poll. CodeQL [#1869](https://github.com/meridane/QimaTrade-MVP/actions/runs/45547105397) is **IN PROGRESS**.
+- The pre-correction CI #1941 PostgreSQL 16 and PostgreSQL 17.6 jobs remain **IN PROGRESS** at this poll; no final result is claimed for those jobs.
+- QA454 remains **PENDING** until CI #1942 executes both new boundary cases. No local Bash execution is claimed.
