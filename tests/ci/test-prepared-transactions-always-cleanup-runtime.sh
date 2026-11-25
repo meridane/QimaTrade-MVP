@@ -166,15 +166,20 @@ case "${MOCK_READY_MODE:-ready}" in
     printf '%s\n' pg-isready-failed >> "$MOCK_EVENTS"
     exit 1
     ;;
-  after-three)
-    ready_count_file="${MOCK_READY_COUNT_FILE:?MOCK_READY_COUNT_FILE is required for after-three mode}"
+  after-three|after-fifty-nine|after-sixty)
+    ready_count_file="${MOCK_READY_COUNT_FILE:?MOCK_READY_COUNT_FILE is required for bounded-readiness modes}"
     ready_count=0
     if [[ -f "$ready_count_file" ]]; then
       read -r ready_count < "$ready_count_file"
     fi
     ready_count=$((ready_count + 1))
     printf '%s\n' "$ready_count" > "$ready_count_file"
-    if (( ready_count <= 3 )); then
+    case "$MOCK_READY_MODE" in
+      after-three) failure_limit=3 ;;
+      after-fifty-nine) failure_limit=59 ;;
+      after-sixty) failure_limit=60 ;;
+    esac
+    if (( ready_count <= failure_limit )); then
       printf '%s\n' pg-isready-failed >> "$MOCK_EVENTS"
       exit 1
     fi
@@ -358,3 +363,69 @@ if [[ "$transient_status" -ne 0 ]] ||
   exit 1
 fi
 echo "QA453 transient-readiness guard passed: three failed probes and sleeps were followed by readiness, then RESET, restart, and all postconditions completed."
+
+# QA454: pin the inclusive 60-probe readiness boundary. Probe 60 may proceed;
+# readiness first observed on probe 61 must remain outside the bounded loop.
+run_readiness_boundary_case() {
+  local mode="$1"
+  local expected_failures="$2"
+  local expected_status="$3"
+  local boundary_events="$TEMP_DIR/${mode}-events.log"
+  local boundary_log="$TEMP_DIR/${mode}.log"
+  local boundary_count_file="$TEMP_DIR/${mode}-count"
+  local expected_boundary_events="$TEMP_DIR/${mode}-expected.log"
+  local boundary_status=0
+  : > "$boundary_events"
+  if PATH="$MOCK_BIN:$PATH" \
+    MOCK_EVENTS="$boundary_events" MOCK_STATE_FILE="$STATE_FILE" MOCK_RESTORE_EXIT=0 \
+    MOCK_READY_MODE="$mode" MOCK_READY_COUNT_FILE="$boundary_count_file" \
+    DATABASE_URL="postgresql://postgres:postgres@localhost:5432/qima_test" \
+    RESTORE_REQUIRED="$RESTORE_REQUIRED" \
+    BASELINE_MAX_PREPARED_TRANSACTIONS="$BASELINE_MAX_PREPARED_TRANSACTIONS" \
+    bash "$RESTORE_SCRIPT" > "$boundary_log" 2>&1; then
+    boundary_status=0
+  else
+    boundary_status=$?
+  fi
+
+  {
+    printf 'docker-ps\\n'
+    for ((attempt = 1; attempt <= expected_failures; attempt++)); do
+      printf 'pg-isready-failed\\nsleep-1\\n'
+    done
+    if [[ "$mode" == "after-fifty-nine" ]]; then
+      printf '%s\\n' pg-isready docker-exec-reset docker-restart pg-isready psql-show psql-prepared psql-database
+    fi
+  } > "$expected_boundary_events"
+
+  local expected_probe_count=60
+  if [[ "$mode" == "after-fifty-nine" ]]; then
+    expected_probe_count=61
+    if [[ "$boundary_status" -ne "$expected_status" ]] ||
+      [[ "$(cat "$boundary_events")" != "$(cat "$expected_boundary_events")" ]] ||
+      [[ "$(cat "$boundary_count_file")" != "$expected_probe_count" ]] ||
+      [[ "$(cat "$STATE_FILE")" != "0" ]] ||
+      ! grep -Fq "QA267 passed" "$boundary_log" ||
+      grep -Fq "postgres:postgres" "$boundary_log"; then
+      echo "ERROR: readiness on probe 60 did not complete restoration and all postconditions." >&2
+      cat "$boundary_events" >&2
+      cat "$boundary_log" >&2
+      exit 1
+    fi
+  else
+    if [[ "$boundary_status" -ne "$expected_status" ]] ||
+      [[ "$(cat "$boundary_events")" != "$(cat "$expected_boundary_events")" ]] ||
+      [[ "$(cat "$boundary_count_file")" != "$expected_probe_count" ]] ||
+      [[ "$(cat "$boundary_log")" != "::error::The disposable PostgreSQL service did not become ready before configuration restoration." ]] ||
+      grep -Eq 'docker-exec-reset|docker-restart|psql-' "$boundary_events"; then
+      echo "ERROR: readiness first observed on probe 61 escaped the 60-probe timeout boundary." >&2
+      cat "$boundary_events" >&2
+      cat "$boundary_log" >&2
+      exit 1
+    fi
+  fi
+}
+
+run_readiness_boundary_case after-fifty-nine 59 0
+run_readiness_boundary_case after-sixty 60 1
+echo "QA454 readiness boundary passed: probe 60 is accepted; readiness first observed on probe 61 is rejected after exactly 60 probes with no RESET, restart, or postcondition query."

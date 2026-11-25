@@ -329,3 +329,44 @@ Code/test commit: [`f49a6c19`](https://github.com/meridane/QimaTrade-MVP/commit/
 - The dedicated runtime assertion jobs for QA353/QA453 and QA354 remain **SUCCESS**. The actual runtime logs explicitly contain the QA453 transient-readiness pass line.
 - Vercel Preview for code/test commit `f49a6c19` is **SUCCESS** ([Preview](https://vercel.com/bmk1/qimatrade-mvp/FcedoKUKWpjvqYeVXKVPd8DxjzGR)). The newer documentation HEAD is separately **PENDING** ([status](https://vercel.com/bmk1/qimatrade-mvp/6QJKvJHEmDUhsx1nVxwxLQPxmLdh)); no build failure is reported.
 - No new QIMA CI/CodeQL run was returned for the documentation-only commit at this poll. CI #1937 and CodeQL #1864 remain the authoritative code/test validation for QA453.
+
+
+## QA454 — bounded PostgreSQL readiness retry boundary
+
+### Scope
+
+- Code/test HEAD before QA454: `23f0c7dd9d82485a13c5912190c9b752bf0a7ff6`.
+- PR #26 remains OPEN / DRAFT / unmerged; base `main`; 2,456 commits ahead and 0 behind at the initial inspection; 301 changed files.
+- Working branch: `work/qima-readiness-60th-boundary-qa454-20261125-1327`.
+- Target: `tests/ci/test-prepared-transactions-always-cleanup-runtime.sh`.
+- The existing restoration script uses an inclusive Bash loop `for attempt in {1..60}`; QA452 covers persistent unavailability and QA453 covers recovery after three transient failures. QA454 pins the exact boundary without changing the operational restore script.
+
+### Regression cases added
+
+1. **Ready on probe 60:** the mock fails the first 59 readiness probes, records 59 one-second sleeps, then succeeds on probe 60. The actual restore script must proceed to RESET, restart, post-restart readiness, baseline SHOW, and both zero-residual-resource queries. The expected readiness counter is 61 because one further successful probe occurs after restart.
+2. **Ready only on probe 61:** the mock fails all 60 probes within the loop and would return ready on a hypothetical 61st call. The actual restore script must exit 1 with the constant readiness-timeout diagnostic after exactly 60 probes and 60 mocked sleeps. No RESET, restart, or psql postcondition query may occur.
+
+The mock's existing `after-three` mode remains unchanged in behavior; the new modes share its counter and bounded-failure logic. No production code, PostgreSQL configuration, SQL migration, Supabase data, or workflow definition is changed.
+
+### Prior cycle closure — QA453
+
+- QIMA CI [#1940](https://github.com/meridane/QimaTrade-MVP/actions/runs/45540843891) on HEAD `23f0c7dd` completed **SUCCESS**.
+- Verify: npm audit, TypeScript, Next.js production build, Chromium, and **423/423 Playwright** passed (39.1 s).
+- PostgreSQL 16 CREATE_OFFER integration/concurrency, replay, bootstrap/RLS/ACL, and prepared-transaction setup/restore steps completed **SUCCESS**; logs include `QA267 passed`.
+- PostgreSQL 17.6 compatibility, CREATE_OFFER integration/concurrency, replay, bootstrap/RLS/ACL, and prepared-transaction compatibility steps completed **SUCCESS**.
+- Runtime assertion jobs for the normal cleanup and cleanup-failure propagation contracts completed **SUCCESS**; the underlying jobs deliberately inject setup exit 47 and RESET exit 52 and therefore conclude **FAILURE** by design. The skipped-result job is intentionally **SKIPPED**; its assertion passes.
+- CodeQL [#1867](https://github.com/meridane/QimaTrade-MVP/actions/runs/45540843785) completed **SUCCESS**.
+- The combined commit status still reports a Vercel rate-limit failure, while the PR's Vercel bot comment for this HEAD records a Ready Preview deployment. Treat the Vercel signal as inconsistent; it does not change the GitHub Actions/CodeQL result.
+
+### QA454 validation state at commit creation
+
+- The new boundary cases are added to the existing runtime harness and will be validated by the next PR-triggered QIMA CI run.
+- No local Bash execution is claimed.
+- No test result for QA454 is claimed before GitHub Actions runs.
+
+### Safety boundary
+
+- No Supabase Production data or migrations were accessed or modified.
+- No production secrets, grants, persistent RLS policies, or PostgreSQL production settings were changed.
+- No production deployment, PR merge, force-push, or branch-protection change was performed.
+- QA454 is a deterministic mock-based regression of the CI restore script's retry boundary; it is not evidence of a production vulnerability.
