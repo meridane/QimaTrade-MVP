@@ -15320,3 +15320,39 @@ Les points ci-dessous ne sont pas approuvés et ne doivent pas être figés par 
 - Les cas QA470 utilisent des mocks inertes et caractérisent uniquement le contrat du script CI de restauration. Ils ne démontrent pas une vulnérabilité exploitable en Production.
 - Aucun test local n'est revendiqué.
 - Aucune donnée ou migration Supabase Production, aucun secret, grant ou policy RLS persistante, aucune configuration PostgreSQL Production, aucun déploiement Production, merge, force-push ou changement des protections GitHub n'a été effectué.
+
+---
+
+## QA471 — Legacy CREATE_OFFER route: Supabase client initialization failure response (2026-11-26 08:15 KST)
+
+### Starting state and previous validation
+
+- PR #26 was **OPEN / DRAFT / not merged**, base `main`, HEAD `5cb44e3f9f4e89dd93604ba2631eaaf78284f391`, 2,515 commits ahead and 0 behind, 308 changed files; no submitted reviews or review threads were present.
+- The parent code/test baseline was already validated by QIMA CI [#1992](https://github.com/meridane/QimaTrade-MVP/actions/runs/45714610147) **SUCCESS** and CodeQL [#1918](https://github.com/meridane/QimaTrade-MVP/actions/runs/45714610006) **SUCCESS**. The parent commit changed documentation only.
+- The current source review focused on `lib/offers/create-legacy-offer.ts` and `tests/e2e/legacy-offers-route-contract.spec.ts`. The handler catches an exception thrown while constructing the Supabase server client and returns the existing generic JSON error. The test suite already covered a returned Supabase INSERT error, but did not directly exercise a thrown client-factory initialization error on a valid request.
+
+### Change
+
+- Commit [`aba44596124816f502f1b208b3350a247aafe5de`](https://github.com/meridane/QimaTrade-MVP/commit/aba44596124816f502f1b208b3350a247aafe5de) adds one regression test to `tests/e2e/legacy-offers-route-contract.spec.ts`.
+- The injected error is a synthetic internal-detail string. The test requires the existing public response contract: HTTP 500, JSON body exactly `{"error":"Unable to create the offer."}`, no internal detail in the body, no redirect Location header, and exactly one client-factory invocation.
+- This is a test-only change. No application route, SQL, schema, business rule, or Supabase client implementation was changed.
+
+### Validation on the new HEAD
+
+- New PR HEAD: `aba44596124816f502f1b208b3350a247aafe5de`.
+- QIMA CI [#1993](https://github.com/meridane/QimaTrade-MVP/actions/runs/45720140107) was **IN PROGRESS** at the last inspection. The prepared-transaction runtime cleanup job had **SUCCESS**; the Verify job was installing dependencies; PostgreSQL 16 and PostgreSQL 17.6 jobs were **IN PROGRESS**. The two expected failure-injection jobs ended with their deliberate failure outcomes, and the skipped-result job was **SKIPPED** as designed. No result is claimed yet for the new Playwright regression.
+- CodeQL [#1919](https://github.com/meridane/QimaTrade-MVP/actions/runs/45720140130) was **IN PROGRESS** at the last inspection.
+- Vercel Preview status for the exact new HEAD was **PENDING**.
+- No local test execution is claimed. The new test has been committed and GitHub Actions validation is the pending verification gate.
+
+### Contract and decision boundaries
+
+- The regression locks only the existing generic error response for an unexpected Supabase client initialization exception. It does not decide the unresolved Product Master override, demand/tenant/provider eligibility, or offer visibility semantics.
+- Those business/API decisions remain open and must not be inferred from this test.
+- The synthetic exception is a test fixture, not evidence of a production credential failure or vulnerability.
+
+### Safety
+
+- No Supabase Production data, migrations, schema, grants, RLS policies, secrets, or persistent configuration were changed.
+- No Production deployment, PR merge, force-push, or branch-protection change was performed.
+
