@@ -49,3 +49,63 @@ No Supabase production data, production migrations, production secrets, persiste
 ## Next action
 
 Wait for CI #1989 and CodeQL #1989. Confirm that QA355 harness isolation passes with the original state restored, then record the final PostgreSQL 16/17.6 and Verify results. Keep the PR open and unmerged.
+
+
+---
+
+## Clôture QA470 — CI #1991 et isolation QA355 confirmées — 26 novembre 2026 (KST)
+
+### État GitHub relu avant actualisation
+
+- PR #26 « fix: align CREATE_OFFER execution statuses » : **OPEN / DRAFT / non fusionnée**, merged=false, mergeable=true.
+- Branche officielle : fix/create-offer-status-contract, base main.
+- HEAD avant cette actualisation : f3a235a8c4772e2314dfa615ed7e7471cf61cedd ; base SHA : 0d35c13db81019867fe9929420b0a6916285fbf6.
+- Comparaison main...fix/create-offer-status-contract : **2 514 commits en avance, 0 en retard** ; 308 fichiers modifiés (97 187 insertions / 266 suppressions).
+- Dernier commit relu : f3a235a8, documentaire uniquement, actualisant le supplément QA470. La branche de travail work/qima-restore-loopback-url-allowlist-qa470-20261126-0612 était identique à la branche PR (0 ahead / 0 behind).
+
+### Résultat définitif de QA470
+
+- Les six formes explicitement autorisées ont été exécutées dans le job runtime de QIMA CI [#1991](https://github.com/meridane/QimaTrade-MVP/actions/runs/45703051885). Le journal contient le marqueur exact : QA470 supported-loopback URL allowlist passed: postgres/postgresql schemes with localhost, IPv4 loopback, and IPv6 loopback completed the mocked restoration sequence; psql received each URL unchanged.
+- La régression d'isolation QA355 qui avait fait échouer Verify dans CI [#1988](https://github.com/meridane/QimaTrade-MVP/actions/runs/45702507061) est corrigée par la capture puis la restauration de l'état initial du harness. Dans #1991, le journal Verify confirme : QA355 passed ; l'état sentinelle 10 est préservé après les cas QA470.
+- QIMA CI [#1991](https://github.com/meridane/QimaTrade-MVP/actions/runs/45703051885) a terminé **SUCCESS**. Verify : npm audit **0 vulnérabilité (total 0)**, TypeScript, build Next.js, Chromium, fixture de sécurité QIMA et **423/423 Playwright (37,6 s)** réussis.
+- PostgreSQL 16 integration et PostgreSQL 17.6 compatibility ont tous deux terminé **SUCCESS**. Le nettoyage prepared-transactions et ses postconditions ont passé.
+- CodeQL [#1917](https://github.com/meridane/QimaTrade-MVP/actions/runs/45703051888) a terminé **SUCCESS**.
+- Les jobs de simulation setup/cleanup terminent volontairement avec les codes injectés 47 et 52 ; leurs assertions bloquantes dédiées ont **SUCCESS**. Le job skipped reste intentionnellement **SKIPPED**. Ces résultats ne sont pas des échecs inattendus du workflow.
+
+### Vercel — statut distinct
+
+- Le statut combiné du HEAD exact f3a235a8 rapporte Vercel **FAILURE** avec la cible upgradeToPro=build-rate-limit. Il s'agit d'une limite de quota du fournisseur, pas d'un échec de compilation démontré.
+- Aucun Preview réussi pour ce HEAD exact n'est confirmé dans les checks récupérés. Un commentaire Vercel antérieur signalant un déploiement Ready concernait un déploiement plus ancien et n'est pas utilisé comme preuve pour ce SHA.
+
+### Commits et fichiers QA470
+
+- 12cea60f — six cas positifs d'allowlist loopback et mock psql paramétré.
+- 09b8cf07 — correction de l'échappement shell initial.
+- 02de4993 — capture/restauration de l'état extérieur QA355.
+- af38ee93 — correction de l'échappement printf.
+- 3fb8cf44 et f3a235a8 — snapshots documentaires QA470.
+- Code modifié : tests/ci/test-prepared-transactions-always-cleanup-runtime.sh.
+- Documentation complémentaire : docs/QIMA_V1_FUNCTION_REGISTER_QA470_APPEND_20261126_0612.md.
+
+### Décisions API/métier qui restent ouvertes
+
+Les points ci-dessous ne sont pas approuvés et ne doivent pas être figés par de nouveaux tests normatifs ni par des changements SQL :
+- grammaire exacte des chaînes numériques CREATE_OFFER ;
+- types acceptés pour les champs métier facultatifs ;
+- source officielle de correlationId ;
+- sémantique objectType/objectId ;
+- caractère obligatoire ou facultatif de idempotencyKey côté client ;
+- MKT-1.3 numeric canonicalization, toujours **CHARACTERIZATION / DECISION REQUIRED — NOT APPROVED**.
+
+### Prochaine étape non bloquante
+
+- Ne pas ajouter une nouvelle matrice synthétique redondante au script de restauration après la clôture QA470.
+- Continuer la revue indépendante des tests/contrats CREATE_OFFER et des frontières HTTP qui ne figent pas les décisions ci-dessus ; documenter tout point qui exige une approbation produit/API.
+- Réexaminer le statut Vercel uniquement lorsque le quota fournisseur le permet.
+- Conserver les checks liés au SHA exact et mettre à jour le registre après chaque changement.
+
+### Sécurité et interprétation
+
+- Les cas QA470 utilisent des mocks inertes et caractérisent uniquement le contrat du script CI de restauration. Ils ne démontrent pas une vulnérabilité exploitable en Production.
+- Aucun test local n'est revendiqué.
+- Aucune donnée ou migration Supabase Production, aucun secret, grant ou policy RLS persistante, aucune configuration PostgreSQL Production, aucun déploiement Production, merge, force-push ou changement des protections GitHub n'a été effectué.
