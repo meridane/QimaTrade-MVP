@@ -946,3 +946,60 @@ run_docker_container_id_boundary_case "$too_long_container_id" 1 too-long "$inva
 run_docker_container_id_boundary_case "ABCDEF012345" 1 uppercase "$invalid_id_diagnostic"
 echo "QA465 Docker container-ID boundary guard passed: a 64-character lowercase hexadecimal ID was forwarded unchanged; 11-character, 65-character, and uppercase IDs were rejected before readiness or mutation."
 
+
+
+
+# QA467: missing required executables must fail before any Docker, readiness,
+# or SQL operation. Build a minimal PATH for each case so command discovery,
+# rather than a mock command failure, exercises the restore-script preflight.
+run_missing_dependency_case() {
+  local missing="$1"
+  local dependency_bin="$TEMP_DIR/missing-dependency-$missing-bin"
+  local dependency_events="$TEMP_DIR/missing-dependency-$missing-events.log"
+  local dependency_log="$TEMP_DIR/missing-dependency-$missing.log"
+  local dependency_status=0
+  local expected_diagnostic="::error::psql, docker, and pg_isready are required to restore the disposable PostgreSQL service."
+
+  mkdir -p "$dependency_bin"
+  : > "$dependency_events"
+  printf '10\\n' > "$STATE_FILE"
+  ln -s "$(command -v grep)" "$dependency_bin/grep"
+
+  if [[ "$missing" != "psql" ]]; then
+    ln -s "$MOCK_BIN/psql" "$dependency_bin/psql"
+  fi
+  if [[ "$missing" != "docker" ]]; then
+    ln -s "$MOCK_BIN/docker" "$dependency_bin/docker"
+  fi
+  if [[ "$missing" != "pg_isready" ]]; then
+    ln -s "$MOCK_BIN/pg_isready" "$dependency_bin/pg_isready"
+  fi
+
+  if PATH="$dependency_bin" \\
+    MOCK_EVENTS="$dependency_events" MOCK_STATE_FILE="$STATE_FILE" \\
+    DATABASE_URL="postgresql://postgres:postgres@localhost:5432/qima_test" \\
+    RESTORE_REQUIRED="$RESTORE_REQUIRED" \\
+    BASELINE_MAX_PREPARED_TRANSACTIONS="$BASELINE_MAX_PREPARED_TRANSACTIONS" \\
+    "$BASH" "$RESTORE_SCRIPT" > "$dependency_log" 2>&1; then
+    dependency_status=0
+  else
+    dependency_status=$?
+  fi
+
+  if [[ "$dependency_status" -ne 127 ]] || \\
+    [[ "$(cat "$dependency_log")" != "$expected_diagnostic" ]] || \\
+    [[ -s "$dependency_events" ]] || \\
+    [[ "$(cat "$STATE_FILE")" != "10" ]] || \\
+    grep -Fq "QA267 passed" "$dependency_log" || \\
+    grep -Fq "postgres:postgres" "$dependency_log"; then
+    echo "ERROR: missing $missing executable did not stop restoration at the dependency preflight." >&2
+    cat "$dependency_events" >&2
+    cat "$dependency_log" >&2
+    exit 1
+  fi
+}
+
+run_missing_dependency_case psql
+run_missing_dependency_case docker
+run_missing_dependency_case pg_isready
+echo "QA467 dependency-preflight guard passed: missing psql, docker, or pg_isready returned 127 before any mock event, state change, or success marker."
