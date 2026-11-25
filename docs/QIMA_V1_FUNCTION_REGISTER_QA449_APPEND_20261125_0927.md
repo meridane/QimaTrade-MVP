@@ -208,3 +208,48 @@ Each case must return exit 92, emit exactly `Unexpected pg_isready target or arg
 - No production secrets, grants, persistent RLS policies, or PostgreSQL production settings were changed.
 - No production deployment, PR merge, force-push, or branch-protection change was performed.
 - QA450/QA451 are CI mock-contract tests; they do not establish a production vulnerability.
+
+
+## QA451 final closeout — 2026-11-25 (KST)
+
+- QIMA CI [#1933](https://github.com/meridane/QimaTrade-MVP/actions/runs/45528325448), on documentation HEAD `a998f3c76fd395bb9594c3adba848f9c5096a4cd`, completed **SUCCESS**.
+- Verify completed **SUCCESS**. Its log confirms **423 Playwright passed (38.7s)**; npm audit, TypeScript, Next.js production build, Chromium installation, workflow cleanup wiring/assertions, and the isolated QIMA security-contract fixture all passed.
+- PostgreSQL 16 integration completed **SUCCESS**, including prepared-transaction configuration/setup/restore, disposable-resource postconditions, CREATE_OFFER integration/replay, ACL and RLS regressions.
+- PostgreSQL 17.6 compatibility completed **SUCCESS**, including CREATE_OFFER integration/replay, wrapper-owner and EXECUTE ACL regressions.
+- QA451's four empty-value `pg_isready` cases plus the seven QA450 malformed-argument cases passed in both runtime paths: 11 direct negative cases per path, 22 rejection assertions total. Both runtime logs contain `QA450/QA451 pg_isready mock contract passed`.
+- The normal cleanup path reached `QA353 runtime contract passed`; its dedicated runtime assertion job completed **SUCCESS**. The simulated RESET-failure path preserved exit 52, did not restart or run postconditions after the failed RESET, reached `QA354 runtime contract passed`, and its dedicated blocking assertion job completed **SUCCESS**.
+- The two runtime jobs themselves intentionally conclude **FAILURE** because they inject setup exit 47 and cleanup exit 52. The skipped runtime job is intentionally **SKIPPED**; its skipped-result assertion is **SUCCESS**. These are expected negative-contract outcomes, not unexpected suite failures.
+- CodeQL [#1860](https://github.com/meridane/QimaTrade-MVP/actions/runs/45528325336) completed **SUCCESS**.
+- QA451 is now **fully validated** by Verify/423 Playwright, PostgreSQL 16, PostgreSQL 17.6, both runtime assertion paths, and CodeQL. No local Bash execution is claimed.
+
+## QA452 — fail closed when PostgreSQL never becomes ready before restoration
+
+### Changed file
+
+`tests/ci/test-prepared-transactions-always-cleanup-runtime.sh`
+
+QA452 extends the inert `pg_isready` mock with an explicit `MOCK_READY_MODE` (`ready` by default, or `never` for the timeout case). The existing normal and simulated RESET-failure paths explicitly select `ready`, preserving their existing event sequence.
+
+A new isolated invocation runs the actual `restore-prepared-transactions-config.sh` with `MOCK_READY_MODE=never`. It requires:
+
+- exit status `1`;
+- the exact fixed diagnostic `The disposable PostgreSQL service did not become ready before configuration restoration.`;
+- exactly one Docker discovery event followed by 60 failed readiness probes, each followed by the mocked one-second sleep;
+- no `docker exec` / `ALTER SYSTEM RESET`, no Docker restart, and no `psql` postcondition query.
+
+This verifies that a disposable PostgreSQL service which never becomes ready blocks configuration/database mutation before the RESET step. It is a CI runtime-harness contract, not evidence of a production vulnerability.
+
+### Branch and commit
+
+- Working branch: `work/qima-restore-readiness-timeout-qa452-20261125-1114`.
+- Code/test commit: [`56af7ecf`](https://github.com/meridane/QimaTrade-MVP/commit/56af7ecfe167f8042c613835d19bc21feca2b2ce).
+- The code/test commit was fast-forwarded to `fix/create-offer-status-contract` from expected prior HEAD `a998f3c76fd395bb9594c3adba848f9c5096a4cd`; branch comparison confirmed 2,450 commits ahead of `main`, 0 behind.
+- The updated file was fetched back from GitHub. Structural checks confirmed the default-ready and never-ready mock modes, the 60-probe expected event sequence, and the fixed timeout diagnostic.
+- No local Bash execution is claimed. QA452 remains **PENDING GitHub Actions execution**: `fetch_commit_workflow_runs` returned no PR-triggered run for code commit `56af7ecf` at this snapshot; its combined status reports Vercel **PENDING**.
+- The previous QA451 workflow #1933 validates the parent code/test state and does not validate QA452.
+
+### Safety boundary refresh
+
+- No Supabase Production data or migrations were accessed or modified.
+- No production secrets, grants, persistent RLS policies, or PostgreSQL production settings were changed.
+- No production deployment, PR merge, force-push, or branch-protection change was performed.
