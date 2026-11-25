@@ -265,3 +265,49 @@ This verifies that a disposable PostgreSQL service which never becomes ready blo
 - CodeQL [#1861](https://github.com/meridane/QimaTrade-MVP/actions/runs/45531723396) on code/test commit `56af7ecfe` is **IN PROGRESS**. On the preceding documentation HEAD `764c264d`, CodeQL [#1862](https://github.com/meridane/QimaTrade-MVP/actions/runs/45531780578) is **IN PROGRESS** and QIMA CI [#1935](https://github.com/meridane/QimaTrade-MVP/actions/runs/45531780560) is **PENDING** with no jobs published at the latest poll.
 - Vercel Preview for code/test commit `56af7ecfe` is **PENDING**. The preceding documentation HEAD `764c264d` is rate-limited by `upgradeToPro=build-rate-limit`; this is a deployment-quota result, not a confirmed compilation failure.
 - QA452 is **runtime-validated in the normal cleanup path**. Full Verify/Playwright, PostgreSQL 16/17.6, and CodeQL closure remain pending. No local Bash execution is claimed.
+
+## QA452 closeout and QA453 transient-readiness regression — 2026-11-25 (KST)
+
+### QA452 final validation
+
+- The PR HEAD before QA453 was `ce842b69e790a2453162905fefc9b688bca3bd35`, OPEN / DRAFT / not merged. The PR targeted `main`; the branch was 2,452 commits ahead and 0 behind.
+- QIMA CI [#1936](https://github.com/meridane/QimaTrade-MVP/actions/runs/45531891488) completed **SUCCESS** on that HEAD. Verify completed npm audit, TypeScript, Next.js production build, Chromium, the isolated QIMA security-contract fixture, and **423 Playwright tests passed (37.3s)**.
+- PostgreSQL 16 integration and PostgreSQL 17.6 compatibility jobs both completed **SUCCESS**. The prepared-transaction runtime assertion jobs for the normal cleanup path and blocking cleanup-failure path completed **SUCCESS**. The skipped-result assertion completed **SUCCESS**; its underlying cleanup-result job was intentionally **SKIPPED**.
+- The two runtime jobs that inject setup failure (exit 47) and RESET failure (exit 52) intentionally conclude **FAILURE**. Their dedicated assertions passed; these expected negative outcomes are not unexpected CI failures.
+- CodeQL [#1863](https://github.com/meridane/QimaTrade-MVP/actions/runs/45531891618) completed **SUCCESS**. QA452 is therefore fully closed for Verify, PostgreSQL 16/17.6, runtime assertions, and CodeQL.
+
+### QA453 — transient PostgreSQL readiness recovery
+
+Changed file:
+
+- `tests/ci/test-prepared-transactions-always-cleanup-runtime.sh`
+
+The pg_isready mock now has a deterministic `after-three` mode. It records three failed readiness probes and their three mocked one-second sleeps, then returns ready on the fourth probe. The actual `restore-prepared-transactions-config.sh` is executed with inert Docker/PostgreSQL mocks.
+
+The QA453 assertion requires the exact event sequence:
+
+1. One Docker container discovery.
+2. Three `pg_isready` failures, each followed by one `sleep 1`.
+3. A successful readiness probe before any RESET.
+4. The expected `docker exec` RESET and container restart.
+5. A successful post-restart readiness probe.
+6. The SHOW baseline and both disposable-resource postcondition queries.
+
+It also requires exit 0, five total readiness probes, restored mock baseline `0`, the existing `QA267 passed` confirmation, and no credential text in diagnostics. The test therefore distinguishes transient startup delay from the QA452 never-ready timeout: transient failures must delay cleanup, not prevent a valid cleanup once the service becomes ready.
+
+Code/test commit: [`f49a6c19`](https://github.com/meridane/QimaTrade-MVP/commit/f49a6c191c94cd1b23166f740d1e4b55b2aeac35).
+
+### QA453 validation state at documentation time
+
+- QIMA CI [#1937](https://github.com/meridane/QimaTrade-MVP/actions/runs/45540657320) is **IN PROGRESS** on code/test HEAD `f49a6c191c94cd1b23166f740d1e4b55b2aeac35`.
+- The dedicated normal-cleanup runtime assertion and cleanup-failure blocking assertion are **SUCCESS**. Their underlying setup-failure and cleanup-failure jobs intentionally conclude **FAILURE**; the skipped-result job is intentionally **SKIPPED** and its assertion is **SUCCESS**.
+- Verify and both PostgreSQL integration jobs (PostgreSQL 16 and PostgreSQL 17.6) are **IN PROGRESS**. No QA453 final CI or Playwright result is claimed yet.
+- CodeQL [#1864](https://github.com/meridane/QimaTrade-MVP/actions/runs/45540657230) is **IN PROGRESS**.
+- Vercel Preview is **PENDING** at [the deployment status](https://vercel.com/bmk1/qimatrade-mvp/Ek5L4DfP5H96XmgKywzfUbLmg41w). This is not a build failure.
+- No local Bash execution is claimed. QA453 is a deterministic mock-based regression of the CI cleanup contract; it is not evidence of a production vulnerability.
+
+### Safety boundary
+
+- No Supabase Production data or migrations were accessed or modified.
+- No production secrets, grants, persistent RLS policies, or PostgreSQL production settings were changed.
+- No production deployment, PR merge, force-push, or branch-protection change was performed.
