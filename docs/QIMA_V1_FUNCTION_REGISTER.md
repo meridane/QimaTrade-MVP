@@ -15041,3 +15041,12 @@ La revue croisée des scripts de garde-fou PostgreSQL a révélé le même défa
 - At this poll, Verify's Next.js production build remains **IN PROGRESS**; Playwright has not yet completed. PostgreSQL 16 and PostgreSQL 17.6 integration jobs remain **IN PROGRESS**. No final CI or Playwright total is claimed.
 - CodeQL #1873 remains **IN PROGRESS**. Vercel Preview for code/test commit `0cee7fd9` and for the documentation HEAD are **PENDING**; no build failure is confirmed.
 - QA456 is **runtime-validated** in GitHub Actions, but full Verify/Playwright, PostgreSQL 16/17.6, CodeQL, and final Preview status remain pending. No local Bash execution is claimed.
+
+
+### QA456 validation poll — 2026-11-25 (KST)
+
+- CodeQL [#1873](https://github.com/meridane/QimaTrade-MVP/actions/runs/45560277441) has completed **SUCCESS** on code/test commit `0cee7fd9`.
+- QIMA CI [#1946](https://github.com/meridane/QimaTrade-MVP/actions/runs/45560277495) remains **IN PROGRESS**. The QA456 normal-cleanup runtime log and dedicated runtime assertion are **SUCCESS**. Verify is still installing Playwright Chromium; Playwright has not yet started/completed. PostgreSQL 16 and PostgreSQL 17.6 integration jobs remain active in CREATE_OFFER integration/concurrency tests.
+- The separate QA354 failure-propagation assertion is **SUCCESS**. Its underlying job intentionally concludes **FAILURE** for injected cleanup exit 52; the setup-failure job intentionally concludes **FAILURE** for exit 47. The skipped-result job is intentionally **SKIPPED** with its assertion **SUCCESS**.
+- Vercel for code/test commit `0cee7fd9` remains **PENDING**. The documentation HEAD reports `upgradeToPro=build-rate-limit`; this is an account build/deployment quota limitation, not a confirmed build failure.
+- QA456 remains **runtime-validated**, but full CI/Playwright and PostgreSQL 16/17.6 closeout remain pending. No local Bash execution is claimed.
