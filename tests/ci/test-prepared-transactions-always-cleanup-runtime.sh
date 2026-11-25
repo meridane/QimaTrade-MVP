@@ -66,7 +66,7 @@ case "${1-}" in
     fi
     ;;
   exec)
-    if [[ "$#" -ne 11 || "$2" != "0123456789ab" || "$3" != "psql" ||
+    if [[ "$#" -ne 11 || "$2" != "${MOCK_DOCKER_EXPECTED_ID:-0123456789ab}" || "$3" != "psql" ||
       "$4" != "-U" || "$5" != "postgres" || "$6" != "-d" ||
       "$7" != "qima_test" || "$8" != "-v" || "$9" != "ON_ERROR_STOP=1" ||
       "${10}" != "-c" || "${11}" != "ALTER SYSTEM RESET max_prepared_transactions" ]]; then
@@ -80,7 +80,7 @@ case "${1-}" in
     fi
     ;;
   restart)
-    if [[ "$#" -ne 2 || "$2" != "0123456789ab" ]]; then
+    if [[ "$#" -ne 2 || "$2" != "${MOCK_DOCKER_EXPECTED_ID:-0123456789ab}" ]]; then
       echo "Unexpected Docker restart target." >&2
       exit 91
     fi
@@ -887,3 +887,62 @@ run_docker_discovery_output_case \
   invalid-container-id
 
 echo "QA464 Docker-discovery output guard passed: empty, multiple, and malformed container IDs were rejected before readiness, SQL, reset, or restart."
+
+# QA465: enforce Docker container-ID length and lowercase hexadecimal boundaries.
+# A 64-character full ID must be forwarded unchanged to exec and restart; IDs
+# outside the accepted 12..64 lowercase-hex range must fail before readiness.
+run_docker_container_id_boundary_case() {
+  local container_id="$1"
+  local expected_status="$2"
+  local label="$3"
+  local expected_diagnostic="$4"
+  local boundary_events="$TEMP_DIR/docker-id-$label-events.log"
+  local boundary_log="$TEMP_DIR/docker-id-$label.log"
+  local expected_boundary_events="$TEMP_DIR/docker-id-$label-expected.log"
+  local boundary_status=0
+
+  : > "$boundary_events"
+  printf '10\n' > "$STATE_FILE"
+  if PATH="$MOCK_BIN:$PATH" MOCK_EVENTS="$boundary_events" MOCK_STATE_FILE="$STATE_FILE" MOCK_RESTORE_EXIT=0 MOCK_DOCKER_PS_EXIT=0 MOCK_DOCKER_PS_OUTPUT="$container_id" MOCK_DOCKER_EXPECTED_ID="$container_id" MOCK_READY_MODE=ready DATABASE_URL="postgresql://postgres:postgres@localhost:5432/qima_test" RESTORE_REQUIRED="$RESTORE_REQUIRED" BASELINE_MAX_PREPARED_TRANSACTIONS="$BASELINE_MAX_PREPARED_TRANSACTIONS" bash "$RESTORE_SCRIPT" > "$boundary_log" 2>&1; then
+    boundary_status=0
+  else
+    boundary_status=$?
+  fi
+
+  if [[ "$expected_status" == "0" ]]; then
+    printf '%s\n' docker-ps pg-isready docker-exec-reset docker-restart pg-isready psql-show psql-prepared psql-database > "$expected_boundary_events"
+    if [[ "$boundary_status" -ne 0 ]] ||
+      [[ "$(cat "$boundary_events")" != "$(cat "$expected_boundary_events")" ]] ||
+      [[ "$(cat "$STATE_FILE")" != "0" ]] ||
+      ! grep -Fq "QA267 passed" "$boundary_log" ||
+      grep -Fq "postgres:postgres" "$boundary_log"; then
+      echo "ERROR: valid Docker container ID boundary case $label was not forwarded unchanged through restoration." >&2
+      cat "$boundary_events" >&2
+      cat "$boundary_log" >&2
+      exit 1
+    fi
+  else
+    printf '%s\n' docker-ps > "$expected_boundary_events"
+    if [[ "$boundary_status" -ne "$expected_status" ]] ||
+      [[ "$(cat "$boundary_events")" != "$(cat "$expected_boundary_events")" ]] ||
+      [[ "$(cat "$STATE_FILE")" != "10" ]] ||
+      ! grep -Fqx "$expected_diagnostic" "$boundary_log" ||
+      grep -Fq "QA267 passed" "$boundary_log" ||
+      grep -Fq "postgres:postgres" "$boundary_log"; then
+      echo "ERROR: invalid Docker container ID boundary case $label did not fail closed." >&2
+      cat "$boundary_events" >&2
+      cat "$boundary_log" >&2
+      exit 1
+    fi
+  fi
+}
+
+full_container_id='0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'
+too_long_container_id="$full_container_id"'0'
+invalid_id_diagnostic="::error::Docker returned an invalid PostgreSQL 16 service container ID during restoration; no readiness or configuration operation was attempted."
+run_docker_container_id_boundary_case "$full_container_id" 0 valid-64 ""
+run_docker_container_id_boundary_case "0123456789a" 1 too-short "$invalid_id_diagnostic"
+run_docker_container_id_boundary_case "$too_long_container_id" 1 too-long "$invalid_id_diagnostic"
+run_docker_container_id_boundary_case "ABCDEF012345" 1 uppercase "$invalid_id_diagnostic"
+echo "QA465 Docker container-ID boundary guard passed: a 64-character lowercase hexadecimal ID was forwarded unchanged; 11-character, 65-character, and uppercase IDs were rejected before readiness or mutation."
+
