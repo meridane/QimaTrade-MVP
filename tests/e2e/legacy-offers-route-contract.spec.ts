@@ -2754,3 +2754,22 @@ test("legacy offers rejects a demand-scope product lookup with no row and no err
   expect(calls.offerInsertCalls).toBe(0);
   expect(calls.insertPayload).toBeNull();
 });
+
+test("legacy offers route returns a generic error when Supabase client initialization throws without redirecting", async () => {
+  const syntheticInternalDetail = "synthetic internal connection detail";
+  let factoryCalls = 0;
+  const handler = createLegacyOfferHandler(async () => {
+    factoryCalls += 1;
+    throw new Error(syntheticInternalDetail);
+  });
+
+  const response = await handler(createFormRequest());
+
+  expect(factoryCalls).toBe(1);
+  expect(response.status).toBe(500);
+  const body = await response.json();
+  expect(body).toEqual({ error: "Unable to create the offer." });
+  expect(JSON.stringify(body)).not.toContain(syntheticInternalDetail);
+  expect(response.headers.get("location")).toBeNull();
+});
+
