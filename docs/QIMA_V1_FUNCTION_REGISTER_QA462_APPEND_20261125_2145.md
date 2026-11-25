@@ -54,3 +54,12 @@ The test invokes the real `tests/sql/restore-prepared-transactions-config.sh` sc
 - No secrets, persistent grants, RLS policies, production database settings, branch protections, or deployment configuration were changed.
 - No Production deployment, merge, or force-push was performed.
 - This is a synthetic CI regression for error propagation and operation ordering. It is not evidence of a production vulnerability.
+
+
+## First CI attempt and harness correction
+
+- QIMA CI [#1969](https://github.com/meridane/QimaTrade-MVP/actions/runs/45617141053) exercised the new QA462 case and exposed an overly strict assertion in the test harness.
+- The Docker mock correctly returned exit code `78` and the restore script correctly emitted its fail-closed diagnostic. The mock also wrote its own expected stderr line (`mock Docker discovery failure`), so comparing the entire combined log to only the restore diagnostic caused the harness assertion to fail.
+- This was a test assertion defect, not evidence that the restore script continued to readiness or database operations. The event log contained only `docker-ps`, and the script's diagnostic explicitly stated that no later operation was attempted.
+- Corrected in [`7e603ae83fac8a6e0d382b900571113827b83a8d`](https://github.com/meridane/QimaTrade-MVP/commit/7e603ae83fac8a6e0d382b900571113827b83a8d): assert the exact diagnostic line with `grep -Fqx`, allowing the mock's separate stderr line while retaining exact diagnostic verification.
+- The corrected code commit was pushed to the PR branch by fast-forward. Its new CI/CodeQL runs were not yet visible when this note was written; QA462 is **not yet validated** and no pass is claimed.
