@@ -1146,7 +1146,7 @@ run_restore_allowed_target_case postgresql-ipv6 "postgresql://postgres:postgres@
 run_restore_allowed_target_case postgres-ipv6 "postgres://postgres:postgres@[::1]:5432/qima_test"
 
 # Keep this appended coverage isolated from the outer QA355 state assertion.
-printf '%s\\n' "$QA470_INITIAL_STATE" > "$STATE_FILE"
+printf '%s\n' "$QA470_INITIAL_STATE" > "$STATE_FILE"
 if [[ "$(cat "$STATE_FILE")" != "$QA470_INITIAL_STATE" ]]; then
   echo "ERROR: QA470 did not restore the enclosing runtime harness state." >&2
   cat "$STATE_FILE" >&2
