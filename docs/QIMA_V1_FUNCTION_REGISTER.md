@@ -15121,3 +15121,16 @@ La revue croisée des scripts de garde-fou PostgreSQL a révélé le même défa
 - PostgreSQL 16 and PostgreSQL 17.6 integration jobs remain **IN PROGRESS** at this poll; prepared-transaction configuration restoration and final disposable-resource postconditions have not yet completed. CI #1953 is therefore not globally closed.
 - The two injected-failure jobs intentionally conclude **FAILURE** for setup exit 47 and cleanup exit 52; their dedicated assertions are **SUCCESS**. The skipped-result job is intentionally **SKIPPED** with its assertion **SUCCESS**.
 - No production vulnerability is inferred from these inert mocks or synthetic failure cases. No local Bash run is claimed.
+
+
+### QA458 — post-restart transient readiness regression (2026-11-25 KST)
+
+- Code/test commit [4bc2ad73](https://github.com/meridane/QimaTrade-MVP/commit/4bc2ad73fdf4c7a22a4fa957e78400fea3b85f99) adds a deterministic `after-restart-three` mode to `tests/ci/test-prepared-transactions-always-cleanup-runtime.sh`.
+- The mode allows the initial pre-reset readiness probe to pass, then returns three post-restart readiness failures with three one-second mock sleeps, followed by a successful fourth post-restart probe.
+- The QA458 scenario runs the real `tests/sql/restore-prepared-transactions-config.sh` with inert Docker/PostgreSQL mocks and asserts the complete event order: discovery, initial readiness, RESET, restart, three failed post-restart probes/sleeps, fourth readiness success, SHOW, prepared-transaction count, and disposable-database count.
+- The expected result is exit 0, mock configuration state 0, exactly four post-restart readiness probes, resource postconditions only after readiness, and the existing `QA267 passed` marker. The existing QA452–QA457 cases are unchanged.
+- The code/test commit was fast-forwarded from the verified PR HEAD `fae9f824` to `4bc2ad73`; the work branch and PR branch are identical at this snapshot. No force update was used.
+- At documentation time, GitHub Actions had not yet returned a PR-triggered workflow run for `4bc2ad73`; Vercel Preview was pending. QA458 is therefore **implemented, not yet CI-validated**. No local Bash execution is claimed.
+- Baseline PR HEAD `fae9f824` had QIMA CI [#1957](https://github.com/meridane/QimaTrade-MVP/actions/runs/45569023106) **SUCCESS**: Verify (npm audit, TypeScript, Next.js build, Chromium and **423/423 Playwright**) **SUCCESS**; PostgreSQL 16 and PostgreSQL 17.6 integration jobs **SUCCESS**; cleanup runtime/assertion jobs **SUCCESS**. The two injected-failure harness jobs intentionally concluded **FAILURE** for setup exit 47 and cleanup exit 52, with their dedicated assertions **SUCCESS**; the skipped-result harness was intentionally **SKIPPED** with its assertion **SUCCESS**. CodeQL [#1884](https://github.com/meridane/QimaTrade-MVP/actions/runs/45569023149) **SUCCESS**.
+- The current branch's combined status initially reports Vercel **PENDING**. This status is tracked separately from GitHub Actions.
+- QA458 is a synthetic CI regression for the restore-script contract. It does not establish a production vulnerability. No Supabase Production data or migrations, secrets, persistent grants/RLS policies, production deployment, PR merge, force-push, or branch-protection settings were changed.
