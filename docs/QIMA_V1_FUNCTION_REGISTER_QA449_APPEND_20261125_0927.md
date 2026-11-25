@@ -141,3 +141,16 @@ Each case requires exit 92, the exact fixed diagnostic `Unexpected pg_isready ta
 - No production secrets, grants, persistent RLS policies, or PostgreSQL production settings were changed.
 - No production deployment, PR merge, force-push, or branch-protection change was performed.
 - QA449/QA450 are CI harness contract tests; synthetic mocks do not establish a production vulnerability.
+
+
+## QA450 validation progress — 2026-11-25, 10:38 KST
+
+- QIMA CI [#1928](https://github.com/meridane/QimaTrade-MVP/actions/runs/45527358286), on code/test commit `d7c7fc70`, is **IN PROGRESS**.
+- Both runtime paths executed all seven QA450 malformed pg_isready calls. The normal path log contains `QA450 pg_isready mock contract passed` followed by `QA353 runtime contract passed`; its dedicated `Assert prepared-transaction always-cleanup runtime contract` job is **SUCCESS**.
+- The simulated RESET-failure path also contains the QA450 success line, then `QA354 runtime contract passed`. It preserved the expected exit 52 and did not restart or verify after failure; the dedicated `Assert prepared-transaction cleanup failures remain blocking` job is **SUCCESS**.
+- The two runtime job conclusions **FAILURE** are intentional (setup exit 47 and cleanup exit 52). The skipped runtime job is intentionally **SKIPPED**, and its assertion job is **SUCCESS**.
+- In Verify, npm audit and TypeScript completed **SUCCESS**, and the Next.js production build completed **SUCCESS**. Chromium installation and Playwright were still pending at the latest job poll; the browser test result is not yet claimed.
+- PostgreSQL 16 and PostgreSQL 17.6 integration jobs remain **IN PROGRESS** in their CREATE_OFFER integration/concurrency steps. Their prepared-transaction configuration/setup/restore steps are still pending; no PostgreSQL integration completion is inferred from the runtime mocks.
+- CodeQL [#1855](https://github.com/meridane/QimaTrade-MVP/actions/runs/45527358151) is **IN PROGRESS** on the code/test commit. CodeQL [#1856](https://github.com/meridane/QimaTrade-MVP/actions/runs/45527434525) is **IN PROGRESS** on the subsequent documentation HEAD.
+- QIMA CI [#1929](https://github.com/meridane/QimaTrade-MVP/actions/runs/45527434223) is **PENDING** on documentation HEAD `f07e2627`, with no jobs published at the latest poll.
+- QA450 is **partially validated**: all seven negative pg_isready mock cases passed in both runtime paths, and the dedicated runtime assertions passed. Full Verify/Playwright, PostgreSQL 16/17.6, and CodeQL closure remain pending.
