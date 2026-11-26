@@ -1,0 +1,43 @@
+# QimaTrade — TESTS mission checkpoint
+
+Date: 2026-11-27 (Asia/Seoul)
+
+## Provenance
+
+- Repository: `meridane/QimaTrade-MVP`
+- PR under observation: [#26](https://github.com/meridane/QimaTrade-MVP/pull/26)
+- Verified base HEAD: `61002cb21aaa738a7f018794ab84bff41a2c6eb2`
+- Mission branch: `work/qima-tests-publish-runtime-20261127-0441`
+- Branch created directly from the verified PR HEAD
+
+## Coverage review
+
+The existing Playwright suite already has broad CREATE_OFFER input, auth, idempotency, malformed-result and replay coverage. The PUBLISH_PRODUCT_REQUEST runtime suite previously covered:
+- action-definition redirect rejection;
+- publish-RPC redirect rejection;
+- successful publish execution.
+
+It did not have a focused test for a non-redirect SQL/PostgREST domain error returned by the publish RPC, including whether the runtime makes only one publish attempt.
+
+## Change
+
+Updated `tests/e2e/action-runtime-publish-product-request.spec.ts`:
+- extended the local HTTP fixture with a configurable non-200 publish-RPC response;
+- added a regression asserting the exact `PRODUCT_REQUEST_NOT_FOUND` domain message is propagated by the runtime;
+- asserted the action-definition and publish RPC each occur once, the publish payload is unchanged, and no redirect target is visited.
+
+This is test-only. No application source, SQL, migration, production data, or workflow configuration changed.
+
+## Validation
+
+- The parent PR HEAD's QIMA CI #2036 is **SUCCESS** (Verify, PostgreSQL 16, PostgreSQL 17.6 and assertion jobs); CodeQL #1962 is **SUCCESS**; combined Vercel status is **SUCCESS**.
+- The added test has **not yet executed** on this isolated branch. No local npm/Playwright command was available in this connector-only execution. Mark the new test **PENDING**, not PASS.
+- No new SQL test was justified by this review: the current branch already has extensive CREATE_OFFER replay, concurrency, boundary and ACL fixtures. The uncovered non-redirect publish-RPC error path is narrower and non-duplicative.
+
+## Risks and next step
+
+- Confirmed gap: the runtime's PUBLISH_PRODUCT_REQUEST test file had redirect and success cases but no direct non-redirect RPC-error case.
+- Hypothesis not promoted to a defect: no behavior change is proposed based on this coverage gap alone.
+- Next: run this test and the full Verify job on the branch, then compare the diff against the independent SECURITY branch. The new security-route tests and this runtime test touch different files.
+
+No Supabase Production data/schema, migration, secret, grant, RLS policy or persistent configuration was changed. No Production deployment, PR merge, force-push, or branch-protection change was performed.
