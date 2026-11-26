@@ -20,6 +20,7 @@ test.describe.configure({ mode: "serial" });
 async function executePublishProductRequestRuntime(
   redirectStatus: RedirectStatus,
   redirectTarget: RedirectTarget = "publish",
+  publishRpcStatus = 200,
 ) {
   const requestId = "60000000-0000-4000-8000-000000000001";
   const userId = "40000000-0000-4000-8000-000000000001";
@@ -90,6 +91,15 @@ async function executePublishProductRequestRuntime(
           "Content-Type": "application/json",
         });
         response.end(JSON.stringify({ message: "PUBLISH_PRODUCT_REQUEST redirect fixture" }));
+        return;
+      }
+
+      if (path === "/rest/v1/rpc/dt_publish_product_request" && publishRpcStatus !== 200) {
+        response.writeHead(publishRpcStatus, { "Content-Type": "application/json" });
+        response.end(JSON.stringify({
+          message: "PRODUCT_REQUEST_NOT_FOUND",
+          code: "P0001",
+        }));
         return;
       }
 
@@ -253,4 +263,20 @@ test("PUBLISH_PRODUCT_REQUEST runtime preserves successful execution without a r
     p_request_id: outcome.requestId,
     p_user_id: outcome.userId,
   });
+});
+
+test("PUBLISH_PRODUCT_REQUEST runtime propagates one exact SQL domain error without retrying", async () => {
+  const outcome = await executePublishProductRequestRuntime(null, "publish", 400);
+
+  expect(outcome.result).toBeNull();
+  expect(outcome.errorMessage).toBe("PRODUCT_REQUEST_NOT_FOUND");
+  expect(outcome.requests.map((request) => ({ path: request.path, method: request.method }))).toEqual([
+    { path: "/rest/v1/rpc/get_action_definition_v1", method: "POST" },
+    { path: "/rest/v1/rpc/dt_publish_product_request", method: "POST" },
+  ]);
+  expect(outcome.requests[1].body).toEqual({
+    p_request_id: outcome.requestId,
+    p_user_id: outcome.userId,
+  });
+  expect(outcome.redirectTargetHits).toBe(0);
 });
