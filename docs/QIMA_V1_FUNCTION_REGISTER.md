@@ -15769,3 +15769,12 @@ In an isolated disposable PostgreSQL test environment (never Production), first 
 - CodeQL #1941 is **SUCCESS**. The two expected prepared-transaction harness jobs retain intentional **FAILURE** conclusions with independent assertions successful; the skipped-result harness is intentionally **SKIPPED**.
 - Vercel on the latest docs-only HEAD remains **FAILURE** with the `build-rate-limit` quota target. For code/test commit `cf3f75a`, the work-branch Preview deployment is **READY**, while a separate PR-branch deployment was **CANCELED**. No application build failure is inferred from the quota/cancellation statuses.
 - The canonical register is updated append-only. No production database query or project reactivation was attempted; the QIMA Supabase project remains **INACTIVE**.
+
+
+### QA481 PostgreSQL step-level completion reconciliation — 2026-11-26 19:49 KST
+
+- A step-level read of QIMA CI #2015 shows the PostgreSQL 16 job's full-runner write-privilege characterization (step 26) **SUCCESS**, followed by the legacy offers RLS checks, wrapper-owner/ACL checks, legacy migration/RLS checks, prepared-transaction cleanup and final container cleanup, all **SUCCESS**. The PostgreSQL 17.6 job likewise shows its full-runner write-privilege characterization (step 26), wrapper-owner/ACL regressions, post-checkout and container cleanup all **SUCCESS**.
+- The workflow-job summary endpoint still reports both PostgreSQL jobs and the overall QIMA CI #2015 run as **IN PROGRESS**, despite the step-level endpoint listing all steps through **Complete job — SUCCESS**. This status discrepancy is not resolved in the current read; therefore the overall CI run is not labelled **SUCCESS** yet. Verify remains **SUCCESS** with 433/433 Playwright, and CodeQL #1941 remains **SUCCESS**.
+- Current PR #26 HEAD is `17902c29255a2c49975b37a4608c500f7cec7960`, **OPEN / DRAFT / not merged**, `mergeable=true` at the latest read, 2,550 commits ahead / 0 behind, 310 changed files (98,270 additions / 266 deletions). Work branch and PR branch compare identical (0 ahead / 0 behind).
+- Vercel on the current docs-only HEAD continues to report the external `build-rate-limit` quota failure. The code/test work-branch Preview is READY; the separate PR-branch deployment was CANCELED. These are not treated as application test failures.
+- The QIMA Supabase project remains **INACTIVE**. No database query or project reactivation was attempted; authoritative live schema inspection remains blocked.
