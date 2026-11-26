@@ -50,3 +50,12 @@ No Supabase Production data/schema, migration, secret, grant, RLS policy or pers
 - PostgreSQL 16 and 17.6 integration jobs in run #45891165262 are still in progress. Vercel Preview for the updated commit is blocked by the provider's 24-hour build-rate limit.
 - No database or Supabase Production data was modified.
 
+## Final CI result for this branch — 2026-11-27
+
+- QIMA CI [45891165262](https://github.com/meridane/QimaTrade-MVP/actions/runs/45891165262): **SUCCESS**.
+- TypeScript, dependency audit, Next.js production build and Playwright: **PASS**; Playwright reported **436 passed**.
+- PostgreSQL integration: **PASS** on PostgreSQL 16 (446 s) and PostgreSQL 17.6 (438 s).
+- QIMA CodeQL [45891165382](https://github.com/meridane/QimaTrade-MVP/actions/runs/45891165382): **SUCCESS**.
+- The expected-failure/skip harness jobs show failure or skipped at job level by design; their dedicated blocking assertion jobs passed, and the overall workflow concluded SUCCESS.
+- Vercel Preview remains rate-limited for this branch; GitHub Actions validation is complete independently of that provider status.
+
