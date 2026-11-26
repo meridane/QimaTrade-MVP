@@ -15388,3 +15388,35 @@ Les points ci-dessous ne sont pas approuvés et ne doivent pas être figés par 
 - No Supabase Production data, migrations, schema, grants, RLS policies, secrets, or persistent configuration were changed.
 - No Production deployment, PR merge, force-push, or branch-protection change was performed.
 
+
+---
+
+## QA473 — Legacy CREATE_OFFER: rejected Supabase INSERT promise (2026-11-26 10:46 KST)
+
+### Starting state and previous validation
+
+- PR #26 was **OPEN / DRAFT / not merged**, base `main`, HEAD `9a6d9d9234a39eb86486db892c899c28549e55ff`, 2,519 commits ahead and 0 behind, 308 changed files; `mergeable=true`; no submitted reviews or review threads were present.
+- The previous code/test commit `ac1c21a1279130f71c976234bd5049aec04ac81d` added QA472. QIMA CI [#1995](https://github.com/meridane/QimaTrade-MVP/actions/runs/45732313842) completed **SUCCESS**: Verify **425 Playwright passed (38.0 s)**, npm audit, TypeScript, Next.js build, Chromium, PostgreSQL 16, PostgreSQL 17.6, and prepared-transaction cleanup assertions passed. CodeQL [#1921](https://github.com/meridane/QimaTrade-MVP/actions/runs/45732313852) completed **SUCCESS**. Vercel status for the QA472 HEAD was **SUCCESS**.
+- QA472's Auth rejection test was observed in the Verify log and the run reported **425 passed**.
+
+### Change
+
+- This QA473 change adds a test-fixture option `offerThrow` to `tests/e2e/legacy-offers-route-contract.spec.ts`. The mocked `offers.insert()` is now async and can reject with a synthetic internal detail while preserving the existing resolved-`offerError` path.
+- The new test requires HTTP 500, the existing generic JSON body `{"error":"Unable to create the offer."}`, no synthetic detail in the response, no redirect `Location`, exactly one Auth lookup, the authenticated profile lookup, no demand/product lookup, and exactly one attempted offer insert with the expected draft/provider fields.
+- This is test-only coverage for a rejected INSERT promise, distinct from the existing returned Supabase INSERT error and QA472's rejected Auth lookup. No application route, Supabase client, SQL, schema, or business rule changed.
+
+### Validation on the new PR HEAD
+
+- The test and this registry entry are being published together from work branch `work/qima-legacy-offer-insert-throw-qa473-20261126-1046`.
+- QIMA CI, CodeQL, and Vercel for the new HEAD must be checked after the fast-forward. No QA473 Playwright result is claimed until GitHub Actions reports it.
+- No local test execution is claimed.
+
+### Contract and decision boundaries
+
+- QA473 locks only the existing generic error response when the mocked INSERT promise rejects. It does not define retries, idempotency recovery, or whether a client may safely resubmit after an uncertain network outcome; those require separate API/product decisions.
+- The synthetic rejection is test data, not evidence of a production database outage, lost write, duplicate offer, or vulnerability.
+
+### Safety
+
+- No Supabase Production data, migrations, schema, grants, RLS policies, secrets, or persistent configuration were changed.
+- No Production deployment, PR merge, force-push, or branch-protection change was performed.
