@@ -1,6 +1,6 @@
 -- Enforce the same tenant-membership boundary in the SECURITY DEFINER
 -- publish RPC that the product_requests RLS policy requires.
--- This migration is added to the review branch only; it is not applied anywhere.
+-- The RPC must enforce the same tenant boundary as direct table access.
 
 create or replace function public.dt_publish_product_request(p_request_id uuid, p_user_id uuid)
 returns jsonb
@@ -20,8 +20,15 @@ begin
   end if;
 
   select * into v_request
-  from public.product_requests
-  where id = p_request_id and user_id = p_user_id
+  from public.product_requests pr
+  where pr.id = p_request_id
+    and pr.user_id = p_user_id
+    and exists (
+      select 1
+      from public.dt_memberships m
+      where m.tenant_id = pr.tenant_id
+        and m.user_id = p_user_id
+    )
   for update;
   if not found then raise exception 'PRODUCT_REQUEST_NOT_FOUND'; end if;
 
