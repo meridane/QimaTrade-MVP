@@ -970,13 +970,12 @@ test("CREATE_OFFER route preserves the failed execution result and maps it to HT
   expect(executionCalls).toHaveLength(1);
 });
 
-test("CREATE_OFFER route replays the stored FAILED idempotency result unchanged and maps both attempts to HTTP 409", async () => {
+test("CREATE_OFFER route replays the minimal FAILED terminal fallback unchanged and maps both attempts to HTTP 409", async () => {
   const bearer = "Bearer qima-route-test-token";
   const idempotencyKey = "qa429-failed-replay-http-contract";
   const failedReplayResult = {
     executionId: "10000000-0000-4000-8000-000000000063",
     status: "failed",
-    error: "FIXTURE_FAILURE",
   };
   const expectedPaths = [
     "/auth/v1/user",
@@ -1023,6 +1022,9 @@ test("CREATE_OFFER route replays the stored FAILED idempotency result unchanged 
   const firstAttempt = await invoke();
   expect(firstAttempt.status, JSON.stringify({ body: firstAttempt.body, requests: firstAttempt.requests })).toBe(409);
   expect(firstAttempt.body).toEqual(failedReplayResult);
+  expect(Object.prototype.hasOwnProperty.call(firstAttempt.body, "objectId")).toBe(false);
+  expect(Object.prototype.hasOwnProperty.call(firstAttempt.body, "result")).toBe(false);
+  expect(Object.prototype.hasOwnProperty.call(firstAttempt.body, "error")).toBe(false);
   expect(firstAttempt.wwwAuthenticate).toBeNull();
   expect(firstAttempt.requests.map((request) => request.path)).toEqual(expectedPaths);
   expect(firstAttempt.requests.filter((request) => request.path === "/rest/v1/rpc/execute_create_offer_v1")).toHaveLength(1);
@@ -1032,6 +1034,9 @@ test("CREATE_OFFER route replays the stored FAILED idempotency result unchanged 
   const replayAttempt = await invoke();
   expect(replayAttempt.status, JSON.stringify({ body: replayAttempt.body, requests: replayAttempt.requests })).toBe(409);
   expect(replayAttempt.body).toEqual(failedReplayResult);
+  expect(Object.prototype.hasOwnProperty.call(replayAttempt.body, "objectId")).toBe(false);
+  expect(Object.prototype.hasOwnProperty.call(replayAttempt.body, "result")).toBe(false);
+  expect(Object.prototype.hasOwnProperty.call(replayAttempt.body, "error")).toBe(false);
   expect(replayAttempt.wwwAuthenticate).toBeNull();
   expect(replayAttempt.requests.map((request) => request.path)).toEqual(expectedPaths);
   expect(replayAttempt.requests.filter((request) => request.path === "/rest/v1/rpc/execute_create_offer_v1")).toHaveLength(1);
