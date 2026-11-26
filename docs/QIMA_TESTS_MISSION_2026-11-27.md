@@ -82,3 +82,9 @@ No Supabase Production data/schema, migration, secret, grant, RLS policy or pers
 - The Vercel status for this branch remains failed by the provider's deployment quota (`api-deployments-free-per-day`); this is separate from GitHub Actions validation.
 - Added two further assertions to the HTTP 503 test: the public runtime error message must not contain the fixture's synthetic `details` or `hint` values. This complements the existing HTTP 400 diagnostic-boundary assertions.
 - The additional assertions are a synthetic contract check only. They do not establish a live upstream disclosure or Production vulnerability. A new CI run is required before marking this follow-up validated.
+
+
+## Preview status precision — 2026-11-27
+
+- The provider quota failure described above belongs to the earlier code/test branch snapshot `9d099db80a8cb288b573584aa2fb34969d411ce7`.
+- After the follow-up test and documentation commits, latest branch HEAD is `50adde999fe25d85da9b554baeabdfd2b83835af`; its Vercel status is **PENDING**, and its QIMA CI [#45913960558](https://github.com/meridane/QimaTrade-MVP/actions/runs/45913960558) and CodeQL [#45913960548](https://github.com/meridane/QimaTrade-MVP/actions/runs/45913960548) are **IN PROGRESS** at the time of this update.
