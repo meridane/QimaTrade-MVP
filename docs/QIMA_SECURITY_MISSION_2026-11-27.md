@@ -65,3 +65,12 @@ No Supabase Production data or migrations were touched. No Production deployment
 - Classification: **authorization hypothesis, not a confirmed vulnerability**. Static source evidence establishes the missing tenant-specific membership check; it does not establish that this scenario is reachable in Production or violates the intended revocation policy.
 - Required decision: should loss of membership in a request's tenant prevent publishing an already-owned request? If yes, the check belongs inside the RPC (not only the API route), followed by a disposable two-tenant PostgreSQL fixture against the actual migration. No Production migration or policy was changed.
 
+## Defensive hardening added — 2026-11-27
+
+- Added review-branch migration 20261127100000_harden_product_request_publish_tenant_membership.sql. It scopes the SECURITY DEFINER publish RPC lookup to a current membership in the exact request tenant, then holds that membership row with FOR KEY SHARE for the duration of the publish transaction.
+- Missing membership fails closed with PRODUCT_REQUEST_NOT_FOUND, matching the existing tenant-scoped read policy without disclosing whether a request exists.
+- Added tests/sql/test-product-request-publish-membership-contract.sh and wired it into the existing disposable security fixture runner.
+- This is a defensive change in the isolated review branch only. The migration has not been applied to Supabase Production, and no Production schema, data, grants, or policies were changed.
+- Static evidence supports the authorization inconsistency; the isolated source-contract test is not proof of Production exploitability. A real two-tenant fixture against the deployed schema remains a follow-up validation item.
+- Latest branch head when this note was prepared: 57b6fbd1b94c769dec361deb69b757b9316079ed. QIMA CI run [45891924945](https://github.com/meridane/QimaTrade-MVP/actions/runs/45891924945) is pending; CodeQL [45891925092](https://github.com/meridane/QimaTrade-MVP/actions/runs/45891925092) is in progress.
+
