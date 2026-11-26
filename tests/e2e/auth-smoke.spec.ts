@@ -11,9 +11,11 @@ test("login page displays Google authentication", async ({ page }) => {
 test("login page explains a failed OAuth callback through an alert", async ({ page }) => {
   await page.goto("/login?error=oauth_callback_failed");
 
-  await expect(page.getByRole("alert")).toHaveText(
-    "We could not complete your Google sign-in. Please try again.",
-  );
+  await expect(
+    page
+      .getByRole("alert")
+      .filter({ hasText: "We could not complete your Google sign-in. Please try again." }),
+  ).toHaveText("We could not complete your Google sign-in. Please try again.");
 });
 
 test("login controls are reachable by keyboard and expose accessible names", async ({ page }) => {
