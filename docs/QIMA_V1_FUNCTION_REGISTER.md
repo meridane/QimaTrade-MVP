@@ -15524,3 +15524,21 @@ Les points ci-dessous ne sont pas approuvés et ne doivent pas être figés par 
 #### Safety
 - No Supabase Production data, migrations, schema, grants, RLS policies, secrets, or persistent configuration were changed.
 - No Production deployment, PR merge, force-push, or branch-protection change was performed.
+
+
+---
+
+### QA477 — profile lookup error takes precedence over returned row (26 novembre 2026, 14:29 KST)
+
+- Added `legacy offers route fails closed when the profile lookup returns an error alongside a profile row` to `tests/e2e/legacy-offers-route-contract.spec.ts`.
+- The synthetic Supabase fixture returns a profile row containing the authenticated actor UUID together with a non-null `profileError`. The legacy route must honor the error-first guard and return HTTP 403 with exactly `{"error":"Your account is not linked to a QimaTrade actor yet."}`; the synthetic database detail must not appear in the response.
+- The test also asserts one Auth lookup and one profile lookup, no Location header, zero demand/Product Master reads, and zero offer inserts. This protects the existing `profileError || !profile?.actor_id` fail-closed contract.
+- The combined data-plus-error fixture is intentionally synthetic. It tests defensive precedence if an adapter or mock supplies both fields; it does not claim that PostgREST normally returns a row and an error together.
+- Parent QA476 validation is complete on HEAD `6df7befa9fe789a9834fa8e2ae7a8bbc3b2c771b`: QIMA CI [#2001](https://github.com/meridane/QimaTrade-MVP/actions/runs/45759722087) **SUCCESS**; Verify **431 Playwright passed (34.1 s)**, including the QA476 missing-user/no-error case; npm audit, TypeScript, Next.js build, Chromium, isolated QIMA security fixture, PostgreSQL 16, PostgreSQL 17.6, and prepared-transaction cleanup assertions all **SUCCESS**. CodeQL [#1927](https://github.com/meridane/QimaTrade-MVP/actions/runs/45759722093) **SUCCESS**. The combined Vercel status for that parent HEAD is **SUCCESS**.
+- QA477 is added on a work branch and has not yet been run in GitHub Actions at this snapshot. No local test execution is claimed; final validation must be read from the PR-triggered workflow after fast-forward publication.
+- No business rule, SQL contract, schema, or Supabase production behavior is changed.
+
+#### Safety
+
+- No Supabase Production data, migrations, schema, grants, RLS policies, secrets, or persistent configuration were changed.
+- No Production deployment, PR merge, force-push, or branch-protection change was performed.
