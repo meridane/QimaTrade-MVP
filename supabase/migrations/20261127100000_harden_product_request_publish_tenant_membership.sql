@@ -100,3 +100,6 @@ begin
   );
 end;
 $$;
+
+revoke all on function public.dt_publish_product_request(uuid, uuid) from public;
+grant execute on function public.dt_publish_product_request(uuid, uuid) to authenticated;
