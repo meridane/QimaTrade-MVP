@@ -67,3 +67,10 @@ No Supabase Production data/schema, migration, secret, grant, RLS policy or pers
 - CodeQL [45892188778](https://github.com/meridane/QimaTrade-MVP/actions/runs/45892188778): **SUCCESS**.
 - This was a revalidation of the existing test-only change; no new test code was added by this documentation closeout.
 - Vercel Preview is blocked by the provider's build-rate-limit response. GitHub Actions validation completed independently.
+## Transient upstream recovery regression added — 2026-11-27
+
+- Added a focused synthetic HTTP 503 case to `tests/e2e/action-runtime-publish-product-request.spec.ts`.
+- The test requires one action-definition POST and one publish RPC POST, preserves the exact request body, rejects the upstream error without retrying, and verifies that no redirect target is contacted.
+- The fixture uses a synthetic `UPSTREAM_TEMPORARILY_UNAVAILABLE` response with private `details` and `hint` fields. It does not assert a live Supabase outage or a Production failure.
+- Commit `aa854a84ffe43d041881849c4f40ee40d1b3cb72` contains the test change.
+- Validation of this new case is **PENDING** until the dedicated branch's next QIMA CI run completes. The previously completed 436-test run does not include this newly added case.
