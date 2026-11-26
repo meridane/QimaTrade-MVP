@@ -15739,3 +15739,13 @@ In an isolated disposable PostgreSQL test environment (never Production), first 
 - The combined Vercel status for the new code/test commit was **PENDING**. The preceding docs-only HEAD had a build-rate-limit/quota failure; no application failure is inferred from that external Preview status.
 - PR #26 after documentation publication: HEAD `1df0d21c16f53b52cdca326efd9ddb5ec8578024`, **OPEN / DRAFT / not merged**, `mergeable=true` at the latest read, 2,546 commits ahead / 0 behind, 310 changed files (98,231 additions / 266 deletions). Work branch `work/qima-failed-terminal-fallback-shape-qa481-20261126-1946` and PR branch compare **identical (0 ahead / 0 behind)**.
 - No QA481 test result is claimed before CI #2015 Verify completes. No database query was made because the QIMA Supabase project remains **INACTIVE**.
+
+
+### QA481 validation progress and current PR HEAD — 2026-11-26 19:47 KST
+
+- Current PR #26 HEAD is the documentation checkpoint `2ea1145a4ab22b2e3f979adb28c406c3fce7ceed`: **OPEN / DRAFT / not merged**, `mergeable=false` while checks are active, 2,547 commits ahead / 0 behind `main`, 310 changed files (98,240 additions / 266 deletions). The work branch and PR branch compare identical (0 ahead / 0 behind).
+- Latest commits for this QA cycle: `cf3f75a2667eb61726301afe518c6b61f348e6df` adds the QA481 unit test; `1df0d21c16f53b52cdca326efd9ddb5ec8578024` records the initial QA481 state; `2ea1145a4ab22b2e3f979adb28c406c3fce7ceed` records the post-push workflow checkpoint. The last two commits change only this register.
+- QIMA CI #2015 (run 45804752025) remains **IN PROGRESS** on code/test commit `cf3f75a`. At the latest job read, npm audit (0 findings), TypeScript and the Next.js production build were **SUCCESS**; Chromium installation was **IN PROGRESS**; Playwright had not started; PostgreSQL 16 and PostgreSQL 17.6 integration/concurrency jobs remained **IN PROGRESS**. The injected setup/cleanup harness jobs have their expected **FAILURE** conclusions and their independent assertions passed; the skipped-result harness is intentionally **SKIPPED**.
+- CodeQL #1941 (run 45804751979) remains **IN PROGRESS**; checkout and initialization succeeded, Autobuild completed, and the JavaScript/TypeScript analysis was active.
+- Vercel Preview for the code/test commit `cf3f75a` is now **SUCCESS** (target `https://vercel.com/bmk1/qimatrade-mvp/7orQJgRvx2sDMM5VBxcy58JS1bHu`). Vercel on the latest docs-only HEAD `2ea1145a` is **FAILURE** with `build-rate-limit` target `https://vercel.com/bmk1?upgradeToPro=build-rate-limit`; this is an external Preview quota/capacity response, not a failed application test.
+- QA481's Playwright result remains pending until Verify completes. No local test execution is claimed.
