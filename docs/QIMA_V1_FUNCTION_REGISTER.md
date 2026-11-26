@@ -15356,3 +15356,35 @@ Les points ci-dessous ne sont pas approuvés et ne doivent pas être figés par 
 - No Supabase Production data, migrations, schema, grants, RLS policies, secrets, or persistent configuration were changed.
 - No Production deployment, PR merge, force-push, or branch-protection change was performed.
 
+---
+
+## QA472 — Legacy CREATE_OFFER route: thrown Supabase Auth lookup (2026-11-26 09:51 KST)
+
+### Starting state and previous validation
+
+- PR #26 was **OPEN / DRAFT / not merged**, base `main`, HEAD `13d4a01c02dec3c560e497ee8a710557a6a042db`, 2,517 commits ahead and 0 behind, 308 changed files; no submitted reviews or review threads were present.
+- The preceding code/test commit `aba44596124816f502f1b208b3350a247aafe5de` added QA471. QIMA CI [#1994](https://github.com/meridane/QimaTrade-MVP/actions/runs/45720259008) completed **SUCCESS**: Verify **424 Playwright passed (37.0 s)**, npm audit, TypeScript, Next.js build, Chromium, PostgreSQL 16, PostgreSQL 17.6, and prepared-transaction cleanup assertions all passed. CodeQL [#1920](https://github.com/meridane/QimaTrade-MVP/actions/runs/45720259011) completed **SUCCESS**. The Vercel status context for HEAD `13d4a01c` was **SUCCESS**.
+- The QA471 regression was explicitly observed in the Verify log at `tests/e2e/legacy-offers-route-contract.spec.ts:2758`; the run reported **424 passed**.
+
+### Change
+
+- Commit [`ac1c21a1279130f71c976234bd5049aec04ac81d`](https://github.com/meridane/QimaTrade-MVP/commit/ac1c21a1279130f71c976234bd5049aec04ac81d) adds one regression test and a narrow test-fixture option in `tests/e2e/legacy-offers-route-contract.spec.ts`.
+- The fixture can make the mocked `auth.getUser()` reject with a synthetic internal detail. The test requires HTTP 500, the existing generic JSON body `{"error":"Unable to create the offer."}`, no internal detail in the response, no redirect Location header, exactly one Auth lookup, and zero profile/demand/product lookups or offer inserts.
+- This is test-only coverage for a rejected Auth promise, distinct from QA471's thrown client-factory initialization. No application route, Supabase client, SQL, schema, or business rule changed.
+
+### Validation on the new PR HEAD
+
+- The code commit was created on work branch `work/qima-legacy-auth-throw-qa472-20261126-0951`, then the code and documentation commits were fast-forwarded to `fix/create-offer-status-contract`.
+- No PR-triggered workflow was associated with the work-branch-only code commit before publication. The new PR-head QIMA CI, CodeQL, and Vercel checks must be read after the fast-forward; no QA472 Playwright result is claimed in this entry until GitHub Actions reports it.
+- No local test execution is claimed.
+
+### Contract and decision boundaries
+
+- QA472 asserts only the existing generic error response when the mocked Auth lookup promise rejects. It does not infer whether an Auth transport failure should be retried, classified as unauthenticated, or exposed differently; those would require a product/API decision.
+- The thrown error is synthetic test data, not evidence of a production Auth outage, credential leak, or vulnerability.
+
+### Safety
+
+- No Supabase Production data, migrations, schema, grants, RLS policies, secrets, or persistent configuration were changed.
+- No Production deployment, PR merge, force-push, or branch-protection change was performed.
+
