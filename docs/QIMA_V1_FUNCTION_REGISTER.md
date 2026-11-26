@@ -15420,3 +15420,37 @@ Les points ci-dessous ne sont pas approuvés et ne doivent pas être figés par 
 
 - No Supabase Production data, migrations, schema, grants, RLS policies, secrets, or persistent configuration were changed.
 - No Production deployment, PR merge, force-push, or branch-protection change was performed.
+
+
+---
+
+## QA474 — Legacy CREATE_OFFER: rejected Supabase lookup promises (2026-11-26 11:16 KST)
+
+### Starting state and previous validation
+
+- PR #26 was **OPEN / DRAFT / not merged**, base `main`, HEAD `d5bf3df976457da02116d2fe769e80ecc7088478`, **2,521 commits ahead / 0 behind**, 308 changed files, `mergeable=true`; no submitted reviews or review threads were present.
+- The previous code/test commit `0b007c0e85432fe757fb2b0246947e37082d4dde` added QA473. QIMA CI [#1996](https://github.com/meridane/QimaTrade-MVP/actions/runs/45738180197) completed **SUCCESS**: Verify **426 Playwright passed (37.2 s)**, npm audit, TypeScript, Next.js build, Chromium, PostgreSQL 16, PostgreSQL 17.6, and prepared-transaction cleanup assertions passed. The Verify log explicitly shows the QA473 rejected-INSERT test passing. CodeQL [#1922](https://github.com/meridane/QimaTrade-MVP/actions/runs/45738180247) completed **SUCCESS**. The combined Vercel status for HEAD `d5bf3df` was **SUCCESS**.
+- The two prepared-transaction failure jobs ended with their expected injected failures (setup exit 47 and cleanup exit 52); their separate blocking assertions succeeded. The skipped-result job was intentionally skipped.
+
+### Change
+
+- This QA474 test-only change extends the mock configuration with `profileThrow`, `demandThrow`, and `productMasterThrow`. The corresponding Supabase `.single()` mock methods can now reject rather than return an error object.
+- Three table-driven Playwright cases cover a rejected profile lookup, a rejected demand lookup, and a rejected active Product Master lookup.
+- Each case expects HTTP 500 with the existing generic body `{"error":"Unable to create the offer."}`, no internal synthetic detail, no redirect, and no attempted offer INSERT. The expected lookup boundary is checked so no later lookup occurs after the rejection.
+- No application route, helper, Supabase client, SQL, schema, migration, or business rule changed.
+
+### Validation on the new PR HEAD
+
+- Code/test commit: `5fb34073403b66aad037cbf16756ab4f5ff5a150` on work branch `work/qima-legacy-supabase-lookup-rejections-qa474-20261126-1116`.
+- This registry entry is being published with the code commit before the work branch is fast-forwarded to the PR branch. QIMA CI, CodeQL, and Vercel for the new PR HEAD must be checked after publication.
+- QA474 Playwright results are **PENDING** until the GitHub Actions Verify job reports them. No local test execution is claimed.
+
+### Contract and decision boundaries
+
+- QA474 characterizes only the existing outer-catch behavior for rejected Supabase lookup promises. It does not change whether a returned profile/demand/product error maps to 403/400, nor define retries or idempotency behavior.
+- The rejected promises and internal messages are synthetic test fixtures. They are not evidence of a production Supabase outage, data loss, authorization bypass, or vulnerability.
+
+### Safety
+
+- No Supabase Production data, migrations, schema, grants, RLS policies, secrets, or persistent configuration were changed.
+- No Production deployment, PR merge, force-push, or branch-protection change was performed.
