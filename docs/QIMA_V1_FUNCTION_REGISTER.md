@@ -15749,3 +15749,14 @@ In an isolated disposable PostgreSQL test environment (never Production), first 
 - CodeQL #1941 (run 45804751979) remains **IN PROGRESS**; checkout and initialization succeeded, Autobuild completed, and the JavaScript/TypeScript analysis was active.
 - Vercel Preview for the code/test commit `cf3f75a` is now **SUCCESS** (target `https://vercel.com/bmk1/qimatrade-mvp/7orQJgRvx2sDMM5VBxcy58JS1bHu`). Vercel on the latest docs-only HEAD `2ea1145a` is **FAILURE** with `build-rate-limit` target `https://vercel.com/bmk1?upgradeToPro=build-rate-limit`; this is an external Preview quota/capacity response, not a failed application test.
 - QA481's Playwright result remains pending until Verify completes. No local test execution is claimed.
+
+
+### QA481 Verify and CodeQL result checkpoint — 2026-11-26 19:48 KST
+
+- QIMA CI #2015 (run 45804752025), code/test commit `cf3f75a2667eb61726301afe518c6b61f348e6df`: Verify completed **SUCCESS**. The job log reports **433 passed (36.0s)**; dependency audit, TypeScript, Next.js production build, Chromium installation, browser tests, and the isolated QIMA security-contract fixture completed successfully. QA481 is included in the Playwright suite at this commit; no test failure was reported.
+- PostgreSQL 16 and PostgreSQL 17.6 jobs completed all CREATE_OFFER functional/replay cases and prior catalog/ACL characterizations successfully. At this checkpoint each remained on its final full-runner write-privilege characterization step; the overall CI #2015 conclusion is not yet final.
+- CodeQL #1941 (run 45804751979) completed **SUCCESS**.
+- The expected prepared-transaction setup-failure and cleanup-failure jobs retain intentional **FAILURE** conclusions; their separate assertions passed. The skipped-result harness remains intentionally **SKIPPED**. These are not unexpected CI failures.
+- Vercel deployment `dpl_7orQJgRvx2sDMM5VBxcy58JS1bHu` for the same code/test commit on the work branch is **READY**. A separate deployment `dpl_GyS3oHG4eD1zt8UDdYAUcZ8NUm8S` for the PR branch was **CANCELED**; no build error log was returned for it. The latest docs-only PR HEAD continues to report the external `build-rate-limit` Preview quota failure. These deployment statuses are recorded separately and are not treated as an application test failure.
+- Current PR HEAD after the latest append-only register commit is `8e651adf011b6de4754509eef7c2470f40255f1b`, **OPEN / DRAFT / not merged**, `mergeable=false` at this read while PostgreSQL jobs remain active, 2,548 commits ahead / 0 behind, 310 changed files (98,250 additions / 266 deletions). Work branch and PR branch compare identical (0 ahead / 0 behind).
+- Supabase QIMA remains **INACTIVE**. No database query was made; live `idempotency_keys` schema verification remains blocked until the project is reactivated by its owner. No reactivation was attempted.
