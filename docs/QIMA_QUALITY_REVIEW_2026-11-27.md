@@ -74,3 +74,11 @@ No Supabase Production data/schema, migration, secret, grant, RLS policy or pers
 - Playwright reported **443 passed**, including the new publish-route input/error contract cases.
 - The full workflow's PostgreSQL 16 and 17.6 jobs were still running at the time of this update; the newer tenant-membership migration fixture is queued in a later run.
 
+## Focused login accessibility smoke coverage — 2026-11-27
+
+- Existing login smoke coverage checked the heading, Google button visibility and callback error text, but did not assert keyboard focus order or the alert semantic role.
+- Added a Playwright assertion that keyboard Tab reaches the Google sign-in button first and then the Back to home link, both through their accessible roles/names.
+- Strengthened the OAuth callback error test to assert that the message is exposed through role="alert".
+- Files changed on this branch: tests/e2e/auth-smoke.spec.ts and this review journal. No application UI or authentication behavior was changed.
+- This is a focused smoke test, not a complete WCAG audit. Color contrast, screen-reader behavior beyond the alert role, and the full authenticated workflow remain unverified.
+- No accessibility defect is confirmed by this test addition. CI validation is pending on the dedicated validation pull request.
