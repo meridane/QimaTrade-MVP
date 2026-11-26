@@ -272,6 +272,27 @@ test("legacy offers route stops before profile lookup when Supabase Auth rejects
   expect(calls.offerInsertCalls).toBe(0);
 });
 
+test("legacy offers route treats a returned Supabase Auth error as unauthenticated even when user data is present", async () => {
+  const { client, calls } = createSupabaseMock({
+    authError: { message: "synthetic auth response error" },
+  });
+  const handler = createHandler(client);
+
+  const response = await handler(createFormRequest());
+
+  expect(response.status).toBe(401);
+  const body = await response.json();
+  expect(body).toEqual({ error: "UNAUTHENTICATED" });
+  expect(JSON.stringify(body)).not.toContain("synthetic auth response error");
+  expect(response.headers.get("location")).toBeNull();
+  expect(calls.authGetUser).toBe(1);
+  expect(calls.profileLookups).toHaveLength(0);
+  expect(calls.demandLookups).toHaveLength(0);
+  expect(calls.productMasterLookups).toHaveLength(0);
+  expect(calls.offerInsertCalls).toBe(0);
+  expect(calls.insertPayload).toBeNull();
+});
+
 test("legacy offers route returns a generic error when Supabase Auth lookup throws without leaking details", async () => {
   const syntheticInternalDetail = "synthetic auth transport detail";
   const { client, calls } = createSupabaseMock({ authThrow: syntheticInternalDetail });
