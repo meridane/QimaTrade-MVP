@@ -97,3 +97,13 @@ No Supabase Production data or migrations were touched. No Production deployment
 - Because the project is inactive, no table listing, SQL query, log query, project resume, migration, or database write was attempted.
 - Live product_requests/dt_memberships columns, deployed RPC body, grants, and RLS policies therefore remain **unverified**. The disposable two-tenant fixture proves only the isolated migration contract, not Production state.
 - Next: obtain explicit owner authorization to resume the project or a separate non-production clone/branch for read-only schema verification. Do not resume it automatically or incur compute cost.
+## Static RLS-to-RPC parity review — 2026-11-27
+
+- Reviewed the checked-in source migrations `20260829100000_product_requests_v1.sql` and `20260829110000_product_request_to_demand_bridge_v1.sql`.
+- The original `product_requests_select_own_tenant` SELECT policy and `product_requests_insert_own_tenant` INSERT policy both require a `dt_memberships` row matching the request's `tenant_id` and `auth.uid()`; INSERT also requires `user_id = auth.uid()`.
+- The original `SECURITY DEFINER` publish RPC checked request ownership (`user_id = p_user_id`) but did not itself check membership in the request's tenant. Because a SECURITY DEFINER function can bypass the table's RLS boundary, the RPC must enforce the tenant condition explicitly.
+- The isolated hardening migration now checks the exact request tenant and locks the membership row with `FOR KEY SHARE` before continuing. All relation references in the function are schema-qualified; the function's configured search path is `public`.
+- This is a **confirmed source-level mismatch in the checked-in historical migrations**, not proof that the same function or policies are deployed in Supabase Production. Live deployed RPC body, policies, columns and grants remain unverified while the project is paused.
+- QIMA CI [45901460978](https://github.com/meridane/QimaTrade-MVP/actions/runs/45901460978) completed **SUCCESS**: Verify **443 Playwright passed**, isolated two-tenant fixture **PASS**, PostgreSQL 16 **SUCCESS**, PostgreSQL 17.6 **SUCCESS**. CodeQL [45901460932](https://github.com/meridane/QimaTrade-MVP/actions/runs/45901460932) **SUCCESS**.
+- The CI fixture is disposable and synthetic. It validates the migration's intended behavior only; it does not establish Production exploitability or deployed state.
+- The multi-tenant HTTP 409 behavior remains a product/API compatibility decision. Keep the branch isolated until the product owner defines whether publishing is scoped automatically to the request tenant or requires an explicit active-tenant selection.
