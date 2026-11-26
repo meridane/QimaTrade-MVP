@@ -46,3 +46,20 @@ Continue with a focused review of the primary CREATE_OFFER route's public error 
 - No Production deployment, merge, force-push, or branch-protection change was performed.
 - This closeout records synthetic route-contract tests and CI evidence; it does not establish a production vulnerability.
 - The canonical `docs/QIMA_V1_FUNCTION_REGISTER.md` blob is `154cbadc87aad8a6d5753ef30cd9fce5a0416bac`. GitHub's file reader returned an empty body for both full-file and ranged reads of this large file. It was therefore left untouched rather than replaced without its complete contents. This append-only closeout is kept as a companion record until a safe full-content read is available.
+
+
+## Primary CREATE_OFFER status/error contract review
+
+A focused read of `app/api/actions/create-offer/route.ts`, `lib/actions/runtime.ts`, `lib/actions/engine.ts`, the CREATE_OFFER migration, and the existing route-contract tests found no safe, reproducible mismatch requiring a code change.
+
+- The existing `CREATE_OFFER public error allowlist stays aligned with SQL and action-engine contracts` test extracts the route allowlist and compares it exactly with the distinct SQL `RAISE EXCEPTION` codes in `20261027090000_fix_create_offer_action_status_contract.sql`.
+- The same test verifies that low-level fixture codes are a subset of the migration codes, `ACTION_NOT_PUBLISHED` is public, and `ACTION_HANDLER_NOT_FOUND` remains internal.
+- The route maps only exact allowlisted `Error.message` values to HTTP 400. Diagnostic suffixes and PostgREST details/hints are covered by separate non-disclosure tests and remain generic failures.
+- `executeUniversalAction` wraps action-definition lookup failures as `ACTION_DEFINITION_LOOKUP_FAILED`, so they do not cross the CREATE_OFFER domain allowlist.
+- `executeAction` normalizes action definitions and results before returning. Only `succeeded` and `failed` statuses are accepted; malformed or unsupported results are rejected as `ACTION_RESULT_INVALID`. The route maps succeeded to HTTP 200 and failed to HTTP 409, with dedicated regression coverage.
+
+No additional test was added because the relevant contracts already have direct assertions. No application code, SQL, migration, or business semantics were changed.
+
+### Validation scope
+
+The parent code/test commit `15ab4d5f` remains validated by QIMA CI #2002 and CodeQL #1928 as recorded above. This companion-file update is documentation-only. The CI and CodeQL workflows both declare `paths-ignore: docs/**`; no new CI or CodeQL run is expected for this documentation commit. The parent validation is not misrepresented as a new run on the documentation commit.
