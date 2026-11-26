@@ -15,10 +15,13 @@ type MockConfig = {
   authThrow?: string;
   profile?: { actor_id: string | null } | null;
   profileError?: { message: string } | null;
+  profileThrow?: string;
   demand?: { id: string; target_market: string | null; scope: unknown } | null;
   demandError?: { message: string } | null;
+  demandThrow?: string;
   productMaster?: { id: string } | null;
   productMasterError?: { message: string } | null;
+  productMasterThrow?: string;
   offerError?: { message: string } | null;
   offerThrow?: string;
 };
@@ -57,10 +60,13 @@ function createSupabaseMock(config: MockConfig = {}) {
               eq(column: string, value: string) {
                 calls.profileLookups.push({ column, value });
                 return {
-                  single: async () => ({
-                    data: profile,
-                    error: config.profileError ?? null,
-                  }),
+                  single: async () => {
+                    if (config.profileThrow) throw new Error(config.profileThrow);
+                    return {
+                      data: profile,
+                      error: config.profileError ?? null,
+                    };
+                  },
                 };
               },
             };
@@ -75,10 +81,13 @@ function createSupabaseMock(config: MockConfig = {}) {
               eq(column: string, value: string) {
                 calls.demandLookups.push({ column, value });
                 return {
-                  single: async () => ({
-                    data: demand,
-                    error: config.demandError ?? null,
-                  }),
+                  single: async () => {
+                    if (config.demandThrow) throw new Error(config.demandThrow);
+                    return {
+                      data: demand,
+                      error: config.demandError ?? null,
+                    };
+                  },
                 };
               },
             };
@@ -96,10 +105,13 @@ function createSupabaseMock(config: MockConfig = {}) {
                   eq(nextColumn: string, nextValue: string) {
                     calls.productMasterLookups.push({ column: nextColumn, value: nextValue });
                     return {
-                      single: async () => ({
-                        data: productMaster,
-                        error: config.productMasterError ?? null,
-                      }),
+                      single: async () => {
+                        if (config.productMasterThrow) throw new Error(config.productMasterThrow);
+                        return {
+                          data: productMaster,
+                          error: config.productMasterError ?? null,
+                        };
+                      },
                     };
                   },
                 };
@@ -294,6 +306,62 @@ test("legacy offers route stops before offer insertion when the profile lookup f
   expect(calls.offerInsertCalls).toBe(0);
   expect(calls.insertPayload).toBeNull();
 });
+
+const thrownLookupScenarios: Array<{
+  name: string;
+  detail: string;
+  config: MockConfig;
+  fields: Record<string, string | File>;
+  expectedDemandLookups: number;
+  expectedProductMasterLookups: number;
+}> = [
+  {
+    name: "profile",
+    detail: "synthetic profile lookup transport detail",
+    config: { profileThrow: "synthetic profile lookup transport detail" },
+    fields: {},
+    expectedDemandLookups: 0,
+    expectedProductMasterLookups: 0,
+  },
+  {
+    name: "demand",
+    detail: "synthetic demand lookup transport detail",
+    config: { demandThrow: "synthetic demand lookup transport detail" },
+    fields: { demandId: DEMAND_ID },
+    expectedDemandLookups: 1,
+    expectedProductMasterLookups: 0,
+  },
+  {
+    name: "product master",
+    detail: "synthetic product master lookup transport detail",
+    config: { productMasterThrow: "synthetic product master lookup transport detail" },
+    fields: { productMasterId: PRODUCT_MASTER_ID },
+    expectedDemandLookups: 0,
+    expectedProductMasterLookups: 2,
+  },
+];
+
+for (const scenario of thrownLookupScenarios) {
+  test(`legacy offers route returns a generic error when Supabase ${scenario.name} lookup throws`, async () => {
+    const { client, calls } = createSupabaseMock(scenario.config);
+    const handler = createHandler(client);
+
+    const response = await handler(createFormRequest(scenario.fields));
+
+    expect(response.status).toBe(500);
+    const body = await response.json();
+    expect(body).toEqual({ error: "Unable to create the offer." });
+    expect(JSON.stringify(body)).not.toContain(scenario.detail);
+    expect(response.headers.get("location")).toBeNull();
+    expect(calls.authGetUser).toBe(1);
+    expect(calls.profileLookups).toEqual([{ column: "auth_user_id", value: AUTH_USER_ID }]);
+    expect(calls.demandLookups).toHaveLength(scenario.expectedDemandLookups);
+    expect(calls.productMasterLookups).toHaveLength(scenario.expectedProductMasterLookups);
+    expect(calls.offerInsertCalls).toBe(0);
+    expect(calls.insertPayload).toBeNull();
+  });
+}
+
 
 
 test("legacy offers route resolves the optional product master and market from a demand scope", async () => {
