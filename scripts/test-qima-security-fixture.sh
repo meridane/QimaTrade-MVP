@@ -46,6 +46,10 @@ compose up -d --wait qima-security-db
 compose exec -T qima-security-db psql -v ON_ERROR_STOP=1 -U postgres -d qima_security_test -f /dev/stdin < supabase/fixtures/qima_security_contract.sql
 compose exec -T qima-security-db psql -v ON_ERROR_STOP=1 -U postgres -d qima_security_test -f /dev/stdin < supabase/fixtures/qima_security_contract_tests.sql
 
+compose exec -T qima-security-db psql -v ON_ERROR_STOP=1 -U postgres -d qima_security_test -f /dev/stdin < supabase/fixtures/qima_product_request_publish_rpc.sql
+compose exec -T qima-security-db psql -v ON_ERROR_STOP=1 -U postgres -d qima_security_test -f /dev/stdin < supabase/migrations/20261127100000_harden_product_request_publish_tenant_membership.sql
+compose exec -T qima-security-db psql -v ON_ERROR_STOP=1 -U postgres -d qima_security_test -f /dev/stdin < supabase/fixtures/qima_product_request_publish_rpc_tests.sql
+
 sh tests/sql/test-product-request-publish-membership-contract.sh
 
 echo "PASS: local QIMA security-contract fixture assertions completed."
