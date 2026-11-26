@@ -107,3 +107,15 @@ No Supabase Production data or migrations were touched. No Production deployment
 - QIMA CI [45901460978](https://github.com/meridane/QimaTrade-MVP/actions/runs/45901460978) completed **SUCCESS**: Verify **443 Playwright passed**, isolated two-tenant fixture **PASS**, PostgreSQL 16 **SUCCESS**, PostgreSQL 17.6 **SUCCESS**. CodeQL [45901460932](https://github.com/meridane/QimaTrade-MVP/actions/runs/45901460932) **SUCCESS**.
 - The CI fixture is disposable and synthetic. It validates the migration's intended behavior only; it does not establish Production exploitability or deployed state.
 - The multi-tenant HTTP 409 behavior remains a product/API compatibility decision. Keep the branch isolated until the product owner defines whether publishing is scoped automatically to the request tenant or requires an explicit active-tenant selection.
+
+
+## Latest isolated CI closeout — 2026-11-27
+
+- Current mission branch HEAD at this checkpoint: `5c0e28b6b4a843119a049cf752b13bcbefdd4142`.
+- QIMA CI [#45904993720](https://github.com/meridane/QimaTrade-MVP/actions/runs/45904993720) completed **SUCCESS**. Verify job 140199508343 passed TypeScript, dependency audit, Next.js build and **443 Playwright tests (36.7 s)**. The isolated tenant-membership security fixture was included in the Verify job.
+- PostgreSQL 16 integration job 140199508654 and PostgreSQL 17.6 compatibility job 140199508688 both completed **SUCCESS**.
+- CodeQL [#45904993732](https://github.com/meridane/QimaTrade-MVP/actions/runs/45904993732) completed **SUCCESS**.
+- The expected setup-failure and cleanup-failure harness jobs concluded `failure` by design; their assertion jobs succeeded. The expected skipped-result harness was skipped and its assertion succeeded. Overall CI is **SUCCESS** with no unexpected failing job.
+- The Vercel combined status for this branch is **SUCCESS**.
+- The source-level RLS/RPC mismatch remains confirmed in the checked-in historical migrations; live deployed Production RPC, RLS, grants and schema remain **unverified** because the QIMA project is paused. The disposable fixture is not evidence of Production exploitability.
+- The multi-tenant HTTP 409 behavior remains blocked on product/API decision. Keep this branch in Draft and do not integrate the migration until the intended tenant-selection contract is approved.
