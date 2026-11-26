@@ -42,7 +42,7 @@ test("product-request publish route rejects a non-string request ID before authe
 test("product-request publish route never returns raw exception messages", async () => {
   const { readFile } = await import("node:fs/promises");
   const publishRouteSource = await readFile(
-    new URL("../../app/api/product-requests/publish/route.ts", import.meta.url),
+    `${process.cwd()}/app/api/product-requests/publish/route.ts`,
     "utf8",
   );
 
