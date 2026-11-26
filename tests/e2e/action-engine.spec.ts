@@ -865,6 +865,7 @@ const invalidActionResults: Array<{ label: string; result: unknown }> = [
   { label: "missing executionId", result: { status: "succeeded" } },
   { label: "blank executionId", result: { executionId: "   ", status: "succeeded" } },
   { label: "unsupported status", result: { executionId: "execution-1", status: "running" } },
+  { label: "legacy SQL terminal status", result: { executionId: "execution-1", status: "completed" } },
   {
     label: "non-string objectId",
     result: { executionId: "execution-1", status: "succeeded", objectId: 42 },
