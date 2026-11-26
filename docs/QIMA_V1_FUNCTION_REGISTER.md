@@ -15499,3 +15499,14 @@ Les points ci-dessous ne sont pas approuvés et ne doivent pas être figés par 
 
 - No Supabase Production data, migrations, schema, grants, RLS policies, secrets, or persistent configuration were changed.
 - No Production deployment, PR merge, force-push, or branch-protection change was performed.
+
+
+### Post-publication validation snapshot — QA475 (26 November 2026, 12:24 KST)
+
+- The QA475 code and register commits were fast-forwarded to PR #26. Current PR HEAD: `9c3d747a8ce7d1087f5b951f3072bce409df4035`; PR remains **OPEN / DRAFT / not merged**, base `main`, **2,526 commits ahead / 0 behind**, 308 changed files, `mergeable=true` at the post-push metadata read; no submitted reviews or review threads.
+- QIMA CI [#1999](https://github.com/meridane/QimaTrade-MVP/actions/runs/45748898101) is **IN PROGRESS** on exact HEAD `9c3d747a`. Workflow/harness contracts, CREATE_OFFER static contract checks, npm audit, TypeScript, skipped-result assertion, cleanup blocking assertion, and runtime cleanup assertion have passed. Next.js build is in progress. PostgreSQL 16 integration is installing the client; PostgreSQL 17.6 is running CREATE_OFFER integration/concurrency tests. Playwright is pending until the build and Chromium installation finish. The two injected setup/cleanup failure jobs have their expected `failure` conclusions; their separate assertions passed. The skipped-result job is intentionally skipped.
+- CodeQL [#1925](https://github.com/meridane/QimaTrade-MVP/actions/runs/45748898185) is **IN PROGRESS**; initialization and Autobuild passed, CodeQL analysis is active.
+- Vercel Preview status for exact HEAD `9c3d747a` is **PENDING** ([Preview](https://vercel.com/bmk1/qimatrade-mvp/3EnqScE73smZn27jzVojSeQo1qMW)).
+- The preceding QA474 parent validation is complete: QIMA CI [#1998](https://github.com/meridane/QimaTrade-MVP/actions/runs/45741562619) **SUCCESS**, Verify **429 Playwright passed (36.2 s)**, npm audit, TypeScript, Next.js build, Chromium, PostgreSQL 16, PostgreSQL 17.6, and prepared-transaction cleanup assertions passed. The log explicitly records the profile, demand, and Product Master rejected-lookup tests as passed. CodeQL [#1924](https://github.com/meridane/QimaTrade-MVP/actions/runs/45741562674) **SUCCESS**; Vercel status for parent HEAD `275e2de4` **SUCCESS**.
+- QA475 has not yet been observed in a Playwright result. No local test execution is claimed.
+
