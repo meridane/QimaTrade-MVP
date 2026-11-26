@@ -46,5 +46,7 @@ compose up -d --wait qima-security-db
 compose exec -T qima-security-db psql -v ON_ERROR_STOP=1 -U postgres -d qima_security_test -f /dev/stdin < supabase/fixtures/qima_security_contract.sql
 compose exec -T qima-security-db psql -v ON_ERROR_STOP=1 -U postgres -d qima_security_test -f /dev/stdin < supabase/fixtures/qima_security_contract_tests.sql
 
+sh tests/sql/test-product-request-publish-membership-contract.sh
+
 echo "PASS: local QIMA security-contract fixture assertions completed."
 echo "The isolated Compose project and its named volume will be removed and checked automatically."
