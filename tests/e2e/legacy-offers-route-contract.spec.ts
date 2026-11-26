@@ -272,6 +272,24 @@ test("legacy offers route stops before profile lookup when Supabase Auth rejects
   expect(calls.offerInsertCalls).toBe(0);
 });
 
+test("legacy offers route stops before profile lookup when Supabase Auth returns no user without an error", async () => {
+  const { client, calls } = createSupabaseMock({ user: null });
+  const handler = createHandler(client);
+
+  const response = await handler(createFormRequest());
+
+  expect(response.status).toBe(401);
+  const body = await response.json();
+  expect(body).toEqual({ error: "UNAUTHENTICATED" });
+  expect(response.headers.get("location")).toBeNull();
+  expect(calls.authGetUser).toBe(1);
+  expect(calls.profileLookups).toHaveLength(0);
+  expect(calls.demandLookups).toHaveLength(0);
+  expect(calls.productMasterLookups).toHaveLength(0);
+  expect(calls.offerInsertCalls).toBe(0);
+  expect(calls.insertPayload).toBeNull();
+});
+
 test("legacy offers route treats a returned Supabase Auth error as unauthenticated even when user data is present", async () => {
   const { client, calls } = createSupabaseMock({
     authError: { message: "synthetic auth response error" },
