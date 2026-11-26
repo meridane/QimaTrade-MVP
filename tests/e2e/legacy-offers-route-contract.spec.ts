@@ -12,6 +12,7 @@ const EXPLICIT_PRODUCT_MASTER_ID = "60000000-0000-4000-8000-000000000102";
 type MockConfig = {
   user?: { id: string } | null;
   authError?: { message: string } | null;
+  authThrow?: string;
   profile?: { actor_id: string | null } | null;
   profileError?: { message: string } | null;
   demand?: { id: string; target_market: string | null; scope: unknown } | null;
@@ -40,6 +41,7 @@ function createSupabaseMock(config: MockConfig = {}) {
     auth: {
       getUser: async () => {
         calls.authGetUser += 1;
+        if (config.authThrow) throw new Error(config.authThrow);
         return {
           data: { user },
           error: config.authError ?? null,
@@ -254,6 +256,26 @@ test("legacy offers route stops before profile lookup when Supabase Auth rejects
   expect(calls.authGetUser).toBe(1);
   expect(calls.profileLookups).toHaveLength(0);
   expect(calls.offerInsertCalls).toBe(0);
+});
+
+test("legacy offers route returns a generic error when Supabase Auth lookup throws without leaking details", async () => {
+  const syntheticInternalDetail = "synthetic auth transport detail";
+  const { client, calls } = createSupabaseMock({ authThrow: syntheticInternalDetail });
+  const handler = createHandler(client);
+
+  const response = await handler(createFormRequest());
+
+  expect(response.status).toBe(500);
+  const body = await response.json();
+  expect(body).toEqual({ error: "Unable to create the offer." });
+  expect(JSON.stringify(body)).not.toContain(syntheticInternalDetail);
+  expect(response.headers.get("location")).toBeNull();
+  expect(calls.authGetUser).toBe(1);
+  expect(calls.profileLookups).toHaveLength(0);
+  expect(calls.demandLookups).toHaveLength(0);
+  expect(calls.productMasterLookups).toHaveLength(0);
+  expect(calls.offerInsertCalls).toBe(0);
+  expect(calls.insertPayload).toBeNull();
 });
 
 test("legacy offers route stops before offer insertion when the profile lookup fails", async () => {
