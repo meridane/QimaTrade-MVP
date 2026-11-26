@@ -73,3 +73,16 @@ Do not benchmark by creating uncontrolled offers or publishing production reques
 - Next: obtain a safe staging base URL and disposable test identity, run the controlled benchmark, and profile only a segment shown to be material.
 
 No Supabase Production data/schema, migration, secret, grant, RLS policy or persistent configuration was changed. No Production deployment, PR merge, force-push, or branch-protection change was performed.
+
+## Additional CI measurement — TESTS mission run 45891165262
+
+Measured from GitHub Actions job timestamps (not application request latency):
+
+| Job | Duration |
+|---|---:|
+| TypeScript, audit, build and browser tests | 146 s |
+| PostgreSQL integration tests | 446 s |
+| PostgreSQL 17.6 compatibility | 438 s |
+
+All three jobs completed successfully. The browser suite reported 436 passed. These figures are a CI baseline sample only; they do not establish p50/p95/p99 API latency, database query cost, or an application performance regression. No optimization was made from this sample.
+
