@@ -15510,3 +15510,17 @@ Les points ci-dessous ne sont pas approuvés et ne doivent pas être figés par 
 - The preceding QA474 parent validation is complete: QIMA CI [#1998](https://github.com/meridane/QimaTrade-MVP/actions/runs/45741562619) **SUCCESS**, Verify **429 Playwright passed (36.2 s)**, npm audit, TypeScript, Next.js build, Chromium, PostgreSQL 16, PostgreSQL 17.6, and prepared-transaction cleanup assertions passed. The log explicitly records the profile, demand, and Product Master rejected-lookup tests as passed. CodeQL [#1924](https://github.com/meridane/QimaTrade-MVP/actions/runs/45741562674) **SUCCESS**; Vercel status for parent HEAD `275e2de4` **SUCCESS**.
 - QA475 has not yet been observed in a Playwright result. No local test execution is claimed.
 
+
+
+### QA476 — Auth returns no user without an error (26 November 2026, 14:08 KST)
+
+- Added `legacy offers route stops before profile lookup when Supabase Auth returns no user without an error` to `tests/e2e/legacy-offers-route-contract.spec.ts`.
+- The fixture sets `user: null` while leaving `authError` unset (the mock resolves it to `null`). This isolates the second operand of the existing `authError || !authData.user` guard; the preceding unauthenticated regression supplied both a missing user and a returned Auth error, while QA475 supplied a non-null user with an Auth error.
+- Expected contract: HTTP 401 with exactly `{"error":"UNAUTHENTICATED"}`, no Location header, one Auth lookup, zero profile/demand/Product Master lookups, and zero offer insert attempts. No internal diagnostic is returned.
+- QA475 parent validation is confirmed on the prior HEAD: QIMA CI #2000 **SUCCESS**, Verify **430 Playwright passed (38.0 s)**; npm audit, TypeScript, Next.js production build, Chromium, isolated security fixture, PostgreSQL 16, PostgreSQL 17.6, and cleanup assertions all **SUCCESS**. The QA475 test is explicitly recorded as passed in the Playwright log. CodeQL #1926 **SUCCESS**. Vercel Preview for parent HEAD `ba84609f` **SUCCESS**.
+- QA476 has not yet run in GitHub Actions at this snapshot. No local test execution is claimed; the new scenario awaits the CI run triggered by publication to the PR branch.
+- This is a synthetic route-contract test. It does not establish a real Supabase Auth outage, authentication bypass, or production vulnerability.
+
+#### Safety
+- No Supabase Production data, migrations, schema, grants, RLS policies, secrets, or persistent configuration were changed.
+- No Production deployment, PR merge, force-push, or branch-protection change was performed.
