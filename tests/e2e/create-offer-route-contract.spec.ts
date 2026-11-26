@@ -1126,6 +1126,43 @@ test("CREATE_OFFER route masks malformed succeeded RPC results as generic intern
   }
 });
 
+test("CREATE_OFFER route masks malformed FAILED RPC results as generic internal failures", async () => {
+  const malformedResults: Array<{ label: string; result: unknown }> = [
+    { label: "missing executionId", result: { status: "failed" } },
+    { label: "blank executionId", result: { executionId: "   ", status: "failed" } },
+    { label: "non-string objectId", result: { executionId: "execution-1", status: "failed", objectId: 42 } },
+    { label: "null result payload", result: { executionId: "execution-1", status: "failed", result: null } },
+  ];
+
+  for (const malformedCase of malformedResults) {
+    const result = await postCreateOffer(
+      "USD",
+      { __rpcResultOverride: malformedCase.result },
+      undefined,
+      undefined,
+      "failed",
+    );
+
+    expect(result.status, malformedCase.label).toBe(500);
+    expect(result.body, malformedCase.label).toEqual({ error: "ACTION_FAILED" });
+    expect(JSON.stringify(result.body), malformedCase.label).not.toContain("ACTION_RESULT_INVALID");
+    expect(JSON.stringify(result.body), malformedCase.label).not.toContain("execution-1");
+    expect(result.wwwAuthenticate, malformedCase.label).toBeNull();
+
+    const executionCalls = result.requests.filter(
+      (request) => request.path === "/rest/v1/rpc/execute_create_offer_v1",
+    );
+    expect(executionCalls, malformedCase.label).toHaveLength(1);
+    expect(result.requests.map((request) => request.path), malformedCase.label).toEqual([
+      "/auth/v1/user",
+      "/rest/v1/profiles",
+      "/rest/v1/dt_memberships",
+      "/rest/v1/rpc/get_action_definition_v1",
+      "/rest/v1/rpc/execute_create_offer_v1",
+    ]);
+  }
+});
+
 test('CREATE_OFFER route trims whitespace around a supported currency before the RPC', async () => {
   const result = await postCreateOffer(" USD ");
 
