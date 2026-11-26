@@ -15464,3 +15464,38 @@ Les points ci-dessous ne sont pas approuvés et ne doivent pas être figés par 
 - Vercel Preview for exact HEAD `6999becf` is **QUEUED** (deployment `dpl_FSAAna3oZyffU9vGPrPbgsUm3VgM`); no Preview success is claimed yet.
 - The work branch and PR branch are identical (0 ahead / 0 behind). The QA474 tests are not yet claimed as passing; no local test execution is claimed.
 - The previous QA473 validation remains confirmed by CI #1996: 426/426 Playwright, PostgreSQL 16/17.6, audit, TypeScript, build, and cleanup assertions succeeded; CodeQL #1922 succeeded; Vercel status on the previous HEAD succeeded.
+
+
+---
+
+## QA475 — Legacy CREATE_OFFER: returned Supabase Auth error takes precedence over user data (2026-11-26 12:24 KST)
+
+### Starting state and previous validation
+
+- PR #26 was **OPEN / DRAFT / not merged**, base `main`, HEAD `275e2de4b0c74e8488af9c76395c56257eec9cc6`, **2,524 commits ahead / 0 behind**, 308 changed files, `mergeable=true`; no submitted reviews or review threads were present.
+- The previous PR-head validation was QIMA CI [#1998](https://github.com/meridane/QimaTrade-MVP/actions/runs/45741562619), completed **SUCCESS**: Verify **429 Playwright passed (36.2 s)**, npm audit, TypeScript, Next.js build, Chromium, PostgreSQL 16, PostgreSQL 17.6, and prepared-transaction cleanup assertions all passed. The three QA474 rejected-lookup cases were included in that 429-test Verify run. CodeQL [#1924](https://github.com/meridane/QimaTrade-MVP/actions/runs/45741562674) completed **SUCCESS**. The combined Vercel status for HEAD `275e2de4` was **SUCCESS**.
+- The expected setup/cleanup simulation jobs ended with injected failure conclusions; their separate blocking assertions passed. The skipped-result job was intentionally skipped.
+
+### Change
+
+- Work-branch code commit: [`45ce5f17c8f27eae429a209a9c4cef8a7f5ae6b8`](https://github.com/meridane/QimaTrade-MVP/commit/45ce5f17c8f27eae429a209a9c4cef8a7f5ae6b8).
+- Added one test to `tests/e2e/legacy-offers-route-contract.spec.ts`: a mocked `auth.getUser()` returns both a non-null user object and an Auth error object.
+- The test characterizes the current branch condition `authError || !authData.user`: HTTP 401, exact public body `{"error":"UNAUTHENTICATED"}`, no internal Auth error detail or redirect, exactly one Auth call, and no profile/demand/Product Master lookup or offer INSERT.
+- This case complements the existing Auth-error test where the user is null. It verifies that a returned Auth error takes precedence even if the SDK-shaped response also carries user data.
+- No application code, Supabase client, SQL, schema, migration, or business rule changed.
+
+### Validation on the new PR HEAD
+
+- The QA475 test is committed on work branch `work/qima-legacy-auth-error-precedence-qa475-20261126-1224`, based on the verified PR HEAD. The work branch is one commit ahead / zero behind the PR branch before publication.
+- The new test has not yet run in GitHub Actions. QIMA CI, CodeQL, and Vercel must be checked after fast-forward publication to the PR branch. No QA475 Playwright result is claimed at this stage.
+- No local test execution is claimed.
+
+### Contract and decision boundaries
+
+- QA475 documents only the existing 401 precedence for a returned Auth error. It does not decide retry policy, session refresh, or whether an Auth error should be mapped differently; those remain API/product decisions.
+- The Auth error and co-present user data are synthetic fixture values, not evidence of a production authentication defect, bypass, or vulnerability.
+
+### Safety
+
+- No Supabase Production data, migrations, schema, grants, RLS policies, secrets, or persistent configuration were changed.
+- No Production deployment, PR merge, force-push, or branch-protection change was performed.
