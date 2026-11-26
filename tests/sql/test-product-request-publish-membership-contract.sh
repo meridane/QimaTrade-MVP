@@ -28,4 +28,11 @@ printf '%s\n' "$function_body" | awk '
   echo "FAIL: missing locked tenant membership does not fail closed"; exit 1;
 }
 
+grep -Fq "revoke all on function public.dt_publish_product_request(uuid, uuid) from public" "$migration" || {
+  echo "FAIL: public execute privilege is not revoked"; exit 1;
+}
+grep -Fq "grant execute on function public.dt_publish_product_request(uuid, uuid) to authenticated" "$migration" || {
+  echo "FAIL: authenticated execute grant is missing"; exit 1;
+}
+
 echo "PASS: product-request publish RPC enforces current membership for the exact request tenant."
