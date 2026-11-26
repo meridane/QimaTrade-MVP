@@ -90,3 +90,10 @@ No Supabase Production data or migrations were touched. No Production deployment
 - **Decision required:** should a multi-tenant user publish only within the tenant owning the request, or must the user explicitly select an active tenant? If explicit selection is intended, define where that selection is made and how the request's tenant is cross-checked.
 - Classification: **product/API compatibility risk**, not a confirmed security vulnerability.
 - Next: obtain the product decision, then add a focused route/client contract test. Keep the migration and route change isolated until that decision is recorded.
+
+## Live Supabase evidence blocker — 2026-11-27
+
+- A read-only project metadata lookup for QIMA reports status INACTIVE (paused), PostgreSQL 17.11, region ap-southeast-1.
+- Because the project is inactive, no table listing, SQL query, log query, project resume, migration, or database write was attempted.
+- Live product_requests/dt_memberships columns, deployed RPC body, grants, and RLS policies therefore remain **unverified**. The disposable two-tenant fixture proves only the isolated migration contract, not Production state.
+- Next: obtain explicit owner authorization to resume the project or a separate non-production clone/branch for read-only schema verification. Do not resume it automatically or incur compute cost.
