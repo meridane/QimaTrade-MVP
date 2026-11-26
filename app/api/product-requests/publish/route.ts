@@ -81,7 +81,8 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     const message = error instanceof Error ? error.message : "";
     if (publicPublishErrorCodes.has(message)) {
-      return NextResponse.json({ error: message }, { status: 400 });
+      const publicCode = message;
+      return NextResponse.json({ error: publicCode }, { status: 400 });
     }
     return NextResponse.json({ error: "Unable to publish product request." }, { status: 500 });
   }
