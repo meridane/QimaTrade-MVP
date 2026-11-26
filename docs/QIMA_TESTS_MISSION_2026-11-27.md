@@ -41,3 +41,12 @@ This is test-only. No application source, SQL, migration, production data, or wo
 - Next: run this test and the full Verify job on the branch, then compare the diff against the independent SECURITY branch. The new security-route tests and this runtime test touch different files.
 
 No Supabase Production data/schema, migration, secret, grant, RLS policy or persistent configuration was changed. No Production deployment, PR merge, force-push, or branch-protection change was performed.
+
+## Validation update — 2026-11-27
+
+- QIMA Verify job in run [45891165262](https://github.com/meridane/QimaTrade-MVP/actions/runs/45891165262): **SUCCESS**. TypeScript, dependency audit, production build and browser suite passed; Playwright reported **436 passed**, including the new non-redirect SQL domain-error regression.
+- The new fixture also includes synthetic PostgREST details and hint values and asserts that only the exact public message is propagated, with one publish RPC attempt and no redirect. This is synthetic contract coverage, not proof of a Production issue.
+- QIMA CodeQL run [45891165382](https://github.com/meridane/QimaTrade-MVP/actions/runs/45891165382): **SUCCESS**.
+- PostgreSQL 16 and 17.6 integration jobs in run #45891165262 are still in progress. Vercel Preview for the updated commit is blocked by the provider's 24-hour build-rate limit.
+- No database or Supabase Production data was modified.
+
