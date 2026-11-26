@@ -1112,6 +1112,46 @@ test("executeAction accepts a valid failed ActionResult", async () => {
   expect(result).toEqual(expectedResult);
 });
 
+test("executeAction accepts the minimal FAILED terminal replay fallback shape", async () => {
+  const context: ActionContext = {
+    userId: "user-1",
+    tenantId: "tenant-1",
+    actionKey: "CREATE_OFFER",
+    actionVersion: 1,
+    objectType: "TestObject",
+    objectId: "object-1",
+    correlationId: "correlation-1",
+    idempotencyKey: "idempotency-1",
+  };
+  const input: ActionInput = { demandId: "demand-1", quantity: 3 };
+  const expectedResult: ActionResult = {
+    executionId: "execution-failed-terminal-replay",
+    status: "failed",
+  };
+  let definitionLookups = 0;
+  let handlerCalls = 0;
+
+  const result = await executeAction(context, input, {
+    getDefinition: async (actionKey, version) => {
+      definitionLookups += 1;
+      return { actionKey, version, status: "published" };
+    },
+    handlers: {
+      CREATE_OFFER: async () => {
+        handlerCalls += 1;
+        return expectedResult;
+      },
+    },
+  });
+
+  expect(definitionLookups).toBe(1);
+  expect(handlerCalls).toBe(1);
+  expect(result).toEqual(expectedResult);
+  expect(Object.prototype.hasOwnProperty.call(result, "objectId")).toBe(false);
+  expect(Object.prototype.hasOwnProperty.call(result, "result")).toBe(false);
+});
+
+
 
 const accessorBackedActionResultFields: Array<keyof ActionResult> = [
   "executionId",
