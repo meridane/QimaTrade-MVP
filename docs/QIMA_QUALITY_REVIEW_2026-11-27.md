@@ -107,3 +107,9 @@ No Supabase Production data/schema, migration, secret, grant, RLS policy or pers
 - The keyboard focus-order and scoped OAuth alert smoke assertions are included in this successful run. This validates only the focused login checks, not a complete WCAG audit.
 - The Vercel status for this branch remains failed by the provider's `api-deployments-free-per-day` limit; GitHub Actions validation is complete independently.
 - No UI/auth behavior, global lint configuration, or accessibility dependencies were changed. Contrast, broader screen-reader behavior and authenticated workflows remain unverified.
+
+
+## Preview status precision — 2026-11-27
+
+- The provider quota failure described above belongs to the validated code/test HEAD `e94bd8edb5ddf5e48f046d0a30342e1d1ed09a0f`.
+- After the documentation-only closeout commit `6fdc992ec63ed80500d2078fe50f05a7999b866f`, the latest PR #30 Vercel status is **PENDING**. No Preview success is claimed for the new documentation commit.
