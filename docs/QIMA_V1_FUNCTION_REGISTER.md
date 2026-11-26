@@ -15815,3 +15815,16 @@ In an isolated disposable PostgreSQL test environment (never Production), first 
 - Read-only Supabase project metadata still reports project `QIMA` (`yyulzlnrfcbaxovzjbnh`) as **INACTIVE**, PostgreSQL 17.11.0.003, region `ap-southeast-1`. No database/table query, project reactivation, data change or migration was attempted; authoritative live schema verification remains blocked.
 - This is a documentation-only update. CI and CodeQL declare `paths-ignore: docs/**`; no new QIMA CI or CodeQL run is expected for this checkpoint. The active code/test validation remains run `45817536233`.
 - No Production data or schema, Supabase migration, secret, grant, RLS policy or persistent configuration was changed. No Production deployment, PR merge, force-push or branch-protection change was performed.
+
+
+### QA482 current HEAD checkpoint — 2026-11-26 21:18 KST
+
+- Before this append, PR #26 HEAD was `7bda0ad2ef032fb2acb4217718ac664926b2c5ed`, **OPEN / DRAFT / not merged / mergeable=true**, 2,555 commits ahead / 0 behind `main`, 310 changed files (98,321 additions / 266 deletions). The work branch and PR branch were identical (0 ahead / 0 behind).
+- QIMA CI run `45817536233` (workflow run number 2023) remains **IN PROGRESS**. Verify is **SUCCESS**, including npm audit, TypeScript, Next.js production build, Chromium installation, browser smoke tests and the isolated QIMA security-contract fixture. The exact Playwright count was not available from the job-step summary in this run; no count is inferred.
+- PostgreSQL 16 and PostgreSQL 17.6 jobs remain **IN PROGRESS** on the full CREATE_OFFER runner write-privilege characterization step. Each has 25 successful completed steps and no failed steps at the latest job read. The overall CI run is therefore not reported as successful yet.
+- CodeQL run `45817536369` (workflow run number 1949) is **SUCCESS**.
+- Vercel's combined status for documentation HEAD `7bda0ad2` is **FAILURE** with target `https://vercel.com/bmk1?upgradeToPro=build-rate-limit`. The prior documentation HEAD `1f700497` was **SUCCESS**; this latest failure is an external Preview deployment quota/capacity response, not a failed application build or test.
+- The two injected prepared-transaction setup/cleanup jobs have their designed **FAILURE** conclusions; independent assertion jobs are **SUCCESS**. The skipped-result harness is intentionally **SKIPPED**.
+- Supabase project metadata remains **INACTIVE** for QIMA. No live database/table query or project reactivation was attempted.
+- This entry is documentation-only; `.github/workflows/ci.yml` and `codeql.yml` both ignore `docs/**`, so no new CI or CodeQL run is expected for this commit. The code/test validation remains run `45817536233`.
+- No Production data/schema, Supabase migration, secret, grant, RLS policy or persistent configuration was changed. No Production deployment, PR merge, force-push or branch-protection change was performed.
