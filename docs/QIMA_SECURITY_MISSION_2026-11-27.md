@@ -74,3 +74,19 @@ No Supabase Production data or migrations were touched. No Production deployment
 - Static evidence supports the authorization inconsistency; the isolated source-contract test is not proof of Production exploitability. A real two-tenant fixture against the deployed schema remains a follow-up validation item.
 - Latest branch head when this note was prepared: 57b6fbd1b94c769dec361deb69b757b9316079ed. QIMA CI run [45891924945](https://github.com/meridane/QimaTrade-MVP/actions/runs/45891924945) is pending; CodeQL [45891925092](https://github.com/meridane/QimaTrade-MVP/actions/runs/45891925092) is in progress.
 
+## Final validation and compatibility checkpoint — 2026-11-27
+
+- QIMA CI [45892064684](https://github.com/meridane/QimaTrade-MVP/actions/runs/45892064684): **SUCCESS**. Verify job 140159676372 passed TypeScript, dependency audit, Next.js production build and **443 Playwright tests (39.2 s)**. The isolated security fixture ran in this job and printed: PASS: product-request publish RPC enforces current membership for the exact request tenant.
+- PostgreSQL 16 integration job 140159676306: **SUCCESS**. PostgreSQL 17.6 compatibility job 140159675998: **SUCCESS**.
+- CodeQL [45892064718](https://github.com/meridane/QimaTrade-MVP/actions/runs/45892064718): **SUCCESS**.
+- The expected-failure prepared-transaction jobs and expected skipped job remain intentional harness cases; their blocking assertion jobs succeeded.
+- Vercel Preview status is **failure** because the provider returned its build-rate-limit page. This is an external Preview-capacity blocker, not evidence of an application build failure.
+- The new two-tenant fixture is disposable and exercises the migration function; it does not establish the deployed Production ACL/schema state or prove real-world exploitability.
+
+## Product compatibility decision still required
+
+- The isolated route now returns HTTP 409 TENANT_SELECTION_REQUIRED when the authenticated user has more than one distinct non-null dt_memberships.tenant_id. The current request body does not accept an explicit tenant selector.
+- This avoids silently choosing an arbitrary tenant, but changes behavior for multi-tenant users. The intended user flow and client handling have not yet been established by this audit.
+- **Decision required:** should a multi-tenant user publish only within the tenant owning the request, or must the user explicitly select an active tenant? If explicit selection is intended, define where that selection is made and how the request's tenant is cross-checked.
+- Classification: **product/API compatibility risk**, not a confirmed security vulnerability.
+- Next: obtain the product decision, then add a focused route/client contract test. Keep the migration and route change isolated until that decision is recorded.
