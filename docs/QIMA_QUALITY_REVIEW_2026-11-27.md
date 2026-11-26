@@ -60,3 +60,11 @@ The two prepared-transaction harness jobs that intentionally inject setup/cleanu
 - Next: agree on the lint/a11y toolchain and run a report-only baseline before introducing blocking gates.
 
 No Supabase Production data/schema, migration, secret, grant, RLS policy or persistent configuration was changed. No Production deployment, PR merge, force-push, or branch-protection change was performed.
+
+## Test-tooling quality note — 2026-11-27
+
+- The SECURITY mission's first Playwright run exposed an ESM/CJS loader incompatibility in a source-reading test, not an application runtime defect.
+- The test was changed to use Node's built-in module access and a repository-root path rather than import.meta-based resolution. The CI runner reports Node v20.20.2, which supports process.getBuiltinModule.
+- The original failing run is recorded as a harness failure; the latest SECURITY CI run is still pending, so the workaround is not yet marked validated.
+- No global module-system, TypeScript, lint, or accessibility configuration was changed. A dedicated lint/accessibility baseline remains a separate follow-up rather than adding new dependencies during this pass.
+
