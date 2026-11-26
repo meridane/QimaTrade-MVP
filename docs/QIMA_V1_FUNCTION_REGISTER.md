@@ -15730,3 +15730,12 @@ In an isolated disposable PostgreSQL test environment (never Production), first 
 - GitHub Actions and CodeQL for the new code/test HEAD have not yet been returned by the workflow-run listing at this checkpoint. Vercel status is **PENDING**. No result is attributed to QA481 until a matching Playwright run completes.
 - Supabase project metadata was checked read-only: project `QIMA` (`yyulzlnrfcbaxovzjbnh`) reports status **INACTIVE** (PostgreSQL 17.11.0.003). No database query was attempted and no project resume/reactivation was requested or performed. This blocks authoritative live-schema inspection of `public.idempotency_keys`; QA479 remains a disposable-fixture result only.
 - No runtime application code, SQL, Supabase migration, Production data/schema, secret, grant, RLS policy or persistent configuration was changed. No Production deployment, PR merge, force-push or branch-protection change was performed.
+
+
+### QA481 post-push workflow checkpoint — 2026-11-26 19:46 KST
+
+- After the QA481 code commit `cf3f75a2667eb61726301afe518c6b61f348e6df`, GitHub Actions started QIMA CI #2015 (run 45804752025) and CodeQL #1941 (run 45804751979), both **IN PROGRESS**. The docs-only follow-up commit is ignored by the QIMA CI/CodeQL path filters.
+- At the latest job read, Verify #2015 had passed npm audit and TypeScript and was running the Next.js production build; PostgreSQL 16 and PostgreSQL 17.6 integration/concurrency jobs were active. The expected setup-failure and cleanup-failure harness jobs had their intentional **FAILURE** conclusions; the independent assertion jobs were **SUCCESS**. The skipped-result harness was intentionally **SKIPPED**. CodeQL analysis remained active.
+- The combined Vercel status for the new code/test commit was **PENDING**. The preceding docs-only HEAD had a build-rate-limit/quota failure; no application failure is inferred from that external Preview status.
+- PR #26 after documentation publication: HEAD `1df0d21c16f53b52cdca326efd9ddb5ec8578024`, **OPEN / DRAFT / not merged**, `mergeable=true` at the latest read, 2,546 commits ahead / 0 behind, 310 changed files (98,231 additions / 266 deletions). Work branch `work/qima-failed-terminal-fallback-shape-qa481-20261126-1946` and PR branch compare **identical (0 ahead / 0 behind)**.
+- No QA481 test result is claimed before CI #2015 Verify completes. No database query was made because the QIMA Supabase project remains **INACTIVE**.
