@@ -15633,3 +15633,20 @@ In an isolated disposable PostgreSQL test environment (never Production), first 
 - The initial QA479 assertion did not complete; no result-shape or duplicate-write conclusion is claimed from #2006. The test remains a characterization, not a desired product contract.
 - On #2006, npm audit, TypeScript, Next.js production build, and Chromium installation completed successfully. Playwright browser smoke tests were still in progress at the last read. CodeQL #1932 completed **SUCCESS**. The Vercel Preview for HEAD 38dc1825943c49df981a7e5661450d9c1d5b6907 is **SUCCESS**.
 - The corrected test and this note are pending a new PR-triggered CI/CodeQL validation. No local PostgreSQL execution is claimed.
+
+
+### QA479 post-correction validation snapshot — 2026-11-26 18:00 KST
+
+- The correction commit is 92f1275c8ab6dbce4bae6797542cc1005cf4cc2f. It replaces the unsupported jsonb_object_length(jsonb) call with a guarded count over jsonb_object_keys(...). No application code, migration, schema, or business rule changed.
+- QIMA CI #2006 (run 45787236208) completed its Verify job **SUCCESS**: **432 Playwright passed (37.9 s)**, npm audit **0 findings**, TypeScript, Next.js production build, and Chromium passed. Its PostgreSQL 16 and 17.6 jobs failed only when the new QA479 script called the nonexistent jsonb_object_length(jsonb) helper. CodeQL #1932 (run 45787236328) **SUCCESS**; Vercel Preview for that HEAD **SUCCESS**.
+- QIMA CI #2007 (run 45787580282) is **IN PROGRESS** on exact code/test HEAD 92f1275c8ab6dbce4bae6797542cc1005cf4cc2f. The guarded CREATE_OFFER integration/concurrency runner steps have completed **SUCCESS** on both PostgreSQL 16 and PostgreSQL 17.6. Those runner steps include the new QA479 SQL script, so all of its fixture, replay-shape, unchanged-row, no-duplicate-write, and transaction-rollback assertions passed on both versions. Additional PostgreSQL catalog/privilege characterization steps remain in progress.
+- In CI #2007 Verify, npm audit, TypeScript, Next.js production build, and Chromium installation are **SUCCESS**; Playwright browser smoke tests remain **IN PROGRESS**, so no final Playwright count or overall CI conclusion is claimed.
+- CodeQL #1933 (run 45787579811) completed **SUCCESS**. The combined Vercel status for exact code/test HEAD 92f1275c8ab6dbce4bae6797542cc1005cf4cc2f is **SUCCESS** (Preview: https://vercel.com/bmk1/qimatrade-mvp/GWH1jRpRTjosx8BSJYS9DaUbNnZj).
+- The expected setup/cleanup harness jobs have their injected failure conclusions; their separate blocking assertions passed. The skipped-result job is intentionally skipped.
+- PR #26 remains **OPEN / DRAFT / not merged**, HEAD 92f1275c8ab6dbce4bae6797542cc1005cf4cc2f, 2,536 commits ahead / 0 behind main, 310 changed files (98,093 additions / 266 deletions), mergeable=true. No submitted reviews or inline review threads are present. The work branch and PR branch are identical (0 ahead / 0 behind).
+
+### QA479 interpretation boundary
+
+- The passing PostgreSQL 16 and 17.6 runs establish that the repository's synthetic disposable fixture permits a COMPLETED idempotency row with SQL NULL result and that the branch SQL function returns the characterized fallback without creating duplicate persisted rows.
+- The fixture is not the live Supabase schema. The underlying idempotency_keys table definition is absent from the tracked migration inventory, and the migration reconciliation register records that a previous read-only remote history refresh failed with PostgreSQL 28P01. Production reachability remains **UNRESOLVED**. This is not a confirmed Production defect or vulnerability.
+- The script runs only through the existing runner allowlist for loopback qima_test and ends with ROLLBACK. No Production data or schema was accessed or changed.
