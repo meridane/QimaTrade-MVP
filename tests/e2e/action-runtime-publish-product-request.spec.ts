@@ -292,6 +292,8 @@ test("PUBLISH_PRODUCT_REQUEST runtime does not retry an upstream 503 or follow i
 
   expect(outcome.result).toBeNull();
   expect(outcome.errorMessage).toBe("UPSTREAM_TEMPORARILY_UNAVAILABLE");
+  expect(outcome.errorMessage).not.toContain("internal database row diagnostic");
+  expect(outcome.errorMessage).not.toContain("private troubleshooting hint");
   expect(outcome.requests.map((request) => ({ path: request.path, method: request.method }))).toEqual([
     { path: "/rest/v1/rpc/get_action_definition_v1", method: "POST" },
     { path: "/rest/v1/rpc/dt_publish_product_request", method: "POST" },
