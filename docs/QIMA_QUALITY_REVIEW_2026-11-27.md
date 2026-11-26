@@ -89,3 +89,10 @@ No Supabase Production data/schema, migration, secret, grant, RLS policy or pers
 - The failing alert assertion used an unfiltered getByRole("alert"). Playwright found both the intended callback error and Next.js's empty route-announcer element with role="alert", causing a strict-mode locator ambiguity.
 - This is a **test selector defect**, not evidence of an application accessibility defect. The locator is now filtered by the exact callback error text while retaining the semantic role check.
 - Re-run CI is pending on the updated QUALITY branch. Do not mark the accessibility smoke test PASS until that run completes.
+## Final login accessibility smoke validation — 2026-11-27
+
+- QIMA CI [45901538164](https://github.com/meridane/QimaTrade-MVP/actions/runs/45901538164) completed **SUCCESS** on the corrected QUALITY code/test HEAD.
+- Verify job 140190050198 reported **436 Playwright tests passed (38.1 s)**. TypeScript, dependency audit, Next.js production build and the isolated QIMA security fixture passed.
+- PostgreSQL 16 and PostgreSQL 17.6 integration jobs both completed **SUCCESS**. CodeQL [45901538086](https://github.com/meridane/QimaTrade-MVP/actions/runs/45901538086) completed **SUCCESS**.
+- The earlier strict-mode locator failure in run 45901274268 is resolved by scoping the alert locator to the exact callback-error text. The keyboard focus-order assertions passed in the successful run.
+- This confirms the focused smoke assertions only. It is not a complete WCAG audit; contrast, screen-reader coverage beyond the tested alert role, and the full authenticated workflow remain unverified. No application UI or auth behavior changed.
