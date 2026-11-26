@@ -20,6 +20,7 @@ type MockConfig = {
   productMaster?: { id: string } | null;
   productMasterError?: { message: string } | null;
   offerError?: { message: string } | null;
+  offerThrow?: string;
 };
 
 function createSupabaseMock(config: MockConfig = {}) {
@@ -110,11 +111,12 @@ function createSupabaseMock(config: MockConfig = {}) {
 
       if (table === "offers") {
         return {
-          insert(payload: Record<string, unknown>) {
+          async insert(payload: Record<string, unknown>) {
             calls.offerInsertCalls += 1;
             calls.insertPayload = payload;
+            if (config.offerThrow) throw new Error(config.offerThrow);
             // Supabase INSERT without .select() resolves without a returned row.
-            return Promise.resolve({ data: null, error: config.offerError ?? null });
+            return { data: null, error: config.offerError ?? null };
           },
         };
       }
@@ -495,6 +497,33 @@ test("legacy offers route returns a generic error when Supabase insert fails wit
     price: null,
     currency: null,
     pricing_model: null,
+    lifecycle: "draft",
+    offer_type: "supplier_offer",
+  });
+});
+
+test("legacy offers route returns a generic error when Supabase insert throws without leaking details", async () => {
+  const syntheticInternalDetail = "synthetic insert transport detail";
+  const { client, calls } = createSupabaseMock({ offerThrow: syntheticInternalDetail });
+  const handler = createHandler(client);
+
+  const response = await handler(createFormRequest());
+
+  expect(response.status).toBe(500);
+  const body = await response.json();
+  expect(body).toEqual({ error: "Unable to create the offer." });
+  expect(JSON.stringify(body)).not.toContain(syntheticInternalDetail);
+  expect(response.headers.get("location")).toBeNull();
+  expect(calls.authGetUser).toBe(1);
+  expect(calls.profileLookups).toEqual([
+    { column: "auth_user_id", value: AUTH_USER_ID },
+  ]);
+  expect(calls.demandLookups).toHaveLength(0);
+  expect(calls.productMasterLookups).toHaveLength(0);
+  expect(calls.offerInsertCalls).toBe(1);
+  expect(calls.insertPayload).toMatchObject({
+    name: "Legacy draft offer",
+    provider_actor_id: PROFILE_ACTOR_ID,
     lifecycle: "draft",
     offer_type: "supplier_offer",
   });
