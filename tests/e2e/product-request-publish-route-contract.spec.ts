@@ -39,9 +39,10 @@ test("product-request publish route rejects a non-string request ID before authe
   await expect(response.json()).resolves.toEqual({ error: "requestId is required" });
 });
 
-test("product-request publish route never returns raw exception messages", async () => {
-  const { readFile } = await import("node:fs/promises");
-  const publishRouteSource = await readFile(
+test("product-request publish route never returns raw exception messages", () => {
+  const fs = process.getBuiltinModule("node:fs") as typeof import("node:fs") | undefined;
+  if (!fs) throw new Error("Node.js fs module is unavailable");
+  const publishRouteSource = fs.readFileSync(
     `${process.cwd()}/app/api/product-requests/publish/route.ts`,
     "utf8",
   );
