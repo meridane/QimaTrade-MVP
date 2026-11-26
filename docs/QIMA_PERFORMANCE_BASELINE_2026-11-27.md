@@ -100,3 +100,10 @@ All three jobs completed successfully. The browser suite reported 436 passed. Th
 | TESTS [45892188791](https://github.com/meridane/QimaTrade-MVP/actions/runs/45892188791) | SUCCESS; 436 passed (35.9 s) | SUCCESS | SUCCESS | [45892188778](https://github.com/meridane/QimaTrade-MVP/actions/runs/45892188778) SUCCESS |
 
 These are completed CI validation samples, not route/API latency or database query benchmarks. The Verify times above are Playwright suite durations, not total job durations. No optimization is justified by these figures; staging p50/p95/p99 and query-level profiling remain blocked on an approved non-production environment.
+
+## Live database environment availability — 2026-11-27
+
+- Read-only Supabase project metadata reports QIMA as **INACTIVE (paused)** on PostgreSQL 17.11 in ap-southeast-1.
+- No SQL, table, query-plan, database-log, or performance query was run; the project was not resumed.
+- Without an active approved staging environment and disposable identity, database query timing, API p50/p95/p99, N+1 behavior and CPU/memory profiling remain **not measured**.
+- Do not resume the project or incur compute cost without owner authorization. Continue to treat CI durations as infrastructure-only measurements.
