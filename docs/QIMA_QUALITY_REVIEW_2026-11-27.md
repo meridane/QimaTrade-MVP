@@ -82,3 +82,10 @@ No Supabase Production data/schema, migration, secret, grant, RLS policy or pers
 - Files changed on this branch: tests/e2e/auth-smoke.spec.ts and this review journal. No application UI or authentication behavior was changed.
 - This is a focused smoke test, not a complete WCAG audit. Color contrast, screen-reader behavior beyond the alert role, and the full authenticated workflow remain unverified.
 - No accessibility defect is confirmed by this test addition. CI validation is pending on the dedicated validation pull request.
+
+## CI selector correction — 2026-11-27
+
+- QIMA CI [45901274268](https://github.com/meridane/QimaTrade-MVP/actions/runs/45901274268) Verify browser step reported **1 failed / 435 passed**. The keyboard focus-order test passed.
+- The failing alert assertion used an unfiltered getByRole("alert"). Playwright found both the intended callback error and Next.js's empty route-announcer element with role="alert", causing a strict-mode locator ambiguity.
+- This is a **test selector defect**, not evidence of an application accessibility defect. The locator is now filtered by the exact callback error text while retaining the semantic role check.
+- Re-run CI is pending on the updated QUALITY branch. Do not mark the accessibility smoke test PASS until that run completes.
