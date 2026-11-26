@@ -74,3 +74,11 @@ No Supabase Production data/schema, migration, secret, grant, RLS policy or pers
 - The fixture uses a synthetic `UPSTREAM_TEMPORARILY_UNAVAILABLE` response with private `details` and `hint` fields. It does not assert a live Supabase outage or a Production failure.
 - Commit `aa854a84ffe43d041881849c4f40ee40d1b3cb72` contains the test change.
 - Validation of this new case is **PENDING** until the dedicated branch's next QIMA CI run completes. The previously completed 436-test run does not include this newly added case.
+
+
+## HTTP 503 diagnostic-boundary closeout — 2026-11-27
+
+- The previous branch HEAD `9d099db80a8cb288b573584aa2fb34969d411ce7` was validated by QIMA CI [#45904998333](https://github.com/meridane/QimaTrade-MVP/actions/runs/45904998333): **SUCCESS**. The Verify job reported **437 Playwright tests passed (34.9 s)**; the log explicitly shows the new synthetic upstream-503/no-retry/no-redirect case passing. PostgreSQL 16 and PostgreSQL 17.6 jobs both completed **SUCCESS**. CodeQL [#45904998270](https://github.com/meridane/QimaTrade-MVP/actions/runs/45904998270) completed **SUCCESS**.
+- The Vercel status for this branch remains failed by the provider's deployment quota (`api-deployments-free-per-day`); this is separate from GitHub Actions validation.
+- Added two further assertions to the HTTP 503 test: the public runtime error message must not contain the fixture's synthetic `details` or `hint` values. This complements the existing HTTP 400 diagnostic-boundary assertions.
+- The additional assertions are a synthetic contract check only. They do not establish a live upstream disclosure or Production vulnerability. A new CI run is required before marking this follow-up validated.
