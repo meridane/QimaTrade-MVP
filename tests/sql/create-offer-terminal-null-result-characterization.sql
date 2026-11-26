@@ -205,6 +205,8 @@ ROLLBACK;
 
 
 -- QA483: characterize the FAILED terminal fallback with a coherent synthetic row.
+-- Start a fresh transaction because QA479 deliberately rolled its own transaction back.
+BEGIN;
 -- The row is inserted only in disposable qima_test and the enclosing transaction rolls back.
 -- This verifies the SQL branch shape; it does not establish that such rows exist in Production.
 RESET ROLE;
@@ -306,6 +308,7 @@ BEGIN
 END
 $qa483_seed$;
 
+SET LOCAL request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
 SET LOCAL ROLE authenticated;
 
 DO $qa483_replay$
