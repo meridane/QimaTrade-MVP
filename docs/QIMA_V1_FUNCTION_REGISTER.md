@@ -15542,3 +15542,46 @@ Les points ci-dessous ne sont pas approuvés et ne doivent pas être figés par 
 
 - No Supabase Production data, migrations, schema, grants, RLS policies, secrets, or persistent configuration were changed.
 - No Production deployment, PR merge, force-push, or branch-protection change was performed.
+
+
+
+---
+
+## CREATE_OFFER terminal replay fallback — SQL/ActionResult compatibility review (2026-11-26 16:24 KST)
+
+### Starting state and validation evidence
+
+- PR #26 is **OPEN / DRAFT / not merged**, base `main`, head `7351eed540dde4f25e9b07d8b8ac4aad54b9bcbf`, **2,533 commits ahead / 0 behind**, 309 changed files (97,796 additions / 266 deletions); GitHub reports `mergeable=true`. No submitted reviews or review threads are present.
+- The branch `fix/create-offer-status-contract` resolves to the same HEAD.
+- The latest commits are `7351eed5` (CREATE_OFFER contract review documentation), `774bb33b` (QA477 closeout/coverage review), `15ab4d5f` (QA477 validation snapshot), and `b1c04f40` (QA477 profile-error precedence regression).
+- QIMA CI [#2004](https://github.com/meridane/QimaTrade-MVP/actions/runs/45768648501) completed **SUCCESS** on exact HEAD `7351eed540dde4f25e9b07d8b8ac4aad54b9bcbf`: Verify **432 Playwright passed (37.4 s)**; npm audit reported **0 total findings** (0 critical/high/moderate/low/info); TypeScript, Next.js production build, Chromium, isolated QIMA security fixture, PostgreSQL 16, PostgreSQL 17.6, and prepared-transaction cleanup assertions passed. The log explicitly records the QA477 profile-row-plus-error test as passed. The two injected cleanup/setup jobs have expected failure conclusions with their separate assertions successful; the skipped-result job is intentionally skipped.
+- CodeQL [#1930](https://github.com/meridane/QimaTrade-MVP/actions/runs/45768648494) completed **SUCCESS**. The combined Vercel status for exact HEAD `7351eed540dde4f25e9b07d8b8ac4aad54b9bcbf` is **SUCCESS** ([Preview](https://vercel.com/bmk1/qimatrade-mvp/2uG2xotYcRvXsDqT5cLTTUgp5dN8)).
+- The canonical register was fetched in full through its Git blob: 2,908,934 characters, prior blob `154cbadc87aad8a6d5753ef30cd9fce5a0416bac`. This update appends to that complete content; no history is discarded.
+
+### Finding — conditional result-shape mismatch
+
+A focused comparison of the tracked CREATE_OFFER migration, engine normalizer, runtime adapter, and public TypeScript type found one conditional edge in the SQL replay fallback:
+
+- In `supabase/migrations/20261027090000_fix_create_offer_action_status_contract.sql`, the terminal replay branch accepts `v_existing.status IN ('COMPLETED', 'FAILED')` and, when `v_existing.result` is NULL, constructs `jsonb_build_object('status', lower(v_existing.status), 'executionId', ...)`.
+- For a `COMPLETED` row with NULL `result`, that fallback emits public status `"completed"`.
+- `lib/actions/types.ts` defines `ActionResult.status` as `"succeeded" | "failed"`; `lib/actions/engine.ts` independently enforces exactly those two values and rejects other statuses as `ACTION_RESULT_INVALID`.
+- The normal success path in the same SQL function writes the `succeeded` result and updates the idempotency row to `COMPLETED` in one transaction. Therefore, the mismatching fallback is conditional on a terminal `COMPLETED` idempotency row having a NULL result (for example, a legacy or externally-created row). No such row was queried or observed, and the tracked migrations do not define the underlying `idempotency_keys` table constraint needed to prove that this state is reachable.
+
+Classification: **conditional SQL/ActionResult contract gap; not a confirmed production defect or vulnerability**. A synthetic fixture alone would not establish that the state exists in production.
+
+### Why no code or migration was changed
+
+- The user instruction explicitly prohibits changing Supabase migrations and production data in this workflow.
+- Changing the SQL fallback requires a new, reviewed migration and a decision on the compatibility treatment of any existing terminal rows. No migration, schema, table data, or production configuration was changed.
+- No new test was added that would merely encode the current invalid fallback as expected behavior or introduce a knowingly failing CI assertion.
+- Existing tests already prove that the engine rejects unsupported `completed` results and that normal succeeded/failed route results map to their documented HTTP responses.
+
+### Recommended next step
+
+In an isolated disposable PostgreSQL test environment (never Production), first establish whether the schema permits a `COMPLETED` idempotency row with NULL `result`, and add a regression that exercises the SQL function's terminal replay branch. If the state is reachable, prepare a separate migration proposal mapping the persisted database terminal status to the public ActionResult status (and define the NULL-result policy) for maintainer review. Do not apply it without explicit approval.
+
+### Safety
+
+- No Supabase Production data, migration, schema, grant, RLS policy, secret, or persistent configuration was changed.
+- No Production deployment, PR merge, force-push, or branch-protection change was performed.
+- No local test execution is claimed. CI evidence above is from the exact pre-documentation HEAD; this entry itself is documentation-only.
