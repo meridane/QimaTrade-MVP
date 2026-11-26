@@ -96,3 +96,14 @@ No Supabase Production data/schema, migration, secret, grant, RLS policy or pers
 - PostgreSQL 16 and PostgreSQL 17.6 integration jobs both completed **SUCCESS**. CodeQL [45901538086](https://github.com/meridane/QimaTrade-MVP/actions/runs/45901538086) completed **SUCCESS**.
 - The earlier strict-mode locator failure in run 45901274268 is resolved by scoping the alert locator to the exact callback-error text. The keyboard focus-order assertions passed in the successful run.
 - This confirms the focused smoke assertions only. It is not a complete WCAG audit; contrast, screen-reader coverage beyond the tested alert role, and the full authenticated workflow remain unverified. No application UI or auth behavior changed.
+
+
+## Latest QUALITY CI closeout — 2026-11-27
+
+- Branch HEAD at this checkpoint: `e94bd8edb5ddf5e48f046d0a30342e1d1ed09a0f`.
+- QIMA CI [#45905000099](https://github.com/meridane/QimaTrade-MVP/actions/runs/45905000099) completed **SUCCESS**. Verify job 140199531053 passed TypeScript, dependency audit, Next.js build and **436 Playwright tests (35.6 s)**.
+- PostgreSQL 16 integration job 140199530879 and PostgreSQL 17.6 compatibility job 140199530806 both completed **SUCCESS**.
+- CodeQL [#45905000152](https://github.com/meridane/QimaTrade-MVP/actions/runs/45905000152) completed **SUCCESS**.
+- The keyboard focus-order and scoped OAuth alert smoke assertions are included in this successful run. This validates only the focused login checks, not a complete WCAG audit.
+- The Vercel status for this branch remains failed by the provider's `api-deployments-free-per-day` limit; GitHub Actions validation is complete independently.
+- No UI/auth behavior, global lint configuration, or accessibility dependencies were changed. Contrast, broader screen-reader behavior and authenticated workflows remain unverified.
