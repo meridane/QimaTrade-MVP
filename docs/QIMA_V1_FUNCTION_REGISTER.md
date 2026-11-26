@@ -15802,3 +15802,16 @@ In an isolated disposable PostgreSQL test environment (never Production), first 
 - The starting docs-only Vercel status was **FAILURE** with the external `build-rate-limit` quota target; the prior code/test Preview for `cf3f75a` was **READY**. This is recorded as a Preview-capacity limitation, not an application test failure.
 - QA482 is a mocked route-level contract test. It does not prove that a FAILED/NULL-result idempotency row exists in Supabase Production. The QIMA Supabase project was not queried or reactivated in this run.
 - No Production data or schema, Supabase migration, secret, grant, RLS policy or persistent configuration was changed. No Production deployment, PR merge, force-push or branch-protection change was performed.
+
+
+### QA482 validation progress checkpoint — 2026-11-26 21:16 KST
+
+- Current PR #26 HEAD before this documentation-only checkpoint: `1f700497eef9dd48cab1526666e6d8e89e1b1439`, **OPEN / DRAFT / not merged / mergeable=true**, 2,554 commits ahead / 0 behind `main`, 310 changed files (98,308 additions / 266 deletions). Work branch `work/qima-minimal-failed-replay-route-qa482-20261126-2111` and PR branch compare **identical (0 ahead / 0 behind)**.
+- QIMA CI run `45817536233` (workflow run number 2023) remains **IN PROGRESS**. The Verify job is **SUCCESS**: dependency audit, TypeScript, Next.js production build, Chromium installation, browser smoke tests and the isolated QIMA security-contract fixture all completed successfully. The test count was not independently available from the job-step summary, so this checkpoint records the Playwright step as **SUCCESS** without inventing a count.
+- PostgreSQL 16 and PostgreSQL 17.6 integration jobs remain **IN PROGRESS**, each on the full CREATE_OFFER runner write-privilege characterization step. At the latest read, each job had 25 successful completed steps and no failed steps. Their final conclusions are not yet available.
+- CodeQL run `45817536369` (workflow run number 1949) is **SUCCESS**.
+- The combined Vercel Preview status for code/test commit `c866f1e2325b4a5d87afccc1ae8ddfe5157da38f` and documentation HEAD `1f700497eef9dd48cab1526666e6d8e89e1b1439` is **SUCCESS** at `https://vercel.com/bmk1/qimatrade-mvp/8NquM4YoA7Jb3sAoCkCJGHVGyGge`.
+- Expected prepared-transaction setup/cleanup simulation jobs retain intentional **FAILURE** conclusions; the separate assertion jobs are **SUCCESS**. The skipped-result harness is intentionally **SKIPPED**. No unexpected failure is reported.
+- Read-only Supabase project metadata still reports project `QIMA` (`yyulzlnrfcbaxovzjbnh`) as **INACTIVE**, PostgreSQL 17.11.0.003, region `ap-southeast-1`. No database/table query, project reactivation, data change or migration was attempted; authoritative live schema verification remains blocked.
+- This is a documentation-only update. CI and CodeQL declare `paths-ignore: docs/**`; no new QIMA CI or CodeQL run is expected for this checkpoint. The active code/test validation remains run `45817536233`.
+- No Production data or schema, Supabase migration, secret, grant, RLS policy or persistent configuration was changed. No Production deployment, PR merge, force-push or branch-protection change was performed.
