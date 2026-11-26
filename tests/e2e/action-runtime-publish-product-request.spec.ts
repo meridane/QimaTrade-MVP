@@ -96,9 +96,10 @@ async function executePublishProductRequestRuntime(
 
       if (path === "/rest/v1/rpc/dt_publish_product_request" && publishRpcStatus !== 200) {
         response.writeHead(publishRpcStatus, { "Content-Type": "application/json" });
+        const unavailable = publishRpcStatus >= 500;
         response.end(JSON.stringify({
-          message: "PRODUCT_REQUEST_NOT_FOUND",
-          code: "P0001",
+          message: unavailable ? "UPSTREAM_TEMPORARILY_UNAVAILABLE" : "PRODUCT_REQUEST_NOT_FOUND",
+          code: unavailable ? "PGRST000" : "P0001",
           details: "internal database row diagnostic",
           hint: "private troubleshooting hint",
         }));
@@ -274,6 +275,23 @@ test("PUBLISH_PRODUCT_REQUEST runtime propagates one exact SQL domain error with
   expect(outcome.errorMessage).toBe("PRODUCT_REQUEST_NOT_FOUND");
   expect(outcome.errorMessage).not.toContain("internal database row diagnostic");
   expect(outcome.errorMessage).not.toContain("private troubleshooting hint");
+  expect(outcome.requests.map((request) => ({ path: request.path, method: request.method }))).toEqual([
+    { path: "/rest/v1/rpc/get_action_definition_v1", method: "POST" },
+    { path: "/rest/v1/rpc/dt_publish_product_request", method: "POST" },
+  ]);
+  expect(outcome.requests[1].body).toEqual({
+    p_request_id: outcome.requestId,
+    p_user_id: outcome.userId,
+  });
+  expect(outcome.redirectTargetHits).toBe(0);
+});
+
+
+test("PUBLISH_PRODUCT_REQUEST runtime does not retry an upstream 503 or follow its redirect target", async () => {
+  const outcome = await executePublishProductRequestRuntime(null, "publish", 503);
+
+  expect(outcome.result).toBeNull();
+  expect(outcome.errorMessage).toBe("UPSTREAM_TEMPORARILY_UNAVAILABLE");
   expect(outcome.requests.map((request) => ({ path: request.path, method: request.method }))).toEqual([
     { path: "/rest/v1/rpc/get_action_definition_v1", method: "POST" },
     { path: "/rest/v1/rpc/dt_publish_product_request", method: "POST" },
