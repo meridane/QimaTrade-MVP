@@ -107,3 +107,15 @@ These are completed CI validation samples, not route/API latency or database que
 - No SQL, table, query-plan, database-log, or performance query was run; the project was not resumed.
 - Without an active approved staging environment and disposable identity, database query timing, API p50/p95/p99, N+1 behavior and CPU/memory profiling remain **not measured**.
 - Do not resume the project or incur compute cost without owner authorization. Continue to treat CI durations as infrastructure-only measurements.
+## Completed multi-mission CI samples — 2026-11-27
+
+| Mission | QIMA CI run | Playwright | PostgreSQL 16 | PostgreSQL 17.6 | CodeQL |
+|---|---:|---:|---|---|---|
+| SECURITY | [45901460978](https://github.com/meridane/QimaTrade-MVP/actions/runs/45901460978) | 443 passed (37.2 s) | SUCCESS | SUCCESS | [45901460932](https://github.com/meridane/QimaTrade-MVP/actions/runs/45901460932) SUCCESS |
+| TESTS | [45901244355](https://github.com/meridane/QimaTrade-MVP/actions/runs/45901244355) | 436 passed (37.3 s) | SUCCESS | SUCCESS | [45901244710](https://github.com/meridane/QimaTrade-MVP/actions/runs/45901244710) SUCCESS |
+| QUALITY | [45901538164](https://github.com/meridane/QimaTrade-MVP/actions/runs/45901538164) | 436 passed (38.1 s) | SUCCESS | SUCCESS | [45901538086](https://github.com/meridane/QimaTrade-MVP/actions/runs/45901538086) SUCCESS |
+
+- These are Playwright suite durations from GitHub Actions logs, not application route latency or database query timings.
+- The three runs are validation samples from different branch snapshots; they are not a controlled benchmark and should not be compared as a performance trend.
+- No optimization is justified by these values. API p50/p95/p99, database query plans, N+1 behavior, allocations, CPU and memory remain unmeasured.
+- The Supabase QIMA project was last reported INACTIVE (paused). No query, resume, or compute-cost action was taken. Continue to require owner authorization or a separate approved staging environment.
