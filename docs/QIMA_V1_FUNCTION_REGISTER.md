@@ -15674,3 +15674,15 @@ In an isolated disposable PostgreSQL test environment (never Production), first 
 - No application runtime code, SQL, Supabase migration, database schema/data, secret, grant, RLS policy, or persistent configuration was changed. No Production deployment, PR merge, force-push, or branch-protection change was performed.
 - Work branch: `work/qima-action-engine-completed-status-qa480-20261126-1843`, created from the exact PR head `0c0c188d`. The code test commit is `9f55f0f00c93cee55f0a920af6f3490bfb197940`; publication to the PR branch and post-change CI validation are pending.
 
+
+
+### QA480 post-publication validation snapshot — 2026-11-26 18:43 KST
+
+- The work branch was fast-forwarded to the PR branch with an expected-old-SHA guard. The code/test commit is `9f55f0f00c93cee55f0a920af6f3490bfb197940`; the register commit is `a1717ff39940ed6da053850b3787f17f6d294b67`. The work branch and PR branch compared identical (0 ahead / 0 behind) immediately after publication.
+- QIMA CI #2009 (run 45795191877) is **IN PROGRESS** on the PR update. Its Verify job completed **SUCCESS**: **433/433 Playwright passed (37.7 s)**; the new `executeAction rejects a handler result with legacy SQL terminal status` case is explicitly **PASS**. npm audit completed with 0 findings; TypeScript, Next.js production build, Chromium installation, and the isolated QIMA security-contract fixture passed.
+- The PostgreSQL 16 and PostgreSQL 17.6 integration jobs have passed the CREATE_OFFER functional/replay cases, including the existing QA479 runner path, and all catalog checks observed so far. Both are still executing their final full-runner write-privilege characterization step; therefore CI #2009 is not yet declared globally **SUCCESS**.
+- The expected setup-failure and cleanup-failure harness jobs have their intentional failure conclusions; their independent assertion jobs completed **SUCCESS**. The skipped-result harness is intentionally **SKIPPED**.
+- CodeQL #1935 (run 45795191935) completed **SUCCESS**. The Vercel Preview status on PR HEAD `a1717ff39940ed6da053850b3787f17f6d294b67` is **SUCCESS**.
+- The PR remains **OPEN / DRAFT / not merged / mergeable**, HEAD `a1717ff39940ed6da053850b3787f17f6d294b67`, 2,540 commits ahead / 0 behind `main`, 310 changed files (98,135 additions / 266 deletions). No submitted reviews or inline review threads are present.
+- No local test run is claimed. The 433-test result is from GitHub Actions. No runtime application code, SQL migration, Supabase Production schema/data, secret, grant, RLS policy, or persistent configuration was changed. No Production deployment, merge, force-push, or branch-protection change was performed.
+
