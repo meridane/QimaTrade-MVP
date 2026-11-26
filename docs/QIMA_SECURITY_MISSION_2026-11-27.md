@@ -46,3 +46,13 @@ No SQL, migration, schema, RLS policy, grant, secret, or production setting was 
 - Next: run the new Playwright file and the full relevant CI on this branch, review the exact diff, then compare this branch with the independent TESTS branch before any integration.
 
 No Supabase Production data or migrations were touched. No Production deployment, PR merge, force-push, or branch-protection change was performed.
+
+## Validation update — 2026-11-27
+
+- QIMA CodeQL run [45891103720](https://github.com/meridane/QimaTrade-MVP/actions/runs/45891103720): **SUCCESS** on the earlier security branch head.
+- QIMA CI run [45891103428](https://github.com/meridane/QimaTrade-MVP/actions/runs/45891103428): TypeScript, production build, dependency audit and the isolated QIMA security fixture passed; the Playwright step failed before executing this file because the source-reading test used an ESM-incompatible loader path (require is not defined). This was a test-harness failure, not a confirmed application vulnerability.
+- The test now reads the route source using Node's built-in module access and the repository root path. Current branch head at this update: e4570b440b953819e3fca182a0e4d1a8e7f2ba9d.
+- Revalidation: QIMA CI [45891442647](https://github.com/meridane/QimaTrade-MVP/actions/runs/45891442647) is queued; CodeQL [45891442644](https://github.com/meridane/QimaTrade-MVP/actions/runs/45891442644) is in progress.
+- PostgreSQL 16 and 17.6 integration jobs from the earlier run remain in progress. Vercel Preview for the updated commit is blocked by the provider's 24-hour build-rate limit.
+- The original code finding remains a confirmed source-level error-message exposure path in the prior implementation. No real-world exploitation or Production disclosure has been established.
+
