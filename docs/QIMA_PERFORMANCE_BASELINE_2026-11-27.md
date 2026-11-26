@@ -119,3 +119,16 @@ These are completed CI validation samples, not route/API latency or database que
 - The three runs are validation samples from different branch snapshots; they are not a controlled benchmark and should not be compared as a performance trend.
 - No optimization is justified by these values. API p50/p95/p99, database query plans, N+1 behavior, allocations, CPU and memory remain unmeasured.
 - The Supabase QIMA project was last reported INACTIVE (paused). No query, resume, or compute-cost action was taken. Continue to require owner authorization or a separate approved staging environment.
+## Full GitHub Actions job timing sample — 2026-11-27
+
+Durations below are calculated from the GitHub Actions job `started_at` and `completed_at` timestamps. They describe CI execution, not application performance.
+
+| Mission run | Verify job | PostgreSQL 16 | PostgreSQL 17.6 | Playwright suite |
+|---|---:|---:|---:|---:|
+| SECURITY [45901460978](https://github.com/meridane/QimaTrade-MVP/actions/runs/45901460978) | 132 s | 447 s | 426 s | 37.2 s |
+| TESTS [45901244355](https://github.com/meridane/QimaTrade-MVP/actions/runs/45901244355) | 129 s | 459 s | 433 s | 37.3 s |
+| QUALITY [45901538164](https://github.com/meridane/QimaTrade-MVP/actions/runs/45901538164) | 139 s | 457 s | 438 s | 38.1 s |
+
+- All three Verify jobs and both PostgreSQL jobs per run completed successfully.
+- The PostgreSQL 16 and 17.6 jobs run concurrently, so their durations should not be summed to estimate wall-clock workflow time.
+- These three runs share the same workflow shape but different branch snapshots and are too few for a stable trend. No application performance regression or optimization is inferred.
