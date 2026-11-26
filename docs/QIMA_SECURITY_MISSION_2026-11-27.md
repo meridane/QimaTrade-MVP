@@ -56,3 +56,12 @@ No Supabase Production data or migrations were touched. No Production deployment
 - PostgreSQL 16 and 17.6 integration jobs from the earlier run remain in progress. Vercel Preview for the updated commit is blocked by the provider's 24-hour build-rate limit.
 - The original code finding remains a confirmed source-level error-message exposure path in the prior implementation. No real-world exploitation or Production disclosure has been established.
 
+## Authorization review follow-up — 2026-11-27
+
+- The product_requests table stores tenant_id. Its SELECT policy requires a dt_memberships row for that exact tenant; its INSERT policy also requires user_id = auth.uid().
+- The SECURITY DEFINER RPC dt_publish_product_request checks auth.uid() = p_user_id and filters the request by id plus user_id, but the function body does not check current membership for the request's tenant_id.
+- The API route currently checks only that the user has at least one dt_memberships row; it does not correlate that membership to the selected product request's tenant.
+- Potential scenario: a user retains ownership of a request in tenant A but only has a current membership in tenant B. The route's generic membership check may pass, while the SECURITY DEFINER function bypasses the request table's RLS membership predicate. The function's actor/profile and downstream demand tenant semantics still need verification.
+- Classification: **authorization hypothesis, not a confirmed vulnerability**. Static source evidence establishes the missing tenant-specific membership check; it does not establish that this scenario is reachable in Production or violates the intended revocation policy.
+- Required decision: should loss of membership in a request's tenant prevent publishing an already-owned request? If yes, the check belongs inside the RPC (not only the API route), followed by a disposable two-tenant PostgreSQL fixture against the actual migration. No Production migration or policy was changed.
+
