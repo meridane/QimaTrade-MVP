@@ -119,3 +119,9 @@ No Supabase Production data or migrations were touched. No Production deployment
 - The Vercel combined status for this branch is **SUCCESS**.
 - The source-level RLS/RPC mismatch remains confirmed in the checked-in historical migrations; live deployed Production RPC, RLS, grants and schema remain **unverified** because the QIMA project is paused. The disposable fixture is not evidence of Production exploitability.
 - The multi-tenant HTTP 409 behavior remains blocked on product/API decision. Keep this branch in Draft and do not integrate the migration until the intended tenant-selection contract is approved.
+
+
+## Preview status precision — 2026-11-27
+
+- The **SUCCESS** Vercel status above belongs to the validated code/test HEAD `5c0e28b6b4a843119a049cf752b13bcbefdd4142`.
+- After the documentation-only closeout commit `20352d99442a490ae9c19a063a00dda665786470`, the latest PR #27 Vercel status is **PENDING**. No Preview success is claimed for the new documentation commit.
