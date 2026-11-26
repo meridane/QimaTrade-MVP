@@ -346,6 +346,31 @@ test("legacy offers route stops before offer insertion when the profile lookup f
   expect(calls.insertPayload).toBeNull();
 });
 
+test("legacy offers route fails closed when the profile lookup returns an error alongside a profile row", async () => {
+  const syntheticProfileLookupError = "synthetic profile lookup error with row";
+  const { client, calls } = createSupabaseMock({
+    profile: { actor_id: PROFILE_ACTOR_ID },
+    profileError: { message: syntheticProfileLookupError },
+  });
+  const handler = createHandler(client);
+
+  const response = await handler(createFormRequest());
+
+  expect(response.status).toBe(403);
+  const body = await response.json();
+  expect(body).toEqual({
+    error: "Your account is not linked to a QimaTrade actor yet.",
+  });
+  expect(JSON.stringify(body)).not.toContain(syntheticProfileLookupError);
+  expect(response.headers.get("location")).toBeNull();
+  expect(calls.authGetUser).toBe(1);
+  expect(calls.profileLookups).toEqual([{ column: "auth_user_id", value: AUTH_USER_ID }]);
+  expect(calls.demandLookups).toHaveLength(0);
+  expect(calls.productMasterLookups).toHaveLength(0);
+  expect(calls.offerInsertCalls).toBe(0);
+  expect(calls.insertPayload).toBeNull();
+});
+
 const thrownLookupScenarios: Array<{
   name: string;
   detail: string;
