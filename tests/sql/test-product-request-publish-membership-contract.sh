@@ -10,7 +10,7 @@ function_body="$(sed -n '/create or replace function public.dt_publish_product_r
 printf '%s\n' "$function_body" | grep -Fq "from public.dt_memberships m" || {
   echo "FAIL: publish RPC does not consult dt_memberships"; exit 1;
 }
-printf '%s\n' "$function_body" | grep -Fq "m.tenant_id = v_request.tenant_id" || {
+printf '%s\n' "$function_body" | grep -Fq "m.tenant_id = pr.tenant_id" || {
   echo "FAIL: publish RPC membership check is not scoped to the request tenant"; exit 1;
 }
 printf '%s\n' "$function_body" | grep -Fq "m.user_id = p_user_id" || {
@@ -19,8 +19,13 @@ printf '%s\n' "$function_body" | grep -Fq "m.user_id = p_user_id" || {
 printf '%s\n' "$function_body" | grep -Fq "for key share" || {
   echo "FAIL: publish RPC does not hold the membership row against concurrent removal"; exit 1;
 }
-printf '%s\n' "$function_body" | grep -Fq "if not found then raise exception 'PRODUCT_REQUEST_NOT_FOUND'; end if;" || {
-  echo "FAIL: missing tenant membership does not fail closed with the non-disclosing request code"; exit 1;
+printf '%s\n' "$function_body" | awk '
+  /for key share/ {
+    if (getline > 0 && $0 ~ /if not found then raise exception .PRODUCT_REQUEST_NOT_FOUND./) found = 1
+  }
+  END { exit !found }
+' || {
+  echo "FAIL: missing locked tenant membership does not fail closed"; exit 1;
 }
 
 echo "PASS: product-request publish RPC enforces current membership for the exact request tenant."
