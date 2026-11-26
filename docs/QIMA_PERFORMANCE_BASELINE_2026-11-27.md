@@ -148,3 +148,15 @@ Durations are computed from GitHub Actions job `started_at` and `completed_at` t
 - PostgreSQL 16 and 17.6 jobs run concurrently; do not sum their durations to estimate wall-clock workflow time.
 - These runs are separate branch snapshots, not a controlled benchmark. No application performance trend, regression or optimization is inferred.
 - Application API p50/p95/p99, SQL query plans, N+1 behavior, CPU and memory remain unmeasured. The Supabase QIMA project remains paused; no resume or query was attempted.
+
+
+## Static query-topology review — 2026-11-27
+
+Reviewed the current PR #26 source for the CREATE_OFFER path and adjacent offer/product metadata reads. This is source inspection, not runtime profiling.
+
+- `app/api/actions/create-offer/route.ts`: after authentication and request validation, the route reads `profiles.actor_id`, then reads `dt_memberships.tenant_id`, then calls the universal action runtime. The two database reads are sequential in the current source. They are a **candidate** for later timing/parallelization review, not a measured bottleneck; authorization and error semantics must be preserved.
+- `app/offers/actions.ts`: the product metadata path reads the demand first, then loads product master and product attributes in `Promise.all`, followed by attribute definitions, active options and units in a second `Promise.all`. Options are grouped in memory; no database call was found inside that loop. No N+1 pattern was established in the reviewed function.
+- `lib/actions/runtime.ts`: action-definition RPC and the business RPC are sequential by contract. No retry loop was found in the reviewed runtime. Do not parallelize or reorder these calls without an explicit contract analysis.
+- No source-level finding alone establishes high latency, excessive allocation, or an N+1 defect. No application code was changed.
+
+Next measurement: on an approved non-production environment, capture per-query and end-to-end timings for authenticated CREATE_OFFER requests, record row counts and query plans, and compare p50/p95/p99 over a repeatable sample before considering changes.
