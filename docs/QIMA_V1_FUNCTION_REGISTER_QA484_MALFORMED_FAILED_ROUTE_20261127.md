@@ -41,3 +41,17 @@ This is a synthetic route-contract regression. It does not establish a productio
 The canonical `docs/QIMA_V1_FUNCTION_REGISTER.md` currently has blob SHA `ac4b56aa31c5bab04784954ead01a134810752b5`, but the GitHub file reader returns an empty body (including ranged reads). Its full content was not available for a safe replacement. This append-only companion records QA484 without risking loss of the canonical register's history.
 
 No Supabase Production data, schema, migration, grants, RLS policies, secrets, or persistent configuration were changed. No Production deployment, merge, force-push, or branch-protection change was performed.
+
+
+## Updated validation snapshot — 2026-11-27 (Asia/Seoul)
+
+- QIMA CI run [#2033](https://github.com/meridane/QimaTrade-MVP/actions/runs/45862055414), on test commit `8108adac4263536edb5d5d420371b29708fce69e`: Verify job **SUCCESS**.
+  - Playwright: **435 passed (35.9s)**. The log explicitly records `CREATE_OFFER route masks malformed FAILED RPC results as generic internal failures` as passed.
+  - Dependency audit (blocking threshold: high): **SUCCESS**. No claim is made here about lower-severity counts because the current job summary does not expose a complete count in the inspected excerpt.
+  - TypeScript, Next.js production build, Chromium installation/browser smoke tests, and isolated QIMA security-contract fixture: **SUCCESS**.
+- PostgreSQL 16 and PostgreSQL 17.6 integration jobs remain **IN PROGRESS** at the last observation, each on the full runner write-privilege characterization step. No PostgreSQL result is claimed for QA484 because the new change is an HTTP route test, not a SQL change.
+- QIMA CodeQL run [#2033](https://github.com/meridane/QimaTrade-MVP/actions/runs/45862055471): **SUCCESS**.
+- Vercel combined status on the test commit: **SUCCESS** — [Preview deployment](https://vercel.com/bmk1/qimatrade-mvp/HHGFAViX5A34SwBTDAh8R27ccigN).
+- Expected failure-injection harness jobs concluded `failure` by design; their separate assertion jobs concluded **SUCCESS**. The skipped-result harness concluded **SKIPPED** as expected.
+
+The overall QIMA CI run remains **IN PROGRESS** until both PostgreSQL jobs finish. This snapshot does not infer an overall CI conclusion from the successful Verify and CodeQL jobs.
