@@ -15686,3 +15686,13 @@ In an isolated disposable PostgreSQL test environment (never Production), first 
 - The PR remains **OPEN / DRAFT / not merged / mergeable**, HEAD `a1717ff39940ed6da053850b3787f17f6d294b67`, 2,540 commits ahead / 0 behind `main`, 310 changed files (98,135 additions / 266 deletions). No submitted reviews or inline review threads are present.
 - No local test run is claimed. The 433-test result is from GitHub Actions. No runtime application code, SQL migration, Supabase Production schema/data, secret, grant, RLS policy, or persistent configuration was changed. No Production deployment, merge, force-push, or branch-protection change was performed.
 
+
+
+### QA480 documentation-head status — Vercel quota boundary (2026-11-26 18:43 KST)
+
+- After the documentation-only register commit `7d9cbe8c545c99920342f89985563548e1bb5fd7`, the PR HEAD is `7d9cbe8c`. PR #26 remains **OPEN / DRAFT / not merged / mergeable**, 2,541 commits ahead / 0 behind `main`, 310 changed files (98,147 additions / 266 deletions).
+- The Vercel status on code/test HEAD `a1717ff39940ed6da053850b3787f17f6d294b67` is **SUCCESS** (Preview URL recorded in the preceding QA480 snapshot). The Vercel status on documentation-only HEAD `7d9cbe8c` is **FAILURE** with target URL `https://vercel.com/bmk1?upgradeToPro=build-rate-limit`; this is reported as a Vercel build-rate-limit/quota response, not as an application build or test failure.
+- No new QIMA CI or CodeQL run is associated with the docs-only HEAD at the time of this check. The existing QIMA CI #2009 run 45795191877 continues to validate the code/test change on the prior PR update: Verify **SUCCESS**, **433/433 Playwright**, npm audit 0 findings, TypeScript, Next.js build, Chromium and QIMA fixture all passed. PostgreSQL 16 and 17.6 remain in their final full-runner write-privilege characterization steps, so the overall CI run is still **IN PROGRESS**. CodeQL #1935 remains **SUCCESS**.
+- The documentation update changes no application/test code. The Vercel rate limit is an external preview-capacity blocker; no retry loop or production deployment was initiated.
+- No Supabase Production data/schema, migrations, secrets, grants, RLS policies, or persistent configuration were modified. No PR merge, force-push, or branch-protection change was performed.
+
