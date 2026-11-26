@@ -1,0 +1,711 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+RESTORE_SCRIPT="$ROOT/tests/sql/restore-prepared-transactions-config.sh"
+TEMP_DIR="$(mktemp -d)"
+trap 'rm -rf "$TEMP_DIR"' EXIT
+MOCK_BIN="$TEMP_DIR/mock-bin"
+EVENTS="$TEMP_DIR/events.log"
+OUTPUT="$TEMP_DIR/output.log"
+RESET_APPLIED_FILE="$TEMP_DIR/reset-applied"
+RESTART_APPLIED_FILE="$TEMP_DIR/restart-applied"
+mkdir -p "$MOCK_BIN"
+
+cat > "$MOCK_BIN/docker" <<'DOCKER'
+#!/usr/bin/env bash
+set -euo pipefail
+case "${1-}" in
+  ps)
+    ps_output="${MOCK_PS_OUTPUT-${MOCK_CONTAINERS:-0123456789ab}}"
+    if [[ -n "$ps_output" ]]; then
+      printf '%s\n' "$ps_output"
+    fi
+    printf '%s\n' docker-ps >> "$MOCK_EVENTS"
+    exit "${MOCK_DOCKER_PS_STATUS:-0}"
+    ;;
+  exec)
+    if [[ "${2-}" != "${MOCK_EXPECTED_CONTAINER_ID:-0123456789ab}" ]]; then
+      echo "Unexpected Docker container ID for restore exec." >&2
+      exit 93
+    fi
+    if [[ "$*" != *"ALTER SYSTEM RESET max_prepared_transactions"* ]]; then
+      echo "Unexpected docker exec command." >&2
+      exit 90
+    fi
+    printf '%s\n' docker-exec-reset >> "$MOCK_EVENTS"
+    if [[ "${MOCK_DOCKER_EXEC_APPLY_THEN_FAIL:-false}" == "true" ]]; then
+      : "${MOCK_RESET_APPLIED_FILE:?MOCK_RESET_APPLIED_FILE is required for ambiguous RESET simulation}"
+      printf '%s\n' applied > "$MOCK_RESET_APPLIED_FILE"
+      exit "${MOCK_DOCKER_EXEC_STATUS:-42}"
+    fi
+    exit "${MOCK_DOCKER_EXEC_STATUS:-0}"
+    ;;
+  restart)
+    if [[ "${2-}" != "${MOCK_EXPECTED_CONTAINER_ID:-0123456789ab}" ]]; then
+      echo "Unexpected Docker container ID for restore restart." >&2
+      exit 94
+    fi
+    printf '%s\n' docker-restart >> "$MOCK_EVENTS"
+    if [[ "${MOCK_DOCKER_RESTART_APPLY_THEN_FAIL:-false}" == "true" ]]; then
+      : "${MOCK_RESTART_APPLIED_FILE:?MOCK_RESTART_APPLIED_FILE is required for ambiguous restart simulation}"
+      printf '%s\n' applied > "$MOCK_RESTART_APPLIED_FILE"
+      exit "${MOCK_DOCKER_RESTART_STATUS:-43}"
+    fi
+    exit "${MOCK_DOCKER_RESTART_STATUS:-0}"
+    ;;
+  *)
+    echo "Unexpected docker invocation." >&2
+    exit 90
+    ;;
+esac
+DOCKER
+chmod +x "$MOCK_BIN/docker"
+
+cat > "$MOCK_BIN/psql" <<'PSQL'
+#!/usr/bin/env bash
+set -euo pipefail
+case "$*" in
+  *"SHOW max_prepared_transactions"*)
+    printf '%s\n' psql-show >> "$MOCK_EVENTS"
+    if [[ "${MOCK_SHOW_STATUS:-0}" != "0" ]]; then
+      exit "$MOCK_SHOW_STATUS"
+    fi
+    show_count_file="${MOCK_EVENTS}.show-count"
+    show_count=0
+    if [[ -f "$show_count_file" ]]; then
+      read -r show_count < "$show_count_file"
+    fi
+    show_count=$((show_count + 1))
+    printf '%s\n' "$show_count" > "$show_count_file"
+    show_wrong_first_calls="${MOCK_SHOW_WRONG_FIRST_CALLS:-0}"
+    if [[ "$show_wrong_first_calls" =~ ^[0-9]+$ ]] &&
+      (( show_count <= show_wrong_first_calls )); then
+      printf '%s\n' "${MOCK_SHOW_WRONG_VALUE:-10}"
+    else
+      printf '%s\n' "${MOCK_RESTORED_VALUE-0}"
+    fi
+    ;;
+  *"pg_prepared_xacts"*)
+    printf '%s\n' psql-prepared >> "$MOCK_EVENTS"
+    if [[ "${MOCK_PREPARED_STATUS:-0}" != "0" ]]; then
+      exit "$MOCK_PREPARED_STATUS"
+    fi
+    printf '%s\n' "${MOCK_PREPARED_COUNT:-0}"
+    ;;
+  *"pg_database"*)
+    printf '%s\n' psql-database >> "$MOCK_EVENTS"
+    if [[ "${MOCK_DATABASE_STATUS:-0}" != "0" ]]; then
+      exit "$MOCK_DATABASE_STATUS"
+    fi
+    printf '%s\n' "${MOCK_DATABASE_COUNT:-0}"
+    ;;
+  *)
+    echo "Unexpected psql invocation." >&2
+    exit 90
+    ;;
+esac
+PSQL
+chmod +x "$MOCK_BIN/psql"
+
+cat > "$MOCK_BIN/pg_isready" <<'READY'
+#!/usr/bin/env bash
+set -euo pipefail
+count_file="${MOCK_EVENTS}.ready-count"
+ready_count=0
+if [[ -f "$count_file" ]]; then
+  read -r ready_count < "$count_file"
+fi
+ready_count=$((ready_count + 1))
+printf '%s\n' "$ready_count" > "$count_file"
+printf '%s\n' pg-isready >> "$MOCK_EVENTS"
+if [[ -n "${MOCK_READY_FAIL_CALLS:-}" ]]; then
+  case ",${MOCK_READY_FAIL_CALLS}," in
+    *",${ready_count},"*) exit "${MOCK_READY_FAILURE_STATUS:-1}" ;;
+  esac
+fi
+if [[ "${MOCK_READY_FAIL_FROM_CALL:-0}" =~ ^[0-9]+$ ]] &&
+  (( ${MOCK_READY_FAIL_FROM_CALL:-0} > 0 && ready_count >= MOCK_READY_FAIL_FROM_CALL )); then
+  exit "${MOCK_READY_FAILURE_STATUS:-1}"
+fi
+exit "${MOCK_READY_STATUS:-0}"
+READY
+chmod +x "$MOCK_BIN/pg_isready"
+
+cat > "$MOCK_BIN/sleep" <<'SLEEP'
+#!/usr/bin/env bash
+set -euo pipefail
+printf 'sleep-%s\n' "$*" >> "$MOCK_EVENTS"
+exit "${MOCK_SLEEP_STATUS:-0}"
+SLEEP
+chmod +x "$MOCK_BIN/sleep"
+
+run_restore() {
+  local expected_status="$1"
+  shift
+  : > "$EVENTS"
+  rm -f "$EVENTS.ready-count" "$EVENTS.show-count" "$RESET_APPLIED_FILE" "$RESTART_APPLIED_FILE"
+  set +e
+  PATH="$MOCK_BIN:$PATH" \
+    MOCK_EVENTS="$EVENTS" \
+    MOCK_RESET_APPLIED_FILE="$RESET_APPLIED_FILE" \
+    MOCK_RESTART_APPLIED_FILE="$RESTART_APPLIED_FILE" \
+    DATABASE_URL="postgresql://postgres:postgres@localhost:5432/qima_test" \
+    RESTORE_REQUIRED=true \
+    BASELINE_MAX_PREPARED_TRANSACTIONS=0 \
+    "$@" bash "$RESTORE_SCRIPT" > "$OUTPUT" 2>&1
+  local actual_status=$?
+  set -e
+  if [[ "$actual_status" -ne "$expected_status" ]]; then
+    echo "ERROR: expected restoration exit $expected_status, received $actual_status." >&2
+    cat "$OUTPUT" >&2
+    exit 1
+  fi
+}
+
+# The successful path must reset, restart, wait, and verify all disposable resources.
+run_restore 0
+expected="$(printf '%s\n' docker-ps pg-isready docker-exec-reset docker-restart pg-isready psql-show psql-prepared psql-database)"
+actual="$(cat "$EVENTS")"
+if [[ "$actual" != "$expected" ]] || ! grep -Fq "returned to baseline 0" "$OUTPUT"; then
+  echo "ERROR: restoration did not follow the expected reset/restart/verification sequence." >&2
+  printf 'Expected:\n%s\nActual:\n%s\n' "$expected" "$actual" >&2
+  cat "$OUTPUT" >&2
+  exit 1
+fi
+
+# QA446: accept the maximum 64-character Docker ID and forward it unchanged
+# to both the RESET and restart commands. The default success path covers 12.
+long_valid_container_id="$(printf 'a%.0s' {1..64})"
+run_restore 0 env MOCK_PS_OUTPUT="$long_valid_container_id" MOCK_EXPECTED_CONTAINER_ID="$long_valid_container_id"
+expected="$(printf '%s\n' docker-ps pg-isready docker-exec-reset docker-restart pg-isready psql-show psql-prepared psql-database)"
+if [[ "$(cat "$EVENTS")" != "$expected" ]] ||
+  ! grep -Fq "returned to baseline 0" "$OUTPUT"; then
+  echo "ERROR: the maximum-length Docker ID was not forwarded unchanged through restoration." >&2
+  cat "$EVENTS" >&2
+  cat "$OUTPUT" >&2
+  exit 1
+fi
+echo "QA446 restore ID forwarding PASS: valid 12- and 64-character Docker IDs are passed unchanged to exec and restart."
+
+# If setup never recorded a change, the always() restoration step must be a no-op.
+: > "$EVENTS"
+PATH="$MOCK_BIN:$PATH" MOCK_EVENTS="$EVENTS" RESTORE_REQUIRED=false \
+  bash "$RESTORE_SCRIPT" > "$OUTPUT" 2>&1
+if [[ -s "$EVENTS" ]]; then
+  echo "ERROR: restoration performed operations when no configuration change was recorded." >&2
+  cat "$EVENTS" >&2
+  exit 1
+fi
+
+# QA282: only the exact marker value "true" may enter the restoration path.
+# Non-matching values must no-op before even validating the URL or baseline.
+run_restore_noop() {
+  local label="$1"
+  shift
+  : > "$EVENTS"
+  rm -f "$EVENTS.ready-count" "$EVENTS.show-count"
+  set +e
+  PATH="$MOCK_BIN:$PATH" MOCK_EVENTS="$EVENTS" \
+    DATABASE_URL="postgresql://postgres:postgres@db.example:5432/qima_test" \
+    BASELINE_MAX_PREPARED_TRANSACTIONS="not-a-baseline" \
+    "$@" bash "$RESTORE_SCRIPT" > "$OUTPUT" 2>&1
+  local actual_status=$?
+  set -e
+  if [[ "$actual_status" -ne 0 ]] ||
+    [[ -s "$EVENTS" ]] ||
+    ! grep -Fq "Prepared-transaction configuration was not changed; restoration is not required." "$OUTPUT" ||
+    grep -Fq "QA267 passed" "$OUTPUT"; then
+    echo "ERROR: non-exact RESTORE_REQUIRED marker [$label] did not safely no-op." >&2
+    cat "$EVENTS" >&2
+    cat "$OUTPUT" >&2
+    exit 1
+  fi
+}
+
+run_restore_noop "unset" env -u RESTORE_REQUIRED
+run_restore_noop "empty" env RESTORE_REQUIRED=
+run_restore_noop "false" env RESTORE_REQUIRED=false
+run_restore_noop "one" env RESTORE_REQUIRED=1
+run_restore_noop "uppercase TRUE" env RESTORE_REQUIRED=TRUE
+
+# QA283: whitespace, case variants, and newline-bearing values are not the exact
+# marker. They must no-op before URL/baseline validation or external commands.
+run_restore_noop "leading space" env "RESTORE_REQUIRED= true"
+run_restore_noop "trailing space" env "RESTORE_REQUIRED=true "
+run_restore_noop "mixed-case True" env RESTORE_REQUIRED=True
+run_restore_noop "leading newline" env $'RESTORE_REQUIRED=\ntrue'
+run_restore_noop "trailing newline" env $'RESTORE_REQUIRED=true\n'
+run_restore_noop "leading tab" env $'RESTORE_REQUIRED=\ttrue'
+run_restore_noop "trailing tab" env $'RESTORE_REQUIRED=true\t'
+
+# The successful run_restore 0 path above proves that exact "true" with the
+# approved baseline enters the restoration sequence normally.
+
+# Remote URLs are rejected before docker or psql can be invoked.
+: > "$EVENTS"
+set +e
+PATH="$MOCK_BIN:$PATH" MOCK_EVENTS="$EVENTS" \
+  DATABASE_URL="postgresql://postgres:postgres@db.example:5432/qima_test" \
+  RESTORE_REQUIRED=true BASELINE_MAX_PREPARED_TRANSACTIONS=0 \
+  bash "$RESTORE_SCRIPT" > "$OUTPUT" 2>&1
+unsafe_status=$?
+set -e
+if [[ "$unsafe_status" -ne 2 || -s "$EVENTS" ]] ||
+  ! grep -Fq "Refusing PostgreSQL configuration restoration" "$OUTPUT" ||
+  grep -Fq "postgres:postgres" "$OUTPUT"; then
+  echo "ERROR: remote DATABASE_URL was not rejected before external commands." >&2
+  cat "$OUTPUT" >&2
+  exit 1
+fi
+
+# QA437: restoration must reject missing and credential-control URLs before
+# docker discovery, readiness checks, ALTER SYSTEM RESET, or psql queries.
+assert_restore_url_rejected() {
+  local label="$1"
+  shift
+  run_restore 2 "$@"
+  if [[ -s "$EVENTS" ]] ||
+    ! grep -Fq "Refusing PostgreSQL configuration restoration" "$OUTPUT" ||
+    grep -Fq "postgres:postgres" "$OUTPUT" ||
+    grep -Fq "qa437-credential-injected" "$OUTPUT" ||
+    LC_ALL=C grep -q '[[:cntrl:]]' "$OUTPUT" ||
+    [[ "$(wc -l < "$OUTPUT")" -ne 1 ]]; then
+    echo "ERROR: $label DATABASE_URL was not safely rejected before external commands." >&2
+    cat "$EVENTS" >&2
+    cat "$OUTPUT" >&2
+    exit 1
+  fi
+}
+assert_restore_url_rejected "unset" env -u DATABASE_URL
+assert_restore_url_rejected "empty" env DATABASE_URL=""
+unsafe_restore_urls=(
+  $'postgresql://post\nqa437-credential-injectedgres:postgres@localhost:5432/qima_test'
+  $'postgresql://postgres:pass\rqa437-credential-injected@localhost:5432/qima_test'
+  $'postgresql://postgres:pass\tqa437-credential-injected@localhost:5432/qima_test'
+  $'postgresql://po\x01qa437-credential-injected:postgres@localhost:5432/qima_test'
+)
+for unsafe_url in "${unsafe_restore_urls[@]}"; do
+  assert_restore_url_rejected "credential control-character" env "DATABASE_URL=$unsafe_url"
+done
+
+# A docker ps command that emits partial output and then fails must not allow
+# restoration to act on that partial container ID or even probe PostgreSQL.
+run_restore 54 env MOCK_PS_OUTPUT=partial-container MOCK_DOCKER_PS_STATUS=54
+if [[ "$(cat "$EVENTS")" != "docker-ps" ]] ||
+  ! grep -Fq "docker ps exit 54" "$OUTPUT" ||
+  grep -Fq "pg-isready" "$EVENTS" ||
+  grep -Fq "docker-exec-reset" "$EVENTS"; then
+  echo "ERROR: restoration used partial docker ps output after discovery failed." >&2
+  cat "$EVENTS" >&2
+  cat "$OUTPUT" >&2
+  exit 1
+fi
+
+# Empty successful discovery must fail before readiness or configuration operations.
+run_restore 1 env MOCK_PS_OUTPUT=
+if [[ "$(cat "$EVENTS")" != "docker-ps" ]] ||
+  ! grep -Fq "found 0" "$OUTPUT" ||
+  grep -Fq "pg-isready" "$EVENTS"; then
+  echo "ERROR: empty PostgreSQL container discovery was not rejected before restoration." >&2
+  cat "$EVENTS" >&2
+  cat "$OUTPUT" >&2
+  exit 1
+fi
+
+# Multiple service containers must fail closed before ALTER SYSTEM RESET.
+: > "$EVENTS"
+set +e
+PATH="$MOCK_BIN:$PATH" MOCK_EVENTS="$EVENTS" MOCK_CONTAINERS=$'one\ntwo' \
+  DATABASE_URL="postgresql://postgres:postgres@localhost:5432/qima_test" \
+  RESTORE_REQUIRED=true BASELINE_MAX_PREPARED_TRANSACTIONS=0 \
+  bash "$RESTORE_SCRIPT" > "$OUTPUT" 2>&1
+containers_status=$?
+set -e
+if [[ "$containers_status" -ne 1 ]] || [[ "$(cat "$EVENTS")" != "docker-ps" ]]; then
+  echo "ERROR: ambiguous PostgreSQL service container selection was not rejected safely." >&2
+  cat "$OUTPUT" >&2
+  exit 1
+fi
+
+# QA445: reject malformed Docker IDs before readiness probes or RESET.
+assert_invalid_container_id_rejected() {
+  local label="$1"
+  local candidate="$2"
+  local expected_output="::error::Docker returned an invalid PostgreSQL 16 service container ID during restoration; no readiness or configuration operation was attempted."
+  run_restore 1 env "MOCK_PS_OUTPUT=$candidate"
+  if [[ "$(cat "$EVENTS")" != "docker-ps" ]] ||
+    [[ "$(cat "$OUTPUT")" != "$expected_output" ]] ||
+    [[ "$(wc -l < "$OUTPUT")" -ne 1 ]] ||
+    LC_ALL=C grep -q '[[:cntrl:]]' "$OUTPUT" ||
+    grep -Fq "qa445-injected" "$OUTPUT" ||
+    grep -Fq "pg-isready" "$EVENTS" ||
+    grep -Fq "docker-exec-reset" "$EVENTS" ||
+    grep -Fq "psql-show" "$EVENTS"; then
+    echo "ERROR: $label Docker container ID was accepted or used before validation." >&2
+    cat "$EVENTS" >&2
+    cat "$OUTPUT" >&2
+    exit 1
+  fi
+}
+long_container_id="$(printf 'a%.0s' {1..65})"
+carriage_return="$(printf '\r')"
+assert_invalid_container_id_rejected "flag-like" "--help"
+assert_invalid_container_id_rejected "non-hex" "g123456789ab"
+assert_invalid_container_id_rejected "too short" "0123456789a"
+assert_invalid_container_id_rejected "too long" "$long_container_id"
+assert_invalid_container_id_rejected "uppercase" "ABCDEF012345"
+assert_invalid_container_id_rejected "whitespace" "0123456789ab "
+assert_invalid_container_id_rejected "carriage return" "0123456789ab${carriage_return}qa445-injected"
+# QA442: validate resource-count output before accepting postconditions and keep diagnostics constant.
+prepared_count_events="$(printf '%s\n' docker-ps pg-isready docker-exec-reset docker-restart pg-isready psql-show psql-prepared)"
+all_resource_count_events="$(printf '%s\n' docker-ps pg-isready docker-exec-reset docker-restart pg-isready psql-show psql-prepared psql-database)"
+invalid_prepared_count_diagnostic="::error::PostgreSQL returned an invalid QA266 prepared-transaction count; restoration is not confirmed."
+invalid_database_count_diagnostic="::error::PostgreSQL returned an invalid disposable migration database count; restoration is not confirmed."
+remaining_resources_diagnostic="::error::PostgreSQL configuration was restored, but disposable QA266 resources remain; restoration is not confirmed."
+
+assert_invalid_resource_count_rejected() {
+  local label="$1"
+  local expected_events="$2"
+  local expected_diagnostic="$3"
+  local variable="$4"
+  local value="$5"
+  run_restore 1 env "$variable=$value"
+  if [[ "$(cat "$EVENTS")" != "$expected_events" ]] ||
+    [[ "$(cat "$OUTPUT")" != "$expected_diagnostic" ]] ||
+    [[ "$(wc -l < "$OUTPUT")" -ne 1 ]] ||
+    LC_ALL=C grep -q '[[:cntrl:]]' "$OUTPUT" ||
+    grep -Fq "qa442-injected" "$OUTPUT" ||
+    grep -Fq "postgres:postgres" "$OUTPUT" ||
+    grep -Fq "QA267 passed" "$OUTPUT"; then
+    echo "ERROR: $label cleanup count was reflected or accepted without a valid decimal result." >&2
+    cat "$EVENTS" >&2
+    cat "$OUTPUT" >&2
+    exit 1
+  fi
+}
+
+assert_remaining_resource_count_is_constant() {
+  local label="$1"
+  local variable="$2"
+  local value="$3"
+  run_restore 1 env "$variable=$value"
+  if [[ "$(cat "$EVENTS")" != "$all_resource_count_events" ]] ||
+    [[ "$(cat "$OUTPUT")" != "$remaining_resources_diagnostic" ]] ||
+    [[ "$(wc -l < "$OUTPUT")" -ne 1 ]] ||
+    LC_ALL=C grep -q '[[:cntrl:]]' "$OUTPUT" ||
+    grep -Fq "$value" "$OUTPUT" ||
+    grep -Fq "postgres:postgres" "$OUTPUT" ||
+    grep -Fq "QA267 passed" "$OUTPUT"; then
+    echo "ERROR: $label remaining-resource count was reflected or restoration was incorrectly reported." >&2
+    cat "$EVENTS" >&2
+    cat "$OUTPUT" >&2
+    exit 1
+  fi
+}
+
+assert_remaining_resource_count_is_constant "prepared transaction count 1" MOCK_PREPARED_COUNT 1
+assert_remaining_resource_count_is_constant "disposable database count 1" MOCK_DATABASE_COUNT 1
+long_resource_count="$(printf '9%.0s' {1..512})"
+assert_remaining_resource_count_is_constant "512-digit prepared transaction count" MOCK_PREPARED_COUNT "$long_resource_count"
+assert_remaining_resource_count_is_constant "512-digit disposable database count" MOCK_DATABASE_COUNT "$long_resource_count"
+
+assert_invalid_resource_count_rejected "prepared transaction nonnumeric" "$prepared_count_events" "$invalid_prepared_count_diagnostic" MOCK_PREPARED_COUNT not-a-count
+assert_invalid_resource_count_rejected "disposable database nonnumeric" "$all_resource_count_events" "$invalid_database_count_diagnostic" MOCK_DATABASE_COUNT not-a-count
+backslash="$(printf '%c' 92)"
+for control_code in 012 015 011 001; do
+  invalid_count="$(printf '%b' "0$backslash$control_code"qa442-injected)"
+  assert_invalid_resource_count_rejected "prepared transaction control $control_code" "$prepared_count_events" "$invalid_prepared_count_diagnostic" MOCK_PREPARED_COUNT "$invalid_count"
+  assert_invalid_resource_count_rejected "disposable database control $control_code" "$all_resource_count_events" "$invalid_database_count_diagnostic" MOCK_DATABASE_COUNT "$invalid_count"
+done
+
+# A failed ALTER SYSTEM RESET must stop before restart or postcondition checks,
+# report the command failure, and preserve its exit status.
+run_restore 42 env MOCK_DOCKER_EXEC_STATUS=42
+expected="$(printf '%s\n' docker-ps pg-isready docker-exec-reset)"
+actual="$(cat "$EVENTS")"
+if [[ "$actual" != "$expected" ]] || ! grep -Fq "ALTER SYSTEM RESET max_prepared_transactions failed (docker exec exit 42)" "$OUTPUT"; then
+  echo "ERROR: RESET failure was not reported precisely or the workflow continued." >&2
+  printf 'Expected events:\n%s\nActual events:\n%s\n' "$expected" "$actual" >&2
+  cat "$OUTPUT" >&2
+  exit 1
+fi
+
+# QA351: ALTER SYSTEM RESET takes effect, but docker exec reports a lost/ambiguous result.
+# The cleanup must preserve the nonzero exit, avoid restart/postcondition checks, and never claim success.
+run_restore 42 env MOCK_DOCKER_EXEC_APPLY_THEN_FAIL=true MOCK_DOCKER_EXEC_STATUS=42
+expected="$(printf '%s\n' docker-ps pg-isready docker-exec-reset)"
+actual="$(cat "$EVENTS")"
+if [[ "$actual" != "$expected" ]] ||
+  [[ ! -f "$RESET_APPLIED_FILE" ]] ||
+  [[ "$(cat "$RESET_APPLIED_FILE")" != "applied" ]] ||
+  ! grep -Fq "ALTER SYSTEM RESET max_prepared_transactions failed (docker exec exit 42)" "$OUTPUT" ||
+  grep -Fq "QA267 passed" "$OUTPUT" ||
+  grep -Fq "returned to baseline" "$OUTPUT" ||
+  grep -Fq "docker-restart" "$EVENTS" ||
+  grep -Fq "psql-show" "$EVENTS" ||
+  grep -Fq "psql-prepared" "$EVENTS" ||
+  grep -Fq "psql-database" "$EVENTS"; then
+  echo "ERROR: an applied-but-ambiguous RESET result was treated as confirmed or followed by restart/postcondition checks." >&2
+  printf 'Expected events:\n%s\nActual events:\n%s\n' "$expected" "$actual" >&2
+  if [[ -f "$RESET_APPLIED_FILE" ]]; then cat "$RESET_APPLIED_FILE" >&2; fi
+  cat "$OUTPUT" >&2
+  exit 1
+fi
+
+# A failed container restart must stop before readiness and configuration checks,
+# report that restoration is unconfirmed, and preserve the restart exit status.
+run_restore 43 env MOCK_DOCKER_RESTART_STATUS=43
+expected="$(printf '%s\n' docker-ps pg-isready docker-exec-reset docker-restart)"
+actual="$(cat "$EVENTS")"
+if [[ "$actual" != "$expected" ]] || ! grep -Fq "PostgreSQL service restart failed (docker restart exit 43)" "$OUTPUT"; then
+  echo "ERROR: restart failure was not reported precisely or the workflow claimed verification." >&2
+  printf 'Expected events:\n%s\nActual events:\n%s\n' "$expected" "$actual" >&2
+  cat "$OUTPUT" >&2
+  exit 1
+fi
+
+# QA352: docker restart applies the restart but returns an ambiguous nonzero result.
+# Preserve the exit status and refuse to claim restoration or run post-restart checks.
+run_restore 43 env MOCK_DOCKER_RESTART_APPLY_THEN_FAIL=true MOCK_DOCKER_RESTART_STATUS=43
+expected="$(printf '%s\n' docker-ps pg-isready docker-exec-reset docker-restart)"
+actual="$(cat "$EVENTS")"
+if [[ "$actual" != "$expected" ]] ||
+  [[ ! -f "$RESTART_APPLIED_FILE" ]] ||
+  [[ "$(cat "$RESTART_APPLIED_FILE")" != "applied" ]] ||
+  ! grep -Fq "PostgreSQL service restart failed (docker restart exit 43)" "$OUTPUT" ||
+  grep -Fq "postgres:postgres" "$OUTPUT" ||
+  grep -Fq "QA267 passed" "$OUTPUT" ||
+  grep -Fq "returned to baseline" "$OUTPUT" ||
+  grep -Fq "psql-show" "$EVENTS" ||
+  grep -Fq "psql-prepared" "$EVENTS" ||
+  grep -Fq "psql-database" "$EVENTS" ||
+  [[ "$(grep -Fxc "pg-isready" "$EVENTS" || true)" -ne 1 ]]; then
+  echo "ERROR: an applied-but-ambiguous restart result was treated as confirmed or followed by post-restart checks." >&2
+  printf 'Expected events:\n%s\nActual events:\n%s\n' "$expected" "$actual" >&2
+  if [[ -f "$RESTART_APPLIED_FILE" ]]; then cat "$RESTART_APPLIED_FILE" >&2; fi
+  cat "$OUTPUT" >&2
+  exit 1
+fi
+
+# QA269-A: PostgreSQL remains unavailable after the successful restart command.
+# The first readiness probe is the pre-reset check; every probe after restart fails.
+# The sleep stub makes all 60 retry attempts deterministic and fast.
+run_restore 1 env MOCK_READY_FAIL_FROM_CALL=2
+if ! grep -Fq "PostgreSQL did not return to max_prepared_transactions=0" "$OUTPUT" ||
+  grep -Fq "QA267 passed" "$OUTPUT" ||
+  [[ "$(grep -Fxc "pg-isready" "$EVENTS" || true)" -ne 61 ]] ||
+  [[ "$(grep -Fxc "sleep-1" "$EVENTS" || true)" -ne 60 ]] ||
+  [[ "$(grep -Fxc "psql-show" "$EVENTS" || true)" -ne 0 ]] ||
+  [[ "$(grep -Fxc "psql-prepared" "$EVENTS" || true)" -ne 0 ]] ||
+  [[ "$(grep -Fxc "psql-database" "$EVENTS" || true)" -ne 0 ]]; then
+  echo "ERROR: unavailable PostgreSQL after restart was not rejected without claiming restoration." >&2
+  cat "$EVENTS" >&2
+  cat "$OUTPUT" >&2
+  exit 1
+fi
+
+# QA269-B: PostgreSQL is reachable after restart but still reports the temporary value.
+# The runner must exhaust the bounded verification loop and must not check residual
+# resources or print the restoration success message.
+run_restore 1 env MOCK_RESTORED_VALUE=10
+if ! grep -Fq "PostgreSQL did not return to max_prepared_transactions=0" "$OUTPUT" ||
+  grep -Fq "QA267 passed" "$OUTPUT" ||
+  [[ "$(grep -Fxc "pg-isready" "$EVENTS" || true)" -ne 61 ]] ||
+  [[ "$(grep -Fxc "sleep-1" "$EVENTS" || true)" -ne 60 ]] ||
+  [[ "$(grep -Fxc "psql-show" "$EVENTS" || true)" -ne 60 ]] ||
+  [[ "$(grep -Fxc "psql-prepared" "$EVENTS" || true)" -ne 0 ]] ||
+  [[ "$(grep -Fxc "psql-database" "$EVENTS" || true)" -ne 0 ]]; then
+  echo "ERROR: an incorrect post-restart configuration was accepted as restored." >&2
+  cat "$EVENTS" >&2
+  cat "$OUTPUT" >&2
+  exit 1
+fi
+
+
+
+# QA443: a successful post-restart SHOW must return a decimal integer before it can
+# satisfy the restoration postcondition. Malformed output must fail immediately.
+assert_invalid_restored_configuration_rejected() {
+  local label="$1"
+  local value="$2"
+  local expected_output="::error::PostgreSQL returned an invalid max_prepared_transactions value after restart; configuration restoration is not confirmed."
+  run_restore 1 env "MOCK_RESTORED_VALUE=$value"
+  expected="$(printf '%s\n' docker-ps pg-isready docker-exec-reset docker-restart pg-isready psql-show)"
+  actual="$(cat "$EVENTS")"
+  if [[ "$actual" != "$expected" ]] ||
+    [[ "$(cat "$OUTPUT")" != "$expected_output" ]] ||
+    [[ "$(wc -l < "$OUTPUT")" -ne 1 ]] ||
+    LC_ALL=C grep -q '[[:cntrl:]]' "$OUTPUT" ||
+    grep -Fq "qa443-injected" "$OUTPUT" ||
+    grep -Fq "QA267 passed" "$OUTPUT" ||
+    grep -Fq "sleep-1" "$EVENTS" ||
+    grep -Fq "psql-prepared" "$EVENTS" ||
+    grep -Fq "psql-database" "$EVENTS"; then
+    echo "ERROR: $label post-restart SHOW output was accepted, reflected, or followed by later cleanup checks." >&2
+    printf 'Expected events:\n%s\nActual events:\n%s\n' "$expected" "$actual" >&2
+    cat "$OUTPUT" >&2
+    exit 1
+  fi
+}
+
+assert_invalid_restored_configuration_rejected "empty" ""
+assert_invalid_restored_configuration_rejected "non-numeric" "not-a-number"
+assert_invalid_restored_configuration_rejected "LF" $'0\nqa443-injected'
+assert_invalid_restored_configuration_rejected "CR" $'0\rqa443-injected'
+assert_invalid_restored_configuration_rejected "TAB" $'0\tqa443-injected'
+assert_invalid_restored_configuration_rejected "SOH" $'0\x01qa443-injected'
+
+echo "QA443 post-restart SHOW guard PASS: empty, non-numeric and LF/CR/TAB/SOH outputs rejected immediately without reflection or residual-resource queries."
+
+# QA270: PostgreSQL is reachable after restart, but the SHOW query itself fails.
+# Preserve the psql exit status and stop before residual-resource checks or success output.
+run_restore 44 env MOCK_SHOW_STATUS=44
+expected="$(printf '%s\n' docker-ps pg-isready docker-exec-reset docker-restart pg-isready psql-show)"
+actual="$(cat "$EVENTS")"
+if [[ "$actual" != "$expected" ]] ||
+  ! grep -Fq "Could not read max_prepared_transactions after PostgreSQL restart (psql exit 44)" "$OUTPUT" ||
+  grep -Fq "QA267 passed" "$OUTPUT" ||
+  [[ "$(grep -Fxc "psql-prepared" "$EVENTS" || true)" -ne 0 ]] ||
+  [[ "$(grep -Fxc "psql-database" "$EVENTS" || true)" -ne 0 ]] ||
+  [[ "$(grep -Fxc "sleep-1" "$EVENTS" || true)" -ne 0 ]]; then
+  echo "ERROR: a failed post-restart SHOW query was not reported without claiming restoration." >&2
+  printf 'Expected events:\n%s\nActual events:\n%s\n' "$expected" "$actual" >&2
+  cat "$OUTPUT" >&2
+  exit 1
+fi
+
+# QA271-A: the prepared-transaction postcondition query fails.
+# Preserve its psql exit status and do not run the database query or claim success.
+run_restore 45 env MOCK_PREPARED_STATUS=45
+expected="$(printf '%s\n' docker-ps pg-isready docker-exec-reset docker-restart pg-isready psql-show psql-prepared)"
+actual="$(cat "$EVENTS")"
+if [[ "$actual" != "$expected" ]] ||
+  ! grep -Fq "Could not verify QA266 prepared-transaction cleanup (psql exit 45)" "$OUTPUT" ||
+  grep -Fq "QA267 passed" "$OUTPUT" ||
+  [[ "$(grep -Fxc "psql-database" "$EVENTS" || true)" -ne 0 ]]; then
+  echo "ERROR: a failed prepared-transaction postcondition query was not reported fail-closed." >&2
+  printf 'Expected events:\n%s\nActual events:\n%s\n' "$expected" "$actual" >&2
+  cat "$OUTPUT" >&2
+  exit 1
+fi
+
+# QA271-B: the disposable-database postcondition query fails.
+# Preserve its psql exit status and do not claim that cleanup was verified.
+run_restore 46 env MOCK_DATABASE_STATUS=46
+expected="$(printf '%s\n' docker-ps pg-isready docker-exec-reset docker-restart pg-isready psql-show psql-prepared psql-database)"
+actual="$(cat "$EVENTS")"
+if [[ "$actual" != "$expected" ]] ||
+  ! grep -Fq "Could not verify disposable migration database cleanup (psql exit 46)" "$OUTPUT" ||
+  grep -Fq "QA267 passed" "$OUTPUT"; then
+  echo "ERROR: a failed disposable-database postcondition query was not reported fail-closed." >&2
+  printf 'Expected events:\n%s\nActual events:\n%s\n' "$expected" "$actual" >&2
+  cat "$OUTPUT" >&2
+  exit 1
+fi
+
+# QA272-A: the service is unavailable during the first two pre-reset readiness probes,
+# then becomes ready. The bounded retry loop must recover and complete restoration.
+run_restore 0 env MOCK_READY_FAIL_CALLS=1,2
+expected="$(printf '%s\n' docker-ps pg-isready sleep-1 pg-isready sleep-1 pg-isready docker-exec-reset docker-restart pg-isready psql-show psql-prepared psql-database)"
+actual="$(cat "$EVENTS")"
+if [[ "$actual" != "$expected" ]] ||
+  ! grep -Fq "QA267 passed" "$OUTPUT" ||
+  [[ "$(grep -Fxc "pg-isready" "$EVENTS" || true)" -ne 4 ]] ||
+  [[ "$(grep -Fxc "sleep-1" "$EVENTS" || true)" -ne 2 ]]; then
+  echo "ERROR: transient pre-reset PostgreSQL unavailability did not recover within the retry loop." >&2
+  printf 'Expected events:\n%s\nActual events:\n%s\n' "$expected" "$actual" >&2
+  cat "$OUTPUT" >&2
+  exit 1
+fi
+
+# QA272-B: PostgreSQL becomes ready only after two post-restart retries.
+# The initial pre-reset probe succeeds; post-restart probes 2 and 3 fail, then probe 4 succeeds.
+run_restore 0 env MOCK_READY_FAIL_CALLS=2,3
+expected="$(printf '%s\n' docker-ps pg-isready docker-exec-reset docker-restart pg-isready sleep-1 pg-isready sleep-1 pg-isready psql-show psql-prepared psql-database)"
+actual="$(cat "$EVENTS")"
+if [[ "$actual" != "$expected" ]] ||
+  ! grep -Fq "QA267 passed" "$OUTPUT" ||
+  [[ "$(grep -Fxc "pg-isready" "$EVENTS" || true)" -ne 4 ]] ||
+  [[ "$(grep -Fxc "sleep-1" "$EVENTS" || true)" -ne 2 ]]; then
+  echo "ERROR: transient post-restart PostgreSQL unavailability did not recover within the retry loop." >&2
+  printf 'Expected events:\n%s\nActual events:\n%s\n' "$expected" "$actual" >&2
+  cat "$OUTPUT" >&2
+  exit 1
+fi
+
+# QA272-C: PostgreSQL is ready, but SHOW reports the temporary value for two polls
+# before converging to the captured baseline. The runner must retry and verify resources only
+# after the expected value is observed.
+run_restore 0 env MOCK_SHOW_WRONG_FIRST_CALLS=2 MOCK_SHOW_WRONG_VALUE=10 MOCK_RESTORED_VALUE=0
+expected="$(printf '%s\n' docker-ps pg-isready docker-exec-reset docker-restart pg-isready psql-show sleep-1 pg-isready psql-show sleep-1 pg-isready psql-show psql-prepared psql-database)"
+actual="$(cat "$EVENTS")"
+if [[ "$actual" != "$expected" ]] ||
+  ! grep -Fq "QA267 passed" "$OUTPUT" ||
+  [[ "$(grep -Fxc "pg-isready" "$EVENTS" || true)" -ne 4 ]] ||
+  [[ "$(grep -Fxc "psql-show" "$EVENTS" || true)" -ne 3 ]] ||
+  [[ "$(grep -Fxc "sleep-1" "$EVENTS" || true)" -ne 2 ]]; then
+  echo "ERROR: transient post-restart configuration mismatch did not converge within the retry loop." >&2
+  printf 'Expected events:\n%s\nActual events:\n%s\n' "$expected" "$actual" >&2
+  cat "$OUTPUT" >&2
+  exit 1
+fi
+
+# The original baseline is explicit; do not reset against an unrecognized value.
+: > "$EVENTS"
+set +e
+PATH="$MOCK_BIN:$PATH" MOCK_EVENTS="$EVENTS" \
+  DATABASE_URL="postgresql://postgres:postgres@localhost:5432/qima_test" \
+  RESTORE_REQUIRED=true BASELINE_MAX_PREPARED_TRANSACTIONS=10 \
+  bash "$RESTORE_SCRIPT" > "$OUTPUT" 2>&1
+baseline_status=$?
+set -e
+if [[ "$baseline_status" -ne 2 || -s "$EVENTS" ]]; then
+  echo "ERROR: an unapproved baseline was not rejected before external commands." >&2
+  cat "$OUTPUT" >&2
+  exit 1
+fi
+
+# QA280: RESTORE_REQUIRED=true without a captured baseline must fail before Docker,
+# readiness probes, or any database/configuration operation.
+: > "$EVENTS"
+set +e
+env -u BASELINE_MAX_PREPARED_TRANSACTIONS \
+  PATH="$MOCK_BIN:$PATH" MOCK_EVENTS="$EVENTS" \
+  DATABASE_URL="postgresql://postgres:postgres@localhost:5432/qima_test" \
+  RESTORE_REQUIRED=true \
+  bash "$RESTORE_SCRIPT" > "$OUTPUT" 2>&1
+missing_baseline_status=$?
+set -e
+if [[ "$missing_baseline_status" -ne 2 || -s "$EVENTS" ]] ||
+  ! grep -Fq "Expected the captured disposable-service baseline to be 0" "$OUTPUT" ||
+  grep -Fq "QA267 passed" "$OUTPUT"; then
+  echo "ERROR: restoration did not reject a missing baseline before external commands." >&2
+  cat "$EVENTS" >&2
+  cat "$OUTPUT" >&2
+  exit 1
+fi
+
+# QA281: only the exact captured baseline "0" is accepted. Reject empty,
+# alternate numeric, signed, and whitespace-padded values before any external command.
+for invalid_baseline in "" "10" "00" "-1" " 0" "0 "; do
+  run_restore 2 env "BASELINE_MAX_PREPARED_TRANSACTIONS=$invalid_baseline"
+  if [[ -s "$EVENTS" ]] ||
+    ! grep -Fq "Expected the captured disposable-service baseline to be 0" "$OUTPUT" ||
+    grep -Fq "QA267 passed" "$OUTPUT"; then
+    echo "ERROR: noncanonical baseline was not rejected before external commands (value: [$invalid_baseline])." >&2
+    cat "$EVENTS" >&2
+    cat "$OUTPUT" >&2
+    exit 1
+  fi
+done
+
+if grep -Fq "postgres:postgres" "$OUTPUT"; then
+  echo "ERROR: restoration output exposed disposable connection credentials." >&2
+  exit 1
+fi
+
+echo "Prepared-transaction configuration restoration regression passed: docker ps partial-output failures preserve the exit code; zero/multiple/malformed container discovery fails before readiness or RESET; reset/restart order, explicit RESET and restart failure handling (including applied-but-ambiguous restart) with original exit codes, post-restart SHOW and residual-resource query failure propagation, bounded transient recovery and configuration convergence, permanent unavailability and wrong-value rejection, no-op behavior, exact RESTORE_REQUIRED marker matrix (QA282), whitespace/case/newline marker matrix (QA283), loopback URL guard, single-container guard, missing-baseline, QA281 noncanonical-baseline matrix, unapproved-baseline guards, and residual-resource detection."
+
+
+echo "QA437 restore credential-control regression: unset/empty and LF/CR/TAB/SOH credentials are rejected before Docker, readiness, psql, or ALTER SYSTEM RESET."

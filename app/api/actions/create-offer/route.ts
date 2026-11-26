@@ -1,66 +1,217 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { randomUUID } from "crypto";
-import { executeUniversalAction } from "@/lib/actions/runtime";
+import { executeUniversalAction } from "../../../../lib/actions/runtime";
 
 export const dynamic = "force-dynamic";
+const currencies = new Set(["USD", "EUR", "KRW", "MAD", "CNY"]);
+const canonicalUuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function unauthenticatedResponse(invalidToken = false) {
+  const challenge = invalidToken
+    ? 'Bearer realm="qimatrade", error="invalid_token"'
+    : 'Bearer realm="qimatrade"';
+
+  return NextResponse.json(
+    { error: "UNAUTHENTICATED" },
+    { status: 401, headers: { "WWW-Authenticate": challenge } },
+  );
+}
+
+function authServiceUnavailableResponse() {
+  return NextResponse.json({ error: "AUTH_SERVICE_UNAVAILABLE" }, { status: 503 });
+}
+
+// Only exact, documented CREATE_OFFER domain codes may cross the API boundary.
+// Supabase/PostgREST messages and unexpected exception text remain server-side.
+const publicCreateOfferErrorCodes = new Set([
+  "ACTION_NOT_PUBLISHED",
+  "UNAUTHENTICATED",
+  "TENANT_REQUIRED",
+  "IDEMPOTENCY_KEY_REQUIRED",
+  "ACTION_INPUT_REQUIRED",
+  "TENANT_ACCESS_DENIED",
+  "PROFILE_ACTOR_NOT_FOUND",
+  "INVALID_PROVIDER_ACTOR",
+  "INVALID_QUANTITY",
+  "INVALID_PRICE",
+  "INVALID_CURRENCY",
+  "PRODUCT_MASTER_NOT_FOUND",
+  "DEMAND_NOT_FOUND",
+  "IDEMPOTENCY_KEY_REUSE",
+  "ACTION_ALREADY_RUNNING",
+]);
 
 export async function POST(request: Request) {
   try {
     const authHeader = request.headers.get("authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
-    }
+    // RFC 6750 requires SP separators and a b64token credential with optional trailing padding.
+    // Reject punctuation and misplaced padding before forwarding malformed credentials to Auth.
+    const bearerMatch = authHeader?.match(/^Bearer +([-A-Za-z0-9._~+\/]+={0,})$/i);
+    if (!bearerMatch) return unauthenticatedResponse();
 
-    const token = authHeader.slice("Bearer ".length);
+    const token = bearerMatch[1];
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      { auth: { autoRefreshToken: false, persistSession: false }, global: { headers: { Authorization: authHeader } } },
+      {
+        auth: { autoRefreshToken: false, persistSession: false },
+        global: {
+          headers: { Authorization: `Bearer ${token}` },
+          // Supabase API calls must surface redirects instead of silently following another route or origin.
+          fetch: (input, init) => fetch(input, { ...init, redirect: "manual" }),
+        },
+      },
     );
 
-    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
-    if (userError || !user) return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
+    let authResult: Awaited<ReturnType<typeof supabase.auth.getUser>>;
+    try {
+      authResult = await supabase.auth.getUser(token);
+    } catch {
+      return authServiceUnavailableResponse();
+    }
+    const { data: { user }, error: userError } = authResult;
+    // Only known credential-rejection statuses represent an unauthenticated caller.
+    // Unknown Auth upstream statuses (including route/configuration failures such as 404)
+    // must not be misreported as an invalid user credential.
+    if (userError) {
+      const status = userError.status;
+      if (status !== 400 && status !== 401 && status !== 403) {
+        return authServiceUnavailableResponse();
+      }
+      return unauthenticatedResponse(status === 401);
+    }
+    if (!user) {
+      return unauthenticatedResponse();
+    }
+    // A successful Auth response must still carry a canonical Supabase user UUID.
+    // Treat malformed upstream identity data as an Auth service failure before any profile lookup.
+    if (typeof user.id !== "string" || !canonicalUuidPattern.test(user.id)) {
+      return authServiceUnavailableResponse();
+    }
 
-    const body = await request.json();
-    const { data: profile, error: profileError } = await supabase.from("profiles").select("actor_id").eq("auth_user_id", user.id).maybeSingle();
-    if (profileError || !profile?.actor_id) return NextResponse.json({ error: "PROFILE_ACTOR_NOT_FOUND" }, { status: 403 });
+    let body: Record<string, unknown>;
+    try {
+      const parsedBody: unknown = await request.json();
+      if (!parsedBody || typeof parsedBody !== "object" || Array.isArray(parsedBody)) {
+        return NextResponse.json({ error: "INVALID_REQUEST_BODY" }, { status: 400 });
+      }
+      body = parsedBody as Record<string, unknown>;
+    } catch {
+      return NextResponse.json({ error: "INVALID_REQUEST_BODY" }, { status: 400 });
+    }
 
-    const { data: membership, error: membershipError } = await supabase.from("dt_memberships").select("tenant_id").eq("user_id", user.id).limit(1).maybeSingle();
-    if (membershipError || !membership?.tenant_id) return NextResponse.json({ error: "TENANT_MEMBERSHIP_REQUIRED" }, { status: 403 });
+    const name = typeof body.name === "string" ? body.name.trim() : "";
+    const demandId = typeof body.demandId === "string" ? body.demandId.trim() : "";
+    const productMasterId = typeof body.productMasterId === "string" ? body.productMasterId.trim() : "";
+    const quantity =
+      typeof body.quantity === "number"
+        ? body.quantity
+        : typeof body.quantity === "string" && body.quantity.trim()
+          ? Number(body.quantity)
+          : Number.NaN;
+    const rawPrice = body.price;
+    const price =
+      typeof rawPrice === "number"
+        ? rawPrice
+        : typeof rawPrice === "string" && rawPrice.trim()
+          ? Number(rawPrice)
+          : Number.NaN;
+    const currency = typeof body.currency === "string" ? body.currency.trim() : "";
+
+    if (!name || !demandId) return NextResponse.json({ error: "NAME_AND_DEMAND_REQUIRED" }, { status: 400 });
+    if (!canonicalUuidPattern.test(demandId)) return NextResponse.json({ error: "INVALID_DEMAND_ID" }, { status: 400 });
+    if (!canonicalUuidPattern.test(productMasterId)) return NextResponse.json({ error: "INVALID_PRODUCT_MASTER_ID" }, { status: 400 });
+    if (!Number.isFinite(quantity) || quantity <= 0) return NextResponse.json({ error: "INVALID_QUANTITY" }, { status: 400 });
+    if (!Number.isFinite(price) || price < 0) return NextResponse.json({ error: "INVALID_PRICE" }, { status: 400 });
+    if (!currencies.has(currency)) return NextResponse.json({ error: "INVALID_CURRENCY" }, { status: 400 });
+
+    let profile: { actor_id?: string | null } | null = null;
+    try {
+      const { data, error } = await supabase.from("profiles").select("actor_id").eq("auth_user_id", user.id).maybeSingle();
+      if (error) return NextResponse.json({ error: "PROFILE_LOOKUP_FAILED" }, { status: 500 });
+      profile = data;
+    } catch {
+      return NextResponse.json({ error: "PROFILE_LOOKUP_FAILED" }, { status: 500 });
+    }
+    const providerActorId = profile?.actor_id;
+    if (typeof providerActorId !== "string" || !canonicalUuidPattern.test(providerActorId)) {
+      return NextResponse.json({ error: "PROFILE_ACTOR_NOT_FOUND" }, { status: 403 });
+    }
+    const canonicalProviderActorId = providerActorId.toLowerCase();
+
+    let memberships: unknown = null;
+    try {
+      const { data, error } = await supabase.from("dt_memberships").select("tenant_id").eq("user_id", user.id);
+      if (error) return NextResponse.json({ error: "TENANT_MEMBERSHIP_LOOKUP_FAILED" }, { status: 500 });
+      memberships = data;
+    } catch {
+      return NextResponse.json({ error: "TENANT_MEMBERSHIP_LOOKUP_FAILED" }, { status: 500 });
+    }
+    if (!Array.isArray(memberships) || memberships.length === 0) {
+      return NextResponse.json({ error: "TENANT_MEMBERSHIP_REQUIRED" }, { status: 403 });
+    }
+
+    const tenantIds = [...new Set(
+      memberships
+        .map((membership: unknown) => {
+          if (
+            membership === null ||
+            typeof membership !== "object" ||
+            !("tenant_id" in membership)
+          ) {
+            return "";
+          }
+
+          const tenantId = membership.tenant_id;
+          return typeof tenantId === "string" ? tenantId.trim().toLowerCase() : "";
+        })
+        .filter((tenantId) => canonicalUuidPattern.test(tenantId)),
+    )];
+    if (tenantIds.length === 0) {
+      return NextResponse.json({ error: "TENANT_MEMBERSHIP_REQUIRED" }, { status: 403 });
+    }
+    if (tenantIds.length > 1) {
+      return NextResponse.json({ error: "TENANT_SELECTION_REQUIRED", message: "Select an active tenant before creating an offer." }, { status: 409 });
+    }
+    const tenantId = tenantIds[0];
 
     const input = {
-      name: String(body.name ?? "Offer"),
-      demandId: String(body.demandId ?? ""),
-      productMasterId: String(body.productMasterId ?? ""),
-      providerActorId: profile.actor_id,
-      quantity: Number(body.quantity),
-      price: Number(body.price),
-      currency: String(body.currency ?? ""),
-      pricingModel: body.pricingModel == null ? null : String(body.pricingModel),
+      name,
+      // Keep JSONB p_input and typed UUID RPC arguments in one canonical form for idempotency hashing.
+      demandId: demandId.toLowerCase(),
+      productMasterId: productMasterId.toLowerCase(),
+      providerActorId: canonicalProviderActorId,
+      quantity,
+      price,
+      currency,
+      pricingModel: body.pricingModel == null ? "fixed" : String(body.pricingModel),
       conditions: body.conditions == null ? null : String(body.conditions),
       market: body.market == null ? null : String(body.market),
       geography: body.geography == null ? null : String(body.geography),
-      attributes: body.attributes ?? {},
+      attributes: body.attributes && typeof body.attributes === "object" && !Array.isArray(body.attributes) ? body.attributes as Record<string, unknown> : {},
       documentationStatus: body.documentationStatus == null ? null : String(body.documentationStatus),
-      lifecycle: body.lifecycle == null ? null : String(body.lifecycle),
-      offerType: body.offerType == null ? null : String(body.offerType),
+      lifecycle: body.lifecycle == null ? "draft" : String(body.lifecycle),
+      offerType: body.offerType == null ? "supplier_offer" : String(body.offerType),
     };
 
     const result = await executeUniversalAction({
       userId: user.id,
-      tenantId: membership.tenant_id,
+      tenantId,
       actionKey: "CREATE_OFFER",
       actionVersion: 1,
       objectType: "Demand",
       objectId: input.demandId,
-      correlationId: body.correlationId?.trim() || randomUUID(),
-      idempotencyKey: body.idempotencyKey?.trim() || randomUUID(),
+      correlationId: typeof body.correlationId === "string" && body.correlationId.trim() ? body.correlationId.trim() : randomUUID(),
+      idempotencyKey: typeof body.idempotencyKey === "string" && body.idempotencyKey.trim() ? body.idempotencyKey.trim() : randomUUID(),
     }, input, token);
 
     return NextResponse.json(result, { status: result.status === "succeeded" ? 200 : 409 });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "ACTION_FAILED";
-    return NextResponse.json({ error: message }, { status: 400 });
+    const candidate = error instanceof Error ? error.message : "";
+    if (publicCreateOfferErrorCodes.has(candidate)) {
+      return NextResponse.json({ error: candidate }, { status: 400 });
+    }
+    return NextResponse.json({ error: "ACTION_FAILED" }, { status: 500 });
   }
 }

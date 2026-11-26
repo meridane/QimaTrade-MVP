@@ -12,24 +12,33 @@ export async function executeUniversalAction(
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       auth: { autoRefreshToken: false, persistSession: false },
-      global: { headers: { Authorization: `Bearer ${accessToken}` } },
+      global: {
+        headers: { Authorization: `Bearer ${accessToken}` },
+        // Keep RPC redirects visible; never let a redirect target supply action definitions or results.
+        fetch: (input, init) => fetch(input, { ...init, redirect: "manual" }),
+      },
     },
   );
 
   return executeAction(context, input, {
     getDefinition: async (actionKey, version) => {
-      const { data, error } = await supabase.rpc("get_action_definition_v1", {
-        p_action_key: actionKey,
-        p_version: version,
-      });
-      if (error) throw new Error(error.message);
-      const definition = Array.isArray(data) ? data[0] : data;
-      if (!definition) return null;
-      return {
-        actionKey: definition.action_key,
-        version: definition.version,
-        status: definition.status,
-      };
+      try {
+        const { data, error } = await supabase.rpc("get_action_definition_v1", {
+          p_action_key: actionKey,
+          p_version: version,
+        });
+        if (error) throw new Error("ACTION_DEFINITION_LOOKUP_FAILED");
+        const definition = Array.isArray(data) ? data[0] : data;
+        if (!definition) return null;
+        return {
+          actionKey: definition.action_key,
+          version: definition.version,
+          status: definition.status,
+        };
+      } catch {
+        // Definition lookup failures are infrastructure failures, never CREATE_OFFER domain errors.
+        throw new Error("ACTION_DEFINITION_LOOKUP_FAILED");
+      }
     },
     handlers: {
       CREATE_OFFER: async (actionContext, actionInput) => {

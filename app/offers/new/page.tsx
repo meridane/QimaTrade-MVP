@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Check, ChevronDown, Search } from "lucide-react";
 import Link from "next/link";
+import { getCreatedOfferId } from "@/lib/offers/created-offer-reference";
 
 const countries = [
   "Afghanistan", "Albania", "Algeria", "Andorra", "Angola", "Antigua and Barbuda", "Argentina", "Armenia", "Australia", "Austria", "Azerbaijan",
@@ -125,8 +126,14 @@ export default function NewOfferPage() {
   const [documentationOther, setDocumentationOther] = useState("");
   const [market, setMarket] = useState("");
   const [geography, setGeography] = useState("");
+  const [createdOfferId, setCreatedOfferId] = useState<string | null>(null);
+  const [submissionError, setSubmissionError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
+    const createdId = getCreatedOfferId(window.location.search);
+    if (createdId) setCreatedOfferId(createdId);
+
     const region = new Intl.Locale(navigator.language).region;
     setGeography(regionToCountry[region || ""] || "South Korea");
   }, []);
@@ -139,10 +146,48 @@ export default function NewOfferPage() {
     setSelectedDocs((current) => current.includes(doc) ? current.filter((item) => item !== doc) : [...current, doc]);
   }
 
-  function submitForm(event: FormEvent<HTMLFormElement>) {
-    if (!market || !geography) {
-      event.preventDefault();
-      return;
+  async function submitForm(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!market || !geography || isSubmitting) return;
+
+    setSubmissionError(null);
+    setIsSubmitting(true);
+
+    try {
+      const form = event.currentTarget;
+      const response = await fetch(form.action, {
+        method: form.method.toUpperCase(),
+        headers: { Accept: "application/json" },
+        body: new FormData(form),
+        credentials: "same-origin",
+      });
+
+      if (!response.ok) {
+        setSubmissionError("We couldn't submit your offer. Please try again.");
+        return;
+      }
+
+      const responseBody: unknown = await response.json().catch(() => null);
+      const createdId =
+        responseBody !== null &&
+        typeof responseBody === "object" &&
+        "id" in responseBody &&
+        typeof responseBody.id === "string"
+          ? getCreatedOfferId(`?created=${encodeURIComponent(responseBody.id)}`)
+          : null;
+
+      if (!createdId) {
+        setSubmissionError("We couldn't submit your offer. Please try again.");
+        return;
+      }
+
+      window.location.assign(
+        new URL(`/offers/new?created=${createdId}`, window.location.origin).toString(),
+      );
+    } catch {
+      setSubmissionError("We couldn't submit your offer. Please try again.");
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
@@ -158,7 +203,27 @@ export default function NewOfferPage() {
           <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-950">Create a new offer</h1>
           <p className="mt-3 text-sm leading-6 text-slate-500">Start a supplier offer independently. Product classification and buyer matching come later.</p>
 
-          <form action="/api/offers" method="post" onSubmit={submitForm} className="mt-8 space-y-5">
+          {createdOfferId ? (
+            <div role="status" aria-live="polite" className="mt-8 rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-emerald-800">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-600 text-white"><Check size={18} /></div>
+                <div>
+                  <h2 className="font-bold">Draft submission received</h2>
+                  <p className="mt-1 text-sm text-emerald-700">Keep this reference ID for your records.</p>
+                  <p className="mt-2 break-all text-xs font-medium">Offer reference: {createdOfferId}</p>
+                </div>
+              </div>
+              <Link href="/offers/new" onClick={() => setCreatedOfferId(null)} className="mt-5 inline-flex rounded-xl border border-emerald-200 bg-white px-4 py-2.5 text-sm font-bold text-emerald-800">
+                Create another offer
+              </Link>
+            </div>
+          ) : (
+          <form action="/api/offers" method="post" onSubmit={submitForm} data-no-loading="true" className="mt-8 space-y-5">
+            {submissionError && (
+              <p role="alert" aria-live="assertive" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+                {submissionError}
+              </p>
+            )}
             <div>
               <label className="text-sm font-bold text-slate-800" htmlFor="name">Offer name</label>
               <input id="name" name="name" required placeholder="e.g. Used CNC Vertical Machining Center" className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm" />
@@ -200,8 +265,9 @@ export default function NewOfferPage() {
               {selectedDocs.includes("Other") && <input value={documentationOther} onChange={(event) => setDocumentationOther(event.target.value)} placeholder="Other documentation..." className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm" />}
             </div>
 
-            <button type="submit" disabled={!market || !geography} className="rounded-xl bg-orange-500 px-6 py-3 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50">Create offer</button>
+            <button type="submit" disabled={!market || !geography || isSubmitting} className="rounded-xl bg-orange-500 px-6 py-3 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50">{isSubmitting ? "Creating..." : "Create offer"}</button>
           </form>
+          )}
         </section>
       </div>
     </main>
