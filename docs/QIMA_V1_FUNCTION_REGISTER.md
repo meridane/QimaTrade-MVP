@@ -15624,3 +15624,12 @@ In an isolated disposable PostgreSQL test environment (never Production), first 
 - No Supabase Production data, schema, grants, RLS policies, secrets, or persistent configuration was accessed or changed.
 - The test is constrained by the existing integration runner allowlist to loopback PostgreSQL database qima_test on port 5432.
 - No Production deployment, PR merge, force-push, or branch-protection change was performed.
+
+
+### QA479 first CI attempt — test-helper correction (2026-11-26 17:56 KST)
+
+- QIMA CI #2006 (run 45787236208) exercised the new SQL characterization on both disposable PostgreSQL versions. Both PostgreSQL 16 and PostgreSQL 17.6 completed all preceding CREATE_OFFER runtime cases and reached QA479, then failed because PostgreSQL has no jsonb_object_length(jsonb) function. The failure is in the newly authored assertion helper, not in application code or the SQL migration.
+- The failing expression was used only to count the replay JSON object's keys. The test is corrected to first verify jsonb_typeof(...) = 'object', then count rows from jsonb_object_keys(...), which is supported by PostgreSQL.
+- The initial QA479 assertion did not complete; no result-shape or duplicate-write conclusion is claimed from #2006. The test remains a characterization, not a desired product contract.
+- On #2006, npm audit, TypeScript, Next.js production build, and Chromium installation completed successfully. Playwright browser smoke tests were still in progress at the last read. CodeQL #1932 completed **SUCCESS**. The Vercel Preview for HEAD 38dc1825943c49df981a7e5661450d9c1d5b6907 is **SUCCESS**.
+- The corrected test and this note are pending a new PR-triggered CI/CodeQL validation. No local PostgreSQL execution is claimed.

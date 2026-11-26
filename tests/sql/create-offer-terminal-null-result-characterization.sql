@@ -80,6 +80,7 @@ DECLARE
   v_original_result jsonb;
   v_object_id uuid;
   v_replay_result jsonb;
+  v_replay_key_count integer;
   v_idempotency_status text;
   v_idempotency_result jsonb;
   v_idempotency_execution_id uuid;
@@ -129,10 +130,16 @@ BEGIN
     p_currency => 'USD'
   );
 
-  IF jsonb_typeof(v_replay_result) IS DISTINCT FROM 'object'
-     OR v_replay_result->>'status' IS DISTINCT FROM 'completed'
+  IF jsonb_typeof(v_replay_result) IS DISTINCT FROM 'object' THEN
+    RAISE EXCEPTION 'QA479 expected a JSON object from the current NULL-result fallback; observed %', v_replay_result;
+  END IF;
+
+  SELECT count(*) INTO v_replay_key_count
+  FROM jsonb_object_keys(v_replay_result);
+
+  IF v_replay_result->>'status' IS DISTINCT FROM 'completed'
      OR v_replay_result->>'executionId' IS DISTINCT FROM v_execution_id::text
-     OR jsonb_object_length(v_replay_result) <> 2
+     OR v_replay_key_count <> 2
      OR v_replay_result ? 'objectId'
      OR v_replay_result ? 'result' THEN
     RAISE EXCEPTION 'QA479 expected the current NULL-result fallback shape {status: completed, executionId}; observed %', v_replay_result;
