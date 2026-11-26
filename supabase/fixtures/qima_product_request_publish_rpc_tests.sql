@@ -1,0 +1,76 @@
+-- Exercises the actual migration function against a disposable two-tenant schema.
+
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', false);
+set role authenticated;
+
+do $$
+declare
+  v_denied boolean := false;
+begin
+  begin
+    perform public.dt_publish_product_request(
+      '55555555-5555-4555-8555-555555555555',
+      'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+    );
+  exception when others then
+    if sqlerrm = 'PRODUCT_REQUEST_NOT_FOUND' then
+      v_denied := true;
+    else
+      raise;
+    end if;
+  end;
+
+  if not v_denied then
+    raise exception 'publish RPC accepted a request from a tenant with no current membership';
+  end if;
+end;
+$$;
+
+reset role;
+
+do $$
+begin
+  if (select count(*) from public.demands) <> 0 then
+    raise exception 'denied cross-tenant publish unexpectedly created a demand';
+  end if;
+  if (select status from public.product_requests where id = '55555555-5555-4555-8555-555555555555') <> 'draft' then
+    raise exception 'denied cross-tenant publish unexpectedly changed request status';
+  end if;
+end;
+$$;
+
+-- Restore membership in the request's exact tenant; the same owner can now publish.
+insert into public.dt_memberships (tenant_id, user_id, role) values
+  ('11111111-1111-4111-8111-111111111111', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'member');
+
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', false);
+set role authenticated;
+
+do $$
+declare
+  v_result jsonb;
+begin
+  v_result := public.dt_publish_product_request(
+    '55555555-5555-4555-8555-555555555555',
+    'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+  );
+  if v_result ->> 'status' <> 'published' then
+    raise exception 'member publish did not return published status: %', v_result;
+  end if;
+end;
+$$;
+
+reset role;
+
+do $$
+begin
+  if (select count(*) from public.demands) <> 1 then
+    raise exception 'authorized publish did not create exactly one demand';
+  end if;
+  if (select status from public.product_requests where id = '55555555-5555-4555-8555-555555555555') <> 'published' then
+    raise exception 'authorized publish did not update request status';
+  end if;
+end;
+$$;
+
+select 'PASS: tenant-specific membership is enforced by the actual publish RPC migration' as result;
