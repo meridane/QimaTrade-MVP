@@ -15454,3 +15454,13 @@ Les points ci-dessous ne sont pas approuvés et ne doivent pas être figés par 
 
 - No Supabase Production data, migrations, schema, grants, RLS policies, secrets, or persistent configuration were changed.
 - No Production deployment, PR merge, force-push, or branch-protection change was performed.
+
+
+### Post-publication validation snapshot — 26 November 2026
+
+- The work branch was fast-forwarded to PR #26. Current PR HEAD: `6999becffbe97238e41ccf8d18d588374db24886`; PR remains **OPEN / DRAFT / not merged**, base `main`, 2,523 commits ahead / 0 behind, 308 changed files. GitHub currently reports `mergeable=false` while required checks are pending.
+- QIMA CI [#1997](https://github.com/meridane/QimaTrade-MVP/actions/runs/45741487157) is **IN PROGRESS**. The Verify job has passed workflow/harness contracts and all preceding CREATE_OFFER static contract checks; dependency installation is active, with audit, TypeScript, build, Chromium, and Playwright still pending. PostgreSQL 16 and PostgreSQL 17.6 jobs are active at PostgreSQL-client installation. The injected setup/cleanup failure jobs have their expected failure conclusions; the skipped-result job is intentionally skipped.
+- CodeQL [#1923](https://github.com/meridane/QimaTrade-MVP/actions/runs/45741487177) is **IN PROGRESS** at CodeQL initialization.
+- Vercel Preview for exact HEAD `6999becf` is **QUEUED** (deployment `dpl_FSAAna3oZyffU9vGPrPbgsUm3VgM`); no Preview success is claimed yet.
+- The work branch and PR branch are identical (0 ahead / 0 behind). The QA474 tests are not yet claimed as passing; no local test execution is claimed.
+- The previous QA473 validation remains confirmed by CI #1996: 426/426 Playwright, PostgreSQL 16/17.6, audit, TypeScript, build, and cleanup assertions succeeded; CodeQL #1922 succeeded; Vercel status on the previous HEAD succeeded.
