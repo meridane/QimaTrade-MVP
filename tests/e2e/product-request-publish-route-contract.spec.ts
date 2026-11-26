@@ -1,11 +1,4 @@
 import { expect, test } from "@playwright/test";
-import { readFileSync } from "node:fs";
-
-const publishRouteSource = readFileSync(
-  new URL("../../app/api/product-requests/publish/route.ts", import.meta.url),
-  "utf8",
-);
-
 const jsonHeaders = { "content-type": "application/json" };
 
 test("product-request publish route returns a stable 400 for malformed JSON", async ({ request }) => {
@@ -46,7 +39,13 @@ test("product-request publish route rejects a non-string request ID before authe
   await expect(response.json()).resolves.toEqual({ error: "requestId is required" });
 });
 
-test("product-request publish route never returns raw exception messages", () => {
+test("product-request publish route never returns raw exception messages", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const publishRouteSource = await readFile(
+    new URL("../../app/api/product-requests/publish/route.ts", import.meta.url),
+    "utf8",
+  );
+
   expect(publishRouteSource).toContain("publicPublishErrorCodes.has(message)");
   expect(publishRouteSource).toContain('error: "Unable to publish product request."');
   expect(publishRouteSource).not.toContain("error: message");
