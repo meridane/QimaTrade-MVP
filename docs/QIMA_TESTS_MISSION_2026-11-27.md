@@ -59,3 +59,11 @@ No Supabase Production data/schema, migration, secret, grant, RLS policy or pers
 - The expected-failure/skip harness jobs show failure or skipped at job level by design; their dedicated blocking assertion jobs passed, and the overall workflow concluded SUCCESS.
 - Vercel Preview remains rate-limited for this branch; GitHub Actions validation is complete independently of that provider status.
 
+## Latest CI revalidation — 2026-11-27
+
+- QIMA CI [45892188791](https://github.com/meridane/QimaTrade-MVP/actions/runs/45892188791): **SUCCESS** on this branch's documentation closeout commit.
+- Verify job 140159917243: **436 Playwright tests passed (35.9 s)**; TypeScript, dependency audit and Next.js production build passed.
+- PostgreSQL 16 job 140159917421: **SUCCESS**. PostgreSQL 17.6 job 140159917436: **SUCCESS**.
+- CodeQL [45892188778](https://github.com/meridane/QimaTrade-MVP/actions/runs/45892188778): **SUCCESS**.
+- This was a revalidation of the existing test-only change; no new test code was added by this documentation closeout.
+- Vercel Preview is blocked by the provider's build-rate-limit response. GitHub Actions validation completed independently.
