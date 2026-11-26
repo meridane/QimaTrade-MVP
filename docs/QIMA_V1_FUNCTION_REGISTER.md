@@ -15650,3 +15650,13 @@ In an isolated disposable PostgreSQL test environment (never Production), first 
 - The passing PostgreSQL 16 and 17.6 runs establish that the repository's synthetic disposable fixture permits a COMPLETED idempotency row with SQL NULL result and that the branch SQL function returns the characterized fallback without creating duplicate persisted rows.
 - The fixture is not the live Supabase schema. The underlying idempotency_keys table definition is absent from the tracked migration inventory, and the migration reconciliation register records that a previous read-only remote history refresh failed with PostgreSQL 28P01. Production reachability remains **UNRESOLVED**. This is not a confirmed Production defect or vulnerability.
 - The script runs only through the existing runner allowlist for loopback qima_test and ends with ROLLBACK. No Production data or schema was accessed or changed.
+
+
+### QA479 validation checkpoint — Verify and CodeQL completed (2026-11-26 18:03 KST)
+
+- QIMA CI #2007 (run 45787580282), on code/test commit 92f1275c8ab6dbce4bae6797542cc1005cf4cc2f, has completed the Verify job **SUCCESS**: **432 Playwright passed (38.2 s)**, npm audit **0 findings**, TypeScript, Next.js production build, and Chromium passed.
+- The CREATE_OFFER integration/concurrency runner step completed **SUCCESS** on PostgreSQL 16 and PostgreSQL 17.6. This step invokes QA479 after applying only the disposable fixture and branch migrations; the QA479 characterization assertions therefore passed on both database versions.
+- The two broader PostgreSQL jobs remain **IN PROGRESS** on their final full-runner write-privilege characterization steps. QIMA CI #2007 is not yet declared fully successful.
+- CodeQL #1933 (run 45787579811) completed **SUCCESS**. Vercel Preview for the code/test HEAD 92f1275c8ab6dbce4bae6797542cc1005cf4cc2f completed **SUCCESS**. The newer documentation-only HEAD 4700b28ada848d57eb7a9c800b0c5ca1dea482a3 has a separate Vercel Preview still **PENDING**.
+- The PR remains OPEN / DRAFT / not merged / mergeable, HEAD 4700b28ada848d57eb7a9c800b0c5ca1dea482a3, 2,537 commits ahead / 0 behind main, 310 changed files (98,110 additions / 266 deletions). No reviews or review threads exist. Work branch and PR branch remain identical.
+- No application code, Supabase migration, production data, or persistent configuration was changed. QA479 remains a disposable-fixture characterization only; live Supabase schema reachability is unresolved.
