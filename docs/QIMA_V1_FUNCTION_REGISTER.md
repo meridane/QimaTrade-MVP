@@ -15585,3 +15585,42 @@ In an isolated disposable PostgreSQL test environment (never Production), first 
 - No Supabase Production data, migration, schema, grant, RLS policy, secret, or persistent configuration was changed.
 - No Production deployment, PR merge, force-push, or branch-protection change was performed.
 - No local test execution is claimed. CI evidence above is from the exact pre-documentation HEAD; this entry itself is documentation-only.
+
+
+---
+
+## QA479 — disposable PostgreSQL characterization of terminal replay with SQL NULL result (2026-11-26 17:50 KST)
+
+### Verified starting point
+
+- PR #26 is **OPEN / DRAFT / not merged**, base main, head 0507fda74789e3ee82b78d046f81bbce0233f592, **2,534 commits ahead / 0 behind**, 309 changed files (97,839 additions / 266 deletions); GitHub reports mergeable=true. No submitted reviews or review threads are present.
+- The branch fix/create-offer-status-contract resolves to the same HEAD. Recent branch commits are 0507fda7 (terminal replay contract review), 7351eed5 (CREATE_OFFER status review), 774bb33b (QA477 closeout), 15ab4d5f (QA477 snapshot), and b1c04f40 (QA477 profile-error test).
+- QIMA CI #2005 (https://github.com/meridane/QimaTrade-MVP/actions/runs/45775495389) completed **SUCCESS** on exact HEAD 0507fda74789e3ee82b78d046f81bbce0233f592: Verify **432 Playwright passed (38.0 s)**; npm audit reported **0 findings**; TypeScript, Next.js build, Chromium, isolated security fixture, PostgreSQL 16, PostgreSQL 17.6, and prepared-transaction cleanup assertions passed. CodeQL #1931 (https://github.com/meridane/QimaTrade-MVP/actions/runs/45775495415) completed **SUCCESS**. The combined Vercel status for the exact HEAD is **SUCCESS**.
+- The PR comparison reports 2,534 commits ahead of main and zero behind. No review submissions or inline review threads exist.
+
+### Schema evidence and boundary
+
+- The tracked disposable fixture tests/sql/fixtures/create-offer-schema.sql defines public.idempotency_keys.result jsonb without NOT NULL; its status CHECK permits COMPLETED, and the fixture has no CHECK constraint coupling COMPLETED to a non-NULL result.
+- The current branch contains 20 tracked supabase/migrations/*.sql files; the base main tree contains 15. None of those tracked migration files defines the underlying public.idempotency_keys table. The fixture is therefore the only tracked table definition located in this repository snapshot.
+- docs/SUPABASE_MIGRATION_RECONCILIATION_REGISTER.md records that the last attempted read-only remote migration-history refresh (2026-11-07) failed with PostgreSQL 28P01 authentication failure. Live schema parity remains unresolved. No Supabase Production schema or row was queried in this run.
+- Conclusion at this stage: the state is permitted by the **synthetic disposable fixture**. This does not prove the live Supabase table permits it or that such a row exists in Production.
+
+### QA479 characterization added
+
+- Added tests/sql/create-offer-terminal-null-result-characterization.sql.
+- The script runs in one transaction against the disposable qima_test database. It creates one successful CREATE_OFFER execution as authenticated, returns to the fixture owner to set that one idempotency row's result to SQL NULL, then replays the exact same request as authenticated.
+- Assertions verify: the fixture column is nullable; exactly one completed row is changed; the replay currently returns only status="completed" and the original executionId; the original action-execution result remains status="succeeded"; the offer and success event remain present exactly once; and the replay creates no additional idempotency, execution, offer, or event rows.
+- The script ends with ROLLBACK, so all characterization data is discarded. It is invoked by tests/sql/run-create-offer-integration.sh. Both PostgreSQL 16 and PostgreSQL 17.6 CI jobs call that same guarded runner, so the characterization is exercised on both versions.
+- This is a characterization of the synthetic fixture and current SQL fallback, **not** an approved public result contract. It must not be presented as evidence of a Production defect or vulnerability. The separate engine contract already rejects the unsupported completed ActionResult status.
+
+### Initial validation state
+
+- The new test and runner wiring are pending the PR-triggered GitHub Actions run after publication. No local PostgreSQL execution is claimed.
+- Baseline CI #2005, CodeQL #1931, and Vercel SUCCESS above validate the pre-change HEAD only; they do not validate QA479.
+
+### Safety
+
+- No application code or Supabase migration was modified.
+- No Supabase Production data, schema, grants, RLS policies, secrets, or persistent configuration was accessed or changed.
+- The test is constrained by the existing integration runner allowlist to loopback PostgreSQL database qima_test on port 5432.
+- No Production deployment, PR merge, force-push, or branch-protection change was performed.
