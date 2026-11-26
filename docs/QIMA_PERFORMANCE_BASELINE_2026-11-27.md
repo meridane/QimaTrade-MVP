@@ -86,3 +86,9 @@ Measured from GitHub Actions job timestamps (not application request latency):
 
 All three jobs completed successfully. The browser suite reported 436 passed. These figures are a CI baseline sample only; they do not establish p50/p95/p99 API latency, database query cost, or an application performance regression. No optimization was made from this sample.
 
+## SECURITY Verify job sample — QIMA CI 45891959349
+
+- TypeScript, dependency audit, production build and 443 browser tests completed in **145 s**.
+- This is a completed Verify-job measurement only. PostgreSQL 16 and 17.6 jobs were still in progress, so no full-workflow duration is recorded.
+- The sample is CI infrastructure timing, not application latency; no product optimization is justified by it.
+
