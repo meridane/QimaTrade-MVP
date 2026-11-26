@@ -92,3 +92,11 @@ All three jobs completed successfully. The browser suite reported 436 passed. Th
 - This is a completed Verify-job measurement only. PostgreSQL 16 and 17.6 jobs were still in progress, so no full-workflow duration is recorded.
 - The sample is CI infrastructure timing, not application latency; no product optimization is justified by it.
 
+## Completed SECURITY and TESTS CI samples — 2026-11-27
+
+| Mission run | Verify / browser suite | PostgreSQL 16 | PostgreSQL 17.6 | CodeQL |
+|---|---|---|---|---|
+| SECURITY [45892064684](https://github.com/meridane/QimaTrade-MVP/actions/runs/45892064684) | SUCCESS; 443 passed (39.2 s) | SUCCESS | SUCCESS | [45892064718](https://github.com/meridane/QimaTrade-MVP/actions/runs/45892064718) SUCCESS |
+| TESTS [45892188791](https://github.com/meridane/QimaTrade-MVP/actions/runs/45892188791) | SUCCESS; 436 passed (35.9 s) | SUCCESS | SUCCESS | [45892188778](https://github.com/meridane/QimaTrade-MVP/actions/runs/45892188778) SUCCESS |
+
+These are completed CI validation samples, not route/API latency or database query benchmarks. The Verify times above are Playwright suite durations, not total job durations. No optimization is justified by these figures; staging p50/p95/p99 and query-level profiling remain blocked on an approved non-production environment.
