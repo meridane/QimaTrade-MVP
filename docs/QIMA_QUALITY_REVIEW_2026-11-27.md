@@ -113,3 +113,10 @@ No Supabase Production data/schema, migration, secret, grant, RLS policy or pers
 
 - The provider quota failure described above belongs to the validated code/test HEAD `e94bd8edb5ddf5e48f046d0a30342e1d1ed09a0f`.
 - After the documentation-only closeout commit `6fdc992ec63ed80500d2078fe50f05a7999b866f`, the latest PR #30 Vercel status is **PENDING**. No Preview success is claimed for the new documentation commit.
+
+
+## Toolchain baseline recheck — 2026-11-27
+
+- Re-read `package.json` from the verified PR #26 source. Scripts are `dev`, `build`, `start`, `typecheck` and `test:e2e`; there is no lint, format, unit-test or coverage script.
+- The manifest's development dependencies do not include ESLint or an accessibility scanner. This confirms a tooling gap, not a code-quality or accessibility defect.
+- No dependency, lint configuration, workflow gate or auto-fix was added. Introducing ESLint/Next lint or an accessibility scanner should be a deliberate toolchain change with a report-only baseline and an agreed rule set, not an unreviewed blocking gate.
