@@ -6,7 +6,7 @@ on:
     paths-ignore:
       - "docs/**"
   pull_request:
-    branches: [main]
+    branches: [main, "ci/qima-mission-validation-base-20261127"]
     paths-ignore:
       - "docs/**"
   schedule:
