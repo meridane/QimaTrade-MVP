@@ -99,6 +99,8 @@ async function executePublishProductRequestRuntime(
         response.end(JSON.stringify({
           message: "PRODUCT_REQUEST_NOT_FOUND",
           code: "P0001",
+          details: "internal database row diagnostic",
+          hint: "private troubleshooting hint",
         }));
         return;
       }
@@ -270,6 +272,8 @@ test("PUBLISH_PRODUCT_REQUEST runtime propagates one exact SQL domain error with
 
   expect(outcome.result).toBeNull();
   expect(outcome.errorMessage).toBe("PRODUCT_REQUEST_NOT_FOUND");
+  expect(outcome.errorMessage).not.toContain("internal database row diagnostic");
+  expect(outcome.errorMessage).not.toContain("private troubleshooting hint");
   expect(outcome.requests.map((request) => ({ path: request.path, method: request.method }))).toEqual([
     { path: "/rest/v1/rpc/get_action_definition_v1", method: "POST" },
     { path: "/rest/v1/rpc/dt_publish_product_request", method: "POST" },
