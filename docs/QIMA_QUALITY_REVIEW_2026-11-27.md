@@ -68,3 +68,9 @@ No Supabase Production data/schema, migration, secret, grant, RLS policy or pers
 - The original failing run is recorded as a harness failure; the latest SECURITY CI run is still pending, so the workaround is not yet marked validated.
 - No global module-system, TypeScript, lint, or accessibility configuration was changed. A dedicated lint/accessibility baseline remains a separate follow-up rather than adding new dependencies during this pass.
 
+## ESM workaround validation — 2026-11-27
+
+- The SECURITY branch Verify job in QIMA CI [45891959349](https://github.com/meridane/QimaTrade-MVP/actions/runs/45891959349) completed successfully after replacing the ESM-sensitive file import with process.getBuiltinModule and process.cwd().
+- Playwright reported **443 passed**, including the new publish-route input/error contract cases.
+- The full workflow's PostgreSQL 16 and 17.6 jobs were still running at the time of this update; the newer tenant-membership migration fixture is queued in a later run.
+
