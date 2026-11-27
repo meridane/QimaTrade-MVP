@@ -381,3 +381,18 @@ These suites have different test contents and counts; the Playwright durations a
 - SECURITY and TESTS runs likewise predate the current CREATE_OFFER server-action error-boundary and expanded upstream 5xx matrix changes.
 - These are CI suite timings from different branch snapshots, not a controlled benchmark. They do not establish application latency or a performance trend. No optimization is justified.
 - Current newer mission heads have fresh CI pending: SECURITY [#45968402884](https://github.com/meridane/QimaTrade-MVP/actions/runs/45968402884), TESTS [#45968462903](https://github.com/meridane/QimaTrade-MVP/actions/runs/45968462903), QUALITY [#45968255550](https://github.com/meridane/QimaTrade-MVP/actions/runs/45968255550).
+
+---
+
+## Latest mission CI observations — 2026-11-27 18:54 KST
+
+| Mission snapshot | QIMA CI | Verify / Playwright | PostgreSQL 16 | PostgreSQL 17.6 | CodeQL |
+|---|---:|---:|---|---|---|
+| SECURITY a8d43954 | [#45968546521](https://github.com/meridane/QimaTrade-MVP/actions/runs/45968546521) FAILURE | 448 passed / 1 failed · 35.5 s | SUCCESS | SUCCESS | [#45968546528](https://github.com/meridane/QimaTrade-MVP/actions/runs/45968546528) SUCCESS |
+| TESTS 8dcd02f5 | [#45968550954](https://github.com/meridane/QimaTrade-MVP/actions/runs/45968550954) SUCCESS | 440 passed · 38.4 s | SUCCESS | SUCCESS | [#45968550995](https://github.com/meridane/QimaTrade-MVP/actions/runs/45968550995) SUCCESS |
+| QUALITY 4d01ea77 | [#45968255550](https://github.com/meridane/QimaTrade-MVP/actions/runs/45968255550) FAILURE | 437 passed / 1 failed · 34.2 s | SUCCESS | SUCCESS | [#45968255521](https://github.com/meridane/QimaTrade-MVP/actions/runs/45968255521) SUCCESS |
+
+- SECURITY's single failure is a brittle source-contract import assertion: implementation uses a combined named import, while the test expected a standalone import. The assertion is being corrected without changing runtime code.
+- QUALITY's single failure is a tab-order expectation: the visible International Market button precedes filtered country choices, so the first Tab should focus it before South Korea. The browser test is being corrected to assert the native DOM order without changing the component.
+- Only TESTS has a successful current run. The two failed-suite timings are retained for traceability and excluded from successful baseline comparisons.
+- These are CI test-suite timings, not application or SQL latency measurements. They do not justify optimization; a non-production staging environment is still required for p50/p95/p99 and query plans.
