@@ -3,6 +3,8 @@ import { getCreatedOfferId } from "../../lib/offers/created-offer-reference";
 import { authenticatePage } from "./offer-test-auth";
 
 const OFFER_ID = "7d2d1f7e-7d4e-4f3e-9d8b-3f8d0e6f2c11";
+const PRODUCT_MASTER_GATE_ID = "60000000-0000-4000-8000-00000000336";
+const SYNTHETIC_PROVIDER_ACTOR_ID = "30000000-0000-4000-8000-00000000336";
 test("offer confirmation accepts the UUID v4 reference emitted after a successful draft insert", () => {
   expect(getCreatedOfferId(`?created=${OFFER_ID}`)).toBe(OFFER_ID);
 });
