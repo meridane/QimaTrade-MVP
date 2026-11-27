@@ -212,3 +212,12 @@ No Supabase Production data/schema, migration, secret, grant, RLS policy or pers
 - The preceding QUALITY HEAD `f062e333` completed QIMA CI [#45983046694](https://github.com/meridane/QimaTrade-MVP/actions/runs/45983046694) **SUCCESS**. Verify job `140455236116` reports **438 Playwright passed (38.6 s)**; TypeScript, dependency audit, Next.js build and the isolated QIMA security fixture passed. PostgreSQL 16 job `140455235378` and PostgreSQL 17.6 job `140455235939` both completed **SUCCESS**. CodeQL [#45983046715](https://github.com/meridane/QimaTrade-MVP/actions/runs/45983046715) completed **SUCCESS**.
 - Vercel Preview for that HEAD failed only because the provider returned its `build-rate-limit` quota response. A fresh QIMA CI/CodeQL run is required for the new accessible-name assertion; no pass is claimed yet.
 - No Supabase data/schema, authorization behavior, dependency, Production deployment or branch protection was changed.
+
+
+## Login keyboard-focus test stabilization — 2026-11-27 21:08 KST
+
+- The new QUALITY Verify run [#45995624074](https://github.com/meridane/QimaTrade-MVP/actions/runs/45995624074) exercised the country-selector accessible-name test successfully, but the existing login keyboard test failed on its first attempt at the first-Tab focus assertion and passed on retry. The failing locator was the Google sign-in button; the run log shows the initial document focus was not deterministic immediately after navigation.
+- Stabilized only the test setup: assert both controls are visible, programmatically focus the document body with a test-only `tabindex=-1`, then verify the first Tab reaches the Google button and the second reaches Back to home.
+- No login UI behavior or OAuth implementation was changed. This is a test determinism correction, not evidence of an application accessibility defect.
+- The new country search accessible-name change remains in the same QUALITY branch. A fresh QIMA CI/CodeQL run is required for the stabilized keyboard test; no pass is claimed yet.
+- No Supabase data/schema, authorization behavior, dependency, Production deployment or branch protection was changed.
