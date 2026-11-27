@@ -291,3 +291,13 @@ No Supabase Production data/schema, migration, secret, grant, RLS policy or pers
 - Added a focused browser test for the second `CountrySelect` instance (Supplier geography): it checks the instance-specific `aria-controls` target, autofocus, filtering, selection, accessible-name update, removal of the closed-menu relationship and focus restoration.
 - This is focused keyboard/accessibility coverage, not a complete WCAG audit. The new test is pending its own QIMA CI/CodeQL run.
 - No application component, auth behavior, database, migration, Supabase Production data/schema, secret, grant, RLS policy, Production deployment, merge, force-push or branch-protection change.
+
+
+## Normalized supplier-geography search regression — 2026-11-28 KST
+
+- Previous HEAD `4b3e8a64` QIMA CI [#46039834840](https://github.com/meridane/QimaTrade-MVP/actions/runs/46039834840) completed **SUCCESS**. Verify job `140647926314` reports **439 Playwright passed (37.8 s)**; npm audit, TypeScript, Next.js build, Chromium, browser tests and the isolated security fixture succeeded.
+- PostgreSQL 16 job `140647925988` and PostgreSQL 17.6 job `140647925618` both completed **SUCCESS**. CodeQL [#46039834738](https://github.com/meridane/QimaTrade-MVP/actions/runs/46039834738) completed **SUCCESS**. Vercel Preview was blocked by the provider's build-rate-limit response.
+- Strengthened the supplier-geography browser regression to search with surrounding whitespace and mixed casing (`  mOrOcCo  `), while continuing to require Morocco to remain visible and France to be filtered out.
+- This exercises the component's existing `trim().toLowerCase()` behavior; no application component was changed. It remains focused accessibility/search coverage, not a full WCAG audit.
+- New test commit: `027479d978d40760ee611f97f8cb0dd6550df7f1`. A fresh QIMA CI/CodeQL run is required; no result is claimed yet.
+- No auth behavior, database, migration, Production data, secret, grant, RLS policy, Production deployment, merge, force-push or branch-protection change.
