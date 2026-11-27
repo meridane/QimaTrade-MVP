@@ -323,3 +323,12 @@ No Supabase Production data/schema, migration, secret, grant, RLS policy or pers
 - Vercel Preview is **FAILURE** with the provider's `build-rate-limit` response; this is not a GitHub Actions build failure.
 - Expected prepared-transaction failure-injection jobs have negative conclusions by design; their independent assertions succeeded. The skipped cleanup harness was intentionally skipped and separately asserted.
 - This remains focused keyboard/accessibility coverage, not a complete WCAG audit.
+
+## Empty country-search announcement — 2026-11-28
+
+- Application commit [`faa1831c`](https://github.com/meridane/QimaTrade-MVP/commit/faa1831c0822a2d74428529bddf7ebce24e289c6) adds `role="status"` and `aria-live="polite"` to the CountrySelect empty-results message in `app/offers/new/page.tsx`.
+- Test commit [`d587a51a`](https://github.com/meridane/QimaTrade-MVP/commit/d587a51ac3401bc29d31a32c7855f39a1f70a0cb) extends `tests/e2e/offer-country-select-accessibility.spec.ts` to search for a non-matching country, require the status text and polite live-region attribute, then continue the existing normalized Morocco selection flow.
+- The code change is narrowly scoped to announcing an empty search result. It is not a complete WCAG audit and does not establish screen-reader compatibility across the whole form.
+- Current QIMA CI [#2188](https://github.com/meridane/QimaTrade-MVP/actions/runs/46058096100) is **IN PROGRESS**. At the latest job read, the Verify job had not completed; TypeScript, production build, Playwright and the security fixture were still pending. PostgreSQL 16 and 17.6 were also in progress.
+- CodeQL [#2112](https://github.com/meridane/QimaTrade-MVP/actions/runs/46058096099) was **IN PROGRESS** at the latest read. Vercel Preview was **PENDING**.
+- No auth behavior, database, migration, Supabase Production data/schema, secret, grant, RLS policy, Production deployment, merge, force-push or branch-protection change.
