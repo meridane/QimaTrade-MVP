@@ -455,3 +455,6 @@ Source reviewed: `app/offers/actions.ts` on the isolated SECURITY branch (same o
 - Candidate future measurements: latency of the sequential profile/membership/demand stage, the product/attribute batch, and the metadata batch; row counts for each `.in` query; p50/p95/p99 under a representative staging dataset.
 - No code was parallelized or cached. The serial checks depend on authenticated identity and tenant membership; changing their ordering without measured evidence could weaken authorization assumptions.
 - This is a static call/query-shape inventory, not a measured latency profile. Staging credentials, representative data, SQL plans and request tracing remain unavailable. No production performance claim is made.
+
+
+- Cross-check: the `getOfferContext` query sequence was compared between PR #26 HEAD `61002cb` and SECURITY branch HEAD `326c290b`. The query shape and batching are identical; the SECURITY branch only changes the public error mapping. Therefore the nine-operation upper bound above applies to the PR #26 source snapshot as well.
