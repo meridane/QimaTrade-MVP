@@ -224,3 +224,13 @@ No Supabase Production data or migrations were touched. No Production deployment
 
 
 - Playwright test portability follow-up: the call-site regression reads the repository source with `resolve(process.cwd(), ...)` rather than `import.meta.url`, matching the repository's existing Node/Playwright test conventions. Commit: `31ed81bf72a91fee196e0aef42f3766324a6e29e`. The final SECURITY HEAD requires a fresh CI result.
+
+
+## Offer-context error-boundary CI closeout — 2026-11-27
+
+- SECURITY HEAD `537f3859cf230bd2135fcafb85c34f08f65e710e` completed QIMA CI [#45945862929](https://github.com/meridane/QimaTrade-MVP/actions/runs/45945862929) with overall **SUCCESS**. Verify job `140331630631` passed TypeScript, dependency audit, Next.js production build, browser tests and the isolated QIMA security-contract fixture; Playwright reported **447 passed (34.9 s)**.
+- PostgreSQL 16 integration job `140331630366` and PostgreSQL 17.6 compatibility job `140331630465` both completed **SUCCESS**. The isolated tenant-membership and explicit `anon` EXECUTE-revocation fixture completed successfully in the Verify job.
+- CodeQL [#45945862983](https://github.com/meridane/QimaTrade-MVP/actions/runs/45945862983) completed **SUCCESS**. Vercel Preview for this branch was blocked by the provider build-rate quota; this is separate from GitHub Actions.
+- This closes validation for the offer-context public-error mapper, both reviewed lookup call sites, the source-contract regression and the earlier UUID/tenant/ACL tests on this code/test HEAD.
+- Classification remains code-level: raw Supabase/PostgREST diagnostic forwarding was present in the reviewed source and is now masked. No actual Production disclosure, exploit, deployed grant state or live RLS state is established by these tests.
+- No Supabase Production data/schema, migration deployment, secret, grant, RLS policy or persistent configuration was changed. No Production deployment, PR merge, force-push or branch-protection change was performed.
