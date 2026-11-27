@@ -165,3 +165,13 @@ No Supabase Production data/schema, migration, secret, grant, RLS policy or pers
 - CodeQL [#45941406675](https://github.com/meridane/QimaTrade-MVP/actions/runs/45941406675) completed **SUCCESS**.
 - These results validate code/test HEAD `54be4b92`. The subsequent documentation closeout commit requires its own current workflow status; do not transfer the result to a later HEAD.
 - No local test run is claimed. No Supabase Production data/schema, migration, secret, grant, RLS policy, Production deployment, PR merge, force-push or branch-protection change was performed.
+
+
+## TESTS publish-result contract CI closeout — 2026-11-27
+
+- TESTS HEAD `7eb540bd5e7b731401f3f006b49b9c7d713367c2` completed QIMA CI [#45945714444](https://github.com/meridane/QimaTrade-MVP/actions/runs/45945714444) with overall **SUCCESS**.
+- Verify job `140329806236` completed **SUCCESS** with **440 Playwright tests passed (35.7 s)**. The suite includes malformed successful publish-result payloads, canonical UUID validation, legacy `demand_id` compatibility, mixed-case equivalent aliases and conflicting-alias rejection.
+- PostgreSQL 16 job `140329806149` and PostgreSQL 17.6 job `140329806090` both completed **SUCCESS**. TypeScript, dependency audit, Next.js production build and the isolated QIMA security-contract fixture also passed.
+- The setup/cleanup failure-injection jobs report their intentional simulated failures; the independent assertions passed. The skipped harness job was skipped by design and its assertion passed. No unexpected failed job remains.
+- CodeQL [#45945714513](https://github.com/meridane/QimaTrade-MVP/actions/runs/45945714513) completed **SUCCESS**. Vercel Preview was blocked by the provider's daily build-rate quota, independently of GitHub Actions.
+- These results close the current TESTS branch code/test snapshot. No local test execution is claimed. No Supabase Production data/schema, migration, secret, grant, RLS policy, Production deployment, PR merge, force-push or branch-protection change was performed.
