@@ -1,5 +1,27 @@
 -- Exercises the actual migration function against a disposable two-tenant schema.
 
+-- Verify the migration's EXECUTE boundary before exercising the RPC.
+-- has_function_privilege includes privileges inherited through PUBLIC.
+do $$
+begin
+  if not has_function_privilege(
+    'authenticated',
+    'public.dt_publish_product_request(uuid, uuid)',
+    'EXECUTE'
+  ) then
+    raise exception 'authenticated role cannot execute the product-request publish RPC';
+  end if;
+
+  if has_function_privilege(
+    'anon',
+    'public.dt_publish_product_request(uuid, uuid)',
+    'EXECUTE'
+  ) then
+    raise exception 'anon role unexpectedly inherits EXECUTE on the product-request publish RPC';
+  end if;
+end;
+$$;
+
 select set_config('request.jwt.claim.sub', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', false);
 set role authenticated;
 
@@ -73,4 +95,4 @@ begin
 end;
 $$;
 
-select 'PASS: tenant-specific membership is enforced by the actual publish RPC migration' as result;
+select 'PASS: publish RPC ACL and tenant-specific membership are enforced by the migration' as result;
