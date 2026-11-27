@@ -173,3 +173,15 @@ No Supabase Production data or migrations were touched. No Production deployment
 - Commits: route validation `dafc06a98ffe7700778a17bdd15717e92fb37e02`; Playwright coverage `bebab03c04c10d1887da987d0a88500b05cd8564`.
 - Validation: awaiting QIMA CI and CodeQL on the updated SECURITY branch HEAD. No local test execution is claimed.
 - No Supabase Production data/schema, migration deployment, secret, grant, RLS policy or persistent configuration was changed.
+
+
+## UUID request-ID validation follow-up — 2026-11-27
+
+- The checked-in publish RPC signature is `dt_publish_product_request(p_request_id uuid, p_user_id uuid)`. Before this follow-up, the API route rejected missing/non-string IDs but allowed a non-empty malformed string to reach the UUID RPC argument.
+- Added canonical UUID shape validation before authentication or database access. Missing/non-string IDs retain the existing required-field response; malformed non-empty strings return HTTP 400 `INVALID_REQUEST_ID`.
+- Added two synthetic cases: arbitrary non-UUID text and a UUID-shaped value containing a non-hex character. Both assert the stable 400 response before authentication.
+- Route commit: `dafc06a98ffe7700778a17bdd15717e92fb37e02`; final labelled test commit: `280b1bf4bff6147ee4c1c365f4f247bbfed67c90`.
+- The previous SECURITY snapshot `c61f5370` has now completed QIMA CI [#45924017660](https://github.com/meridane/QimaTrade-MVP/actions/runs/45924017660) **SUCCESS** (443 Playwright passed; TypeScript, dependency audit, build, isolated security fixture, PostgreSQL 16 and 17.6 all passed) and CodeQL [#45924017684](https://github.com/meridane/QimaTrade-MVP/actions/runs/45924017684) **SUCCESS**. These results predate the UUID follow-up and do not validate it.
+- New validation for the UUID follow-up is pending on the updated branch HEAD. No local test execution is claimed.
+- Classification: confirmed input-validation gap against the UUID RPC parameter contract; not a confirmed Production vulnerability or exploit.
+- No Supabase Production data/schema, migration deployment, secret, grant, RLS policy, or persistent configuration was changed.
