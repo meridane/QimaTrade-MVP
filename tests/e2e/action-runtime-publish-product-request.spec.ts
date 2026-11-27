@@ -24,6 +24,7 @@ async function executePublishProductRequestRuntime(
   publishRpcPayload: unknown = undefined,
   transportFailureTarget: RedirectTarget | null = null,
   truncatedResponseTarget: RedirectTarget | null = null,
+  malformedJsonResponseTarget: RedirectTarget | null = null,
 ) {
   const requestId = "60000000-0000-4000-8000-000000000001";
   const userId = "40000000-0000-4000-8000-000000000001";
@@ -60,6 +61,15 @@ async function executePublishProductRequestRuntime(
         contentType: typeof request.headers["content-type"] === "string" ? request.headers["content-type"] : undefined,
         body,
       });
+
+      if (
+        (path === "/rest/v1/rpc/get_action_definition_v1" && malformedJsonResponseTarget === "definition") ||
+        (path === "/rest/v1/rpc/dt_publish_product_request" && malformedJsonResponseTarget === "publish")
+      ) {
+        response.writeHead(200, { "Content-Type": "application/json" });
+        response.end("{");
+        return;
+      }
 
       if (
         (path === "/rest/v1/rpc/get_action_definition_v1" && truncatedResponseTarget === "definition") ||
@@ -460,6 +470,18 @@ test("PUBLISH_PRODUCT_REQUEST runtime rejects a truncated publish RPC response w
   expect(outcome.requests.map((request) => ({ path: request.path, method: request.method }))).toEqual([
     { path: "/rest/v1/rpc/get_action_definition_v1", method: "POST" },
     { path: "/rest/v1/rpc/dt_publish_product_request", method: "POST" },
+  ]);
+  expect(outcome.redirectTargetHits).toBe(0);
+});
+
+
+test("PUBLISH_PRODUCT_REQUEST runtime normalizes malformed action-definition JSON without publishing", async () => {
+  const outcome = await executePublishProductRequestRuntime(null, "publish", 200, undefined, null, null, "definition");
+
+  expect(outcome.result).toBeNull();
+  expect(outcome.errorMessage).toBe("ACTION_DEFINITION_LOOKUP_FAILED");
+  expect(outcome.requests.map((request) => ({ path: request.path, method: request.method }))).toEqual([
+    { path: "/rest/v1/rpc/get_action_definition_v1", method: "POST" },
   ]);
   expect(outcome.redirectTargetHits).toBe(0);
 });
