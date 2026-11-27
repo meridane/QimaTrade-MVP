@@ -39,6 +39,7 @@ test("offer country selector supports Escape and keyboard selection with focus r
 
   await marketTrigger.click();
   const search = page.getByRole("textbox", { name: "Search countries" });
+  await expect(search).toHaveValue("");
   await expect(search).toHaveAttribute("placeholder", "Search country...");
   await search.fill("South Korea");
 
