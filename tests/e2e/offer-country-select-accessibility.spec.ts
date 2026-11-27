@@ -66,3 +66,33 @@ test("offer country selector supports Escape and keyboard selection with focus r
   await expect(marketTrigger).toBeFocused();
   await expect(choices).toHaveCount(0);
 });
+
+test("supplier geography selector exposes its own labelled options and restores focus", async ({ page, request }) => {
+  await authenticatePage(page, request, `/offers/new?productMasterId=${PRODUCT_MASTER_GATE_ID}`);
+  await page.goto(`/offers/new?productMasterId=${PRODUCT_MASTER_GATE_ID}`);
+
+  const geographyTrigger = page.getByRole("button", { name: /^Supplier geography: / });
+  await expect(geographyTrigger).toBeVisible();
+  await geographyTrigger.click();
+  await expect(geographyTrigger).toHaveAttribute("aria-expanded", "true");
+
+  const choices = page.getByRole("group", { name: "Supplier geography options" });
+  await expect(choices).toBeVisible();
+  const choicesId = await geographyTrigger.getAttribute("aria-controls");
+  expect(choicesId).toBeTruthy();
+  await expect(choices).toHaveAttribute("id", choicesId!);
+
+  const search = page.getByRole("textbox", { name: "Search countries" });
+  await expect(search).toBeFocused();
+  await search.fill("Morocco");
+
+  const morocco = choices.getByRole("button", { name: "Morocco", exact: true });
+  await expect(morocco).toBeVisible();
+  await expect(choices.getByRole("button", { name: "France", exact: true })).toHaveCount(0);
+  await morocco.click();
+
+  await expect(geographyTrigger).toHaveAccessibleName("Supplier geography: Morocco");
+  await expect(geographyTrigger).toHaveAttribute("aria-expanded", "false");
+  await expect(geographyTrigger).not.toHaveAttribute("aria-controls");
+  await expect(geographyTrigger).toBeFocused();
+});
