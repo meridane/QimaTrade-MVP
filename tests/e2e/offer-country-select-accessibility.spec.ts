@@ -100,6 +100,11 @@ test("supplier geography selector exposes its own labelled options and restores 
   await expect(choices).toHaveAttribute("id", reopenedChoicesId!);
   await expect(search).toHaveValue("");
   await expect(search).toBeFocused();
+  await search.fill("qima-no-matching-country-2026");
+  const emptyResults = choices.getByRole("status");
+  await expect(emptyResults).toHaveText("No country found.");
+  await expect(emptyResults).toHaveAttribute("aria-live", "polite");
+
   await search.fill("  mOrOcCo  ");
 
   const morocco = choices.getByRole("button", { name: "Morocco", exact: true });
