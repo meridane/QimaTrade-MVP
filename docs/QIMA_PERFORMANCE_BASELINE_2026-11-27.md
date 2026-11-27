@@ -565,3 +565,20 @@ No optimization is proposed until measured plans and latency identify a material
 | QUALITY | 438 | 36.1 s | [#46018967038](https://github.com/meridane/QimaTrade-MVP/actions/runs/46018967038) Verify SUCCESS / overall IN PROGRESS | [#46018966968](https://github.com/meridane/QimaTrade-MVP/actions/runs/46018966968) SUCCESS | IN PROGRESS | IN PROGRESS |
 
 These are CI browser-suite wall-clock durations only. They are not application request latency, database latency, or p50/p95/p99 measurements. All three Verify jobs completed dependency audit, TypeScript, Next.js build, Chromium, Playwright and the isolated security fixture successfully. The overall workflows remain open until both PostgreSQL compatibility jobs complete.
+
+
+## PostgreSQL compatibility jobs closed — 2026-11-28 KST
+
+The previously pending PostgreSQL jobs for all three independent code/test snapshots have completed. The current GitHub Actions run records are:
+
+| Mission | HEAD | QIMA CI | Verify | PostgreSQL 16 | PostgreSQL 17.6 | CodeQL |
+|---|---|---|---|---|---|---|
+| SECURITY | `fba02d24` | [#46019379572](https://github.com/meridane/QimaTrade-MVP/actions/runs/46019379572) SUCCESS | SUCCESS | SUCCESS | SUCCESS | [#46019379477](https://github.com/meridane/QimaTrade-MVP/actions/runs/46019379477) SUCCESS |
+| TESTS | `41c23a08` | [#46019383512](https://github.com/meridane/QimaTrade-MVP/actions/runs/46019383512) SUCCESS | SUCCESS | SUCCESS | SUCCESS | [#46019383564](https://github.com/meridane/QimaTrade-MVP/actions/runs/46019383564) SUCCESS |
+| QUALITY | `8a5f42fe` | [#46019386856](https://github.com/meridane/QimaTrade-MVP/actions/runs/46019386856) SUCCESS | SUCCESS | SUCCESS | SUCCESS | [#46019386864](https://github.com/meridane/QimaTrade-MVP/actions/runs/46019386864) SUCCESS |
+
+The failure conclusions in the two prepared-transaction failure-injection jobs are intentional. Their independent assertion jobs succeeded. The cleanup skipped-result harness was intentionally skipped and its assertion succeeded. No unexpected failing job remains in these overall workflows.
+
+The already recorded Playwright counts for these code/test snapshots are SECURITY 451, TESTS 443 and QUALITY 438. They are CI suite counts, not application performance measurements. This rerun closes the pending PostgreSQL status but supplies no new p50/p95/p99, SQL plan, buffer, lock-wait, CPU or memory evidence.
+
+No staging database was available for the documented EXPLAIN protocol. No Production query, schema inspection, optimization, data change or migration was performed.
