@@ -142,3 +142,25 @@ test("product-request publish route fails closed when membership lookup fails or
   expect(failureGuard).toContain('error: "TENANT_MEMBERSHIP_REQUIRED"');
   expect(failureGuard).toContain("status: 403");
 });
+
+
+test("product-request publish route authenticates before reading tenant memberships or executing the action", () => {
+  const fs = process.getBuiltinModule("node:fs") as typeof import("node:fs") | undefined;
+  if (!fs) throw new Error("Node.js fs module is unavailable");
+  const source = fs.readFileSync(
+    `${process.cwd()}/app/api/product-requests/publish/route.ts`,
+    "utf8",
+  );
+
+  const authenticationGuard = source.indexOf("if (authError || !authData.user)");
+  const membershipQuery = source.indexOf('.from("dt_memberships")');
+  const actionExecution = source.indexOf("const result = await executeUniversalAction");
+
+  expect(authenticationGuard).toBeGreaterThanOrEqual(0);
+  expect(membershipQuery).toBeGreaterThan(authenticationGuard);
+  expect(actionExecution).toBeGreaterThan(membershipQuery);
+
+  const guard = source.slice(authenticationGuard, membershipQuery);
+  expect(guard).toContain('error: "UNAUTHENTICATED"');
+  expect(guard).toContain("status: 401");
+});
