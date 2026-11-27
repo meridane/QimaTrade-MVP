@@ -74,7 +74,10 @@ export async function executeUniversalAction(
         });
         if (error) throw new Error(error.message);
         const result = data as Record<string, unknown> | null;
-        const demandId = typeof result?.demandId === "string" ? result.demandId : typeof result?.demand_id === "string" ? result.demand_id : null;
+        const camelDemandId = typeof result?.demandId === "string" ? result.demandId.trim() : "";
+        const snakeDemandId = typeof result?.demand_id === "string" ? result.demand_id.trim() : "";
+        const demandId = camelDemandId || snakeDemandId;
+        if (!demandId) throw new Error("PUBLISH_RESULT_INVALID");
         return {
           executionId: actionContext.correlationId,
           status: "succeeded",
