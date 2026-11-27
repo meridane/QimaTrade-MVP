@@ -372,3 +372,14 @@ No Supabase Production data/schema, migration, secret, grant, RLS policy or pers
 - Follow-up commit c09bceb7 (https://github.com/meridane/QimaTrade-MVP/commit/c09bceb79c8419e89e61cefcabe4b40d8344142f) changes the focused toggle regression from pointer clicks to keyboard activation: Space for EXW and Enter for Commercial Invoice, with focus assertions before activation. The new commit's GitHub Actions run was not yet visible at the first post-push read; its test result is **pending**, not inferred. Vercel returned the provider's build-rate-limit failure for this commit; that is a Preview-capacity result, not an application build result.
 - This is targeted keyboard coverage, not a complete WCAG or screen-reader certification.
 - No production application data, API contract, SQL, migration, Supabase Production data/schema, secret, grant, RLS policy, deployment, merge, force-push, or branch-protection change.
+
+
+## Accessible labels for optional offer details — 2026-11-28
+
+- Added visually hidden, programmatically associated labels for the optional `Other commercial term` and `Other documentation` text inputs. The conditional documentation input now has a stable `id`.
+- Extended the existing keyboard regression: Enter on the Commercial terms “Other” button must move focus to its labelled textbox; Space on the Documentation available “Other” button must set `aria-pressed=true` and expose its labelled textbox.
+- Commits: [`2fbcd32d`](https://github.com/meridane/QimaTrade-MVP/commit/2fbcd32dac3ec589e9d42f62453d21f54bb11aec) updates the form labels; [`45d97858`](https://github.com/meridane/QimaTrade-MVP/commit/45d9785898f8eb5714d4f9ed8c154208eaa058b1) adds the assertions.
+- QIMA CI [#2201](https://github.com/meridane/QimaTrade-MVP/actions/runs/46078025047) Verify completed **SUCCESS**: **440 Playwright passed (36.1 s)**, npm audit, TypeScript, production build, Chromium and isolated security fixture all succeeded. PostgreSQL 16 and 17.6 remain **IN PROGRESS** at full runner-write-privilege characterization.
+- CodeQL [#2125](https://github.com/meridane/QimaTrade-MVP/actions/runs/46078025059) is **SUCCESS**. Vercel Preview is **SUCCESS**.
+- This is focused accessible-name and keyboard coverage, not a complete WCAG or screen-reader certification.
+- No auth/API/database contract, SQL, migration, Supabase Production data/schema, secret, grant, RLS policy, deployment, merge, force-push, or branch-protection change.
