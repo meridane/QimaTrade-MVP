@@ -19,6 +19,9 @@ test("offer market selector has a field name and exposes its choices as buttons"
 
   const choices = page.getByRole("group", { name: "Target market options" });
   await expect(choices).toBeVisible();
+  const optionsId = await marketTrigger.getAttribute("aria-controls");
+  expect(optionsId).toBeTruthy();
+  await expect(choices).toHaveAttribute("id", optionsId!);
   await expect(page.getByRole("textbox", { name: "Search countries" })).toBeVisible();
   await expect(choices.getByRole("button", { name: "International Market" })).toBeVisible();
   await expect(choices.getByRole("button", { name: "South Korea" })).toBeVisible();
@@ -35,6 +38,7 @@ test("offer country selector supports Escape and keyboard selection with focus r
   await expect(page.getByRole("group", { name: "Target market options" })).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(marketTrigger).toHaveAttribute("aria-expanded", "false");
+  await expect(marketTrigger).not.toHaveAttribute("aria-controls");
   await expect(marketTrigger).toBeFocused();
 
   await marketTrigger.click();
@@ -53,6 +57,7 @@ test("offer country selector supports Escape and keyboard selection with focus r
   await page.keyboard.press("Enter");
 
   await expect(marketTrigger).toHaveAttribute("aria-expanded", "false");
+  await expect(marketTrigger).not.toHaveAttribute("aria-controls");
   await expect(marketTrigger).toHaveAccessibleName("Target market: South Korea");
   await expect(marketTrigger).toBeFocused();
   await expect(choices).toHaveCount(0);
