@@ -152,3 +152,12 @@ No Supabase Production data or migrations were touched. No Production deployment
 - Commit: `b8746071ff81885fcf8a9ca3b8d8215fd3ffb990` (`fix(security): correct dollar-quoted RPC fixture`).
 - Validation: a new CI/CodeQL run for this corrected HEAD is expected from the branch push; no passing result is claimed until GitHub reports it.
 - This failure was a fixture syntax defect, not evidence of a Production authorization issue. The ACL and tenant assertions remain synthetic and must be validated by the new isolated PostgreSQL run.
+
+
+## Corrected fixture validation progress — 2026-11-27
+
+- On the corrected fixture code commit `b8746071ff81885fcf8a9ca3b8d8215fd3ffb990`, QIMA CI [#45923745644](https://github.com/meridane/QimaTrade-MVP/actions/runs/45923745644) has passed the Verify job: dependency audit, TypeScript, production build, browser smoke tests, and the isolated security-contract fixture all report **SUCCESS**. The Playwright log reports **443 passed (35.8 s)**.
+- The isolated publish-RPC fixture step now reports **SUCCESS** after the dollar-quote correction. This run therefore no longer reproduces the syntax failure from #45919126087.
+- PostgreSQL 16 and PostgreSQL 17.6 integration jobs are still **IN PROGRESS** at the final CREATE_OFFER runner/compatibility checks; the overall QIMA CI run is not yet declared successful.
+- CodeQL [#45923745623](https://github.com/meridane/QimaTrade-MVP/actions/runs/45923745623) on the corrected code commit is **SUCCESS**. CodeQL [#45923759597](https://github.com/meridane/QimaTrade-MVP/actions/runs/45923759597) on the current PR #27 documentation HEAD is also **SUCCESS**. Vercel for PR #27 HEAD is **SUCCESS**. The PR-head QIMA CI [#45923759578](https://github.com/meridane/QimaTrade-MVP/actions/runs/45923759578) remains **PENDING** with no jobs published at this checkpoint.
+- These are isolated CI fixtures and source-contract checks only. They do not establish deployed Supabase Production grants, RLS policy state, or exploitability. No Production migration, data, secret, grant, policy, or persistent configuration was changed.
