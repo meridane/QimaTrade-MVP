@@ -582,3 +582,15 @@ The failure conclusions in the two prepared-transaction failure-injection jobs a
 The already recorded Playwright counts for these code/test snapshots are SECURITY 451, TESTS 443 and QUALITY 438. They are CI suite counts, not application performance measurements. This rerun closes the pending PostgreSQL status but supplies no new p50/p95/p99, SQL plan, buffer, lock-wait, CPU or memory evidence.
 
 No staging database was available for the documented EXPLAIN protocol. No Production query, schema inspection, optimization, data change or migration was performed.
+
+## Closed PostgreSQL and Verify results — 2026-11-28 KST
+
+| Mission snapshot | QIMA CI | Playwright passed | Verify duration | PostgreSQL 16 | PostgreSQL 17.6 | CodeQL | Vercel |
+|---|---|---:|---:|---|---|---|---|
+| SECURITY `63b007ff` | [#46028363428](https://github.com/meridane/QimaTrade-MVP/actions/runs/46028363428) SUCCESS | 452 | 35.9 s | SUCCESS | SUCCESS | [#46028363292](https://github.com/meridane/QimaTrade-MVP/actions/runs/46028363292) SUCCESS | SUCCESS |
+| TESTS `86ba0441` | [#46028401186](https://github.com/meridane/QimaTrade-MVP/actions/runs/46028401186) SUCCESS | 444 | 39.2 s | SUCCESS | SUCCESS | [#46028401242](https://github.com/meridane/QimaTrade-MVP/actions/runs/46028401242) SUCCESS | SUCCESS |
+| QUALITY `78da177e` | [#46028468443](https://github.com/meridane/QimaTrade-MVP/actions/runs/46028468443) SUCCESS | 438 | 36.6 s | SUCCESS | SUCCESS | [#46028468426](https://github.com/meridane/QimaTrade-MVP/actions/runs/46028468426) SUCCESS | SUCCESS |
+
+All three QIMA CI workflows completed successfully, including the PostgreSQL 16 and 17.6 compatibility jobs. The negative conclusions in the prepared-transaction failure-injection jobs were expected and separately asserted; the intentional skipped cleanup harness was also asserted.
+
+These browser-suite counts and wall-clock durations are CI verification measurements only. They do not measure application latency, database query latency, p50/p95/p99, buffers, lock waits, CPU or memory. No staging environment was available for the documented EXPLAIN/benchmark protocol, and no optimization is justified by these measurements.
