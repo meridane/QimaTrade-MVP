@@ -118,3 +118,11 @@ No Supabase Production data/schema, migration, secret, grant, RLS policy or pers
 - Commits: runtime `847d569a250ee858bf98272829c412b983109de5`; Playwright `2697e9c50c2116f0c966850401feba6c75a3f82f`.
 - Validation: pending QIMA CI and CodeQL for the updated TESTS branch HEAD.
 - No database, migration, Production data, secret, grant, or RLS policy was changed.
+
+
+## Non-object publish-result guard — 2026-11-27
+
+- The result parser now accepts only a non-null, non-array JSON object before reading either demand-ID alias. This also handles an undefined/non-object RPC payload without attempting property access on it.
+- Added a synthetic array payload to the malformed-success regression set.
+- Commit: runtime guard `51dc2b44d79453fa22215acc4fe9ee283c81cb52`; regression `78ecdd3c8cecd30c558c7996a011fade0d16788a`.
+- Validation remains pending for the current TESTS branch HEAD; no pass is inferred from the earlier 439-test run.
