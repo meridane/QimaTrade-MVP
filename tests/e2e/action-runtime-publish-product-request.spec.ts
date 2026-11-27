@@ -151,10 +151,15 @@ async function executePublishProductRequestRuntime(
 
       if (path === "/rest/v1/rpc/dt_publish_product_request" && publishRpcStatus !== 200) {
         response.writeHead(publishRpcStatus, { "Content-Type": "application/json" });
+        const rateLimited = publishRpcStatus === 429;
         const unavailable = publishRpcStatus >= 500;
         response.end(JSON.stringify({
-          message: unavailable ? "UPSTREAM_TEMPORARILY_UNAVAILABLE" : "PRODUCT_REQUEST_NOT_FOUND",
-          code: unavailable ? "PGRST000" : "P0001",
+          message: rateLimited
+            ? "UPSTREAM_RATE_LIMITED"
+            : unavailable
+              ? "UPSTREAM_TEMPORARILY_UNAVAILABLE"
+              : "PRODUCT_REQUEST_NOT_FOUND",
+          code: rateLimited ? "PGRST429" : unavailable ? "PGRST000" : "P0001",
           details: "internal database row diagnostic",
           hint: "private troubleshooting hint",
         }));
@@ -507,6 +512,21 @@ test("PUBLISH_PRODUCT_REQUEST runtime normalizes action-definition HTTP 429 with
   expect(outcome.errorMessage).not.toContain("SYNTHETIC_DEFINITION_RATE_LIMIT_DETAIL");
   expect(outcome.requests.map((request) => ({ path: request.path, method: request.method }))).toEqual([
     { path: "/rest/v1/rpc/get_action_definition_v1", method: "POST" },
+  ]);
+  expect(outcome.redirectTargetHits).toBe(0);
+});
+
+
+test("PUBLISH_PRODUCT_REQUEST runtime does not retry a publish RPC HTTP 429 or expose diagnostics", async () => {
+  const outcome = await executePublishProductRequestRuntime(null, "publish", 429);
+
+  expect(outcome.result).toBeNull();
+  expect(outcome.errorMessage).toBe("UPSTREAM_RATE_LIMITED");
+  expect(outcome.errorMessage).not.toContain("internal database row diagnostic");
+  expect(outcome.errorMessage).not.toContain("private troubleshooting hint");
+  expect(outcome.requests.map((request) => ({ path: request.path, method: request.method }))).toEqual([
+    { path: "/rest/v1/rpc/get_action_definition_v1", method: "POST" },
+    { path: "/rest/v1/rpc/dt_publish_product_request", method: "POST" },
   ]);
   expect(outcome.redirectTargetHits).toBe(0);
 });
