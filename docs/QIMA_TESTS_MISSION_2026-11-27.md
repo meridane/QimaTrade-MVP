@@ -88,3 +88,12 @@ No Supabase Production data/schema, migration, secret, grant, RLS policy or pers
 
 - The provider quota failure described above belongs to the earlier code/test branch snapshot `9d099db80a8cb288b573584aa2fb34969d411ce7`.
 - After the follow-up test and documentation commits, latest branch HEAD is `50adde999fe25d85da9b554baeabdfd2b83835af`; its Vercel status is **PENDING**, and its QIMA CI [#45913960558](https://github.com/meridane/QimaTrade-MVP/actions/runs/45913960558) and CodeQL [#45913960548](https://github.com/meridane/QimaTrade-MVP/actions/runs/45913960548) are **IN PROGRESS** at the time of this update.
+
+
+## Follow-up 503 diagnostic-redaction assertion — Verify completed, PostgreSQL jobs pending
+
+- The code/test commit `83381d6f2219de83b8dd1df4686728d4e2e5c3b3` and its documentation parent `50adde999fe25d85da9b554baeabdfd2b83835af` are included in QIMA CI [#45913960558](https://github.com/meridane/QimaTrade-MVP/actions/runs/45913960558).
+- Verify job 140228626258 completed **SUCCESS**: TypeScript, dependency audit, Next.js production build, Chromium/browser tests and the isolated QIMA security fixture all passed. Playwright reported **437 passed (39.1 s)**; the log explicitly shows the HTTP 503 no-retry/no-redirect case passing with the added assertions that synthetic `details` and `hint` are absent from the surfaced error message.
+- CodeQL [#45913960548](https://github.com/meridane/QimaTrade-MVP/actions/runs/45913960548) completed **SUCCESS**.
+- PostgreSQL 16 integration and PostgreSQL 17.6 compatibility jobs remain **IN PROGRESS** at this checkpoint; no final overall CI conclusion is claimed yet.
+- This validates the synthetic client/runtime contract only. It does not establish a live upstream failure or a Production disclosure.
