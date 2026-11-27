@@ -23,6 +23,15 @@ test("login controls are reachable by keyboard and expose accessible names", asy
 
   const googleButton = page.getByRole("button", { name: /continue with google/i });
   const backLink = page.getByRole("link", { name: "Back to home" });
+  await expect(googleButton).toBeVisible();
+  await expect(backLink).toBeVisible();
+
+  // Start from a deterministic document focus rather than relying on browser state after navigation.
+  await page.evaluate(() => {
+    document.body.setAttribute("tabindex", "-1");
+    document.body.focus();
+  });
+  await expect(page.locator("body")).toBeFocused();
 
   await page.keyboard.press("Tab");
   await expect(googleButton).toBeFocused();
