@@ -597,3 +597,34 @@ for (const [label, definition] of [
     expect(outcome.redirectTargetHits).toBe(0);
   });
 }
+
+
+for (const [label, definition] of [
+  ["empty definition result set", []],
+  ["null definition result", null],
+] as const) {
+  test("PUBLISH_PRODUCT_REQUEST runtime rejects a missing action definition from " + label + " without publishing", async () => {
+    const outcome = await executePublishProductRequestRuntime(
+      null,
+      "publish",
+      200,
+      undefined,
+      null,
+      null,
+      null,
+      200,
+      definition,
+    );
+
+    expect(outcome.result).toBeNull();
+    expect(outcome.errorMessage).toBe("ACTION_NOT_PUBLISHED");
+    expect(outcome.requests.map((request) => ({ path: request.path, method: request.method }))).toEqual([
+      { path: "/rest/v1/rpc/get_action_definition_v1", method: "POST" },
+    ]);
+    expect(outcome.requests[0].body).toEqual({
+      p_action_key: "PUBLISH_PRODUCT_REQUEST",
+      p_version: 1,
+    });
+    expect(outcome.redirectTargetHits).toBe(0);
+  });
+}
