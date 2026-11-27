@@ -175,3 +175,10 @@ No Supabase Production data/schema, migration, secret, grant, RLS policy or pers
 - The setup/cleanup failure-injection jobs report their intentional simulated failures; the independent assertions passed. The skipped harness job was skipped by design and its assertion passed. No unexpected failed job remains.
 - CodeQL [#45945714513](https://github.com/meridane/QimaTrade-MVP/actions/runs/45945714513) completed **SUCCESS**. Vercel Preview was blocked by the provider's daily build-rate quota, independently of GitHub Actions.
 - These results close the current TESTS branch code/test snapshot. No local test execution is claimed. No Supabase Production data/schema, migration, secret, grant, RLS policy, Production deployment, PR merge, force-push or branch-protection change was performed.
+
+
+## Exact Verify log measurement correction — 2026-11-27
+
+- Re-read the completed Verify job log for QIMA CI [#45951783618](https://github.com/meridane/QimaTrade-MVP/actions/runs/45951783618), job 140349071723. Its final Playwright summary is **440 passed (36.0 s)**. This exact runner output supersedes the earlier rounded/incorrect 35.7 s note.
+- The workflow's PostgreSQL 16 and PostgreSQL 17.6 jobs both completed **SUCCESS**; CodeQL [#45951783633](https://github.com/meridane/QimaTrade-MVP/actions/runs/45951783633) completed **SUCCESS**.
+- No code or test behavior changed in this documentation correction.
