@@ -322,3 +322,15 @@ No Supabase Production data or migrations were touched. No Production deployment
 - Vercel status for this branch is **FAILURE** with the provider response “Deployment rate limited — retry in 24 hours.” This is a Preview-capacity blocker, not an application build result.
 - The new allowlist-shaped backend-error regression is included in the verified HEAD. No Production exploitability is inferred from this synthetic test.
 - Remaining blockers: the multi-tenant publishing behavior still needs a product/API decision; live Supabase schema, deployed RPC, grants and RLS remain unverified because the project is paused. No project resume or remote SQL was attempted.
+
+---
+
+## Current SECURITY validation and legacy route review — 2026-11-27 22:46 KST
+
+- Current branch code/test HEAD `30f0514d76cfc2a60f2d90bc3851f6fd531b757f` completed QIMA CI [#45998898739](https://github.com/meridane/QimaTrade-MVP/actions/runs/45998898739) **SUCCESS**. Verify reports **450 Playwright tests passed (36.5 s)**; TypeScript, dependency audit, Next.js production build and the isolated security-contract fixture succeeded. PostgreSQL 16 and PostgreSQL 17.6 integration jobs both completed **SUCCESS**.
+- CodeQL [#45998898589](https://github.com/meridane/QimaTrade-MVP/actions/runs/45998898589) completed **SUCCESS**. Vercel Preview is **FAILURE** solely due to provider build-rate quota.
+- Re-reviewed the legacy draft path. This is not a newly discovered divergence: the same separation is already documented in `docs/MKT-0.7_LEGACY_OFFER_ROUTE_FINDINGS.md`, `docs/MKT-0.8_OFFER_UI_BACKEND_CONTRACT.md`, and `docs/MKT-1.1_CREATE_OFFER_AUTHORIZATION_AUDIT.md`.
+- The existing `tests/e2e/legacy-offers-route-contract.spec.ts` contains 140 Playwright test declarations covering authentication, profile-to-actor binding, client actor/tenant spoofing, malformed multipart values, demand/Product Master lookup failures, insert failures, duplicate form fields and numeric parsing. `tests/sql/legacy-offer-insert-rls-regression.sql` characterizes actor-bound INSERT RLS on a disposable `qima_test` database and rolls back; `legacy-offer-returning-select-rls-regression.sql` separately models INSERT RETURNING/SELECT-policy behavior.
+- Source evidence confirms the legacy route authenticates with `auth.getUser()`, resolves `provider_actor_id` from the authenticated user's profile, and inserts with the caller's Supabase session. The route does not invoke CREATE_OFFER Universal Action Runtime. This is an architectural/business-contract distinction, not by itself a confirmed authorization bypass.
+- The unresolved provider-to-demand/tenant eligibility rule remains a product/API decision. The fixture and source review do not establish deployed Production RLS or exploitability. Do not consolidate routes until draft lifecycle and optional-price semantics are approved.
+- No Supabase Production data/schema, migration deployment, secret, grant, persistent RLS policy, Production deployment, merge, force-push or branch-protection change.
