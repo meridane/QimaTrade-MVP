@@ -221,3 +221,12 @@ No Supabase Production data/schema, migration, secret, grant, RLS policy or pers
 - No login UI behavior or OAuth implementation was changed. This is a test determinism correction, not evidence of an application accessibility defect.
 - The new country search accessible-name change remains in the same QUALITY branch. A fresh QIMA CI/CodeQL run is required for the stabilized keyboard test; no pass is claimed yet.
 - No Supabase data/schema, authorization behavior, dependency, Production deployment or branch protection was changed.
+
+
+## Accessible-name and login-focus Verify status — 2026-11-27 21:10 KST
+
+- QIMA CI [#45995624074](https://github.com/meridane/QimaTrade-MVP/actions/runs/45995624074) on code/test HEAD `d0390913` completed its Verify job `140494174017` successfully. The country-selector keyboard scenario passed. The login keyboard test failed its first attempt because the document focus origin was not deterministic, then passed on retry; the run reports **437 passed (37.1 s)** with that flaky first attempt.
+- CodeQL [#45995624099](https://github.com/meridane/QimaTrade-MVP/actions/runs/45995624099) completed **SUCCESS**. PostgreSQL 16 job `140494174012` and PostgreSQL 17.6 job `140494173998` remain **IN PROGRESS** at the disposable QA373 full-runner write-privilege characterization step; no failed steps were observed at the last check.
+- Stabilized the login test in commit `5658f785` by explicitly focusing the document body before asserting the first and second Tab destinations. Current QUALITY HEAD is `b60bd66f`; QIMA CI [#45996041842](https://github.com/meridane/QimaTrade-MVP/actions/runs/45996041842) is **PENDING**, while CodeQL [#45996041669](https://github.com/meridane/QimaTrade-MVP/actions/runs/45996041669) completed **SUCCESS**.
+- The current Vercel Preview check is **FAILURE** only because the provider returned its `build-rate-limit` quota response. The keyboard stabilization has not yet received a fresh Verify result; no pass is claimed.
+- This remains targeted accessibility coverage, not a complete WCAG audit. No Supabase data/schema, authorization behavior, dependency, Production deployment or branch protection was changed.
