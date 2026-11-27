@@ -150,3 +150,11 @@ No Supabase Production data/schema, migration, secret, grant, RLS policy or pers
 - The compiler reported TS2304 for `PRODUCT_MASTER_GATE_ID` and `SYNTHETIC_PROVIDER_ACTOR_ID` in `tests/e2e/offer-creation-confirmation.spec.ts`. The constants were defined in the original spec before the auth helper extraction, but were not restored to the spec after the helper was split into its own file.
 - Restored the two existing synthetic fixture constants in the original spec. Their values are unchanged from the verified base-HEAD version; no application behavior, auth implementation, or fixture data was changed.
 - Targeted TypeScript/CI validation is required on the new commit. No pass is inferred before the rerun completes.
+
+
+## QUALITY follow-up — protected offer form context — 2026-11-27
+
+- QIMA CI [#45963833330](https://github.com/meridane/QimaTrade-MVP/actions/runs/45963833330) completed TypeScript, dependency audit, Next.js build and the isolated security fixture successfully after restoring the two existing synthetic constants. The browser suite reported **1 failed / 436 passed (34.8 s)**; both PostgreSQL integration jobs were still running at the time of this diagnosis.
+- The single failure was `offer-country-select-accessibility.spec.ts`: it authenticated and navigated to `/offers/new` without the required `productMasterId` context. Existing offer-creation tests consistently use the synthetic Product Master gate ID; without it, the protected supplier flow does not expose the independent offer form, so the expected country trigger is absent.
+- Updated the focused accessibility test to authenticate and navigate with the same synthetic `productMasterId` gate used by the existing offer-creation browser fixtures. This changes test setup only; no production route, authorization, or UI behavior was changed.
+- New test commit: `490924e92adc087ddfc877a60e4159519ad3b992`. A fresh QIMA CI run is required; no browser pass is inferred yet.
