@@ -443,3 +443,15 @@ Interpretation and limits:
 - The PERFORMANCE branch itself remains documentation-only and has no workflow run. No app code was changed and no optimization was attempted.
 - The required staging environment, representative dataset, query plans, request traces and CPU/memory profiles remain unavailable. The live schema of `public.idempotency_keys` is not inferred from disposable PostgreSQL fixtures.
 - No Supabase Production data/schema, migration deployment, secret, grant, RLS policy, persistent configuration or Production deployment was changed.
+
+
+## Static query-shape inventory — 2026-11-27 21:06 KST
+
+Source reviewed: `app/offers/actions.ts` on the isolated SECURITY branch (same offer-context implementation under review), plus `lib/actions/runtime.ts`.
+
+- `getOfferContext` has a maximum of nine Supabase/Auth operations when all optional metadata groups are populated: Auth `getUser`, profile lookup, membership lookup, demand lookup, then product-master and product-attribute reads in parallel, followed by definition, option and unit reads in parallel. This is a six-stage critical path (four sequential stages, then two parallel batches), not nine sequential round trips.
+- Attribute definitions/options/units use batched `.in(..., ids)` queries rather than a per-attribute query loop. No N+1 pattern was found in this path.
+- `createOffer` performs Auth/profile/membership/demand checks before the action-definition RPC and CREATE_OFFER RPC. The two action RPCs are sequential by contract. Session retrieval is kept separate from the DB-query count because the server client may satisfy it from the cookie-backed session.
+- Candidate future measurements: latency of the sequential profile/membership/demand stage, the product/attribute batch, and the metadata batch; row counts for each `.in` query; p50/p95/p99 under a representative staging dataset.
+- No code was parallelized or cached. The serial checks depend on authenticated identity and tenant membership; changing their ordering without measured evidence could weaken authorization assumptions.
+- This is a static call/query-shape inventory, not a measured latency profile. Staging credentials, representative data, SQL plans and request tracing remain unavailable. No production performance claim is made.
