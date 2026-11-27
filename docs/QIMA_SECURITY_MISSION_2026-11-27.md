@@ -301,3 +301,12 @@ No Supabase Production data or migrations were touched. No Production deployment
 - This is synthetic mapper coverage, not proof of a Production disclosure or exploit. A fresh CI/CodeQL run is required for this new test; no pass is claimed yet.
 - The multi-tenant CREATE_OFFER path remains fail-closed when a user has multiple memberships. Choosing an active-tenant persistence/selection contract still requires a product decision; no behavior was guessed.
 - No Supabase Production data/schema, migration deployment, secret, grant, RLS policy, persistent configuration or Production deployment was changed.
+ 
+
+## Latest allowlist-shape Verify result — 2026-11-27 21:10 KST
+
+- QIMA CI [#45995602283](https://github.com/meridane/QimaTrade-MVP/actions/runs/45995602283) on HEAD `2caaf0ca` has a successful Verify job `140494097919`: **450 Playwright tests passed (38.4 s)**. The new plain-object allowlist-shape regression is explicitly present and passed at test line 404. TypeScript, dependency audit, Next.js build and the isolated security-contract fixture succeeded.
+- CodeQL [#45995602401](https://github.com/meridane/QimaTrade-MVP/actions/runs/45995602401) completed **SUCCESS**. Vercel Preview is **SUCCESS**.
+- The PostgreSQL 16 job `140494097990` and PostgreSQL 17.6 job `140494097831` remain **IN PROGRESS**, both at the disposable QA373 full-runner write-privilege characterization step (25 completed steps; no failed steps observed). The overall QIMA CI run is therefore still in progress, not closed.
+- Prepared-transaction failure-injection jobs have their expected failure conclusions; the separate blocking assertions succeeded. The skipped harness was skipped by design and its assertion succeeded.
+- No Production exploit or disclosure is inferred from this synthetic regression. No Supabase Production data/schema, migration deployment, secret, grant, RLS policy, persistent configuration or Production deployment was changed.
