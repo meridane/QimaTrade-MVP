@@ -125,3 +125,12 @@ No Supabase Production data or migrations were touched. No Production deployment
 
 - The **SUCCESS** Vercel status above belongs to the validated code/test HEAD `5c0e28b6b4a843119a049cf752b13bcbefdd4142`.
 - After the documentation-only closeout commit `20352d99442a490ae9c19a063a00dda665786470`, the latest PR #27 Vercel status is **PENDING**. No Preview success is claimed for the new documentation commit.
+
+
+## Disposable RPC EXECUTE ACL regression — 2026-11-27
+
+- Extended `supabase/fixtures/qima_product_request_publish_rpc_tests.sql` to verify the migration grants EXECUTE to `authenticated` and does not leave EXECUTE available to `anon`. The `has_function_privilege` check also detects a privilege inherited through PUBLIC.
+- The assertion runs only in the disposable PostgreSQL fixture after the branch-local migration is applied. It does not inspect or alter live Supabase grants.
+- Commit: `f59c50147a1089a818041a01a8f7ff072042b022` (`test(security): assert publish RPC execute privileges`).
+- Validation: awaiting a new QIMA CI run on the updated branch HEAD. No result is inferred from the earlier fixture run.
+- Scope: test-only change; no production data, migration deployment, secret, grant, policy, or persistent configuration was changed.
