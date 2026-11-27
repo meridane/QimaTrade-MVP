@@ -311,3 +311,15 @@ No Supabase Production data/schema, migration, secret, grant, RLS policy or pers
 - Previous HEAD `6734ed48` QIMA CI [#46043817903](https://github.com/meridane/QimaTrade-MVP/actions/runs/46043817903) completed **SUCCESS**: Verify reports **439 Playwright passed (39.2 s)**; dependency audit, TypeScript, Next.js build, Chromium, and the isolated security fixture succeeded. PostgreSQL 16 and 17.6 both completed **SUCCESS**. CodeQL [#46043817883](https://github.com/meridane/QimaTrade-MVP/actions/runs/46043817883) completed **SUCCESS**.
 - The new Escape/reopen assertions require their own QIMA CI and CodeQL run; no result is inferred from the previous HEAD.
 - No application component, auth behavior, database, migration, Supabase Production data/schema, secret, grant, RLS policy, Production deployment, merge, force-push, or branch-protection change.
+
+
+## Supplier-geography Escape/reopen — post-push validation — 2026-11-28 KST
+
+- Test commit: [`b1731e1a`](https://github.com/meridane/QimaTrade-MVP/commit/b1731e1a551809c3bec18078dc564133971ce322); current documentation HEAD: `08fab4eb`.
+- QIMA CI [#46049204892](https://github.com/meridane/QimaTrade-MVP/actions/runs/46049204892) Verify completed **SUCCESS** with **439 Playwright passed (36.7 s)**. The Supplier geography browser scenario, including Escape, focus restoration, reopen, cleared query, and the subsequent normalized Morocco search, passed as one test.
+- Dependency audit, TypeScript, Next.js production build, Chromium, browser tests, and the isolated security fixture succeeded.
+- PostgreSQL 16 and PostgreSQL 17.6 jobs remain **IN PROGRESS** at this observation; the overall QIMA CI is not yet closed.
+- CodeQL [#46049204941](https://github.com/meridane/QimaTrade-MVP/actions/runs/46049204941) completed **SUCCESS**.
+- Vercel Preview is **FAILURE** with the provider's `build-rate-limit` response; this is not a GitHub Actions build failure.
+- Expected prepared-transaction failure-injection jobs have negative conclusions by design; their independent assertions succeeded. The skipped cleanup harness was intentionally skipped and separately asserted.
+- This remains focused keyboard/accessibility coverage, not a complete WCAG audit.
