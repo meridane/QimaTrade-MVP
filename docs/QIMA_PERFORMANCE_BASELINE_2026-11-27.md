@@ -547,3 +547,10 @@ ROLLBACK;
 The SQL above takes a row lock but does not mutate the row; rollback releases the lock. It must only be run against an authorized non-production staging database. No Production connection, query, schema inspection, or data change is authorized or implied.
 
 No optimization is proposed until measured plans and latency identify a material bottleneck. The disposable fixture's `UNIQUE (tenant_id, key)` constraint remains evidence about the fixture only, not the deployed schema.
+
+
+## Preview status for current measurement-protocol HEAD — 2026-11-27 23:42 KST
+
+- Current documentation-only HEAD `e206722489f18c0c346d29a9c5fbac1a1e297f11` has no QIMA CI or CodeQL workflow run because no application/test files changed and the branch has no validation workflow attached.
+- Vercel status is **FAILURE** with the provider's build-rate-limit response. No application build failure or performance regression is inferred.
+- The staging-only EXPLAIN/pgbench protocol is documentation, not an executed benchmark. No p50/p95/p99, query plan, buffer profile, or CPU/memory result is claimed.
