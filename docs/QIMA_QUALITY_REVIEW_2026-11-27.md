@@ -131,3 +131,14 @@ No Supabase Production data/schema, migration, secret, grant, RLS policy or pers
 - Validation for this new browser test is pending QIMA CI on the updated QUALITY branch. No local browser run is claimed.
 - This is a focused accessibility semantics correction, not a complete WCAG audit. Contrast, screen-reader behavior across the full form, and all keyboard interaction paths remain unverified.
 - No Supabase data/schema, auth behavior, dependencies, workflow gates, Production deployment, or branch protections were changed.
+
+
+## Country-selector accessibility CI diagnosis and follow-up — 2026-11-27
+
+- QIMA CI [#45945670309](https://github.com/meridane/QimaTrade-MVP/actions/runs/45945670309) completed with **Verify FAILURE**. TypeScript, dependency audit, production build, isolated security fixture, PostgreSQL 16 and PostgreSQL 17.6 all succeeded; CodeQL [#45945670307](https://github.com/meridane/QimaTrade-MVP/actions/runs/45945670307) succeeded.
+- The browser job reported **6 failed tests**. One failure was the new `offer-country-select-accessibility.spec.ts`: it navigated directly to the protected `/offers/new` route without first authenticating, so the expected country button was absent.
+- Five existing scenarios in `offer-creation-confirmation.spec.ts` still located triggers through `button[aria-haspopup="listbox"]` and choices through `role="listbox"`. The UI change intentionally removed the incomplete listbox semantics and now exposes labelled native buttons inside a labelled group; the stale locators timed out. This is a test-integration regression, not evidence that the corrected UI itself is inaccessible.
+- Follow-up: extracted the existing synthetic OAuth callback/session-cookie setup into `tests/e2e/offer-test-auth.ts`; reused it in both offer specs. Updated all five existing country-selection flows to locate the field-labelled trigger buttons and the corresponding labelled option groups. The focused accessibility test now authenticates before opening the protected page.
+- Files changed for this follow-up: `tests/e2e/offer-test-auth.ts`, `tests/e2e/offer-creation-confirmation.spec.ts`, `tests/e2e/offer-country-select-accessibility.spec.ts`, and this journal.
+- Validation: a fresh QIMA CI run on the updated QUALITY HEAD is required. No local Playwright execution is claimed, and no pass is inferred from the failed prior run.
+- No production UI behavior beyond the already-reviewed accessible-name/group semantics was changed. No Supabase data/schema, auth implementation, dependencies, workflow gates, Production deployment, or branch protections were modified.
