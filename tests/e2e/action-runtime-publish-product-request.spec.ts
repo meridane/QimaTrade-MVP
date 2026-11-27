@@ -116,13 +116,21 @@ async function executePublishProductRequestRuntime(
 
       if (path === "/rest/v1/rpc/get_action_definition_v1" && definitionRpcStatus !== 200) {
         const rateLimited = definitionRpcStatus === 429;
+        const unauthorized = definitionRpcStatus === 401;
+        const forbidden = definitionRpcStatus === 403;
         response.writeHead(definitionRpcStatus, {
           "Content-Type": "application/json",
           ...(rateLimited ? { "Retry-After": "0" } : {}),
         });
         response.end(JSON.stringify({
-          message: "SYNTHETIC_DEFINITION_RATE_LIMIT_DETAIL",
-          code: "PGRST429",
+          message: rateLimited
+            ? "SYNTHETIC_DEFINITION_RATE_LIMIT_DETAIL"
+            : unauthorized
+              ? "Invalid JWT"
+              : forbidden
+                ? "permission denied"
+                : "SYNTHETIC_DEFINITION_LOOKUP_DETAIL",
+          code: rateLimited ? "PGRST429" : unauthorized ? "PGRST301" : forbidden ? "42501" : "PGRST_QIMA_DEFINITION",
           details: "internal definition diagnostic",
           hint: "private rate-limit hint",
         }));
