@@ -183,3 +183,12 @@ No Supabase Production data/schema, migration, secret, grant, RLS policy or pers
 - Updated the test to verify the actual sequential tab order: International Market, then South Korea, followed by Enter selection and the existing focus-restoration assertions. No component behavior was changed to satisfy an incorrect test expectation.
 - A fresh QIMA CI run is required before the keyboard scenario is marked passing. This remains focused browser coverage, not a complete WCAG audit.
 - No Supabase data/schema, authorization behavior, dependency, Production deployment or branch protection was changed.
+
+---
+
+## QUALITY post-fix workflow status — 2026-11-27 18:54 KST
+
+- The corrected native tab-order test is committed as code/test HEAD `2a42fc4dd61cb1a23c2655d22b55db243e76eda3`.
+- Fresh QIMA CI [#45977893896](https://github.com/meridane/QimaTrade-MVP/actions/runs/45977893896) is **IN PROGRESS**. At the latest read, TypeScript, audit and build had reached the production-build step successfully; Playwright had not yet reported a result. PostgreSQL 16 and 17.6 jobs were still active.
+- CodeQL [#45977893826](https://github.com/meridane/QimaTrade-MVP/actions/runs/45977893826) is **IN PROGRESS**.
+- The previous tab-order assertion failure is not marked resolved until the new browser Verify job completes.
