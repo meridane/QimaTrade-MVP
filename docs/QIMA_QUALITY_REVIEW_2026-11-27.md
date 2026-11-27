@@ -230,3 +230,14 @@ No Supabase Production data/schema, migration, secret, grant, RLS policy or pers
 - Stabilized the login test in commit `5658f785` by explicitly focusing the document body before asserting the first and second Tab destinations. Current QUALITY HEAD is `b60bd66f`; QIMA CI [#45996041842](https://github.com/meridane/QimaTrade-MVP/actions/runs/45996041842) is **PENDING**, while CodeQL [#45996041669](https://github.com/meridane/QimaTrade-MVP/actions/runs/45996041669) completed **SUCCESS**.
 - The current Vercel Preview check is **FAILURE** only because the provider returned its `build-rate-limit` quota response. The keyboard stabilization has not yet received a fresh Verify result; no pass is claimed.
 - This remains targeted accessibility coverage, not a complete WCAG audit. No Supabase data/schema, authorization behavior, dependency, Production deployment or branch protection was changed.
+
+---
+
+## aria-controls relationship regression — 2026-11-27 22:46 KST
+
+- Verified the existing CountrySelect implementation sets `aria-controls` to the rendered options-group ID only while the selector is open.
+- Added Playwright assertions that the trigger's `aria-controls` value resolves to the actual labelled options group, and that the attribute is absent after Escape and after selection closes the group.
+- This is test-only; no application behavior or markup was changed.
+- Baseline HEAD `b0f66506c14f3b4422190f91b8b5037dc4d6e3f3` completed QIMA CI [#45998860809](https://github.com/meridane/QimaTrade-MVP/actions/runs/45998860809) **SUCCESS**: 438 Playwright passed (39.1 s), TypeScript, dependency audit, Next.js build, isolated security fixture, PostgreSQL 16 and 17.6 succeeded. CodeQL [#45998860845](https://github.com/meridane/QimaTrade-MVP/actions/runs/45998860845) **SUCCESS**; Vercel Preview **SUCCESS**.
+- New test commit: `fcaffe6ede7acf07ab2646ed6f1c7c147d6883d2`. Its own QIMA CI and CodeQL results are pending; the baseline result is not transferred to this new HEAD.
+- No Supabase data/schema, Production migration, secret, grant, RLS policy, deployment, merge, force-push or branch-protection change.
