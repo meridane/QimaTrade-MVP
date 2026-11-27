@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, Check, ChevronDown, Search } from "lucide-react";
 import Link from "next/link";
 import { getCreatedOfferId } from "@/lib/offers/created-offer-reference";
@@ -50,27 +50,43 @@ function CountrySelect({
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const triggerRef = useRef<HTMLButtonElement>(null);
 
   const filteredCountries = useMemo(() => {
     const q = query.trim().toLowerCase();
     return countries.filter((country) => country.toLowerCase().includes(q));
   }, [query]);
 
-  function choose(country: string) {
-    onChange(country);
+  function close() {
     setQuery("");
     setOpen(false);
+    triggerRef.current?.focus();
+  }
+
+  function choose(country: string) {
+    onChange(country);
+    close();
   }
 
   return (
-    <div className="relative">
+    <div
+      className="relative"
+      onKeyDown={(event) => {
+        if (event.key === "Escape" && open) {
+          event.preventDefault();
+          close();
+        }
+      }}
+    >
       <label className="text-sm font-bold text-slate-800" htmlFor={id}>{label}</label>
       <input type="hidden" id={id} name={name} value={value} readOnly />
       <button
+        ref={triggerRef}
         type="button"
         aria-label={`${label}: ${value || placeholder}`}
         aria-expanded={open}
-        onClick={() => setOpen((current) => !current)}
+        aria-controls={open ? `${id}-options` : undefined}
+        onClick={() => (open ? close() : setOpen(true))}
         className="mt-2 flex w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 text-left text-sm"
       >
         <span className={value ? "text-slate-800" : "text-slate-400"}>{value || placeholder}</span>
@@ -91,7 +107,7 @@ function CountrySelect({
               />
             </div>
           </div>
-          <div className="max-h-64 overflow-y-auto p-1" role="group" aria-label={`${label} options`}>
+          <div id={`${id}-options`} className="max-h-64 overflow-y-auto p-1" role="group" aria-label={`${label} options`}>
             {allowInternational && (
               <button
                 type="button"
