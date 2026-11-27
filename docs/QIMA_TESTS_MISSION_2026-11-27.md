@@ -190,3 +190,13 @@ No Supabase Production data/schema, migration, secret, grant, RLS policy or pers
 - The existing local HTTP fixture already models all 5xx responses with the same upstream failure contract; the production runtime is unchanged.
 - A fresh QIMA CI run is required for the expanded matrix. No local Playwright run is claimed.
 - No Supabase Production data/schema, migration, secret, grant, RLS policy, Production deployment or branch protection was changed.
+
+## Full CI closeout before upstream 5xx matrix expansion — 2026-11-27
+
+- TESTS snapshot `2314ce9bb389be9acd5e70a576e2e26719aac653` completed QIMA CI [#45964032572](https://github.com/meridane/QimaTrade-MVP/actions/runs/45964032572) with overall **SUCCESS**.
+- Verify job `140388328253` passed TypeScript, dependency audit, Next.js production build, isolated security fixture and **440 Playwright tests (37.8 s)**.
+- PostgreSQL 16 and PostgreSQL 17.6 integration/compatibility jobs both completed **SUCCESS**. CodeQL [#45964032567](https://github.com/meridane/QimaTrade-MVP/actions/runs/45964032567) completed **SUCCESS**. Vercel Preview for that snapshot was **SUCCESS**.
+- The two failure-injection jobs intentionally ended with failure conclusions; their independent assertions passed. The skipped harness was skipped by design and its assertion passed.
+- The new TESTS HEAD `578c61efc037ba79fe06097d32f123a65b94c529` expands the existing publish-runtime no-retry regression across HTTP 500, 502, 503 and 504. This matrix is not covered by the preceding successful run.
+- Current HEAD checks: QIMA CI [#45968462903](https://github.com/meridane/QimaTrade-MVP/actions/runs/45968462903) **PENDING**, CodeQL [#45968462959](https://github.com/meridane/QimaTrade-MVP/actions/runs/45968462959) **IN PROGRESS**, Vercel blocked by the provider build-rate quota.
+- No Supabase Production data/schema, migration, secret, grant, RLS policy, Production deployment, PR merge, force-push or branch-protection change was performed.
