@@ -310,3 +310,15 @@ No Supabase Production data or migrations were touched. No Production deployment
 - The PostgreSQL 16 job `140494097990` and PostgreSQL 17.6 job `140494097831` remain **IN PROGRESS**, both at the disposable QA373 full-runner write-privilege characterization step (25 completed steps; no failed steps observed). The overall QIMA CI run is therefore still in progress, not closed.
 - Prepared-transaction failure-injection jobs have their expected failure conclusions; the separate blocking assertions succeeded. The skipped harness was skipped by design and its assertion succeeded.
 - No Production exploit or disclosure is inferred from this synthetic regression. No Supabase Production data/schema, migration deployment, secret, grant, RLS policy, persistent configuration or Production deployment was changed.
+
+
+## Final CI closeout — 2026-11-27 21:25 KST
+
+- Verified branch HEAD: `8f0c842a2c4ff4cd878d1012e1592145bde85fb3`.
+- QIMA CI [#45996397685](https://github.com/meridane/QimaTrade-MVP/actions/runs/45996397685) completed **SUCCESS**. Verify job 140497643493 passed dependency audit, TypeScript, Next.js production build, browser tests and the isolated QIMA security-contract fixture.
+- PostgreSQL 16 integration and PostgreSQL 17.6 compatibility jobs both completed **SUCCESS**.
+- CodeQL [#45996397739](https://github.com/meridane/QimaTrade-MVP/actions/runs/45996397739) completed **SUCCESS**.
+- The prepared-transaction setup/cleanup jobs intentionally concluded with failure outcomes; their separate assertion jobs completed **SUCCESS**. The skipped-result harness was intentionally skipped and its assertion job succeeded. These expected harness outcomes do not make the overall QIMA CI fail.
+- Vercel status for this branch is **FAILURE** with the provider response “Deployment rate limited — retry in 24 hours.” This is a Preview-capacity blocker, not an application build result.
+- The new allowlist-shaped backend-error regression is included in the verified HEAD. No Production exploitability is inferred from this synthetic test.
+- Remaining blockers: the multi-tenant publishing behavior still needs a product/API decision; live Supabase schema, deployed RPC, grants and RLS remain unverified because the project is paused. No project resume or remote SQL was attempted.
