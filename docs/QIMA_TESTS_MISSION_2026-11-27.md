@@ -272,3 +272,12 @@ No Supabase Production data/schema, migration, secret, grant, RLS policy or pers
 - Previous code/test HEAD `34c0a480` completed QIMA CI [#46011106239](https://github.com/meridane/QimaTrade-MVP/actions/runs/46011106239) **SUCCESS**: Verify (442 Playwright), PostgreSQL 16, PostgreSQL 17.6, and CodeQL [#46011106129](https://github.com/meridane/QimaTrade-MVP/actions/runs/46011106129) all succeeded. Vercel Preview was **SUCCESS**.
 - New test commit: `a83d595fb0583b4e0237d13bad5afd4b96408bcd`. A fresh QIMA CI/CodeQL run is required; no pass is claimed yet.
 - No runtime behavior, database, migration, Production data, secret, grant, RLS policy, Production deployment, merge, force-push, or branch-protection change.
+
+
+## Post-push validation status — 2026-11-27 23:42 KST
+
+- New HTTP 204 regression commit `a83d595fb0583b4e0237d13bad5afd4b96408bcd` is being checked by QIMA CI [#46018961960](https://github.com/meridane/QimaTrade-MVP/actions/runs/46018961960) (**IN PROGRESS**). TypeScript and the Next.js production build have succeeded; Chromium installation is active; Playwright has not started; PostgreSQL 16 and 17.6 jobs remain active.
+- CodeQL [#46018961986](https://github.com/meridane/QimaTrade-MVP/actions/runs/46018961986) completed **SUCCESS**.
+- Vercel Preview for the new branch HEAD is **FAILURE** because the provider returned its build-rate-limit response. This is not a GitHub Actions build/test failure.
+- The expected prepared-transaction failure-injection jobs have negative conclusions by design; their assertion jobs succeeded. The skipped-result harness is intentionally skipped and separately asserted.
+- No Playwright or PostgreSQL result is claimed for the new commit yet.
