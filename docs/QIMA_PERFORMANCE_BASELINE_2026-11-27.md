@@ -347,3 +347,12 @@ These suites have different test contents and counts; the Playwright durations a
 - Both runs also completed PostgreSQL 16 and PostgreSQL 17.6 integration jobs successfully; their CodeQL runs succeeded.
 - These are CI suite timings only. They are not application latency, database query latency, or a statistically controlled performance comparison. No optimization is justified from these samples.
 - QUALITY run [#45951688863](https://github.com/meridane/QimaTrade-MVP/actions/runs/45951688863) failed at TypeScript before build/browser execution because the extracted offer auth helper left two existing synthetic constants undefined in the original spec. The constants were restored on the QUALITY branch; rerun [#45963833330](https://github.com/meridane/QimaTrade-MVP/actions/runs/45963833330) is currently in progress, so no post-fix performance or test result is claimed yet.
+
+
+## QUALITY CI test-integration sample — 2026-11-27
+
+- QIMA CI [#45963833330](https://github.com/meridane/QimaTrade-MVP/actions/runs/45963833330), Verify job 140387673807, completed TypeScript, dependency audit, Next.js build and the isolated SECURITY fixture successfully. Its Playwright suite reported **436 passed / 1 failed (34.8 s)**.
+- The single failure was the new country-selector accessibility test opening `/offers/new` without the Product Master gate context required by the existing offer-creation test fixture. This is a test setup/integration failure, not an application performance result.
+- The test was corrected to authenticate and open `/offers/new?productMasterId=<synthetic gate id>`. The follow-up QIMA CI [#45964193515](https://github.com/meridane/QimaTrade-MVP/actions/runs/45964193515) is **PENDING** at this checkpoint; no post-fix test duration is claimed.
+- PostgreSQL 16 and PostgreSQL 17.6 jobs in #45963833330 were still in progress at the latest read. The run is not treated as complete.
+- This sample is retained only as CI test-suite timing with a known failed case. It is excluded from any successful baseline comparison and does not justify an application optimization.
