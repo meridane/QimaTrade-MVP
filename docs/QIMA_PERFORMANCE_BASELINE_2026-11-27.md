@@ -312,3 +312,10 @@ These suites have different test contents and counts; the Playwright durations a
 - TESTS documentation HEAD `7eb540bd`: QIMA CI [#45945714444](https://github.com/meridane/QimaTrade-MVP/actions/runs/45945714444) is **IN PROGRESS**; PostgreSQL 16 and 17.6 are at the final runner write-privilege characterization, and Verify is still active. CodeQL [#45945714513](https://github.com/meridane/QimaTrade-MVP/actions/runs/45945714513) is **SUCCESS**.
 - QUALITY HEAD `6162a67e`: QIMA CI [#45945670309](https://github.com/meridane/QimaTrade-MVP/actions/runs/45945670309) is **PENDING** with no jobs published at the latest read; CodeQL [#45945670307](https://github.com/meridane/QimaTrade-MVP/actions/runs/45945670307) is **SUCCESS**.
 - Vercel Preview statuses on all three mission heads are blocked by the provider's daily deployment quota. This is not a GitHub Actions failure.
+
+
+### TESTS Verify closeout — current documentation HEAD — 2026-11-27
+
+- TESTS HEAD `7eb540bd`: Verify job `140329806236` in QIMA CI [#45945714444](https://github.com/meridane/QimaTrade-MVP/actions/runs/45945714444) completed **SUCCESS** with **440 Playwright tests passed (35.7 s)**. The malformed successful publish-result regression is included in the passing suite.
+- PostgreSQL 16 job `140329806149` and PostgreSQL 17.6 job `140329806090` remain **IN PROGRESS** at the final full-runner write-privilege characterization. Therefore the overall QIMA CI run is not yet SUCCESS.
+- CodeQL [#45945714513](https://github.com/meridane/QimaTrade-MVP/actions/runs/45945714513) is **SUCCESS**.
