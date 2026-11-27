@@ -201,3 +201,15 @@ No Supabase Production data or migrations were touched. No Production deployment
 - The provider build-rate quota failure noted in the earlier checkpoint applied to the prior code/test snapshot, not to a confirmed application build failure.
 - After the documentation closeout commit `8c61feb59f7cb3cc0261dac4de51ca34924c0077`, the current PR #27 Vercel status was **PENDING**. No Preview success is claimed for that documentation HEAD.
 - The code/test snapshot `726941e2517d36654be8123fef0051bdfa80731c` remains validated by QIMA CI #45932892701 and CodeQL #45932892666 as recorded above.
+
+
+## Offer-context backend diagnostic boundary — 2026-11-27
+
+- Static review of `app/offers/actions.ts` found two client-return paths that forwarded Supabase/PostgREST `error.message` values: the product-attribute row lookup and the combined definition/options/unit lookup.
+- The path is consumed by `app/offers/page.tsx`: `getOfferContext(id)` stores the returned error and renders it in a client-visible `role="alert"` region. This confirms a code-level diagnostic exposure path in the checked-in source; it does not establish that a sensitive diagnostic has occurred in Production.
+- Added `lib/offers/public-errors.ts` with a stable client-safe message and updated both lookup-error branches to use it. Backend error objects are not interpolated into the returned message.
+- Added `tests/e2e/offer-context-error-boundary.spec.ts` covering both an Error message and a PostgREST-shaped object with synthetic message/details/hint/SQLSTATE sentinels.
+- Commits: helper `317f63a54180ddede9af5a873f2ac89d9100a2c9`; server-action integration `9a05e8e2ca86ba37b1e1b2c4e727cd9eeb510c1d`; regression test `3c0df25ca15b11c3d2e4e1e3326e0bba6e54f5af`.
+- Validation for this new change is pending a fresh QIMA CI run on the updated SECURITY branch. No local test execution is claimed.
+- Classification: confirmed raw-diagnostic forwarding in the repository code path; actual Production exposure, affected users, or exploitation remain unverified.
+- No Supabase Production data/schema, migration deployment, secret, grant, RLS policy, or persistent configuration was changed. No Production deployment, PR merge, force-push, or branch-protection change was performed.
