@@ -797,3 +797,20 @@ Report p50, p95 and p99 for each operation and the total. Preserve raw timing sa
 For any candidate query, use a read-only transaction on staging and capture `EXPLAIN (ANALYZE, BUFFERS, SETTINGS, FORMAT JSON)`. Do not run write statements or migrations. An optimization proposal requires a repeatable hotspot or request-count growth that scales with attribute count; CI duration alone is not sufficient evidence.
 
 No benchmark, EXPLAIN, query, project resume, schema/data change, or Production access was performed in this run.
+
+
+## Latest isolated mission CI timing closeout — 2026-11-28
+
+The following code/test snapshots have completed their GitHub Actions Verify and disposable PostgreSQL jobs. These are CI/harness timings, not application latency measurements.
+
+| Mission snapshot | QIMA CI | Playwright | Verify job | PostgreSQL 16 | PostgreSQL 17.6 | CodeQL |
+|---|---|---:|---|---|---|---|
+| SECURITY `9347ce22` | [#2202](https://github.com/meridane/QimaTrade-MVP/actions/runs/46078229957) | 457 passed / 38.6 s | SUCCESS | SUCCESS | SUCCESS | [#2126](https://github.com/meridane/QimaTrade-MVP/actions/runs/46078229947) SUCCESS |
+| TESTS `dc5a097e` | [#2200](https://github.com/meridane/QimaTrade-MVP/actions/runs/46078021207) | 454 passed / 36.0 s | SUCCESS | SUCCESS | SUCCESS | [#2124](https://github.com/meridane/QimaTrade-MVP/actions/runs/46078021183) SUCCESS |
+| QUALITY `c2c8d283` | [#2201](https://github.com/meridane/QimaTrade-MVP/actions/runs/46078025047) | 440 passed / 36.1 s | SUCCESS | SUCCESS | SUCCESS | [#2125](https://github.com/meridane/QimaTrade-MVP/actions/runs/46078025059) SUCCESS |
+
+- The earlier SECURITY run #2198 had one Playwright failure caused by synthetic membership fixture state leaking into the next serial test. The fixture gained an explicit reset path and the subsequent #2202 Verify completed with all 457 tests passing. A transient `ECONNRESET` message appeared in the browser log but no Playwright test failed in #2202; retain it as runner noise, not as a production network finding.
+- The expected prepared-transaction failure-injection jobs still conclude `failure` at their deliberate failing steps; independent assertion jobs pass. The skipped harness is expected and separately asserted.
+- These results close only the exact code/test snapshots listed above. They do not validate subsequent commits added after these runs.
+- No p50/p95/p99 application timings, SQL plans, buffers, lock waits, CPU or memory metrics are inferred from these job durations. The QIMA Supabase project remains inactive; no project resume or live database query was performed.
+- Next action remains a staging-only trace of `getOfferContext` after an explicitly authorized non-production project and deterministic fixtures are available.
