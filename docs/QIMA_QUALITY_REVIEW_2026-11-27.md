@@ -120,3 +120,14 @@ No Supabase Production data/schema, migration, secret, grant, RLS policy or pers
 - Re-read `package.json` from the verified PR #26 source. Scripts are `dev`, `build`, `start`, `typecheck` and `test:e2e`; there is no lint, format, unit-test or coverage script.
 - The manifest's development dependencies do not include ESLint or an accessibility scanner. This confirms a tooling gap, not a code-quality or accessibility defect.
 - No dependency, lint configuration, workflow gate or auto-fix was added. Introducing ESLint/Next lint or an accessibility scanner should be a deliberate toolchain change with a report-only baseline and an agreed rule set, not an unreviewed blocking gate.
+
+
+## Offer country selector accessibility follow-up — 2026-11-27
+
+- Review of `app/offers/new/page.tsx` found that each visible country-trigger button relied on a separate label associated with a hidden input, so the visible button did not receive that field label. The popup also declared `role="listbox"` while its choices were native `button` elements rather than listbox options.
+- Added an explicit accessible name to each trigger (`<field label>: <current value or placeholder>`) and changed the popup container to a labelled `group`. The choices remain native buttons, preserving ordinary Tab/Enter/Space interaction instead of claiming listbox semantics without implementing listbox keyboard behavior.
+- Added `tests/e2e/offer-country-select-accessibility.spec.ts` to open the actual `/offers/new` page, verify both field triggers have names, check expanded state, and assert the popup exposes a group of buttons rather than a listbox.
+- Commits: UI fix `34d34d17f3de24d5e603e5c48a203b35762a2938`; browser regression `1f77425cb07e57a90ebfd10d65b82d6212b53b77`.
+- Validation for this new browser test is pending QIMA CI on the updated QUALITY branch. No local browser run is claimed.
+- This is a focused accessibility semantics correction, not a complete WCAG audit. Contrast, screen-reader behavior across the full form, and all keyboard interaction paths remain unverified.
+- No Supabase data/schema, auth behavior, dependencies, workflow gates, Production deployment, or branch protections were changed.
