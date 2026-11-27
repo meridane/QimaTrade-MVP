@@ -165,3 +165,11 @@ No Supabase Production data/schema, migration, secret, grant, RLS policy or pers
 - Static inspection of `tests/e2e/offer-creation-confirmation.spec.ts` after extracting `authenticatePage` found `APIRequestContext` and `Page` only in the import declaration; each identifier occurred exactly once in the file and had no remaining usage.
 - Removed those two unused type imports. No runtime behavior or test assertions changed.
 - Commit: `42d4c6408b3a1e82c552b3f8ec0679c65392151e`. Validation is included in the current branch's next QIMA CI run; no local test result is claimed.
+## Country-selector keyboard and focus follow-up — 2026-11-27
+
+- Added a trigger ref and a shared close path to the CountrySelect component. Closing with Escape or selecting a country now clears the search, closes the option group and returns keyboard focus to the visible trigger.
+- Added aria-controls while the option group is mounted and connected it to a stable per-field group ID.
+- Added a Playwright regression that opens the authenticated Product Master-gated offer form, verifies Escape closes the group and restores focus, then filters to South Korea, selects it with Tab/Enter, and verifies the selected accessible name and restored focus.
+- This is a focused keyboard interaction improvement; it does not claim a complete WCAG audit. Screen-reader testing and full-form keyboard coverage remain outstanding.
+- Validation is pending a fresh QIMA CI run on the updated QUALITY branch. No local browser run is claimed.
+- No Supabase data/schema, authorization behavior, dependencies, Production deployment or branch protection was changed.
