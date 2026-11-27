@@ -261,3 +261,13 @@ No Supabase Production data or migrations were touched. No Production deployment
 - A new code follow-up now exists on SECURITY HEAD `09f464d54acd8a7a16ca7d6e121f62070fba1f16`: catch CREATE_OFFER server-action failures and expose only exact documented domain codes or a generic message. It is not covered by the preceding successful run.
 - Current HEAD checks: QIMA CI [#45968402884](https://github.com/meridane/QimaTrade-MVP/actions/runs/45968402884) **PENDING**, CodeQL [#45968402885](https://github.com/meridane/QimaTrade-MVP/actions/runs/45968402885) **IN PROGRESS**, Vercel blocked by the provider build-rate quota.
 - No Production disclosure or exploit is inferred. No Supabase Production data/schema, migration deployment, secret, grant, RLS policy, or persistent configuration was changed.
+
+---
+
+## SECURITY source-contract assertion correction — 2026-11-27 18:54 KST
+
+- QIMA CI [#45968546521](https://github.com/meridane/QimaTrade-MVP/actions/runs/45968546521) completed with **448 Playwright passed / 1 failed (35.5 s)**. TypeScript, dependency audit, Next.js build, isolated fixture, PostgreSQL 16 and PostgreSQL 17.6 succeeded; CodeQL [#45968546528](https://github.com/meridane/QimaTrade-MVP/actions/runs/45968546528) succeeded.
+- The only browser failure was a brittle source-contract assertion expecting a standalone import of toPublicOfferContextError. The implementation correctly uses a combined named import with toPublicCreateOfferError; this is not an application behavior failure.
+- Updated the assertion to recognize the named import regardless of other names in the same import declaration. Runtime code, public error mapping and authorization behavior are unchanged.
+- The fresh SECURITY HEAD requires a new QIMA CI run. No result is inferred from the preceding failed run.
+- No Supabase Production data/schema, migration deployment, secret, grant, RLS policy, persistent configuration or Production deployment was changed.
