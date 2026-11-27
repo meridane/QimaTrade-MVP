@@ -280,3 +280,14 @@ No Supabase Production data/schema, migration, secret, grant, RLS policy or pers
 - The change is test-only; no component behavior or markup was changed. This is a focused keyboard interaction check, not a complete WCAG audit.
 - The new assertion is pending its own QIMA CI/CodeQL run.
 - No auth behavior, database, migration, Supabase Production data/schema, secret, grant, RLS policy, Production deployment, merge, force-push or branch-protection change.
+
+
+## QIMA CI closeout and supplier-geography accessibility — 2026-11-28 KST
+
+- QIMA CI [#46028468443](https://github.com/meridane/QimaTrade-MVP/actions/runs/46028468443) completed **SUCCESS**. Verify job `140605858197` reports **438 Playwright passed (36.6 s)**; dependency audit, TypeScript, Next.js build, Chromium, browser tests and the isolated security fixture succeeded.
+- PostgreSQL 16 job `140605858125` and PostgreSQL 17.6 job `140605857790` both completed **SUCCESS**.
+- CodeQL [#46028468426](https://github.com/meridane/QimaTrade-MVP/actions/runs/46028468426) completed **SUCCESS**; Vercel Preview is **SUCCESS**.
+- Prepared-transaction failure-injection conclusions are expected; independent blocking assertions passed. The skipped cleanup harness was intentional and separately asserted.
+- Added a focused browser test for the second `CountrySelect` instance (Supplier geography): it checks the instance-specific `aria-controls` target, autofocus, filtering, selection, accessible-name update, removal of the closed-menu relationship and focus restoration.
+- This is focused keyboard/accessibility coverage, not a complete WCAG audit. The new test is pending its own QIMA CI/CodeQL run.
+- No application component, auth behavior, database, migration, Supabase Production data/schema, secret, grant, RLS policy, Production deployment, merge, force-push or branch-protection change.
