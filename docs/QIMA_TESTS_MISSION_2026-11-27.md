@@ -144,3 +144,12 @@ No Supabase Production data/schema, migration, secret, grant, RLS policy or pers
 - This is a test-fixture correction only; production/runtime code is unchanged.
 - Corrected test commit: `978c3d3595733c734d8200d9de6ea39dad61ef8b`.
 - QIMA CI #45938350591 was already running against the earlier numeric-only fixture. Its result must not be treated as validation of this corrected test. A new CI run on the corrected commit is required.
+
+
+## UUID-shaped successful-result contract — 2026-11-27
+
+- The SQL function `dt_publish_product_request(p_request_id uuid, p_user_id uuid)` returns `jsonb` containing `demandId` built from the UUID-typed `v_demand.id`. The runtime previously checked only that the returned identifier was a non-empty string.
+- Tightened `lib/actions/runtime.ts` so a successful publish result must contain a canonical UUID-shaped demand identifier, regardless of whether it arrived as `demandId` or legacy `demand_id`. The pattern deliberately does not restrict UUID version/variant bits because PostgreSQL's `uuid` type permits any 128-bit UUID value.
+- Added malformed-success regressions for arbitrary text and a non-hex UUID character. Existing legacy snake_case and equivalent mixed-case alias success tests remain in the same suite.
+- This change is based on the SQL return type in the checked-in migration, not on a synthetic security claim. No production schema, data, migration or grant was changed.
+- Validation status for the new runtime check and two new cases: **PENDING** until the new branch QIMA CI completes. Previous successful CI runs predate this change and are not counted as validation.
