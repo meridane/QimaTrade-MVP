@@ -115,7 +115,11 @@ async function executePublishProductRequestRuntime(
       }
 
       if (path === "/rest/v1/rpc/get_action_definition_v1" && definitionRpcStatus !== 200) {
-        response.writeHead(definitionRpcStatus, { "Content-Type": "application/json" });
+        const rateLimited = definitionRpcStatus === 429;
+        response.writeHead(definitionRpcStatus, {
+          "Content-Type": "application/json",
+          ...(rateLimited ? { "Retry-After": "0" } : {}),
+        });
         response.end(JSON.stringify({
           message: "SYNTHETIC_DEFINITION_RATE_LIMIT_DETAIL",
           code: "PGRST429",
@@ -151,8 +155,11 @@ async function executePublishProductRequestRuntime(
       }
 
       if (path === "/rest/v1/rpc/dt_publish_product_request" && publishRpcStatus !== 200) {
-        response.writeHead(publishRpcStatus, { "Content-Type": "application/json" });
         const rateLimited = publishRpcStatus === 429;
+        response.writeHead(publishRpcStatus, {
+          "Content-Type": "application/json",
+          ...(rateLimited ? { "Retry-After": "0" } : {}),
+        });
         const unavailable = publishRpcStatus >= 500;
         response.end(JSON.stringify({
           message: rateLimited
