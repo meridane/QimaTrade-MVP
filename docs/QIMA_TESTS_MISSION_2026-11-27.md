@@ -97,3 +97,12 @@ No Supabase Production data/schema, migration, secret, grant, RLS policy or pers
 - CodeQL [#45913960548](https://github.com/meridane/QimaTrade-MVP/actions/runs/45913960548) completed **SUCCESS**.
 - PostgreSQL 16 integration and PostgreSQL 17.6 compatibility jobs remain **IN PROGRESS** at this checkpoint; no final overall CI conclusion is claimed yet.
 - This validates the synthetic client/runtime contract only. It does not establish a live upstream failure or a Production disclosure.
+
+
+## Malformed successful publish-RPC payload regression — 2026-11-27
+
+- Static review found that the runtime converted a missing or blank `demandId` into `objectId: null` while still constructing a successful `PUBLISH_PRODUCT_REQUEST` result. The SQL contract returns a demand ID on both the create and already-published paths, so a successful response without one is malformed.
+- `lib/actions/runtime.ts` now rejects missing, blank, or non-string camelCase/snake_case demand IDs with the internal error `PUBLISH_RESULT_INVALID`; non-empty legacy `demand_id` remains supported.
+- Added synthetic regressions for `null`, empty object, whitespace ID and non-string snake_case ID, plus a positive snake_case compatibility case in `tests/e2e/action-runtime-publish-product-request.spec.ts`.
+- This is a contract-hardening change based on checked-in RPC return shapes. It does not establish that malformed responses occur in Production.
+- Validation: pending new QIMA CI and CodeQL on the updated TESTS branch. No live Supabase calls or Production changes were made.
