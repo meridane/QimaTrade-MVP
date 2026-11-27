@@ -350,3 +350,14 @@ No Supabase Production data/schema, migration, secret, grant, RLS policy or pers
 - This is a focused semantic grouping improvement, not a complete WCAG or screen-reader certification.
 - The previous QIMA CI #2188 and CodeQL #2112 run completed successfully, including PostgreSQL 16 and 17.6; this new component/test commit requires its own CI and CodeQL validation.
 - No authentication, API, database, migration, Supabase Production data/schema, secret, grant, RLS policy, deployment, merge, force-push, or branch-protection change.
+
+
+## Offer toggle-group semantics Verify / CodeQL closeout — 2026-11-28
+
+- QIMA CI [#2191](https://github.com/meridane/QimaTrade-MVP/actions/runs/46065923133) Verify job completed **SUCCESS**: **440 Playwright passed (34.6 s)**; dependency audit, TypeScript, Next.js production build, Chromium, browser tests and the isolated security-contract fixture all succeeded.
+- The new fieldset/legend group-name test passed. It located Commercial terms and Documentation available as named groups and verified the EXW and Commercial Invoice buttons' `aria-pressed` state before and after selection.
+- CodeQL [#2115](https://github.com/meridane/QimaTrade-MVP/actions/runs/46065923029) completed **SUCCESS**.
+- PostgreSQL 16 integration and PostgreSQL 17.6 compatibility remain **IN PROGRESS** at this checkpoint, both in the full runner-write-privilege characterization step (25/47 and 25/32 steps). The QIMA CI workflow is not yet closed.
+- The two prepared-transaction failure-injection jobs have expected negative conclusions; their independent assertions succeeded. The cleanup-skipped harness is intentionally skipped and separately asserted.
+- This is focused semantic accessibility coverage, not a complete WCAG or screen-reader certification.
+- No authentication, API, database, migration, Supabase Production data/schema, secret, grant, RLS policy, deployment, merge, force-push or branch-protection change.
