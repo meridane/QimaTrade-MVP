@@ -126,3 +126,13 @@ No Supabase Production data/schema, migration, secret, grant, RLS policy or pers
 - Added a synthetic array payload to the malformed-success regression set.
 - Commit: runtime guard `51dc2b44d79453fa22215acc4fe9ee283c81cb52`; regression `78ecdd3c8cecd30c558c7996a011fade0d16788a`.
 - Validation remains pending for the current TESTS branch HEAD; no pass is inferred from the earlier 439-test run.
+
+## Equivalent publish-result aliases — 2026-11-27
+
+- Added a positive regression where both `demandId` and legacy `demand_id` are present and represent the same UUID with different hexadecimal casing.
+- The runtime must accept this equivalent pair, preserve the canonical camelCase value in the successful result, and avoid treating case-only UUID differences as a conflict.
+- This complements the existing negative case for genuinely conflicting aliases; it does not change runtime behavior.
+- Test commit: `4afdf99de8cf665731eb9f168d2359b1659bba2f`.
+- The preceding TESTS branch snapshot `2beb027f81c9dc2d7ff8dabf1c2f32e4685c85e4` passed QIMA CI [#45932862346](https://github.com/meridane/QimaTrade-MVP/actions/runs/45932862346): **439 Playwright tests passed (37.1 s)**, TypeScript, dependency audit, Next.js build, isolated security fixture, PostgreSQL 16 and PostgreSQL 17.6 all succeeded; CodeQL [#45932861481](https://github.com/meridane/QimaTrade-MVP/actions/runs/45932861481) succeeded.
+- The new positive alias-equivalence test is not included in that earlier run and awaits a fresh QIMA CI run. No local test execution is claimed.
+- No database, migration, Supabase Production data, secret, grant, RLS policy or persistent configuration was changed.
