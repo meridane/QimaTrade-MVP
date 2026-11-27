@@ -85,7 +85,12 @@ const server = createServer(async (request, response) => {
   if (request.method === "POST" && url.pathname === "/__test/membership-fixture") {
     try {
       const body = await readJsonBody(request);
-      if (!body || typeof body !== "object" || Array.isArray(body) || !Array.isArray(body.rows)) {
+      if (
+        !body ||
+        typeof body !== "object" ||
+        Array.isArray(body) ||
+        !(Array.isArray(body.rows) || body.rows === null)
+      ) {
         sendJson(response, 400, { error: "INVALID_MEMBERSHIP_FIXTURE" });
         return;
       }
