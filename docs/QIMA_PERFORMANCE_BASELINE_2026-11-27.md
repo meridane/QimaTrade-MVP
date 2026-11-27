@@ -466,3 +466,29 @@ Source reviewed: `app/offers/actions.ts` on the isolated SECURITY branch (same o
 - At the same check, PR #26, SECURITY HEAD `2caaf0ca` and TESTS HEAD `e2d1aa94` had Vercel **SUCCESS**. QUALITY HEAD `b60bd66f` had the same provider quota failure.
 - The latest SECURITY and TESTS Verify jobs have passed their browser suites (450 and 442 tests respectively), but their overall QIMA CI runs remain in progress because PostgreSQL 16/17.6 are still at the disposable QA373 runner-privilege characterization step. QUALITY's current HEAD has a pending QIMA CI run after the login focus test stabilization.
 - No product latency, query-plan or CPU/memory benchmark is inferred from these CI/provider statuses.
+
+
+## Completed mission CI closeout — 2026-11-27 21:25 KST
+
+The following workflow runs were re-read from GitHub Actions for the exact mission HEADs. These are verification outcomes, not product latency measurements.
+
+| Mission | HEAD | QIMA CI | Verify | PostgreSQL 16 | PostgreSQL 17.6 | CodeQL | Vercel |
+|---|---|---|---|---|---|---|---|
+| SECURITY | `8f0c842a` | [#45996397685](https://github.com/meridane/QimaTrade-MVP/actions/runs/45996397685) SUCCESS | SUCCESS | SUCCESS | SUCCESS | [#45996397739](https://github.com/meridane/QimaTrade-MVP/actions/runs/45996397739) SUCCESS | provider rate limit |
+| TESTS | `62556d9a` | [#45996403735](https://github.com/meridane/QimaTrade-MVP/actions/runs/45996403735) SUCCESS | SUCCESS | SUCCESS | SUCCESS | [#45996403804](https://github.com/meridane/QimaTrade-MVP/actions/runs/45996403804) SUCCESS | provider rate limit |
+| QUALITY | `ecbaf2d0` | [#45996409933](https://github.com/meridane/QimaTrade-MVP/actions/runs/45996409933) SUCCESS | SUCCESS | SUCCESS | SUCCESS | [#45996409885](https://github.com/meridane/QimaTrade-MVP/actions/runs/45996409885) SUCCESS | provider rate limit |
+
+- Verify job steps for all three missions completed dependency audit, TypeScript, Next.js production build, Chromium/browser tests and the isolated QIMA security fixture successfully.
+- The prepared-transaction setup/cleanup jobs have expected negative conclusions; their separate assertion jobs succeeded. The skipped-result harness is intentionally skipped and separately asserted. These are harness contracts, not unexpected CI failures.
+- Vercel returned “Deployment rate limited — retry in 24 hours” for these mission heads. This is an external Preview-capacity limit and is not treated as a build failure.
+- The PERFORMANCE branch remains documentation-only and has no workflow run; no application code was changed on this track.
+
+## Static idempotency index-shape review — 2026-11-27 21:25 KST
+
+Reviewed PR #26 HEAD `61002cb21aaa738a7f018794ab84bff41a2c6eb2`:
+
+- The disposable schema fixture `tests/sql/fixtures/create-offer-schema.sql` defines `public.idempotency_keys` with `UNIQUE (tenant_id, key)`. PostgreSQL implements this unique constraint with a unique B-tree index in that fixture.
+- The CREATE_OFFER function in `supabase/migrations/20261027090000_fix_create_offer_action_status_contract.sql` first takes a transaction-scoped advisory lock derived from `tenant_id:key`, then selects the row using equality predicates on both `tenant_id` and `key` with `FOR UPDATE`.
+- The fixture's unique key shape is compatible with that equality lookup and enforces the same tenant/key uniqueness scope in the disposable database.
+- Evidence limit: this does **not** establish that the deployed Supabase schema has the same constraint or index. The repository fixture is not a production catalog snapshot. No live catalog query or EXPLAIN plan was available, and none was attempted against Production.
+- No index or migration change is proposed without a staging catalog and measured query plan. The next useful measurement is `EXPLAIN (ANALYZE, BUFFERS)` for the tenant/key lookup on an authorized non-production schema with representative row counts.
