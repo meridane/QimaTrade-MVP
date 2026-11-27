@@ -1,9 +1,11 @@
 import { expect, test } from "@playwright/test";
 import { authenticatePage } from "./offer-test-auth";
 
+const PRODUCT_MASTER_GATE_ID = "60000000-0000-4000-8000-00000000336";
+
 test("offer market selector has a field name and exposes its choices as buttons", async ({ page, request }) => {
-  await authenticatePage(page, request, "/offers/new");
-  await page.goto("/offers/new");
+  await authenticatePage(page, request, `/offers/new?productMasterId=${PRODUCT_MASTER_GATE_ID}`);
+  await page.goto(`/offers/new?productMasterId=${PRODUCT_MASTER_GATE_ID}`);
 
   const marketTrigger = page.getByRole("button", {
     name: "Target market: Select a target market",
