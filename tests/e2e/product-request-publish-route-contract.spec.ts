@@ -1,5 +1,41 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 const jsonHeaders = { "content-type": "application/json" };
+
+const SECURITY_VERIFIER_COOKIE = "sb-127-auth-token-code-verifier";
+const SECURITY_SESSION_COOKIE_PATTERN = /^sb-127-auth-token(?:[.][0-9]+)?=/i;
+
+async function authenticateSecurityTestPage(page: Page, request: APIRequestContext) {
+  const verifier = `base64-${Buffer.from(JSON.stringify("fresh-verifier"), "utf8").toString("base64url")}`;
+  const response = await request.get("/auth/callback?code=qa251-valid-code&next=%2F", {
+    maxRedirects: 0,
+    headers: { cookie: `${SECURITY_VERIFIER_COOKIE}=${verifier}` },
+  });
+
+  expect(response.status()).toBe(307);
+  const sessionCookies = (await response.headersArray())
+    .filter(({ name }) => name.toLowerCase() === "set-cookie")
+    .map(({ value }) => value)
+    .filter(value => SECURITY_SESSION_COOKIE_PATTERN.test(value));
+  expect(sessionCookies.length).toBeGreaterThan(0);
+
+  for (const setCookie of sessionCookies) {
+    const pair = setCookie.split(";", 1)[0];
+    const separator = pair.indexOf("=");
+    expect(separator).toBeGreaterThan(0);
+    for (const domain of ["127.0.0.1", "localhost"]) {
+      await page.context().addCookies([{
+        name: pair.slice(0, separator),
+        value: pair.slice(separator + 1),
+        domain,
+        path: "/",
+        httpOnly: true,
+        secure: false,
+        sameSite: "Lax",
+      }]);
+    }
+  }
+}
+
 
 test("product-request publish route rejects a valid request without an authenticated session", async ({ request }) => {
   const response = await request.post("/api/product-requests/publish", {
@@ -173,4 +209,27 @@ test("product-request publish route authenticates before reading tenant membersh
   const guard = source.slice(authenticationGuard, membershipQuery);
   expect(guard).toContain('error: "UNAUTHENTICATED"');
   expect(guard).toContain("status: 401");
+});
+
+
+test("product-request publish route fails closed when an authenticated user's membership lookup fails", async ({ page, request }) => {
+  const requestId = "60000000-0000-4000-8000-000000000001";
+  await authenticateSecurityTestPage(page, request);
+  await page.goto("/");
+
+  const response = await page.evaluate(async (id) => {
+    const result = await fetch("/api/product-requests/publish", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ requestId: id }),
+    });
+    return { status: result.status, body: await result.json() };
+  }, requestId);
+
+  // The isolated mock PostgREST fixture deliberately has no dt_memberships endpoint.
+  // This exercises the membership-query error path without contacting live Supabase.
+  expect(response).toEqual({
+    status: 403,
+    body: { error: "TENANT_MEMBERSHIP_REQUIRED" },
+  });
 });
