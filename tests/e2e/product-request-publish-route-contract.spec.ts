@@ -39,7 +39,12 @@ async function authenticateSecurityTestPage(page: Page, request: APIRequestConte
 }
 
 
-test("product-request publish route rejects a valid request without an authenticated session", async ({ request }) => {
+test("product-request publish route rejects unauthenticated requests before membership lookup or action RPCs", async ({ request }) => {
+  const configured = await request.post("http://127.0.0.1:54321/__test/membership-fixture", {
+    data: { rows: [{ tenant_id: "10000000-0000-4000-8000-000000000001" }] },
+  });
+  expect(configured.status()).toBe(200);
+
   const response = await request.post("/api/product-requests/publish", {
     data: JSON.stringify({ requestId: "60000000-0000-4000-8000-000000000001" }),
     headers: jsonHeaders,
@@ -47,6 +52,14 @@ test("product-request publish route rejects a valid request without an authentic
 
   expect(response.status()).toBe(401);
   await expect(response.json()).resolves.toEqual({ error: "UNAUTHENTICATED" });
+
+  const observed = await request.get("http://127.0.0.1:54321/__test/publish-route-requests");
+  expect(observed.status()).toBe(200);
+  await expect(observed.json()).resolves.toEqual({
+    memberships: [],
+    definitions: [],
+    publications: [],
+  });
 });
 
 test("product-request publish route returns a stable 400 for malformed JSON", async ({ request }) => {
