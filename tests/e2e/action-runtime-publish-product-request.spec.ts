@@ -22,6 +22,7 @@ async function executePublishProductRequestRuntime(
   redirectTarget: RedirectTarget = "publish",
   publishRpcStatus = 200,
   publishRpcPayload: unknown = undefined,
+  transportFailureTarget: RedirectTarget | null = null,
 ) {
   const requestId = "60000000-0000-4000-8000-000000000001";
   const userId = "40000000-0000-4000-8000-000000000001";
@@ -58,6 +59,14 @@ async function executePublishProductRequestRuntime(
         contentType: typeof request.headers["content-type"] === "string" ? request.headers["content-type"] : undefined,
         body,
       });
+
+      if (
+        (path === "/rest/v1/rpc/get_action_definition_v1" && transportFailureTarget === "definition") ||
+        (path === "/rest/v1/rpc/dt_publish_product_request" && transportFailureTarget === "publish")
+      ) {
+        response.destroy();
+        return;
+      }
 
       if (
         path === "/rest/v1/rpc/get_action_definition_v1" &&
@@ -306,6 +315,31 @@ test("PUBLISH_PRODUCT_REQUEST runtime does not retry upstream 5xx failures or fo
     });
     expect(outcome.redirectTargetHits, "HTTP " + status).toBe(0);
   }
+});
+
+test("PUBLISH_PRODUCT_REQUEST runtime normalizes action-definition transport failures without publishing", async () => {
+  const outcome = await executePublishProductRequestRuntime(null, "publish", 200, undefined, "definition");
+
+  expect(outcome.result).toBeNull();
+  expect(outcome.errorMessage).toBe("ACTION_DEFINITION_LOOKUP_FAILED");
+  expect(outcome.requests.map((request) => ({ path: request.path, method: request.method }))).toEqual([
+    { path: "/rest/v1/rpc/get_action_definition_v1", method: "POST" },
+  ]);
+  expect(outcome.redirectTargetHits).toBe(0);
+});
+
+test("PUBLISH_PRODUCT_REQUEST runtime does not retry a publish transport failure", async () => {
+  const outcome = await executePublishProductRequestRuntime(null, "publish", 200, undefined, "publish");
+
+  expect(outcome.result).toBeNull();
+  expect(outcome.errorMessage).toBeTruthy();
+  expect(outcome.errorMessage).not.toContain("internal database row diagnostic");
+  expect(outcome.errorMessage).not.toContain("private troubleshooting hint");
+  expect(outcome.requests.map((request) => ({ path: request.path, method: request.method }))).toEqual([
+    { path: "/rest/v1/rpc/get_action_definition_v1", method: "POST" },
+    { path: "/rest/v1/rpc/dt_publish_product_request", method: "POST" },
+  ]);
+  expect(outcome.redirectTargetHits).toBe(0);
 });
 
 test("PUBLISH_PRODUCT_REQUEST runtime rejects malformed successful RPC payloads instead of reporting success", async () => {
