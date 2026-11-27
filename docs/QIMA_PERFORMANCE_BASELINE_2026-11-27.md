@@ -665,3 +665,17 @@ The Supabase QIMA project remains reported as paused/inactive in the latest insp
 - Read-only Supabase project listing confirms QIMA project `yyulzlnrfcbaxovzjbnh` is **INACTIVE** in `ap-southeast-1`, PostgreSQL engine 17, database version `17.11.0.003`.
 - The project was not resumed. No SQL, schema inspection, query plan, database log query, migration or data operation was attempted.
 - The QIMA performance blocker remains an owner-authorized non-production environment or explicit authorization to use a disposable staging project. Production profiling remains out of scope.
+
+## Current multi-mission Verify snapshot — 2026-11-28 04:35 KST
+
+| Mission | QIMA CI | Verify job | Browser step | CodeQL | PostgreSQL 16 / 17.6 |
+|---|---|---|---|---|---|
+| SECURITY | [#2186](https://github.com/meridane/QimaTrade-MVP/actions/runs/46058062077) IN PROGRESS | SUCCESS | SUCCESS | [#2110](https://github.com/meridane/QimaTrade-MVP/actions/runs/46058062019) SUCCESS | IN PROGRESS / IN PROGRESS |
+| TESTS | [#2187](https://github.com/meridane/QimaTrade-MVP/actions/runs/46058080443) IN PROGRESS | SUCCESS | SUCCESS | [#2111](https://github.com/meridane/QimaTrade-MVP/actions/runs/46058080379) SUCCESS | IN PROGRESS / IN PROGRESS |
+| QUALITY | [#2188](https://github.com/meridane/QimaTrade-MVP/actions/runs/46058096100) IN PROGRESS | SUCCESS | SUCCESS | [#2112](https://github.com/meridane/QimaTrade-MVP/actions/runs/46058096099) SUCCESS | IN PROGRESS / IN PROGRESS |
+
+For all three Verify jobs, dependency audit, TypeScript, Next.js production build, Chromium, browser tests and the isolated security-contract fixture completed successfully. The newly added SECURITY membership-lookup failure integration test, TESTS publish-RPC HTTP 429 no-retry test, and QUALITY empty-search live-region assertion are included in their respective successful browser steps.
+
+At the latest job read, PostgreSQL 16 had completed its initial 25 of 47 steps and PostgreSQL 17.6 its initial 25 of 32 steps in each run, with no unexpected failed step. The two prepared-transaction failure-injection jobs have expected negative conclusions and their independent assertions succeeded; the skipped cleanup harness is intentionally skipped and separately asserted. The overall QIMA CI workflows remain **IN PROGRESS** until both PostgreSQL jobs finish.
+
+These CI outcomes are validation evidence only; they do not provide application latency, query plans, p50/p95/p99, buffers, lock waits, CPU or memory measurements. The QIMA Supabase project is confirmed INACTIVE and was not resumed. No database query, migration, data change, or optimization was performed.
