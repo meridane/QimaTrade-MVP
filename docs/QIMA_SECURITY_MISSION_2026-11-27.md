@@ -405,3 +405,14 @@ No Supabase Production data or migrations were touched. No Production deployment
 - The new unauthenticated route regression requires its own QIMA CI and CodeQL run; no result is inferred from the previous HEAD.
 - Expected prepared-transaction failure-injection jobs concluded negatively by design and their separate blocking assertions succeeded; the intentionally skipped cleanup harness was separately asserted.
 - No route implementation, SQL, migration, Supabase Production data/schema, secret, grant, RLS policy, Production deployment, merge, force-push, or branch-protection change.
+
+
+## New unauthenticated-route regression — post-push validation — 2026-11-28 KST
+
+- Test commit: [`45f9aa59`](https://github.com/meridane/QimaTrade-MVP/commit/45f9aa597aa168eacf782c533099e1995893b6d5); current documentation HEAD: `365bc6d9`.
+- QIMA CI [#46049188242](https://github.com/meridane/QimaTrade-MVP/actions/runs/46049188242) Verify completed **SUCCESS** with **455 Playwright passed (35.8 s)**. The new valid-UUID/no-session route test is explicitly **PASS**. Dependency audit, TypeScript, Next.js production build, Chromium, and the isolated security fixture also succeeded.
+- PostgreSQL 16 and PostgreSQL 17.6 jobs remain **IN PROGRESS** at this observation; the overall QIMA CI is not yet closed.
+- CodeQL [#46049188093](https://github.com/meridane/QimaTrade-MVP/actions/runs/46049188093) completed **SUCCESS**.
+- Vercel Preview is **FAILURE** with the provider's `build-rate-limit` response; this is not a GitHub Actions build failure.
+- Expected prepared-transaction failure-injection jobs have negative conclusions by design; their independent assertions succeeded. The skipped cleanup harness was intentionally skipped and separately asserted.
+- The new route test uses the local synthetic Auth fixture. It does not establish Production RLS or live Supabase policy behavior.
