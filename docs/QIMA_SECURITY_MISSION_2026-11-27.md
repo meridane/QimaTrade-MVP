@@ -271,3 +271,12 @@ No Supabase Production data or migrations were touched. No Production deployment
 - Updated the assertion to recognize the named import regardless of other names in the same import declaration. Runtime code, public error mapping and authorization behavior are unchanged.
 - The fresh SECURITY HEAD requires a new QIMA CI run. No result is inferred from the preceding failed run.
 - No Supabase Production data/schema, migration deployment, secret, grant, RLS policy, persistent configuration or Production deployment was changed.
+
+---
+
+## SECURITY post-fix workflow status — 2026-11-27 18:54 KST
+
+- The source-contract assertion correction is committed as code/test HEAD `6491b8b1f0eaa33189873a614c266aa26f56af52`.
+- Fresh QIMA CI [#45977895044](https://github.com/meridane/QimaTrade-MVP/actions/runs/45977895044) is **IN PROGRESS**. At the latest read, TypeScript, audit and build had passed through the build step; Playwright had not yet reported a result. PostgreSQL 16 and 17.6 jobs were still active.
+- CodeQL [#45977894940](https://github.com/meridane/QimaTrade-MVP/actions/runs/45977894940) is **IN PROGRESS**.
+- These results are pending; the prior one-test source-assertion failure is not marked resolved until this new Verify run completes.
