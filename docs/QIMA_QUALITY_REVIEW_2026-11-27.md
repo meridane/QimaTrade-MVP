@@ -142,3 +142,11 @@ No Supabase Production data/schema, migration, secret, grant, RLS policy or pers
 - Files changed for this follow-up: `tests/e2e/offer-test-auth.ts`, `tests/e2e/offer-creation-confirmation.spec.ts`, `tests/e2e/offer-country-select-accessibility.spec.ts`, and this journal.
 - Validation: a fresh QIMA CI run on the updated QUALITY HEAD is required. No local Playwright execution is claimed, and no pass is inferred from the failed prior run.
 - No production UI behavior beyond the already-reviewed accessible-name/group semantics was changed. No Supabase data/schema, auth implementation, dependencies, workflow gates, Production deployment, or branch protections were modified.
+
+
+## QUALITY TypeScript correction — 2026-11-27
+
+- QIMA CI [#45951688863](https://github.com/meridane/QimaTrade-MVP/actions/runs/45951688863) completed with Verify failure at the TypeScript step; dependency audit and the isolated SECURITY fixture passed, while build and browser steps were correctly skipped after typecheck failed.
+- The compiler reported TS2304 for `PRODUCT_MASTER_GATE_ID` and `SYNTHETIC_PROVIDER_ACTOR_ID` in `tests/e2e/offer-creation-confirmation.spec.ts`. The constants were defined in the original spec before the auth helper extraction, but were not restored to the spec after the helper was split into its own file.
+- Restored the two existing synthetic fixture constants in the original spec. Their values are unchanged from the verified base-HEAD version; no application behavior, auth implementation, or fixture data was changed.
+- Targeted TypeScript/CI validation is required on the new commit. No pass is inferred before the rerun completes.
