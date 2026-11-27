@@ -158,3 +158,10 @@ No Supabase Production data/schema, migration, secret, grant, RLS policy or pers
 - The single failure was `offer-country-select-accessibility.spec.ts`: it authenticated and navigated to `/offers/new` without the required `productMasterId` context. Existing offer-creation tests consistently use the synthetic Product Master gate ID; without it, the protected supplier flow does not expose the independent offer form, so the expected country trigger is absent.
 - Updated the focused accessibility test to authenticate and navigate with the same synthetic `productMasterId` gate used by the existing offer-creation browser fixtures. This changes test setup only; no production route, authorization, or UI behavior was changed.
 - New test commit: `490924e92adc087ddfc877a60e4159519ad3b992`. A fresh QIMA CI run is required; no browser pass is inferred yet.
+
+
+## QUALITY unused-import cleanup — 2026-11-27
+
+- Static inspection of `tests/e2e/offer-creation-confirmation.spec.ts` after extracting `authenticatePage` found `APIRequestContext` and `Page` only in the import declaration; each identifier occurred exactly once in the file and had no remaining usage.
+- Removed those two unused type imports. No runtime behavior or test assertions changed.
+- Commit: `42d4c6408b3a1e82c552b3f8ec0679c65392151e`. Validation is included in the current branch's next QIMA CI run; no local test result is claimed.
