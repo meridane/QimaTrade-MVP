@@ -232,3 +232,11 @@ No Supabase Production data/schema, migration, secret, grant, RLS policy or pers
 - Vercel Preview for that TESTS HEAD was **FAILURE** solely because the provider returned its `build-rate-limit` quota response; GitHub Actions and CodeQL were successful.
 - A fresh QIMA CI/CodeQL run is required for the two new transport cases. No pass is claimed yet.
 - No Supabase Production data/schema, migration deployment, secret, grant, RLS policy, persistent configuration or Production deployment was changed.
+
+
+## Publish transport-failure Verify result — 2026-11-27 21:10 KST
+
+- QIMA CI [#45995611683](https://github.com/meridane/QimaTrade-MVP/actions/runs/45995611683) on HEAD `e2d1aa94` has a successful Verify job `140494131026`: **442 Playwright tests passed (38.3 s)**. Both new tests passed: action-definition transport failure normalizes to `ACTION_DEFINITION_LOOKUP_FAILED`, and publish transport failure is attempted once without retry or redirect.
+- TypeScript, dependency audit, Next.js production build, Chromium browser suite and the isolated security-contract fixture all succeeded. CodeQL [#45995611655](https://github.com/meridane/QimaTrade-MVP/actions/runs/45995611655) completed **SUCCESS**; Vercel Preview is **SUCCESS**.
+- PostgreSQL 16 job `140494130724` and PostgreSQL 17.6 job `140494130568` remain **IN PROGRESS**, both at the disposable QA373 full-runner write-privilege characterization step (25 completed steps; no failed steps observed). Overall QIMA CI remains in progress.
+- The synthetic socket-close cases do not simulate or establish a live Supabase outage. No Production data/schema, migration deployment, secret, grant, RLS policy, persistent configuration or Production deployment was changed.
