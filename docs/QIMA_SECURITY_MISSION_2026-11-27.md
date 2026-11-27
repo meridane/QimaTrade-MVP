@@ -234,3 +234,10 @@ No Supabase Production data or migrations were touched. No Production deployment
 - This closes validation for the offer-context public-error mapper, both reviewed lookup call sites, the source-contract regression and the earlier UUID/tenant/ACL tests on this code/test HEAD.
 - Classification remains code-level: raw Supabase/PostgREST diagnostic forwarding was present in the reviewed source and is now masked. No actual Production disclosure, exploit, deployed grant state or live RLS state is established by these tests.
 - No Supabase Production data/schema, migration deployment, secret, grant, RLS policy or persistent configuration was changed. No Production deployment, PR merge, force-push or branch-protection change was performed.
+
+
+## Exact Verify log measurement correction — 2026-11-27
+
+- Re-read the completed Verify job log for QIMA CI [#45951778425](https://github.com/meridane/QimaTrade-MVP/actions/runs/45951778425), job 140349055547. Its final Playwright summary is **447 passed (36.2 s)**. This exact runner output supersedes the earlier rounded/incorrect 34.9 s note.
+- The workflow's PostgreSQL 16 and PostgreSQL 17.6 jobs both completed **SUCCESS**; CodeQL [#45951778436](https://github.com/meridane/QimaTrade-MVP/actions/runs/45951778436) completed **SUCCESS**.
+- No code or test behavior changed in this documentation correction.
