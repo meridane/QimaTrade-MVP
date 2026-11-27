@@ -594,3 +594,18 @@ No staging database was available for the documented EXPLAIN protocol. No Produc
 All three QIMA CI workflows completed successfully, including the PostgreSQL 16 and 17.6 compatibility jobs. The negative conclusions in the prepared-transaction failure-injection jobs were expected and separately asserted; the intentional skipped cleanup harness was also asserted.
 
 These browser-suite counts and wall-clock durations are CI verification measurements only. They do not measure application latency, database query latency, p50/p95/p99, buffers, lock waits, CPU or memory. No staging environment was available for the documented EXPLAIN/benchmark protocol, and no optimization is justified by these measurements.
+
+
+## Latest CI verification baseline — 2026-11-28 KST
+
+The following completed runs were re-read from GitHub Actions job logs. They are test-suite verification timings, not product or database latency measurements.
+
+| Mission snapshot | QIMA CI run | Playwright passed | Browser-suite duration | PostgreSQL 16 | PostgreSQL 17.6 | CodeQL |
+|---|---:|---:|---:|---|---|---|
+| SECURITY `f30dca01` | [#46039825666](https://github.com/meridane/QimaTrade-MVP/actions/runs/46039825666) | 453 | 37.3 s | SUCCESS | SUCCESS | [#46039825625](https://github.com/meridane/QimaTrade-MVP/actions/runs/46039825625) SUCCESS |
+| TESTS `a2080dc8` | [#46039827639](https://github.com/meridane/QimaTrade-MVP/actions/runs/46039827639) | 445 | 37.1 s | SUCCESS | SUCCESS | [#46039827538](https://github.com/meridane/QimaTrade-MVP/actions/runs/46039827538) SUCCESS |
+| QUALITY `4b3e8a64` | [#46039834840](https://github.com/meridane/QimaTrade-MVP/actions/runs/46039834840) | 439 | 37.8 s | SUCCESS | SUCCESS | [#46039834738](https://github.com/meridane/QimaTrade-MVP/actions/runs/46039834738) SUCCESS |
+
+The Verify jobs also completed dependency audit, TypeScript, Next.js production build, Chromium installation, Playwright and the isolated QIMA security fixture successfully. The prepared-transaction failure-injection jobs have expected negative conclusions with separate assertions proving those failures remain blocking; the intentional skipped cleanup harness is also asserted.
+
+No p50/p95/p99, SQL execution time, buffers, lock waits, CPU or memory profile can be inferred from these CI timings. The staging/EXPLAIN protocol remains pending an authorized non-production environment. No optimization is justified by this snapshot.
