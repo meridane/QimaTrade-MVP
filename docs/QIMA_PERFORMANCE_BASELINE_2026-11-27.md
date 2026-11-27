@@ -696,3 +696,29 @@ The three multi-mission workflows previously recorded as still running have now 
 - The jobs ran concurrently and the branch test suites differ. These values are a CI infrastructure timing sample, not a controlled benchmark and not evidence of API/database latency. They must not be interpreted as p50/p95/p99, query cost, or a performance trend.
 - Vercel Preview for the three code branches reported the provider `build-rate-limit`; this is separate from successful GitHub Actions build and Verify jobs.
 - The QIMA Supabase project remains **INACTIVE**. No SQL, query plan, data, schema, migration, or compute-resume action was performed. Application latency, buffers, lock waits, CPU and memory remain unmeasured.
+
+
+## Latest mission Verify timing and offer-context query graph — 2026-11-28
+
+The new SECURITY, TESTS and QUALITY Verify jobs completed successfully. Their durations are measured from GitHub Actions job timestamps; the associated PostgreSQL jobs were still running at this checkpoint.
+
+| Mission | QIMA CI run | Verify duration | Browser result | CodeQL |
+|---|---:|---:|---:|---|
+| SECURITY | [#2189](https://github.com/meridane/QimaTrade-MVP/actions/runs/46065841828) | 122 s — SUCCESS | 457 passed (35.7 s) | [#2113](https://github.com/meridane/QimaTrade-MVP/actions/runs/46065841732) SUCCESS |
+| TESTS | [#2190](https://github.com/meridane/QimaTrade-MVP/actions/runs/46065868815) | 139 s — SUCCESS | 452 passed (37.1 s) | [#2114](https://github.com/meridane/QimaTrade-MVP/actions/runs/46065868843) SUCCESS |
+| QUALITY | [#2191](https://github.com/meridane/QimaTrade-MVP/actions/runs/46065923133) | 113 s — SUCCESS | 440 passed (34.6 s) | [#2115](https://github.com/meridane/QimaTrade-MVP/actions/runs/46065923029) SUCCESS |
+
+### Static offer-context request graph
+
+A source review of `app/offers/actions.ts` identified a separate, potentially query-heavy path that was not included in the earlier four-call product-request publish budget:
+
+1. `getCurrentProfile`: Auth `getUser`, profile lookup, membership lookup (three sequential remote operations).
+2. `getOfferContext`: demand lookup (one sequential operation).
+3. Product master lookup and product-master attribute rows run in parallel (two requests).
+4. Attribute definitions, active options, and units run in parallel using batched `.in(...)` lookups (three requests).
+
+Static total: **nine remote operations** across four sequential/concurrent waves (Auth/profile/membership; demand; product+attribute rows; definitions+options+units). The three metadata lookups are batched rather than repeated per attribute, so no per-attribute N+1 is apparent in this path.
+
+This is a source-level request count only. It does not establish database latency or prove this path is slow. The next useful measurement is a staging trace that records each request's duration and the number of attribute IDs, then compares p50/p95/p99 before any batching/refactor proposal.
+
+The PostgreSQL 16 and 17.6 jobs for runs #2189, #2190 and #2191 were still in progress at this checkpoint; no database completion is inferred from the successful Verify jobs.
