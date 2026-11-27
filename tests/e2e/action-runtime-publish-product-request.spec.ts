@@ -342,10 +342,13 @@ test("PUBLISH_PRODUCT_REQUEST runtime preserves the legacy snake_case demand ID 
 });
 
 test("PUBLISH_PRODUCT_REQUEST runtime accepts matching camelCase and snake_case demand IDs regardless of UUID hex casing", async () => {
-  const demandId = "70000000-0000-4000-8000-000000000001";
+  const demandId = "abcdefab-cdef-4abc-8def-abcdefabcdef";
+  const upperDemandId = demandId.toUpperCase();
+  expect(upperDemandId).not.toBe(demandId);
+
   const outcome = await executePublishProductRequestRuntime(null, "publish", 200, {
     demandId,
-    demand_id: demandId.toUpperCase(),
+    demand_id: upperDemandId,
   });
 
   expect(outcome.errorMessage).toBeNull();
