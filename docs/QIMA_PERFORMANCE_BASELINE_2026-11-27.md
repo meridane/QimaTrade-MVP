@@ -739,3 +739,21 @@ The three previously open mission QIMA CI runs have now completed successfully, 
 - The measured Playwright durations are CI suite durations only. They are not request latency, database latency, or a performance comparison between code versions.
 - The latest SECURITY, TESTS and QUALITY follow-up commits were published after these completed runs. Their new GitHub Actions runs were not visible at the first post-push check, so their test outcomes remain pending until the corresponding workflow runs appear.
 - No staging environment or representative benchmark dataset was available. No EXPLAIN ANALYZE, buffers, p50/p95/p99, CPU/memory profile, or production query measurement is claimed. No optimization was applied.
+
+
+## Follow-up CI closure and next benchmark gate — 2026-11-28
+
+The follow-up SECURITY, TESTS and QUALITY code commits from the previous checkpoint have now completed their full GitHub Actions and CodeQL validations:
+
+| Mission | QIMA CI | Verify/browser | PostgreSQL 16 | PostgreSQL 17.6 | CodeQL | Vercel |
+|---|---|---|---|---|---|---|
+| SECURITY | [#2192](https://github.com/meridane/QimaTrade-MVP/actions/runs/46069475410) SUCCESS | SUCCESS | SUCCESS | SUCCESS | [#2116](https://github.com/meridane/QimaTrade-MVP/actions/runs/46069475402) SUCCESS | SUCCESS |
+| TESTS | [#2193](https://github.com/meridane/QimaTrade-MVP/actions/runs/46069479223) SUCCESS | SUCCESS | SUCCESS | SUCCESS | [#2117](https://github.com/meridane/QimaTrade-MVP/actions/runs/46069479345) SUCCESS | SUCCESS |
+| QUALITY | [#2194](https://github.com/meridane/QimaTrade-MVP/actions/runs/46069485017) SUCCESS | SUCCESS | SUCCESS | SUCCESS | [#2118](https://github.com/meridane/QimaTrade-MVP/actions/runs/46069485051) SUCCESS | FAILURE (provider `build-rate-limit`)
+
+- Each QIMA CI run's PostgreSQL 16 integration and PostgreSQL 17.6 compatibility jobs completed **SUCCESS**. The prepared-transaction setup/cleanup negative jobs are deliberate failure-injection cases; their separate assertions succeeded. The skipped harness is expected and separately asserted.
+- These CI conclusions close the code commits they ran against. They do not automatically validate later or newly added commits.
+- No application latency or SQL execution-time measurement is inferred from CI durations.
+- The nine-operation `getOfferContext` source graph remains a static count across four waves. No N+1 was identified in the inspected attribute metadata path, but no p50/p95/p99, EXPLAIN ANALYZE, buffers, lock-wait, CPU or memory measurements exist.
+- The QIMA Supabase project remains inactive. No compute resume, SQL query, schema/data/migration change, or Production access was performed.
+- Next non-blocking action: retain the query graph and prepare a staging-only trace protocol; do not optimize until an authorized staging target and representative dataset are available.
