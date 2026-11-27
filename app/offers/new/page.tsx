@@ -128,7 +128,7 @@ function CountrySelect({
                 {country}
               </button>
             ))}
-            {filteredCountries.length === 0 && <p className="px-3 py-4 text-sm text-slate-400">No country found.</p>}
+            {filteredCountries.length === 0 && <p role="status" aria-live="polite" className="px-3 py-4 text-sm text-slate-400">No country found.</p>}
           </div>
         </div>
       )}
