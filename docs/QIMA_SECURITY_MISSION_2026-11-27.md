@@ -374,3 +374,13 @@ No Supabase Production data or migrations were touched. No Production deployment
 - This is source-level regression coverage only. It does not execute a real authenticated multi-membership flow and does not establish live Supabase RLS behavior.
 - The new test is pending its own QIMA CI/CodeQL run; no result is inferred from the prior HEAD.
 - No application route, SQL, migration, Supabase Production data/schema, secret, grant, RLS policy, Production deployment, merge, force-push or branch-protection change.
+
+
+## QIMA CI closeout and membership-failure guard — 2026-11-28 KST
+
+- QIMA CI [#46028363428](https://github.com/meridane/QimaTrade-MVP/actions/runs/46028363428) completed **SUCCESS**. Verify job `140605515092` reports **452 Playwright passed (35.9 s)**; dependency audit, TypeScript, Next.js build, Chromium, browser tests and the isolated security fixture succeeded.
+- PostgreSQL 16 job `140605515031` and PostgreSQL 17.6 job `140605515489` both completed **SUCCESS**.
+- CodeQL [#46028363292](https://github.com/meridane/QimaTrade-MVP/actions/runs/46028363292) completed **SUCCESS**; Vercel Preview is **SUCCESS**.
+- The two prepared-transaction failure-injection jobs have expected negative conclusions; their independent blocking assertions succeeded. The skipped cleanup harness was intentionally skipped and its assertion succeeded.
+- Added a source-contract regression requiring membership-query failure or an empty membership result to return HTTP 403 `TENANT_MEMBERSHIP_REQUIRED` before tenant resolution and before action execution. This is static source-order coverage, not a live authenticated request or a Production RLS test.
+- The new regression is pending its own QIMA CI/CodeQL run. No application route, SQL, migration, Supabase Production data/schema, secret, grant, RLS policy, Production deployment, merge, force-push or branch-protection change.
