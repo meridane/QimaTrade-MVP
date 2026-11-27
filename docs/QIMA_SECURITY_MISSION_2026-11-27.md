@@ -213,3 +213,11 @@ No Supabase Production data or migrations were touched. No Production deployment
 - Validation for this new change is pending a fresh QIMA CI run on the updated SECURITY branch. No local test execution is claimed.
 - Classification: confirmed raw-diagnostic forwarding in the repository code path; actual Production exposure, affected users, or exploitation remain unverified.
 - No Supabase Production data/schema, migration deployment, secret, grant, RLS policy, or persistent configuration was changed. No Production deployment, PR merge, force-push, or branch-protection change was performed.
+
+
+## Offer-context mapper call-site regression — 2026-11-27
+
+- Extended `tests/e2e/offer-context-error-boundary.spec.ts` with a source-contract assertion that the `getOfferContext` implementation imports and uses the public error mapper for both the attribute-row lookup and the definition/options/unit lookup.
+- The test also rejects reintroduction of direct `.message` forwarding from those backend error objects within the `getOfferContext` function.
+- This complements the synthetic Error/PostgREST-shaped value tests: it verifies the mapper is wired at both reviewed call sites, but it is not a live Supabase integration test.
+- Test commit: `ed016680dce3ff5919fd70f6d5c030fc37823850`. A fresh QIMA CI run is required for this additional assertion; the prior run status must not be transferred.
