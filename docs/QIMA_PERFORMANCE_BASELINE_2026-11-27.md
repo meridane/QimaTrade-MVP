@@ -160,3 +160,11 @@ Reviewed the current PR #26 source for the CREATE_OFFER path and adjacent offer/
 - No source-level finding alone establishes high latency, excessive allocation, or an N+1 defect. No application code was changed.
 
 Next measurement: on an approved non-production environment, capture per-query and end-to-end timings for authenticated CREATE_OFFER requests, record row counts and query plans, and compare p50/p95/p99 over a repeatable sample before considering changes.
+
+
+## Partial TESTS follow-up run sample — 2026-11-27
+
+- QIMA CI [#45913960558](https://github.com/meridane/QimaTrade-MVP/actions/runs/45913960558) ran on the TESTS follow-up containing the HTTP 503 diagnostic-redaction assertions.
+- Verify job 140228626258 completed **SUCCESS** in **153 s** and reported **437 Playwright passed (39.1 s)**, including the updated 503 no-retry/no-redirect and synthetic details/hint non-disclosure assertions.
+- At this checkpoint PostgreSQL 16 job 140228626138 and PostgreSQL 17.6 job 140228626133 were still running. Their durations and the overall workflow result are intentionally left pending until GitHub reports completion.
+- This is a CI timing observation only; it is not an application latency benchmark or a controlled comparison with earlier runs.
