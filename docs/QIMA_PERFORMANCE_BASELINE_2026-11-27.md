@@ -217,3 +217,18 @@ The latest SECURITY and TESTS commits contain new code/test cases and are not in
 - The CodeQL successes do not replace QIMA CI validation.
 - The Vercel failure is the external `api-deployments-free-per-day` quota response, not an application performance measurement.
 - No staging environment was made available; API latency, database plans, allocations, CPU and memory remain unmeasured. No optimization was applied.
+
+## Completed follow-up CI samples — SECURITY and TESTS — 2026-11-27
+
+These are GitHub Actions measurements from the two branch snapshots; they are not application latency benchmarks.
+
+| Mission snapshot | QIMA CI | Playwright | PostgreSQL 16 | PostgreSQL 17.6 | CodeQL |
+|---|---|---:|---|---|---|
+| SECURITY `726941e` | [#45932892701](https://github.com/meridane/QimaTrade-MVP/actions/runs/45932892701) SUCCESS | 445 passed (35.5 s) | SUCCESS | SUCCESS | [#45932892666](https://github.com/meridane/QimaTrade-MVP/actions/runs/45932892666) SUCCESS |
+| TESTS `2beb027` | [#45932862346](https://github.com/meridane/QimaTrade-MVP/actions/runs/45932862346) SUCCESS | 439 passed (37.1 s) | SUCCESS | SUCCESS | [#45932861481](https://github.com/meridane/QimaTrade-MVP/actions/runs/45932861481) SUCCESS |
+
+- The SECURITY sample includes the two UUID input-rejection cases and the isolated publish-RPC security fixture.
+- The TESTS sample includes the malformed/non-object/conflicting-alias publish-result cases, but not the later positive case for matching camelCase/snake_case aliases with case-only UUID differences.
+- The two snapshots have different suite contents and are not a controlled before/after benchmark. Do not infer an application performance trend from their durations.
+- Vercel's combined status for these mission branches was blocked by the provider's daily deployment quota. GitHub Actions validation is independent.
+- No API p50/p95/p99, SQL query plan, N+1 behavior, CPU/memory profile, or end-user page timing was measured. No optimization was made.
