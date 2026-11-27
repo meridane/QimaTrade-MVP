@@ -95,7 +95,8 @@ export async function executeUniversalAction(
           throw new Error("PUBLISH_RESULT_INVALID");
         }
         const demandId = camelDemandId || snakeDemandId;
-        if (!demandId) throw new Error("PUBLISH_RESULT_INVALID");
+        const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        if (!demandId || !uuidPattern.test(demandId)) throw new Error("PUBLISH_RESULT_INVALID");
         return {
           executionId: actionContext.correlationId,
           status: "succeeded",
