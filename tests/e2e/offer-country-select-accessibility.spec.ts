@@ -27,9 +27,8 @@ test("offer country selector supports Escape and keyboard selection with focus r
   await authenticatePage(page, request, `/offers/new?productMasterId=${PRODUCT_MASTER_GATE_ID}`);
   await page.goto(`/offers/new?productMasterId=${PRODUCT_MASTER_GATE_ID}`);
 
-  const marketTrigger = page.getByRole("button", {
-    name: "Target market: Select a target market",
-  });
+  const marketTrigger = page.getByRole("button", { name: /^Target market: / });
+  await expect(marketTrigger).toHaveAccessibleName("Target market: Select a target market");
 
   await marketTrigger.click();
   await expect(page.getByRole("group", { name: "Target market options" })).toBeVisible();
