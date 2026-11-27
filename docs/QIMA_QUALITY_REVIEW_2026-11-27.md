@@ -332,3 +332,11 @@ No Supabase Production data/schema, migration, secret, grant, RLS policy or pers
 - Current QIMA CI [#2188](https://github.com/meridane/QimaTrade-MVP/actions/runs/46058096100) is **IN PROGRESS**. At the latest job read, the Verify job had not completed; TypeScript, production build, Playwright and the security fixture were still pending. PostgreSQL 16 and 17.6 were also in progress.
 - CodeQL [#2112](https://github.com/meridane/QimaTrade-MVP/actions/runs/46058096099) was **IN PROGRESS** at the latest read. Vercel Preview was **PENDING**.
 - No auth behavior, database, migration, Supabase Production data/schema, secret, grant, RLS policy, Production deployment, merge, force-push or branch-protection change.
+
+## Verify and CodeQL closeout — 2026-11-28 04:35 KST
+
+- QIMA CI [#2188](https://github.com/meridane/QimaTrade-MVP/actions/runs/46058096100) Verify job `140705402335` completed **SUCCESS**. Dependency audit, TypeScript, Next.js production build, Chromium, the complete Playwright browser step and the isolated QIMA security-contract fixture all completed successfully. The new empty-country-search live-region assertion is included in that successful browser step.
+- CodeQL [#2112](https://github.com/meridane/QimaTrade-MVP/actions/runs/46058096099) completed **SUCCESS**.
+- PostgreSQL 16 integration and PostgreSQL 17.6 compatibility remain **IN PROGRESS** at this checkpoint; both have passed the initial 25 setup/characterization steps with no unexpected failed step.
+- The two prepared-transaction failure-injection jobs have expected negative conclusions and their separate assertion jobs succeeded; the skipped cleanup harness is intentionally skipped and separately asserted.
+- The QIMA CI workflow is not yet closed. No PostgreSQL success is claimed until both database jobs complete.
