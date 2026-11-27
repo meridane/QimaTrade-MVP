@@ -475,3 +475,14 @@ No production data, schema, migration, secret, grant, policy, deployment, merge,
 - Follow-up commit 159da642 (https://github.com/meridane/QimaTrade-MVP/commit/159da64280b771318367777be3e781fed4a26767) adds one HTTP integration case: a valid authenticated tenant row accompanied by a NULL tenant row must still resolve to the one distinct usable tenant, while a spoofed body tenant remains ignored. The new commit's GitHub Actions run was not yet visible at the first post-push read; its test result is **pending**, not inferred. Vercel was **PENDING** at that read.
 - The multi-tenant active-tenant behavior remains a product/API decision. No Production RLS/ACL state or exploitability is inferred from these synthetic and disposable tests.
 - No Supabase Production data/schema/migration, secret, grant, persistent policy, deployment, merge, force-push, or branch-protection change.
+
+
+## Unauthenticated early-exit regression and fixture-isolation correction — 2026-11-28
+
+- Extended the existing unauthenticated publish-route test to configure a valid synthetic membership row, send a request without a session, require HTTP 401 `UNAUTHENTICATED`, and assert that the fixture observed **zero** membership reads, action-definition RPCs, and publish RPCs.
+- First Verify attempt: QIMA CI [#2198](https://github.com/meridane/QimaTrade-MVP/actions/runs/46077989356) reported **455 passed, 1 failed**. The failing test was the pre-existing authenticated membership-lookup-failure case, which unexpectedly received a synthetic success after the new test left its configured membership row in the shared fixture.
+- Diagnosis: test-fixture state leaked between serial tests; this was not a product-route authorization failure. The new test itself passed, but its setup was not restored.
+- Correction: commit [`91fa09b4`](https://github.com/meridane/QimaTrade-MVP/commit/91fa09b443779277beaa39fb4b3127e43be76c8f) allows the local fixture to accept `rows: null` as a reset; commit [`0b6c1d4f`](https://github.com/meridane/QimaTrade-MVP/commit/0b6c1d4fa21cc1b9f4bbe185f90023a3c3363bec) restores the fixture after the unauthenticated assertion.
+- Follow-up QIMA CI [#2202](https://github.com/meridane/QimaTrade-MVP/actions/runs/46078229957) is **PENDING** with no jobs published at this checkpoint. CodeQL [#2126](https://github.com/meridane/QimaTrade-MVP/actions/runs/46078229947) is **SUCCESS**. Vercel reports the provider `build-rate-limit` failure for the new HEAD.
+- The earlier membership-cardinality run [#2192](https://github.com/meridane/QimaTrade-MVP/actions/runs/46069475410) completed SUCCESS, including PostgreSQL 16 and 17.6. The failed Verify in #2198 remains a real test-fixture isolation failure and is not reclassified as success.
+- No product route, SQL, migration, Supabase Production data/schema, secret, grant, RLS policy, deployment, merge, force-push, or branch-protection change. No Production vulnerability is inferred.
