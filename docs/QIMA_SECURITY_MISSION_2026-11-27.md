@@ -251,3 +251,13 @@ No Supabase Production data or migrations were touched. No Production deployment
 - Added synthetic tests for allowlisted domain-code preservation, masking of message/details/hint/SQLSTATE sentinels, and the server-action mapper call site.
 - This is a code-path hardening change, not proof of a Production disclosure or exploit. Fresh QIMA CI and CodeQL are required; no local test execution is claimed.
 - No Supabase Production data/schema, migration deployment, secret, grant, RLS policy, persistent configuration or Production deployment was changed.
+
+## Full CI closeout before CREATE_OFFER server-action follow-up — 2026-11-27
+
+- SECURITY snapshot `1acf78a0481986b51df924d85f8ff3900c3568fe` completed QIMA CI [#45964026870](https://github.com/meridane/QimaTrade-MVP/actions/runs/45964026870) with overall **SUCCESS**.
+- Verify job `140388311417` passed TypeScript, dependency audit, Next.js production build, isolated security fixture and **447 Playwright tests (37.2 s)**.
+- PostgreSQL 16 and PostgreSQL 17.6 integration/compatibility jobs both completed **SUCCESS**. CodeQL [#45964027025](https://github.com/meridane/QimaTrade-MVP/actions/runs/45964027025) completed **SUCCESS**. Vercel Preview for that snapshot was **SUCCESS**.
+- The two failure-injection jobs intentionally ended with failure conclusions; their cleanup/propagation assertion jobs passed, and the skipped harness was skipped by design with its assertion passing.
+- A new code follow-up now exists on SECURITY HEAD `09f464d54acd8a7a16ca7d6e121f62070fba1f16`: catch CREATE_OFFER server-action failures and expose only exact documented domain codes or a generic message. It is not covered by the preceding successful run.
+- Current HEAD checks: QIMA CI [#45968402884](https://github.com/meridane/QimaTrade-MVP/actions/runs/45968402884) **PENDING**, CodeQL [#45968402885](https://github.com/meridane/QimaTrade-MVP/actions/runs/45968402885) **IN PROGRESS**, Vercel blocked by the provider build-rate quota.
+- No Production disclosure or exploit is inferred. No Supabase Production data/schema, migration deployment, secret, grant, RLS policy, or persistent configuration was changed.
