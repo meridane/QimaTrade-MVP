@@ -131,11 +131,15 @@ test("offer commercial-term and documentation toggles expose their fieldset grou
 
   const exw = commercialGroup.getByRole("button", { name: "EXW", exact: true });
   await expect(exw).toHaveAttribute("aria-pressed", "false");
-  await exw.click();
+  await exw.focus();
+  await expect(exw).toBeFocused();
+  await page.keyboard.press("Space");
   await expect(exw).toHaveAttribute("aria-pressed", "true");
 
   const invoice = documentationGroup.getByRole("button", { name: "Commercial Invoice", exact: true });
   await expect(invoice).toHaveAttribute("aria-pressed", "false");
-  await invoice.click();
+  await invoice.focus();
+  await expect(invoice).toBeFocused();
+  await page.keyboard.press("Enter");
   await expect(invoice).toHaveAttribute("aria-pressed", "true");
 });
