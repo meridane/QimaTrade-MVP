@@ -39,6 +39,21 @@ test("product-request publish route rejects a non-string request ID before authe
   await expect(response.json()).resolves.toEqual({ error: "requestId is required" });
 });
 
+for (const requestId of [
+  "not-a-uuid",
+  "00000000-0000-0000-0000-00000000000g",
+] as const) {
+  test("product-request publish route rejects a malformed UUID before authentication", async ({ request }) => {
+    const response = await request.post("/api/product-requests/publish", {
+      data: JSON.stringify({ requestId }),
+      headers: jsonHeaders,
+    });
+
+    expect(response.status()).toBe(400);
+    await expect(response.json()).resolves.toEqual({ error: "INVALID_REQUEST_ID" });
+  });
+}
+
 test("product-request publish route never returns raw exception messages", () => {
   const fs = process.getBuiltinModule("node:fs") as typeof import("node:fs") | undefined;
   if (!fs) throw new Error("Node.js fs module is unavailable");
