@@ -39,11 +39,11 @@ test("product-request publish route rejects a non-string request ID before authe
   await expect(response.json()).resolves.toEqual({ error: "requestId is required" });
 });
 
-for (const requestId of [
-  "not-a-uuid",
-  "00000000-0000-0000-0000-00000000000g",
+for (const [label, requestId] of [
+  ["non-UUID text", "not-a-uuid"],
+  ["non-hex UUID", "00000000-0000-0000-0000-00000000000g"],
 ] as const) {
-  test("product-request publish route rejects a malformed UUID before authentication", async ({ request }) => {
+  test(`product-request publish route rejects a malformed UUID (${label}) before authentication`, async ({ request }) => {
     const response = await request.post("/api/product-requests/publish", {
       data: JSON.stringify({ requestId }),
       headers: jsonHeaders,
