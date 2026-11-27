@@ -183,3 +183,21 @@ The following are completed GitHub Actions observations, not application latency
 - The SECURITY Verify log includes the isolated tenant-membership fixture. The TESTS Verify log includes the HTTP 503 no-retry/no-redirect and diagnostic-redaction assertions. The QUALITY Verify log includes the keyboard focus-order and scoped OAuth alert checks.
 - The SECURITY EXECUTE-ACL fixture assertion added after snapshot `d8eea385` and the TESTS malformed-success-payload regression added after snapshot `14e1f1f0` are newer changes. Their new CI runs are pending/in progress at this checkpoint and are intentionally excluded from the completed samples above.
 - These measurements characterize CI execution only. They do not establish QimaTrade request latency, database query plans, N+1 behavior, or production capacity.
+
+
+
+## Latest completed branch-validation samples — 2026-11-27
+
+These observations were retrieved from the current mission PR heads before the newest follow-up edits in this run. They are CI validation snapshots, not a controlled performance benchmark.
+
+| Mission snapshot | QIMA CI | Playwright | PostgreSQL 16 | PostgreSQL 17.6 | CodeQL | Vercel |
+|---|---|---:|---|---|---|---|
+| SECURITY `c61f5370` | [#45924017660](https://github.com/meridane/QimaTrade-MVP/actions/runs/45924017660) SUCCESS | 443 passed (35.9 s) | SUCCESS | SUCCESS | [#45924017684](https://github.com/meridane/QimaTrade-MVP/actions/runs/45924017684) SUCCESS | SUCCESS |
+| TESTS `981cb906` | [#45919013224](https://github.com/meridane/QimaTrade-MVP/actions/runs/45919013224) SUCCESS | 439 passed (37.7 s) | SUCCESS | SUCCESS | [#45919013147](https://github.com/meridane/QimaTrade-MVP/actions/runs/45919013147) SUCCESS | Provider quota failure |
+| QUALITY `51a7c1fe` | [#45914093235](https://github.com/meridane/QimaTrade-MVP/actions/runs/45914093235) SUCCESS | 436 passed (34.1 s) | SUCCESS | SUCCESS | [#45914093193](https://github.com/meridane/QimaTrade-MVP/actions/runs/45914093193) SUCCESS | Provider quota failure |
+
+- The SECURITY Verify log explicitly reports the isolated publish-RPC ACL and tenant-membership fixture passing. PostgreSQL 16 and 17.6 both completed successfully.
+- The TESTS sample includes the malformed-success payload coverage as it existed on HEAD `981cb906`; it does not include the newer alias-conflict and non-object payload follow-ups added after this snapshot.
+- The QUALITY sample validates the keyboard focus-order and OAuth alert checks already present on HEAD `51a7c1fe`.
+- These are independent branch snapshots and different test counts. They must not be treated as a performance trend or compared as an application benchmark.
+- No application API p50/p95/p99, SQL query plan, N+1 behavior, CPU/memory profile, or end-user page timing was measured. No optimization was made.
