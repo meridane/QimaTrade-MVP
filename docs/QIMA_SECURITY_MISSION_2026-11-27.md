@@ -185,3 +185,13 @@ No Supabase Production data or migrations were touched. No Production deployment
 - New validation for the UUID follow-up is pending on the updated branch HEAD. No local test execution is claimed.
 - Classification: confirmed input-validation gap against the UUID RPC parameter contract; not a confirmed Production vulnerability or exploit.
 - No Supabase Production data/schema, migration deployment, secret, grant, RLS policy, or persistent configuration was changed.
+
+## UUID boundary validation CI closeout — 2026-11-27
+
+- SECURITY code/test HEAD `726941e2517d36654be8123fef0051bdfa80731c` completed QIMA CI [#45932892701](https://github.com/meridane/QimaTrade-MVP/actions/runs/45932892701) with overall **SUCCESS**.
+- Verify job `140291439645` passed TypeScript, dependency audit, Next.js production build, browser tests and the isolated QIMA security-contract fixture. Playwright reported **445 passed (35.5 s)**. The two malformed UUID route cases appear as passing tests (non-UUID text and non-hex UUID), before authentication.
+- PostgreSQL 16 integration and PostgreSQL 17.6 compatibility jobs both completed **SUCCESS**. The synthetic publish-RPC fixture passed. CodeQL [#45932892666](https://github.com/meridane/QimaTrade-MVP/actions/runs/45932892666) completed **SUCCESS**.
+- This closes the UUID input-validation follow-up on that code/test HEAD. The subsequent documentation-only commit still requires its own workflow status; do not transfer this result to a later code change.
+- Vercel status on the mission branch is a provider build-rate quota failure; it is not a GitHub Actions or application test failure.
+- Classification remains: confirmed input-validation gap against the checked-in UUID RPC signature, corrected and tested synthetically; no Production exploit, live disclosure, or deployed-schema state is established.
+- No Supabase Production data/schema, migration deployment, secret, grant, RLS policy, or persistent configuration was changed.
