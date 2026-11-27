@@ -303,3 +303,14 @@ No Supabase Production data/schema, migration, secret, grant, RLS policy or pers
 - This is a local synthetic transport test. It does not establish that Supabase/PostgREST returns truncated responses in production.
 - The new test is pending its own QIMA CI/CodeQL run.
 - No application runtime, SQL, migration, Supabase Production data/schema, secret, grant, RLS policy, Production deployment, merge, force-push or branch-protection change.
+
+
+## QIMA CI closeout and truncated definition response — 2026-11-28 KST
+
+- QIMA CI [#46028401186](https://github.com/meridane/QimaTrade-MVP/actions/runs/46028401186) completed **SUCCESS**. Verify job `140605632469` reports **444 Playwright passed (39.2 s)**; dependency audit, TypeScript, Next.js build, Chromium, browser tests and the isolated security fixture succeeded.
+- PostgreSQL 16 job `140605632825` and PostgreSQL 17.6 job `140605632974` both completed **SUCCESS**.
+- CodeQL [#46028401242](https://github.com/meridane/QimaTrade-MVP/actions/runs/46028401242) completed **SUCCESS**; Vercel Preview is **SUCCESS**.
+- Prepared-transaction failure-injection conclusions are expected; independent assertions passed. The skipped cleanup harness was intentional and separately asserted.
+- Extended the local HTTP fixture so it can truncate either the publish RPC response or the action-definition RPC response. Added a regression requiring a truncated definition response to normalize to `ACTION_DEFINITION_LOOKUP_FAILED`, make exactly one definition request and never call the publish RPC.
+- This is a local synthetic transport case, not evidence that Supabase Production returns truncated responses. The new case is pending its own CI run.
+- No application runtime, SQL, migration, Supabase Production data/schema, secret, grant, RLS policy, Production deployment, merge, force-push or branch-protection change.
