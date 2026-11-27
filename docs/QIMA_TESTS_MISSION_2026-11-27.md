@@ -325,3 +325,13 @@ No Supabase Production data/schema, migration, secret, grant, RLS policy or pers
 - This is a synthetic transport test; it does not establish that the live RPC returns malformed JSON.
 - New test commit: `62adac59c70cd91e65239205d46b4c17148925db`. A fresh QIMA CI/CodeQL run is required; no result is claimed yet.
 - No runtime implementation, database, migration, Production data, secret, grant, RLS policy, Production deployment, merge, force-push or branch-protection change.
+
+
+## Action-definition HTTP 429 regression — 2026-11-28 03:14 KST
+
+- Extended the local PostgREST fixture to return HTTP 429 with synthetic private diagnostic fields from `get_action_definition_v1`.
+- Added a regression requiring the runtime to normalize the failure to `ACTION_DEFINITION_LOOKUP_FAILED`, issue exactly one definition request, make no publish RPC call, follow no redirect, and not expose fixture diagnostics.
+- This is a synthetic rate-limit transport case. It does not establish that the live Supabase endpoint currently returns HTTP 429.
+- Previous HEAD `4cf801c3` QIMA CI [#46043796052](https://github.com/meridane/QimaTrade-MVP/actions/runs/46043796052) completed **SUCCESS**: Verify reports **446 Playwright passed (36.6 s)**; dependency audit, TypeScript, Next.js build, Chromium, and the isolated security fixture succeeded. PostgreSQL 16 and 17.6 both completed **SUCCESS**. CodeQL [#46043796133](https://github.com/meridane/QimaTrade-MVP/actions/runs/46043796133) completed **SUCCESS**.
+- The new 429 regression requires its own QIMA CI and CodeQL run; no result is inferred from the previous HEAD.
+- No application runtime, SQL, migration, Supabase Production data/schema, secret, grant, RLS policy, Production deployment, merge, force-push, or branch-protection change.
