@@ -168,3 +168,18 @@ Next measurement: on an approved non-production environment, capture per-query a
 - Verify job 140228626258 completed **SUCCESS** in **153 s** and reported **437 Playwright passed (39.1 s)**, including the updated 503 no-retry/no-redirect and synthetic details/hint non-disclosure assertions.
 - At this checkpoint PostgreSQL 16 job 140228626138 and PostgreSQL 17.6 job 140228626133 were still running. Their durations and the overall workflow result are intentionally left pending until GitHub reports completion.
 - This is a CI timing observation only; it is not an application latency benchmark or a controlled comparison with earlier runs.
+
+
+## Completed mission CI samples — 2026-11-27
+
+The following are completed GitHub Actions observations, not application latency measurements:
+
+| Mission snapshot | QIMA CI | Playwright Verify | PostgreSQL 16 | PostgreSQL 17.6 | CodeQL |
+|---|---|---:|---|---|---|
+| SECURITY `d8eea385` | [#45914072857](https://github.com/meridane/QimaTrade-MVP/actions/runs/45914072857) SUCCESS | 443 passed, 36.0 s | SUCCESS | SUCCESS | [#45914072774](https://github.com/meridane/QimaTrade-MVP/actions/runs/45914072774) SUCCESS |
+| TESTS `14e1f1f0` | [#45914236475](https://github.com/meridane/QimaTrade-MVP/actions/runs/45914236475) SUCCESS | 437 passed, 33.9 s | SUCCESS | SUCCESS | [#45914236465](https://github.com/meridane/QimaTrade-MVP/actions/runs/45914236465) SUCCESS |
+| QUALITY `51a7c1fe` | [#45914093235](https://github.com/meridane/QimaTrade-MVP/actions/runs/45914093235) SUCCESS | 436 passed, 34.1 s | SUCCESS | SUCCESS | [#45914093193](https://github.com/meridane/QimaTrade-MVP/actions/runs/45914093193) SUCCESS |
+
+- The SECURITY Verify log includes the isolated tenant-membership fixture. The TESTS Verify log includes the HTTP 503 no-retry/no-redirect and diagnostic-redaction assertions. The QUALITY Verify log includes the keyboard focus-order and scoped OAuth alert checks.
+- The SECURITY EXECUTE-ACL fixture assertion added after snapshot `d8eea385` and the TESTS malformed-success-payload regression added after snapshot `14e1f1f0` are newer changes. Their new CI runs are pending/in progress at this checkpoint and are intentionally excluded from the completed samples above.
+- These measurements characterize CI execution only. They do not establish QimaTrade request latency, database query plans, N+1 behavior, or production capacity.
