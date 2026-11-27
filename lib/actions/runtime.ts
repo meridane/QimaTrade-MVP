@@ -74,8 +74,23 @@ export async function executeUniversalAction(
         });
         if (error) throw new Error(error.message);
         const result = data as Record<string, unknown> | null;
-        const camelDemandId = typeof result?.demandId === "string" ? result.demandId.trim() : "";
-        const snakeDemandId = typeof result?.demand_id === "string" ? result.demand_id.trim() : "";
+        const hasCamelDemandId = result !== null && Object.prototype.hasOwnProperty.call(result, "demandId");
+        const hasSnakeDemandId = result !== null && Object.prototype.hasOwnProperty.call(result, "demand_id");
+        if (
+          (hasCamelDemandId && typeof result?.demandId !== "string") ||
+          (hasSnakeDemandId && typeof result?.demand_id !== "string")
+        ) {
+          throw new Error("PUBLISH_RESULT_INVALID");
+        }
+        const camelDemandId = hasCamelDemandId ? (result?.demandId as string).trim() : "";
+        const snakeDemandId = hasSnakeDemandId ? (result?.demand_id as string).trim() : "";
+        if (
+          (hasCamelDemandId && !camelDemandId) ||
+          (hasSnakeDemandId && !snakeDemandId) ||
+          (camelDemandId && snakeDemandId && camelDemandId.toLowerCase() !== snakeDemandId.toLowerCase())
+        ) {
+          throw new Error("PUBLISH_RESULT_INVALID");
+        }
         const demandId = camelDemandId || snakeDemandId;
         if (!demandId) throw new Error("PUBLISH_RESULT_INVALID");
         return {
