@@ -84,7 +84,7 @@ test("supplier geography selector exposes its own labelled options and restores 
 
   const search = page.getByRole("textbox", { name: "Search countries" });
   await expect(search).toBeFocused();
-  await search.fill("Morocco");
+  await search.fill("  mOrOcCo  ");
 
   const morocco = choices.getByRole("button", { name: "Morocco", exact: true });
   await expect(morocco).toBeVisible();
