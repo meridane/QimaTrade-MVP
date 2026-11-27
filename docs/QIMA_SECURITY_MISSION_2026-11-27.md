@@ -143,3 +143,12 @@ No Supabase Production data or migrations were touched. No Production deployment
 - The SQL fixture assertion checks that `authenticated` retains EXECUTE and `anon` does not inherit it; the shell contract also requires the explicit anon revoke.
 - This is a branch-local migration and disposable fixture only. It has not been applied to Supabase Production and does not establish live Production grants.
 - Validation: pending the current SECURITY branch QIMA CI after the ACL-fixture follow-up.
+
+
+## Security fixture syntax correction — 2026-11-27
+
+- QIMA CI [#45919126087](https://github.com/meridane/QimaTrade-MVP/actions/runs/45919126087) failed only at the isolated security fixture step; TypeScript, dependency audit, production build, Playwright browser tests, PostgreSQL 16 and PostgreSQL 17.6 jobs completed successfully. The fixture log showed PostgreSQL syntax error at line 75: the pre-existing ACL stub function used an invalid single-dollar delimiter (`as $` / `$;`) instead of a paired dollar-quote delimiter.
+- Corrected the disposable fixture to use `as $$ ... $$;`. No application migration or Production database was changed.
+- Commit: `b8746071ff81885fcf8a9ca3b8d8215fd3ffb990` (`fix(security): correct dollar-quoted RPC fixture`).
+- Validation: a new CI/CodeQL run for this corrected HEAD is expected from the branch push; no passing result is claimed until GitHub reports it.
+- This failure was a fixture syntax defect, not evidence of a Production authorization issue. The ACL and tenant assertions remain synthetic and must be validated by the new isolated PostgreSQL run.
