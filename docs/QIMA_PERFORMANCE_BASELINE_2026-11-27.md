@@ -241,3 +241,14 @@ These are GitHub Actions measurements from the two branch snapshots; they are no
 - Documentation-only closeout commits on SECURITY and PERFORMANCE do not alter the validated SECURITY code/test snapshot. The current PR #27 and #28 Vercel statuses are PENDING; no new Preview success is inferred.
 - These timings are CI test durations, not application route latency. The samples have different suite contents and are not a controlled performance comparison. No application optimization is justified or applied.
 - Staging API p50/p95/p99, query plans, N+1 behavior, CPU/memory profiles and page timings remain unmeasured because no approved active non-production environment is available.
+
+## Latest mission-head validation queue — 2026-11-27
+
+| Mission | Current PR head | QIMA CI | CodeQL | Vercel |
+|---|---|---|---|---|
+| SECURITY | `64997f6b6ea801dfb4881857d1497f63c2f35373` | [#45938444757](https://github.com/meridane/QimaTrade-MVP/actions/runs/45938444757) PENDING | [#45938444751](https://github.com/meridane/QimaTrade-MVP/actions/runs/45938444751) IN PROGRESS | Provider daily build-rate quota failure |
+| TESTS | `54be4b92df3423f957e2b5c685e1e384982a7b7e` | [#45938477648](https://github.com/meridane/QimaTrade-MVP/actions/runs/45938477648) PENDING | [#45938477677](https://github.com/meridane/QimaTrade-MVP/actions/runs/45938477677) IN PROGRESS | Provider daily build-rate quota failure |
+
+- The TESTS HEAD includes the corrected positive alias-equivalence fixture using hexadecimal letters and explicitly asserting that the uppercase UUID differs from the lowercase UUID. The earlier run #45938350591 used the superseded numeric-only fixture and is not evidence for this corrected test.
+- The SECURITY HEAD includes documentation closeout of the UUID validation CI result; the validated code/test snapshot is `726941e` (445 Playwright passed, PostgreSQL 16/17.6 and CodeQL passed). The new documentation HEAD has its own pending QIMA CI and running CodeQL.
+- These workflow states are validation status only, not performance measurements. No API latency, query plans, N+1 behavior, CPU/memory profile or end-user timings were collected.
