@@ -161,3 +161,15 @@ No Supabase Production data or migrations were touched. No Production deployment
 - PostgreSQL 16 and PostgreSQL 17.6 integration jobs are still **IN PROGRESS** at the final CREATE_OFFER runner/compatibility checks; the overall QIMA CI run is not yet declared successful.
 - CodeQL [#45923745623](https://github.com/meridane/QimaTrade-MVP/actions/runs/45923745623) on the corrected code commit is **SUCCESS**. CodeQL [#45923759597](https://github.com/meridane/QimaTrade-MVP/actions/runs/45923759597) on the current PR #27 documentation HEAD is also **SUCCESS**. Vercel for PR #27 HEAD is **SUCCESS**. The PR-head QIMA CI [#45923759578](https://github.com/meridane/QimaTrade-MVP/actions/runs/45923759578) remains **PENDING** with no jobs published at this checkpoint.
 - These are isolated CI fixtures and source-contract checks only. They do not establish deployed Supabase Production grants, RLS policy state, or exploitability. No Production migration, data, secret, grant, policy, or persistent configuration was changed.
+
+
+
+## UUID request-ID boundary — 2026-11-27
+
+- The publish RPC signature accepts `p_request_id uuid`, while the route previously checked only that `requestId` was a non-empty string. A malformed non-empty value could therefore reach the RPC boundary and become an internal database error instead of a stable client-input response.
+- Added canonical UUID validation in `app/api/product-requests/publish/route.ts`. Missing/non-string IDs retain the existing `requestId is required` response; malformed UUID strings now return HTTP 400 `INVALID_REQUEST_ID` before authentication or database access.
+- Added synthetic route regressions for a non-UUID string and a canonical-shape string containing a non-hex character.
+- This is an input-validation/correctness improvement based on the checked-in RPC UUID signature. It is not evidence of a Production exploit or data exposure.
+- Commits: route validation `dafc06a98ffe7700778a17bdd15717e92fb37e02`; Playwright coverage `bebab03c04c10d1887da987d0a88500b05cd8564`.
+- Validation: awaiting QIMA CI and CodeQL on the updated SECURITY branch HEAD. No local test execution is claimed.
+- No Supabase Production data/schema, migration deployment, secret, grant, RLS policy or persistent configuration was changed.
