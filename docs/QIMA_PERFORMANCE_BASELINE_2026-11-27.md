@@ -814,3 +814,19 @@ The following code/test snapshots have completed their GitHub Actions Verify and
 - These results close only the exact code/test snapshots listed above. They do not validate subsequent commits added after these runs.
 - No p50/p95/p99 application timings, SQL plans, buffers, lock waits, CPU or memory metrics are inferred from these job durations. The QIMA Supabase project remains inactive; no project resume or live database query was performed.
 - Next action remains a staging-only trace of `getOfferContext` after an explicitly authorized non-production project and deterministic fixtures are available.
+
+
+## Interim Verify measurements for the 2026-11-28 follow-up
+
+These measurements are limited to completed Verify jobs; PostgreSQL and full-workflow conclusions remain separate.
+
+| Mission code/test HEAD | QIMA CI | Playwright | Verify | PostgreSQL 16 | PostgreSQL 17.6 | CodeQL |
+|---|---|---:|---|---|---|---|
+| TESTS `89cf3e1f` | [#2204](https://github.com/meridane/QimaTrade-MVP/actions/runs/46083793809) | 456 passed / 37.7 s | SUCCESS | IN PROGRESS (25/47) | IN PROGRESS (25/32) | [#2128](https://github.com/meridane/QimaTrade-MVP/actions/runs/46083793857) SUCCESS |
+| QUALITY `74f7f261` | [#2205](https://github.com/meridane/QimaTrade-MVP/actions/runs/46083798061) | 441 passed / 38.9 s | SUCCESS | IN PROGRESS (25/47) | IN PROGRESS (25/32) | [#2129](https://github.com/meridane/QimaTrade-MVP/actions/runs/46083798008) SUCCESS |
+| SECURITY `26cfb570` | [#2206](https://github.com/meridane/QimaTrade-MVP/actions/runs/46083802173) | Not run | CANCELLED before jobs | Not run | Not run | [#2130](https://github.com/meridane/QimaTrade-MVP/actions/runs/46083802180) SUCCESS |
+
+- SECURITY's replacement QIMA CI [#2207](https://github.com/meridane/QimaTrade-MVP/actions/runs/46084022720) on documentation HEAD `5d11fcf0` is PENDING with no jobs published. The earlier #2202 result (457 passed) predates the Auth-503 regression and is not reused.
+- Verify logs for #2204 and #2205 contain transient `ECONNRESET: Auth network connection reset` messages, but the browser jobs completed with 456 and 441 passing tests respectively. No Playwright failure is attributed to those messages; treat them as runner/fixture teardown noise unless a failed test or independent reproduction establishes otherwise.
+- Both PostgreSQL versions for TESTS and QUALITY are still at the full runner write-privilege characterization step, with no failed step observed. Do not mark those full workflows successful until the jobs finish.
+- These CI times are not application latency. No p50/p95/p99, SQL plan, buffer, lock-wait, CPU or memory result is inferred.
