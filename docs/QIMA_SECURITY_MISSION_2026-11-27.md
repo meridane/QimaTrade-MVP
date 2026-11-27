@@ -241,3 +241,13 @@ No Supabase Production data or migrations were touched. No Production deployment
 - Re-read the completed Verify job log for QIMA CI [#45951778425](https://github.com/meridane/QimaTrade-MVP/actions/runs/45951778425), job 140349055547. Its final Playwright summary is **447 passed (36.2 s)**. This exact runner output supersedes the earlier rounded/incorrect 34.9 s note.
 - The workflow's PostgreSQL 16 and PostgreSQL 17.6 jobs both completed **SUCCESS**; CodeQL [#45951778436](https://github.com/meridane/QimaTrade-MVP/actions/runs/45951778436) completed **SUCCESS**.
 - No code or test behavior changed in this documentation correction.
+
+## CREATE_OFFER server-action error boundary — 2026-11-27
+
+- Static call-path review confirmed `app/offers/page.tsx` invokes the `createOffer` server action and renders its returned `CreateOfferResult.error` in the form. The server action called `executeUniversalAction` without a catch, while the CREATE_OFFER runtime handler constructed an Error directly from `error.message` returned by Supabase RPC.
+- The API route already has an exact public domain-code allowlist and generic fallback. The server-action path did not have an equivalent boundary; unexpected RPC/transport errors could reject the server action rather than returning the documented result union. Actual Production disclosure is not established.
+- Added `toPublicCreateOfferError` with the same exact documented CREATE_OFFER domain-code allowlist used by the API route. Unknown Error values and PostgREST-shaped objects now map to a stable generic public message.
+- Wrapped the full `createOffer` server-action body so thrown infrastructure/runtime failures return `{ ok: false, error }`; existing pre-validation and domain error return values remain unchanged.
+- Added synthetic tests for allowlisted domain-code preservation, masking of message/details/hint/SQLSTATE sentinels, and the server-action mapper call site.
+- This is a code-path hardening change, not proof of a Production disclosure or exploit. Fresh QIMA CI and CodeQL are required; no local test execution is claimed.
+- No Supabase Production data/schema, migration deployment, secret, grant, RLS policy, persistent configuration or Production deployment was changed.
