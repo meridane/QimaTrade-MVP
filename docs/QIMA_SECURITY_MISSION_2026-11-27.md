@@ -496,3 +496,10 @@ No production data, schema, migration, secret, grant, policy, deployment, merge,
 - Current HEAD 26cfb570 has QIMA CI [#2206](https://github.com/meridane/QimaTrade-MVP/actions/runs/46083802173) PENDING with no jobs published at this checkpoint. CodeQL [#2130](https://github.com/meridane/QimaTrade-MVP/actions/runs/46083802180) SUCCESS. Vercel status is provider build-rate-limit FAILURE.
 - The new Auth-503 test is not yet marked PASS. It is synthetic and demonstrates fail-closed behavior only; it does not establish an Auth outage or authorization vulnerability in Production.
 - No Supabase Production data/schema, migration, secret, grant, persistent RLS policy, deployment, merge, force-push or protection rule was changed.
+
+
+## Auth outage CI queue correction — 2026-11-28
+
+- A later GitHub re-read shows QIMA CI [#2206](https://github.com/meridane/QimaTrade-MVP/actions/runs/46083802173) was **CANCELLED before any jobs were published** when the branch advanced to the documentation closeout. No test result is attributed to #2206.
+- Replacement QIMA CI [#2207](https://github.com/meridane/QimaTrade-MVP/actions/runs/46084022720) on current documentation HEAD `5d11fcf0` is **PENDING with no jobs published**. CodeQL [#2131](https://github.com/meridane/QimaTrade-MVP/actions/runs/46084022713) is **IN PROGRESS** at this checkpoint.
+- The prior #2202 run remains a successful validation of its earlier code/test HEAD only; it does not cover the Auth-503 test.
