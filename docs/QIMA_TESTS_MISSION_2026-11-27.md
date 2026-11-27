@@ -292,3 +292,14 @@ No Supabase Production data/schema, migration, secret, grant, RLS policy or pers
 - PostgreSQL 16 and PostgreSQL 17.6 are still **IN PROGRESS** at the full runner write-privilege characterization step. The overall QIMA CI is not yet closed.
 - Expected prepared-transaction failure-injection jobs concluded **FAILURE** by design; their blocking assertion jobs succeeded. The cleanup skipped-result harness was intentionally **SKIPPED** and separately asserted.
 - Vercel Preview remains blocked by the provider's build-rate-limit response. HTTP 204 was simulated locally in the test server; no live RPC response is inferred.
+
+
+## Truncated RPC response regression — 2026-11-28 KST
+
+- Re-read QIMA CI [#46019383512](https://github.com/meridane/QimaTrade-MVP/actions/runs/46019383512) on prior HEAD `41c23a08`: overall **SUCCESS**. Verify, PostgreSQL 16 and PostgreSQL 17.6 completed successfully. CodeQL [#46019383564](https://github.com/meridane/QimaTrade-MVP/actions/runs/46019383564) completed **SUCCESS**.
+- The prepared-transaction failure-injection jobs have their expected negative conclusions; their separate blocking assertions succeeded. The skipped-result harness was intentionally skipped and its assertion succeeded.
+- Extended the local HTTP fixture with a successful-status response whose declared content length exceeds the body actually sent by the server, simulating a truncated JSON response from the publish RPC.
+- Added a regression requiring the runtime to reject the incomplete response, make exactly one definition lookup and one publish attempt, avoid redirects, and not expose fixture diagnostics.
+- This is a local synthetic transport test. It does not establish that Supabase/PostgREST returns truncated responses in production.
+- The new test is pending its own QIMA CI/CodeQL run.
+- No application runtime, SQL, migration, Supabase Production data/schema, secret, grant, RLS policy, Production deployment, merge, force-push or branch-protection change.
