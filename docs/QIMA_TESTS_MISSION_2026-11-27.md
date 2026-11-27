@@ -396,3 +396,13 @@ No Supabase Production data/schema, migration, secret, grant, RLS policy or pers
 - The prepared-transaction failure-injection jobs intentionally have negative job conclusions; their independent cleanup/failure-propagation assertions passed. The skipped-result harness is intentionally skipped and separately asserted.
 - Follow-up commit 3b3e3bc2 (https://github.com/meridane/QimaTrade-MVP/commit/3b3e3bc2682838697d0d5c0ed32c724506d465e4) adds a synthetic Retry-After: 0 response header to both HTTP 429 definition and publish responses. The existing assertions require one definition request, at most one publish request, and no redirect, so the run will verify that the advisory header does not trigger an automatic replay. The new commit's GitHub Actions run was not yet visible at the first post-push read; its test result is **pending**, not inferred. Vercel was **PENDING** at that read.
 - No runtime retry behavior, SQL, migration, Supabase Production data/schema, secret, grant, RLS policy, deployment, merge, force-push, or branch-protection change.
+
+
+## Action-definition authorization failures — 2026-11-28
+
+- Added synthetic HTTP 401 (`PGRST301`, `Invalid JWT`) and HTTP 403 (`42501`, `permission denied`) responses from `get_action_definition_v1`.
+- Added regressions requiring both to normalize to `ACTION_DEFINITION_LOOKUP_FAILED`, expose neither the upstream message nor diagnostic fields, perform exactly one definition lookup, and never call `dt_publish_product_request`.
+- Commits: [`8787853d`](https://github.com/meridane/QimaTrade-MVP/commit/8787853d9da615ab9a9b779c7d3b96caa727b6f4) adds the two status cases; [`7f3fc263`](https://github.com/meridane/QimaTrade-MVP/commit/7f3fc263aa5fa77d968ffedf6bbb98a31396ada3) makes the local fixture emit realistic status-specific codes/messages.
+- QIMA CI [#2200](https://github.com/meridane/QimaTrade-MVP/actions/runs/46078021207) is **PENDING** with no jobs published at this checkpoint. CodeQL [#2124](https://github.com/meridane/QimaTrade-MVP/actions/runs/46078021183) is **SUCCESS**. Vercel Preview is **SUCCESS**.
+- Previous Retry-After run [#2193](https://github.com/meridane/QimaTrade-MVP/actions/runs/46069479223) completed SUCCESS, including PostgreSQL 16 and 17.6; its result does not validate these new 401/403 cases.
+- No runtime implementation, SQL, migration, Supabase Production data/schema, secret, grant, RLS policy, deployment, merge, force-push, or branch-protection change.
