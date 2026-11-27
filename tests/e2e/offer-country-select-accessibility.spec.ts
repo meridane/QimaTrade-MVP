@@ -84,6 +84,22 @@ test("supplier geography selector exposes its own labelled options and restores 
 
   const search = page.getByRole("textbox", { name: "Search countries" });
   await expect(search).toBeFocused();
+  await search.fill("France");
+  await expect(choices.getByRole("button", { name: "France", exact: true })).toBeVisible();
+
+  await page.keyboard.press("Escape");
+  await expect(geographyTrigger).toHaveAttribute("aria-expanded", "false");
+  await expect(geographyTrigger).not.toHaveAttribute("aria-controls");
+  await expect(geographyTrigger).toBeFocused();
+  await expect(choices).toHaveCount(0);
+
+  await geographyTrigger.click();
+  await expect(geographyTrigger).toHaveAttribute("aria-expanded", "true");
+  const reopenedChoicesId = await geographyTrigger.getAttribute("aria-controls");
+  expect(reopenedChoicesId).toBeTruthy();
+  await expect(choices).toHaveAttribute("id", reopenedChoicesId!);
+  await expect(search).toHaveValue("");
+  await expect(search).toBeFocused();
   await search.fill("  mOrOcCo  ");
 
   const morocco = choices.getByRole("button", { name: "Morocco", exact: true });
