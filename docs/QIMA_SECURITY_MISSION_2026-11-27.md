@@ -134,3 +134,12 @@ No Supabase Production data or migrations were touched. No Production deployment
 - Commit: `f59c50147a1089a818041a01a8f7ff072042b022` (`test(security): assert publish RPC execute privileges`).
 - Validation: awaiting a new QIMA CI run on the updated branch HEAD. No result is inferred from the earlier fixture run.
 - Scope: test-only change; no production data, migration deployment, secret, grant, policy, or persistent configuration was changed.
+
+
+## Explicit anon EXECUTE revocation regression — 2026-11-27
+
+- The disposable publish-RPC fixture now creates a pre-existing function and explicitly grants EXECUTE to `anon` before applying the hardening migration. This models an ACL that can survive `CREATE OR REPLACE FUNCTION`.
+- The migration now explicitly revokes EXECUTE from `anon` in addition to revoking PUBLIC, then grants EXECUTE to `authenticated`.
+- The SQL fixture assertion checks that `authenticated` retains EXECUTE and `anon` does not inherit it; the shell contract also requires the explicit anon revoke.
+- This is a branch-local migration and disposable fixture only. It has not been applied to Supabase Production and does not establish live Production grants.
+- Validation: pending the current SECURITY branch QIMA CI after the ACL-fixture follow-up.
