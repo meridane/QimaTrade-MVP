@@ -301,3 +301,13 @@ No Supabase Production data/schema, migration, secret, grant, RLS policy or pers
 - This exercises the component's existing `trim().toLowerCase()` behavior; no application component was changed. It remains focused accessibility/search coverage, not a full WCAG audit.
 - New test commit: `027479d978d40760ee611f97f8cb0dd6550df7f1`. A fresh QIMA CI/CodeQL run is required; no result is claimed yet.
 - No auth behavior, database, migration, Production data, secret, grant, RLS policy, Production deployment, merge, force-push or branch-protection change.
+
+
+## Supplier-geography Escape and reopen regression — 2026-11-28 03:14 KST
+
+- Extended the second `CountrySelect` browser scenario to type a filter, press Escape, and require the menu to close, `aria-controls` to disappear, and focus to return to the trigger.
+- Reopening the same selector must clear the previous query, restore focus to the search input, and re-establish the trigger-to-options relationship before the existing normalized Morocco search and selection assertions continue.
+- This is focused keyboard/focus-reset coverage; no component code or markup changed, and it is not a complete WCAG audit.
+- Previous HEAD `6734ed48` QIMA CI [#46043817903](https://github.com/meridane/QimaTrade-MVP/actions/runs/46043817903) completed **SUCCESS**: Verify reports **439 Playwright passed (39.2 s)**; dependency audit, TypeScript, Next.js build, Chromium, and the isolated security fixture succeeded. PostgreSQL 16 and 17.6 both completed **SUCCESS**. CodeQL [#46043817883](https://github.com/meridane/QimaTrade-MVP/actions/runs/46043817883) completed **SUCCESS**.
+- The new Escape/reopen assertions require their own QIMA CI and CodeQL run; no result is inferred from the previous HEAD.
+- No application component, auth behavior, database, migration, Supabase Production data/schema, secret, grant, RLS policy, Production deployment, merge, force-push, or branch-protection change.
