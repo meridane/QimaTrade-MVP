@@ -232,3 +232,12 @@ These are GitHub Actions measurements from the two branch snapshots; they are no
 - The two snapshots have different suite contents and are not a controlled before/after benchmark. Do not infer an application performance trend from their durations.
 - Vercel's combined status for these mission branches was blocked by the provider's daily deployment quota. GitHub Actions validation is independent.
 - No API p50/p95/p99, SQL query plan, N+1 behavior, CPU/memory profile, or end-user page timing was measured. No optimization was made.
+
+## Superseding CI status — latest SECURITY and TESTS branch snapshots — 2026-11-27
+
+- SECURITY code/test HEAD `726941e2517d36654be8123fef0051bdfa80731c` is now fully validated by QIMA CI [#45932892701](https://github.com/meridane/QimaTrade-MVP/actions/runs/45932892701): **445 Playwright tests passed (35.5 s)**, isolated security fixture PASS, PostgreSQL 16 and 17.6 SUCCESS, TypeScript/audit/build SUCCESS. CodeQL [#45932892666](https://github.com/meridane/QimaTrade-MVP/actions/runs/45932892666) SUCCESS.
+- TESTS code/test HEAD `2beb027f81c9dc2d7ff8dabf1c2f32e4685c85e4` is fully validated by QIMA CI [#45932862346](https://github.com/meridane/QimaTrade-MVP/actions/runs/45932862346): **439 Playwright tests passed (37.1 s)**, isolated security fixture PASS, PostgreSQL 16 and 17.6 SUCCESS, TypeScript/audit/build SUCCESS. CodeQL [#45932861481](https://github.com/meridane/QimaTrade-MVP/actions/runs/45932861481) SUCCESS.
+- A subsequent TESTS-only positive regression for equivalent camelCase/snake_case UUID aliases was committed as `4afdf99de8cf665731eb9f168d2359b1659bba2f`; its new QIMA CI [#45938350591](https://github.com/meridane/QimaTrade-MVP/actions/runs/45938350591) is **IN PROGRESS** and CodeQL [#45938350660](https://github.com/meridane/QimaTrade-MVP/actions/runs/45938350660) is **IN PROGRESS**. The earlier 439-test result does not include this new test.
+- Documentation-only closeout commits on SECURITY and PERFORMANCE do not alter the validated SECURITY code/test snapshot. The current PR #27 and #28 Vercel statuses are PENDING; no new Preview success is inferred.
+- These timings are CI test durations, not application route latency. The samples have different suite contents and are not a controlled performance comparison. No application optimization is justified or applied.
+- Staging API p50/p95/p99, query plans, N+1 behavior, CPU/memory profiles and page timings remain unmeasured because no approved active non-production environment is available.
