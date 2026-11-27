@@ -408,3 +408,18 @@ These suites have different test contents and counts; the Playwright durations a
 
 - These reruns were triggered by the focused test-only corrections described in the mission journals. No successful test result is claimed until the corresponding jobs finish.
 - The workflow durations remain CI-suite observations only and are not application performance measurements.
+
+ 
+## Latest mission CI timing samples — 2026-11-27 19:30 KST
+
+| Mission snapshot | QIMA CI | Verify / Playwright | PostgreSQL 16 | PostgreSQL 17.6 | CodeQL | Vercel |
+|---|---|---:|---|---|---|---|
+| SECURITY b2b6c88c | [#45978034038](https://github.com/meridane/QimaTrade-MVP/actions/runs/45978034038) SUCCESS | 449 passed · 35.8 s | SUCCESS | SUCCESS | [#45978034162](https://github.com/meridane/QimaTrade-MVP/actions/runs/45978034162) SUCCESS | build-rate quota failure |
+| TESTS fd5f0859 | [#45977903723](https://github.com/meridane/QimaTrade-MVP/actions/runs/45977903723) SUCCESS | 440 passed · 37.1 s | SUCCESS | SUCCESS | [#45977903707](https://github.com/meridane/QimaTrade-MVP/actions/runs/45977903707) SUCCESS | SUCCESS |
+| QUALITY 2a42fc4d | [#45978037447](https://github.com/meridane/QimaTrade-MVP/actions/runs/45978037447) FAILURE | 437 passed / 1 failed · 37.3 s | SUCCESS | SUCCESS | [#45978037399](https://github.com/meridane/QimaTrade-MVP/actions/runs/45978037399) SUCCESS | build-rate quota failure |
+
+- Counts and durations were read from terminal Verify job logs, not estimated from workflow timestamps. PostgreSQL 16 and 17.6 were independent successful jobs for all three snapshots.
+- The QUALITY failure is isolated to a stale Playwright locator that retained the initial placeholder accessible name after selecting South Korea. The application correctly changes the button's accessible name to the selected value. The test locator has been corrected on the QUALITY branch; its next CI result is pending.
+- The SECURITY and TESTS suite results are successful. The expected-failure and skipped harness jobs are accepted only because their separate blocking assertions succeeded.
+- These are CI suite timings from different snapshots, not controlled benchmarks. They do not measure application response latency, SQL query latency, or production workload performance and do not justify optimization.
+- No staging credentials or approved non-production database access were available in this pass. No Supabase project was reactivated and no remote SQL was executed.
