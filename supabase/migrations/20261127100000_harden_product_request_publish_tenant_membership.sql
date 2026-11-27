@@ -102,4 +102,5 @@ end;
 $$;
 
 revoke all on function public.dt_publish_product_request(uuid, uuid) from public;
+revoke all on function public.dt_publish_product_request(uuid, uuid) from anon;
 grant execute on function public.dt_publish_product_request(uuid, uuid) to authenticated;
