@@ -492,3 +492,18 @@ Reviewed PR #26 HEAD `61002cb21aaa738a7f018794ab84bff41a2c6eb2`:
 - The fixture's unique key shape is compatible with that equality lookup and enforces the same tenant/key uniqueness scope in the disposable database.
 - Evidence limit: this does **not** establish that the deployed Supabase schema has the same constraint or index. The repository fixture is not a production catalog snapshot. No live catalog query or EXPLAIN plan was available, and none was attempted against Production.
 - No index or migration change is proposed without a staging catalog and measured query plan. The next useful measurement is `EXPLAIN (ANALYZE, BUFFERS)` for the tenant/key lookup on an authorized non-production schema with representative row counts.
+
+---
+
+## Verified mission CI baselines — 2026-11-27 22:46 KST
+
+| Mission snapshot | Playwright | Verify duration | QIMA CI | CodeQL | Vercel |
+|---|---:|---:|---|---|---|
+| SECURITY `30f0514d` | 450 passed | 36.5 s | [#45998898739](https://github.com/meridane/QimaTrade-MVP/actions/runs/45998898739) SUCCESS | [#45998898589](https://github.com/meridane/QimaTrade-MVP/actions/runs/45998898589) SUCCESS | provider rate limit |
+| TESTS `7c6a48c8` | 442 passed | 36.0 s | [#45998903391](https://github.com/meridane/QimaTrade-MVP/actions/runs/45998903391) SUCCESS | [#45998903487](https://github.com/meridane/QimaTrade-MVP/actions/runs/45998903487) SUCCESS | provider rate limit |
+| QUALITY `b0f66506` | 438 passed | 39.1 s | [#45998860809](https://github.com/meridane/QimaTrade-MVP/actions/runs/45998860809) SUCCESS | [#45998860845](https://github.com/meridane/QimaTrade-MVP/actions/runs/45998860845) SUCCESS | SUCCESS |
+
+- All three Verify logs show TypeScript, dependency audit, Next.js build, Chromium/Playwright and isolated security fixture success. PostgreSQL 16 and 17.6 jobs completed successfully on each snapshot.
+- These are test-suite wall-clock durations only; they are not application request latency, database query latency, or p50/p95/p99 measurements.
+- The PERFORMANCE branch remains documentation-only. No application optimization is justified by these figures; live staging measurements and query plans are still required.
+- No Supabase Production access, query, data/schema change, migration, deployment, merge, force-push or branch-protection change.
