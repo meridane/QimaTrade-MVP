@@ -609,3 +609,21 @@ The following completed runs were re-read from GitHub Actions job logs. They are
 The Verify jobs also completed dependency audit, TypeScript, Next.js production build, Chromium installation, Playwright and the isolated QIMA security fixture successfully. The prepared-transaction failure-injection jobs have expected negative conclusions with separate assertions proving those failures remain blocking; the intentional skipped cleanup harness is also asserted.
 
 No p50/p95/p99, SQL execution time, buffers, lock waits, CPU or memory profile can be inferred from these CI timings. The staging/EXPLAIN protocol remains pending an authorized non-production environment. No optimization is justified by this snapshot.
+
+
+## Static outbound-request budget: product-request publish — 2026-11-28 03:14 KST
+
+Source review of `app/api/product-requests/publish/route.ts` and `lib/actions/runtime.ts` identifies this steady-state request sequence:
+
+| Step | Operation | Expected remote request |
+|---|---|---:|
+| 1 | `supabase.auth.getUser()` | 1 Auth API request |
+| 2 | `dt_memberships` tenant lookup | 1 PostgREST read |
+| 3 | `get_action_definition_v1` | 1 RPC |
+| 4 | `dt_publish_product_request` | 1 RPC |
+
+The route's `auth.getSession()` reads the server session; a conditional token refresh is not included in this steady-state count. The runtime call graph contains one definition lookup and one publish handler invocation, with no loop over memberships and no retry in the inspected path. This is a source-derived request-count inventory, not a measured latency benchmark or a claim about all application paths.
+
+The previous code/test snapshots remain fully validated: SECURITY [#46043770922](https://github.com/meridane/QimaTrade-MVP/actions/runs/46043770922) (454 Playwright, PostgreSQL 16/17.6 SUCCESS), TESTS [#46043796052](https://github.com/meridane/QimaTrade-MVP/actions/runs/46043796052) (446 Playwright, PostgreSQL 16/17.6 SUCCESS), and QUALITY [#46043817903](https://github.com/meridane/QimaTrade-MVP/actions/runs/46043817903) (439 Playwright, PostgreSQL 16/17.6 SUCCESS). Their CodeQL runs #46043770905, #46043796133 and #46043817883 respectively completed SUCCESS.
+
+No p50/p95/p99, SQL plan, buffers, lock waits, CPU, memory, or network latency is inferred. A non-production staging environment is still required for measured profiling. No optimization was applied.
