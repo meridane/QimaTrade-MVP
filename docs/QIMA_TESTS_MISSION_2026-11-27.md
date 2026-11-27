@@ -262,3 +262,13 @@ No Supabase Production data/schema, migration, secret, grant, RLS policy or pers
 - CodeQL [#45998903487](https://github.com/meridane/QimaTrade-MVP/actions/runs/45998903487) completed **SUCCESS**. Vercel Preview is **FAILURE** only because the provider build-rate quota was reached; this is not a GitHub build/test failure.
 - The passing snapshot includes the HTTP 500/502/503/504 no-retry matrix, local socket interruption during action-definition lookup, one-attempt publish transport interruption, malformed success payload rejection, and camelCase/snake_case response compatibility.
 - These are local synthetic transport and disposable PostgreSQL tests. They do not establish a live Supabase outage or Production behavior. No Production data/schema, migration, secret, grant, persistent RLS policy, deployment, merge, force-push or branch-protection change.
+
+
+## Empty HTTP 204 publish-response regression — 2026-11-27 23:42 KST
+
+- Extended the local HTTP fixture to return a genuine body-less HTTP 204 response for the publish RPC.
+- Added a regression requiring the runtime to reject that response as `PUBLISH_RESULT_INVALID`, preserve the single definition lookup and single publish call, and avoid redirects. An empty 204 must not be interpreted as a successful publish without a validated demand UUID.
+- This is a synthetic PostgREST transport contract; it does not establish that the live RPC returns HTTP 204.
+- Previous code/test HEAD `34c0a480` completed QIMA CI [#46011106239](https://github.com/meridane/QimaTrade-MVP/actions/runs/46011106239) **SUCCESS**: Verify (442 Playwright), PostgreSQL 16, PostgreSQL 17.6, and CodeQL [#46011106129](https://github.com/meridane/QimaTrade-MVP/actions/runs/46011106129) all succeeded. Vercel Preview was **SUCCESS**.
+- New test commit: `a83d595fb0583b4e0237d13bad5afd4b96408bcd`. A fresh QIMA CI/CodeQL run is required; no pass is claimed yet.
+- No runtime behavior, database, migration, Production data, secret, grant, RLS policy, Production deployment, merge, force-push, or branch-protection change.
