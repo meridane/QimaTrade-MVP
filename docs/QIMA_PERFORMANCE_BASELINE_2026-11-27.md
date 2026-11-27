@@ -679,3 +679,20 @@ For all three Verify jobs, dependency audit, TypeScript, Next.js production buil
 At the latest job read, PostgreSQL 16 had completed its initial 25 of 47 steps and PostgreSQL 17.6 its initial 25 of 32 steps in each run, with no unexpected failed step. The two prepared-transaction failure-injection jobs have expected negative conclusions and their independent assertions succeeded; the skipped cleanup harness is intentionally skipped and separately asserted. The overall QIMA CI workflows remain **IN PROGRESS** until both PostgreSQL jobs finish.
 
 These CI outcomes are validation evidence only; they do not provide application latency, query plans, p50/p95/p99, buffers, lock waits, CPU or memory measurements. The QIMA Supabase project is confirmed INACTIVE and was not resumed. No database query, migration, data change, or optimization was performed.
+
+
+## Completed PostgreSQL and Verify timing sample — 2026-11-28
+
+The three multi-mission workflows previously recorded as still running have now completed. Durations below are calculated from GitHub Actions job `started_at` and `completed_at` timestamps (UTC), not application response times.
+
+| Mission | QIMA CI run | Verify job | PostgreSQL 16 | PostgreSQL 17.6 | CodeQL |
+|---|---:|---:|---:|---:|---|
+| SECURITY | [#2186](https://github.com/meridane/QimaTrade-MVP/actions/runs/46058062077) | 141 s — SUCCESS | 434 s — SUCCESS | 435 s — SUCCESS | [#2110](https://github.com/meridane/QimaTrade-MVP/actions/runs/46058062019) SUCCESS |
+| TESTS | [#2187](https://github.com/meridane/QimaTrade-MVP/actions/runs/46058080443) | 134 s — SUCCESS | 430 s — SUCCESS | 439 s — SUCCESS | [#2111](https://github.com/meridane/QimaTrade-MVP/actions/runs/46058080379) SUCCESS |
+| QUALITY | [#2188](https://github.com/meridane/QimaTrade-MVP/actions/runs/46058096100) | 130 s — SUCCESS | 452 s — SUCCESS | 421 s — SUCCESS | [#2112](https://github.com/meridane/QimaTrade-MVP/actions/runs/46058096099) SUCCESS |
+
+- All three Verify jobs completed dependency audit, TypeScript, Next.js production build, Chromium/browser tests and the isolated security-contract fixture successfully.
+- PostgreSQL 16 and 17.6 compatibility jobs completed successfully in all three runs. The prepared-transaction setup/cleanup failure-injection jobs intentionally concluded negatively; their separate assertions passed. The intentionally skipped harness was separately asserted.
+- The jobs ran concurrently and the branch test suites differ. These values are a CI infrastructure timing sample, not a controlled benchmark and not evidence of API/database latency. They must not be interpreted as p50/p95/p99, query cost, or a performance trend.
+- Vercel Preview for the three code branches reported the provider `build-rate-limit`; this is separate from successful GitHub Actions build and Verify jobs.
+- The QIMA Supabase project remains **INACTIVE**. No SQL, query plan, data, schema, migration, or compute-resume action was performed. Application latency, buffers, lock waits, CPU and memory remain unmeasured.
