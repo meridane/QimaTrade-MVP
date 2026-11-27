@@ -22,7 +22,9 @@ test("offer market selector has a field name and exposes its choices as buttons"
   const optionsId = await marketTrigger.getAttribute("aria-controls");
   expect(optionsId).toBeTruthy();
   await expect(choices).toHaveAttribute("id", optionsId!);
-  await expect(page.getByRole("textbox", { name: "Search countries" })).toBeVisible();
+  const countrySearch = page.getByRole("textbox", { name: "Search countries" });
+  await expect(countrySearch).toBeVisible();
+  await expect(countrySearch).toBeFocused();
   await expect(choices.getByRole("button", { name: "International Market" })).toBeVisible();
   await expect(choices.getByRole("button", { name: "South Korea" })).toBeVisible();
   await expect(page.getByRole("listbox")).toHaveCount(0);

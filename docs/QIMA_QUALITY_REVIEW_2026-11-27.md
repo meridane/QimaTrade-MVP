@@ -270,3 +270,13 @@ No Supabase Production data/schema, migration, secret, grant, RLS policy or pers
 - PostgreSQL 16 and PostgreSQL 17.6 are still **IN PROGRESS** at the full runner write-privilege characterization step. The overall QIMA CI is not yet closed.
 - Expected prepared-transaction failure-injection jobs concluded **FAILURE** by design; their blocking assertion jobs succeeded. The cleanup skipped-result harness was intentionally **SKIPPED** and separately asserted.
 - Vercel Preview remains blocked by the provider's build-rate-limit response. This focused browser coverage is not a full WCAG audit.
+
+
+## Country-search focus-on-open regression — 2026-11-28 KST
+
+- Re-read QIMA CI [#46019386856](https://github.com/meridane/QimaTrade-MVP/actions/runs/46019386856) on prior HEAD `8a5f42fe`: overall **SUCCESS**. Verify, PostgreSQL 16 and PostgreSQL 17.6 completed successfully. CodeQL [#46019386864](https://github.com/meridane/QimaTrade-MVP/actions/runs/46019386864) completed **SUCCESS**.
+- The prepared-transaction failure-injection jobs have their expected negative conclusions; the separate blocking assertions succeeded. The skipped-result harness was intentionally skipped and its assertion succeeded.
+- Added a browser assertion that opening the country selector moves focus to the explicitly labelled country-search input, matching the component's existing `autoFocus` behavior.
+- The change is test-only; no component behavior or markup was changed. This is a focused keyboard interaction check, not a complete WCAG audit.
+- The new assertion is pending its own QIMA CI/CodeQL run.
+- No auth behavior, database, migration, Supabase Production data/schema, secret, grant, RLS policy, Production deployment, merge, force-push or branch-protection change.
