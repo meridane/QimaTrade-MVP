@@ -356,3 +356,14 @@ These suites have different test contents and counts; the Playwright durations a
 - The test was corrected to authenticate and open `/offers/new?productMasterId=<synthetic gate id>`. The follow-up QIMA CI [#45964193515](https://github.com/meridane/QimaTrade-MVP/actions/runs/45964193515) is **PENDING** at this checkpoint; no post-fix test duration is claimed.
 - PostgreSQL 16 and PostgreSQL 17.6 jobs in #45963833330 were still in progress at the latest read. The run is not treated as complete.
 - This sample is retained only as CI test-suite timing with a known failed case. It is excluded from any successful baseline comparison and does not justify an application optimization.
+
+
+## Latest documentation-head Verify samples — 2026-11-27
+
+| Mission | QIMA CI | Verify job | Playwright | TypeScript / audit / build / security fixture | PostgreSQL 16 / 17.6 | CodeQL |
+|---|---:|---:|---:|---|---|---|
+| SECURITY `1acf78a0` | [#45964026870](https://github.com/meridane/QimaTrade-MVP/actions/runs/45964026870) | 140388311417 | 447 passed · 37.2 s | SUCCESS | IN PROGRESS / IN PROGRESS | SUCCESS |
+| TESTS `2314ce9b` | [#45964032572](https://github.com/meridane/QimaTrade-MVP/actions/runs/45964032572) | 140388328253 | 440 passed · 37.8 s | SUCCESS | IN PROGRESS / IN PROGRESS | SUCCESS |
+
+- Playwright durations and counts were read from each completed Verify job's terminal log. The two database jobs were still at the full CREATE_OFFER runner write-privilege characterization step at this read; neither overall workflow is declared complete.
+- These measurements describe CI suite execution only. They do not measure application response latency, SQL query latency, or production workload performance. No optimization is inferred.
