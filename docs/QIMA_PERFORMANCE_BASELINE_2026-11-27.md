@@ -334,3 +334,16 @@ These suites have different test contents and counts; the Playwright durations a
 - The SECURITY and TESTS snapshots above are fully validated; the QUALITY fix is not yet validated. These CI timings are browser-suite diagnostics only, not application latency benchmarks.
 - No p50/p95/p99, SQL plan, CPU/memory profile or user-perceived page timing was collected. No performance optimization was made. An approved active staging environment remains required.
 - No Supabase Production data/schema, migration, secret, grant, RLS policy, Production deployment, PR merge, force-push or branch-protection change was performed.
+
+
+## Exact Verify measurements from completed CI logs — 2026-11-27
+
+| Mission snapshot | Workflow | Verify job | Playwright result | Exact suite duration |
+|---|---:|---:|---:|---:|
+| SECURITY `1e843f08` | [#45951778425](https://github.com/meridane/QimaTrade-MVP/actions/runs/45951778425) | 140349055547 | 447 passed | 36.2 s |
+| TESTS `ff71855f` | [#45951783618](https://github.com/meridane/QimaTrade-MVP/actions/runs/45951783618) | 140349071723 | 440 passed | 36.0 s |
+
+- Durations were read from the terminal Playwright summaries in the actual completed job logs, not inferred from total workflow duration.
+- Both runs also completed PostgreSQL 16 and PostgreSQL 17.6 integration jobs successfully; their CodeQL runs succeeded.
+- These are CI suite timings only. They are not application latency, database query latency, or a statistically controlled performance comparison. No optimization is justified from these samples.
+- QUALITY run [#45951688863](https://github.com/meridane/QimaTrade-MVP/actions/runs/45951688863) failed at TypeScript before build/browser execution because the extracted offer auth helper left two existing synthetic constants undefined in the original spec. The constants were restored on the QUALITY branch; rerun [#45963833330](https://github.com/meridane/QimaTrade-MVP/actions/runs/45963833330) is currently in progress, so no post-fix performance or test result is claimed yet.
