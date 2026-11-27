@@ -335,3 +335,14 @@ No Supabase Production data/schema, migration, secret, grant, RLS policy or pers
 - Previous HEAD `4cf801c3` QIMA CI [#46043796052](https://github.com/meridane/QimaTrade-MVP/actions/runs/46043796052) completed **SUCCESS**: Verify reports **446 Playwright passed (36.6 s)**; dependency audit, TypeScript, Next.js build, Chromium, and the isolated security fixture succeeded. PostgreSQL 16 and 17.6 both completed **SUCCESS**. CodeQL [#46043796133](https://github.com/meridane/QimaTrade-MVP/actions/runs/46043796133) completed **SUCCESS**.
 - The new 429 regression requires its own QIMA CI and CodeQL run; no result is inferred from the previous HEAD.
 - No application runtime, SQL, migration, Supabase Production data/schema, secret, grant, RLS policy, Production deployment, merge, force-push, or branch-protection change.
+
+
+## Action-definition HTTP 429 — post-push validation — 2026-11-28 KST
+
+- Test commit: [`96a96001`](https://github.com/meridane/QimaTrade-MVP/commit/96a9600145da4dbda11117ab5722fbe8feb75273); current documentation HEAD: `aa3f0809`.
+- QIMA CI [#46049194695](https://github.com/meridane/QimaTrade-MVP/actions/runs/46049194695) Verify completed **SUCCESS** with **447 Playwright passed (38.3 s)**. The new HTTP 429 action-definition regression is explicitly **PASS**. Dependency audit, TypeScript, Next.js production build, Chromium, browser tests, and the isolated security fixture succeeded.
+- PostgreSQL 16 and PostgreSQL 17.6 jobs remain **IN PROGRESS** at this observation; the overall QIMA CI is not yet closed.
+- CodeQL [#46049194629](https://github.com/meridane/QimaTrade-MVP/actions/runs/46049194629) completed **SUCCESS**.
+- Vercel Preview is **FAILURE** with the provider's `build-rate-limit` response; this is not a GitHub Actions build failure.
+- Expected prepared-transaction failure-injection jobs have negative conclusions by design; their independent assertions succeeded. The skipped cleanup harness was intentionally skipped and separately asserted.
+- HTTP 429 is a local synthetic PostgREST response, not evidence of a live Production rate-limit event.
