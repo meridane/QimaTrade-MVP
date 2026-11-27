@@ -327,4 +327,26 @@ test("authenticated publish route deduplicates one tenant and rejects multiple t
   expect(unresolvedMembershipRequests.memberships).toHaveLength(1);
   expect(unresolvedMembershipRequests.definitions).toHaveLength(0);
   expect(unresolvedMembershipRequests.publications).toHaveLength(0);
+
+  // A null row must not poison one otherwise unambiguous authenticated tenant.
+  await configureMemberships([{ tenant_id: firstTenantId }, { tenant_id: null }]);
+  const mixedMembershipResponse = await publish(secondTenantId);
+  expect(mixedMembershipResponse.status).toBe(200);
+  expect(mixedMembershipResponse.body).toMatchObject({
+    result: { status: "succeeded", objectId: demandId },
+  });
+
+  const mixedMembershipRequests = await inspectRequests();
+  expect(mixedMembershipRequests.memberships).toEqual([{
+    select: "tenant_id",
+    userId: `eq.${authenticatedUserId}`,
+  }]);
+  expect(mixedMembershipRequests.definitions).toEqual([{
+    p_action_key: "PUBLISH_PRODUCT_REQUEST",
+    p_version: 1,
+  }]);
+  expect(mixedMembershipRequests.publications).toEqual([{
+    p_request_id: requestId,
+    p_user_id: authenticatedUserId,
+  }]);
 });
