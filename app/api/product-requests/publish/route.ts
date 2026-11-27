@@ -13,6 +13,8 @@ const publicPublishErrorCodes = new Set([
   "PRODUCT_REQUEST_ID_REQUIRED",
 ]);
 
+const requestIdPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export async function POST(request: NextRequest) {
   try {
     let parsedBody: unknown;
@@ -30,6 +32,9 @@ export async function POST(request: NextRequest) {
     const requestId = typeof body.requestId === "string" ? body.requestId.trim() : "";
     if (!requestId) {
       return NextResponse.json({ error: "requestId is required" }, { status: 400 });
+    }
+    if (!requestIdPattern.test(requestId)) {
+      return NextResponse.json({ error: "INVALID_REQUEST_ID" }, { status: 400 });
     }
 
     const supabase = await createSupabaseServerClient();
