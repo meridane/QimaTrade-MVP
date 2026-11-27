@@ -384,3 +384,14 @@ No Supabase Production data or migrations were touched. No Production deployment
 - The two prepared-transaction failure-injection jobs have expected negative conclusions; their independent blocking assertions succeeded. The skipped cleanup harness was intentionally skipped and its assertion succeeded.
 - Added a source-contract regression requiring membership-query failure or an empty membership result to return HTTP 403 `TENANT_MEMBERSHIP_REQUIRED` before tenant resolution and before action execution. This is static source-order coverage, not a live authenticated request or a Production RLS test.
 - The new regression is pending its own QIMA CI/CodeQL run. No application route, SQL, migration, Supabase Production data/schema, secret, grant, RLS policy, Production deployment, merge, force-push or branch-protection change.
+
+
+## Authentication-before-membership source guard — 2026-11-28 KST
+
+- Previous HEAD `f30dca01` QIMA CI [#46039825666](https://github.com/meridane/QimaTrade-MVP/actions/runs/46039825666) completed **SUCCESS**. Verify job `140647911367` reports **453 Playwright passed (37.3 s)**; npm audit, TypeScript, Next.js build, Chromium, browser tests and the isolated security fixture succeeded.
+- PostgreSQL 16 job `140647910720` and PostgreSQL 17.6 job `140647911221` both completed **SUCCESS**. CodeQL [#46039825625](https://github.com/meridane/QimaTrade-MVP/actions/runs/46039825625) completed **SUCCESS**; Vercel Preview was **SUCCESS**.
+- Added a source-order regression requiring the `UNAUTHENTICATED` HTTP 401 guard to precede the tenant-membership query and action execution.
+- This is static source-contract coverage. It does not simulate an authenticated session or prove live Supabase behavior.
+- New test commit: `d811cb10f76a9f277bae3fb3af7e609381570758`. A fresh QIMA CI/CodeQL run is required; no result is claimed yet.
+- The prepared-transaction failure-injection jobs had expected negative conclusions; their independent assertions succeeded. The intentionally skipped cleanup harness was separately asserted.
+- No Production data/schema, migration, secret, grant, RLS policy, Production deployment, merge, force-push or branch-protection change.
