@@ -319,3 +319,18 @@ These suites have different test contents and counts; the Playwright durations a
 - TESTS HEAD `7eb540bd`: Verify job `140329806236` in QIMA CI [#45945714444](https://github.com/meridane/QimaTrade-MVP/actions/runs/45945714444) completed **SUCCESS** with **440 Playwright tests passed (35.7 s)**. The malformed successful publish-result regression is included in the passing suite.
 - PostgreSQL 16 job `140329806149` and PostgreSQL 17.6 job `140329806090` remain **IN PROGRESS** at the final full-runner write-privilege characterization. Therefore the overall QIMA CI run is not yet SUCCESS.
 - CodeQL [#45945714513](https://github.com/meridane/QimaTrade-MVP/actions/runs/45945714513) is **SUCCESS**.
+
+
+## Mission validation refresh — 2026-11-27 15:22 KST
+
+| Mission code/test snapshot | QIMA CI | Verify / Playwright | PostgreSQL 16 | PostgreSQL 17.6 | CodeQL |
+|---|---|---|---|---|---|
+| SECURITY `537f3859` | [#45945862929](https://github.com/meridane/QimaTrade-MVP/actions/runs/45945862929) SUCCESS | 447 passed · 34.9 s | SUCCESS | SUCCESS | [#45945862983](https://github.com/meridane/QimaTrade-MVP/actions/runs/45945862983) SUCCESS |
+| TESTS `7eb540bd` | [#45945714444](https://github.com/meridane/QimaTrade-MVP/actions/runs/45945714444) SUCCESS | 440 passed · 35.7 s | SUCCESS | SUCCESS | [#45945714513](https://github.com/meridane/QimaTrade-MVP/actions/runs/45945714513) SUCCESS |
+| QUALITY previous `6162a67e` | [#45945670309](https://github.com/meridane/QimaTrade-MVP/actions/runs/45945670309) FAILURE | Browser job: 6 failed | SUCCESS | SUCCESS | [#45945670307](https://github.com/meridane/QimaTrade-MVP/actions/runs/45945670307) SUCCESS |
+
+- QUALITY failure diagnosis from the Verify job log: one new accessibility test reached protected `/offers/new` without authenticating; five existing offer-confirmation flows still expected the removed `aria-haspopup=listbox` / `role=listbox` semantics and timed out. TypeScript, dependency audit, production build and the security fixture succeeded; the PostgreSQL jobs also succeeded. This is a test integration regression from the semantic UI change, not a measured performance issue.
+- QUALITY follow-up is now on HEAD `31d88dc8`: shared test authentication helper, authenticated accessibility smoke, and all five country-selection flows updated to the labelled button/group contract. QIMA CI [#45951688863](https://github.com/meridane/QimaTrade-MVP/actions/runs/45951688863) is **PENDING**; CodeQL [#45951688883](https://github.com/meridane/QimaTrade-MVP/actions/runs/45951688883) is **IN PROGRESS**; Vercel Preview is **PENDING**. No result is inferred before those checks finish.
+- The SECURITY and TESTS snapshots above are fully validated; the QUALITY fix is not yet validated. These CI timings are browser-suite diagnostics only, not application latency benchmarks.
+- No p50/p95/p99, SQL plan, CPU/memory profile or user-perceived page timing was collected. No performance optimization was made. An approved active staging environment remains required.
+- No Supabase Production data/schema, migration, secret, grant, RLS policy, Production deployment, PR merge, force-push or branch-protection change was performed.
