@@ -395,3 +395,13 @@ No Supabase Production data or migrations were touched. No Production deployment
 - New test commit: `d811cb10f76a9f277bae3fb3af7e609381570758`. A fresh QIMA CI/CodeQL run is required; no result is claimed yet.
 - The prepared-transaction failure-injection jobs had expected negative conclusions; their independent assertions succeeded. The intentionally skipped cleanup harness was separately asserted.
 - No Production data/schema, migration, secret, grant, RLS policy, Production deployment, merge, force-push or branch-protection change.
+
+
+## Unauthenticated publish-route integration regression — 2026-11-28 03:14 KST
+
+- Added a Playwright HTTP request to `POST /api/product-requests/publish` with a valid request UUID but no authenticated session.
+- The real Next.js route must return HTTP 401 with exactly `{ error: "UNAUTHENTICATED" }`. The test runs against the repository's local synthetic Supabase Auth fixture; it is stronger than a source-order assertion but is not evidence about live Supabase RLS or Production policies.
+- Previous HEAD `fbf78e0e` QIMA CI [#46043770922](https://github.com/meridane/QimaTrade-MVP/actions/runs/46043770922) completed **SUCCESS**: Verify reports **454 Playwright passed (37.9 s)**; dependency audit, TypeScript, Next.js build, Chromium, and the isolated security fixture succeeded. PostgreSQL 16 and 17.6 both completed **SUCCESS**. CodeQL [#46043770905](https://github.com/meridane/QimaTrade-MVP/actions/runs/46043770905) completed **SUCCESS**.
+- The new unauthenticated route regression requires its own QIMA CI and CodeQL run; no result is inferred from the previous HEAD.
+- Expected prepared-transaction failure-injection jobs concluded negatively by design and their separate blocking assertions succeeded; the intentionally skipped cleanup harness was separately asserted.
+- No route implementation, SQL, migration, Supabase Production data/schema, secret, grant, RLS policy, Production deployment, merge, force-push, or branch-protection change.
