@@ -136,3 +136,11 @@ No Supabase Production data/schema, migration, secret, grant, RLS policy or pers
 - The preceding TESTS branch snapshot `2beb027f81c9dc2d7ff8dabf1c2f32e4685c85e4` passed QIMA CI [#45932862346](https://github.com/meridane/QimaTrade-MVP/actions/runs/45932862346): **439 Playwright tests passed (37.1 s)**, TypeScript, dependency audit, Next.js build, isolated security fixture, PostgreSQL 16 and PostgreSQL 17.6 all succeeded; CodeQL [#45932861481](https://github.com/meridane/QimaTrade-MVP/actions/runs/45932861481) succeeded.
 - The new positive alias-equivalence test is not included in that earlier run and awaits a fresh QIMA CI run. No local test execution is claimed.
 - No database, migration, Supabase Production data, secret, grant, RLS policy or persistent configuration was changed.
+
+## UUID case-sensitivity test fixture correction — 2026-11-27
+
+- Review of the new positive alias-equivalence test caught that its initial numeric-only UUID contained no hexadecimal letters, so uppercasing it did not actually exercise case-insensitive comparison.
+- Replaced the fixture with `abcdefab-cdef-4abc-8def-abcdefabcdef` and added an explicit assertion that the uppercase alias differs from the lowercase value before passing both fields to the runtime.
+- This is a test-fixture correction only; production/runtime code is unchanged.
+- Corrected test commit: `978c3d3595733c734d8200d9de6ea39dad61ef8b`.
+- QIMA CI #45938350591 was already running against the earlier numeric-only fixture. Its result must not be treated as validation of this corrected test. A new CI run on the corrected commit is required.
