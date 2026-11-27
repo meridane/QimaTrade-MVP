@@ -757,3 +757,43 @@ The follow-up SECURITY, TESTS and QUALITY code commits from the previous checkpo
 - The nine-operation `getOfferContext` source graph remains a static count across four waves. No N+1 was identified in the inspected attribute metadata path, but no p50/p95/p99, EXPLAIN ANALYZE, buffers, lock-wait, CPU or memory measurements exist.
 - The QIMA Supabase project remains inactive. No compute resume, SQL query, schema/data/migration change, or Production access was performed.
 - Next non-blocking action: retain the query graph and prepare a staging-only trace protocol; do not optimize until an authorized staging target and representative dataset are available.
+
+
+## Reproducible staging trace protocol — 2026-11-28
+
+**Status: protocol prepared, not executed.** The QIMA project is currently `INACTIVE`; no staging target is available. Do not resume the project or substitute Production.
+
+### Preconditions
+
+- An explicitly authorized non-production Supabase project with status `ACTIVE_HEALTHY`.
+- A disposable tenant and fixed Product Master/demand fixture with no customer data.
+- A recorded application commit SHA and PostgreSQL version.
+- No Production URL, key, token, or dataset in the benchmark environment.
+
+### Workload and samples
+
+- Exercise only `getOfferContext` through its normal application entry point.
+- Prepare three deterministic fixture sizes: 0, 10, and 50 product-master attribute rows, with fixed definitions/options/units.
+- Run 10 warm-up calls, then 50 measured calls per fixture size, sequentially to avoid mixing request latency with deliberate concurrency load.
+- Run a separate concurrency experiment only after the sequential baseline is recorded.
+
+### Instrumentation
+
+Use a monotonic clock (`performance.now()`) around each remote operation and each wave. Record only operation name, elapsed milliseconds, status class, returned row counts, and the number of requested IDs. Do not record auth headers, tokens, raw user/tenant identifiers, or row contents.
+
+Capture:
+- total server-action wall time;
+- Auth/profile/membership wave duration;
+- demand lookup duration;
+- Product Master + attribute-row wave duration;
+- definitions/options/units wave duration;
+- remote request count and response row counts;
+- error rate and cold/warm sample distinction.
+
+Report p50, p95 and p99 for each operation and the total. Preserve raw timing samples as a staging-only artifact and record the tested commit, fixture-size profile and database version.
+
+### Query-plan gate
+
+For any candidate query, use a read-only transaction on staging and capture `EXPLAIN (ANALYZE, BUFFERS, SETTINGS, FORMAT JSON)`. Do not run write statements or migrations. An optimization proposal requires a repeatable hotspot or request-count growth that scales with attribute count; CI duration alone is not sufficient evidence.
+
+No benchmark, EXPLAIN, query, project resume, schema/data change, or Production access was performed in this run.
