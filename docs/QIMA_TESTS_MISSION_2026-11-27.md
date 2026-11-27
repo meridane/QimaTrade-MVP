@@ -281,3 +281,14 @@ No Supabase Production data/schema, migration, secret, grant, RLS policy or pers
 - Vercel Preview for the new branch HEAD is **FAILURE** because the provider returned its build-rate-limit response. This is not a GitHub Actions build/test failure.
 - The expected prepared-transaction failure-injection jobs have negative conclusions by design; their assertion jobs succeeded. The skipped-result harness is intentionally skipped and separately asserted.
 - No Playwright or PostgreSQL result is claimed for the new commit yet.
+
+
+## Browser Verify closeout — 2026-11-27 23:43 KST
+
+- QIMA CI [#46018961960](https://github.com/meridane/QimaTrade-MVP/actions/runs/46018961960) Verify job `140573296918` completed **SUCCESS** with **443 Playwright passed (37.9 s)**.
+- The new `PUBLISH_PRODUCT_REQUEST runtime rejects an empty HTTP 204 response instead of reporting success` test is explicitly **PASS**.
+- Dependency audit, TypeScript, Next.js production build, Chromium, browser tests, and the isolated QIMA security-contract fixture all completed **SUCCESS**.
+- CodeQL [#46018961986](https://github.com/meridane/QimaTrade-MVP/actions/runs/46018961986) completed **SUCCESS**.
+- PostgreSQL 16 and PostgreSQL 17.6 are still **IN PROGRESS** at the full runner write-privilege characterization step. The overall QIMA CI is not yet closed.
+- Expected prepared-transaction failure-injection jobs concluded **FAILURE** by design; their blocking assertion jobs succeeded. The cleanup skipped-result harness was intentionally **SKIPPED** and separately asserted.
+- Vercel Preview remains blocked by the provider's build-rate-limit response. HTTP 204 was simulated locally in the test server; no live RPC response is inferred.
