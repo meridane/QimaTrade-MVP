@@ -201,3 +201,19 @@ These observations were retrieved from the current mission PR heads before the n
 - The QUALITY sample validates the keyboard focus-order and OAuth alert checks already present on HEAD `51a7c1fe`.
 - These are independent branch snapshots and different test counts. They must not be treated as a performance trend or compared as an application benchmark.
 - No application API p50/p95/p99, SQL query plan, N+1 behavior, CPU/memory profile, or end-user page timing was measured. No optimization was made.
+
+
+
+## Current follow-up validation state — 2026-11-27
+
+The latest SECURITY and TESTS commits contain new code/test cases and are not included in the completed timing samples above.
+
+| Mission | Current HEAD | QIMA CI | CodeQL | Vercel |
+|---|---|---|---|---|
+| SECURITY | `726941e2517d36654be8123fef0051bdfa80731c` | [#45932892701](https://github.com/meridane/QimaTrade-MVP/actions/runs/45932892701) PENDING, no jobs published at last read | [#45932892666](https://github.com/meridane/QimaTrade-MVP/actions/runs/45932892666) SUCCESS | Provider build-rate quota failure |
+| TESTS | `2beb027f81c9dc2d7ff8dabf1c2f32e4685c85e4` | [#45932862346](https://github.com/meridane/QimaTrade-MVP/actions/runs/45932862346) PENDING, no jobs published at last read | [#45932861481](https://github.com/meridane/QimaTrade-MVP/actions/runs/45932861481) SUCCESS | Provider build-rate quota failure |
+
+- These pending CI runs are not treated as performance samples and no Playwright or PostgreSQL result is inferred from them.
+- The CodeQL successes do not replace QIMA CI validation.
+- The Vercel failure is the external `api-deployments-free-per-day` quota response, not an application performance measurement.
+- No staging environment was made available; API latency, database plans, allocations, CPU and memory remain unmeasured. No optimization was applied.
