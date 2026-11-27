@@ -280,3 +280,13 @@ No Supabase Production data or migrations were touched. No Production deployment
 - Fresh QIMA CI [#45977895044](https://github.com/meridane/QimaTrade-MVP/actions/runs/45977895044) is **IN PROGRESS**. At the latest read, TypeScript, audit and build had passed through the build step; Playwright had not yet reported a result. PostgreSQL 16 and 17.6 jobs were still active.
 - CodeQL [#45977894940](https://github.com/meridane/QimaTrade-MVP/actions/runs/45977894940) is **IN PROGRESS**.
 - These results are pending; the prior one-test source-assertion failure is not marked resolved until this new Verify run completes.
+
+ 
+## CREATE_OFFER server-action boundary validation closeout — 2026-11-27 19:30 KST
+
+- On SECURITY HEAD b2b6c88c43c1fe6015fbe762614c070bc97baa0f, QIMA CI [#45978034038](https://github.com/meridane/QimaTrade-MVP/actions/runs/45978034038) completed **SUCCESS**. Verify job 140437723465 reports **449 Playwright tests passed (35.8 s)**; TypeScript, dependency audit, Next.js production build and the isolated QIMA security fixture passed.
+- PostgreSQL 16 job 140437723267 and PostgreSQL 17.6 job 140437723399 both completed **SUCCESS**. CodeQL [#45978034162](https://github.com/meridane/QimaTrade-MVP/actions/runs/45978034162) completed **SUCCESS**.
+- The two prepared-transaction harness jobs have failure conclusions by design; their separate blocking assertions succeeded. The skipped-result harness was skipped as designed and its assertion succeeded. No unexpected failing job remains.
+- This closes the source-contract assertion correction and validates the CREATE_OFFER server-action error-boundary tests on this snapshot. The earlier report of 34.9 s is superseded by the terminal Verify log's exact **35.8 s**.
+- Vercel Preview is **FAILURE** solely because the provider returned the build-rate-limit quota response; this is not a code-build result and does not affect the successful GitHub CI/CodeQL conclusions.
+- No Production exploit or disclosure is inferred from synthetic tests. No Supabase Production data/schema, migration deployment, secret, grant, RLS policy, persistent configuration or Production deployment was changed.
