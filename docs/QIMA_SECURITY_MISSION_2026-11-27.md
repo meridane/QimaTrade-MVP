@@ -464,3 +464,14 @@ No Supabase Production data or migrations were touched. No Production deployment
 - The reviewed SECURITY DEFINER functions pin `search_path` to `public`. Whether untrusted roles can CREATE in that schema was not established from the inactive project; retain this as a staging privilege-characterization question, not a confirmed vulnerability.
 
 No production data, schema, migration, secret, grant, policy, deployment, merge, force-push, or branch-protection change.
+
+
+## CI closure and membership null-row follow-up — 2026-11-28 06:16 KST
+
+- QIMA CI [#2189](https://github.com/meridane/QimaTrade-MVP/actions/runs/46065841828) completed **SUCCESS**. Verify job 140730813316 completed **SUCCESS** with **457 Playwright passed (35.7 s)**; npm audit, TypeScript, Next.js production build, Chromium, and the isolated security-contract fixture succeeded.
+- PostgreSQL 16 integration job 140730813612 and PostgreSQL 17.6 compatibility job 140730813616 both completed **SUCCESS**. The full CREATE_OFFER runner privilege characterization, tenant-scoped replay/concurrency regressions, legacy RLS regressions, wrapper ACL checks, and disposable migration cleanup steps all passed on their respective disposable PostgreSQL services.
+- CodeQL [#2113](https://github.com/meridane/QimaTrade-MVP/actions/runs/46065841732) completed **SUCCESS**. Vercel Preview status for the tested code commit was **SUCCESS**.
+- The prepared-transaction failure-injection jobs intentionally have negative job conclusions; their independent cleanup/failure-propagation assertions passed. The skipped-result harness is intentionally skipped and separately asserted. These expected harness outcomes do not make the overall QIMA CI run fail.
+- Follow-up commit 159da642 (https://github.com/meridane/QimaTrade-MVP/commit/159da64280b771318367777be3e781fed4a26767) adds one HTTP integration case: a valid authenticated tenant row accompanied by a NULL tenant row must still resolve to the one distinct usable tenant, while a spoofed body tenant remains ignored. The new commit's GitHub Actions run was not yet visible at the first post-push read; its test result is **pending**, not inferred. Vercel was **PENDING** at that read.
+- The multi-tenant active-tenant behavior remains a product/API decision. No Production RLS/ACL state or exploitability is inferred from these synthetic and disposable tests.
+- No Supabase Production data/schema/migration, secret, grant, persistent policy, deployment, merge, force-push, or branch-protection change.
