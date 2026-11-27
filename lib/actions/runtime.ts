@@ -73,7 +73,10 @@ export async function executeUniversalAction(
           p_user_id: actionContext.userId,
         });
         if (error) throw new Error(error.message);
-        const result = data as Record<string, unknown> | null;
+        const result =
+          data !== null && typeof data === "object" && !Array.isArray(data)
+            ? (data as Record<string, unknown>)
+            : null;
         const hasCamelDemandId = result !== null && Object.prototype.hasOwnProperty.call(result, "demandId");
         const hasSnakeDemandId = result !== null && Object.prototype.hasOwnProperty.call(result, "demand_id");
         if (
