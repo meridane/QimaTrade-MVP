@@ -445,3 +445,22 @@ No Supabase Production data or migrations were touched. No Production deployment
 - This is a local synthetic Auth/PostgREST integration test. It does not prove live Supabase RLS behavior, production tenant membership contents, or a production vulnerability.
 - The previous QIMA CI #2186 and CodeQL #2110 run completed successfully, including PostgreSQL 16 and 17.6; this new fixture/test commit requires its own CI and CodeQL validation.
 - No production route, SQL, migration, Supabase Production data/schema, secret, grant, RLS policy, deployment, merge, force-push, or branch-protection change.
+
+
+## Membership-cardinality Verify / CodeQL closeout and static RLS review — 2026-11-28
+
+- QIMA CI [#2189](https://github.com/meridane/QimaTrade-MVP/actions/runs/46065841828) Verify job completed **SUCCESS**: **457 Playwright passed (35.7 s)**; dependency audit, TypeScript, Next.js production build, Chromium, the complete browser suite, and the isolated security-contract fixture all succeeded. The new duplicate/single/multiple/null-membership route scenario passed.
+- CodeQL [#2113](https://github.com/meridane/QimaTrade-MVP/actions/runs/46065841732) completed **SUCCESS**.
+- PostgreSQL 16 integration and PostgreSQL 17.6 compatibility remain **IN PROGRESS** at this checkpoint. Both are in the full runner-write-privilege characterization step (25/47 and 25/32 steps respectively); no database success is claimed yet.
+- The two prepared-transaction failure-injection jobs have expected negative conclusions and their separate assertions succeeded; the cleanup-skipped harness is intentionally skipped and separately asserted.
+
+### Checked-in migration evidence
+
+- `20260829090000_create_decision_tree_v1.sql` enables RLS on `public.dt_memberships` and defines its authenticated SELECT policy as `user_id = auth.uid()`.
+- `20260829100000_product_requests_v1.sql` scopes product-request SELECT and INSERT policies to a current membership in the exact request tenant.
+- `20261127100000_harden_product_request_publish_tenant_membership.sql` checks `auth.uid() = p_user_id`, scopes the request to its owner and exact tenant membership, then takes `FOR KEY SHARE` on that membership before creating a demand.
+- `20261110080000_harden_authenticated_helper_anon_acl.sql` revokes PUBLIC/anon EXECUTE on `dt_publish_product_request` and grants it to authenticated. `20260901120000_action_definition_read_rpc_v1.sql` similarly restricts the action-definition read RPC. `20261110070000_harden_public_rpc_execute_acl.sql` explicitly hardens the CREATE_OFFER helper ACLs.
+- These are repository migration/fixture findings, not live Production catalog evidence. The QIMA Supabase project is inactive and was not resumed; no live RLS, ACL, schema, or data query was run.
+- The reviewed SECURITY DEFINER functions pin `search_path` to `public`. Whether untrusted roles can CREATE in that schema was not established from the inactive project; retain this as a staging privilege-characterization question, not a confirmed vulnerability.
+
+No production data, schema, migration, secret, grant, policy, deployment, merge, force-push, or branch-protection change.
