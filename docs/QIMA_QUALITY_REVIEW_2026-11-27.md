@@ -259,3 +259,14 @@ No Supabase Production data/schema, migration, secret, grant, RLS policy or pers
 - Vercel Preview for the new branch HEAD is **FAILURE** because the provider returned its build-rate-limit response. This is not a GitHub Actions build/test failure.
 - The expected prepared-transaction failure-injection jobs have negative conclusions by design; their assertion jobs succeeded. The skipped-result harness is intentionally skipped and separately asserted.
 - No browser or PostgreSQL result is claimed for the new test yet. This remains focused search/keyboard coverage, not a complete WCAG audit.
+
+
+## Browser Verify closeout — 2026-11-27 23:43 KST
+
+- QIMA CI [#46018967038](https://github.com/meridane/QimaTrade-MVP/actions/runs/46018967038) Verify job `140573314356` completed **SUCCESS** with **438 Playwright passed (36.1 s)**.
+- The country-search regression explicitly passed: searching `South Korea` keeps that option visible and removes non-matching `Japan`.
+- Dependency audit, TypeScript, Next.js production build, Chromium, browser tests, and the isolated QIMA security-contract fixture all completed **SUCCESS**.
+- CodeQL [#46018966968](https://github.com/meridane/QimaTrade-MVP/actions/runs/46018966968) completed **SUCCESS**.
+- PostgreSQL 16 and PostgreSQL 17.6 are still **IN PROGRESS** at the full runner write-privilege characterization step. The overall QIMA CI is not yet closed.
+- Expected prepared-transaction failure-injection jobs concluded **FAILURE** by design; their blocking assertion jobs succeeded. The cleanup skipped-result harness was intentionally **SKIPPED** and separately asserted.
+- Vercel Preview remains blocked by the provider's build-rate-limit response. This focused browser coverage is not a full WCAG audit.
