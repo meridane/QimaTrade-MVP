@@ -314,6 +314,8 @@ test("PUBLISH_PRODUCT_REQUEST runtime rejects malformed successful RPC payloads 
     { demandId: "   " },
     { demandId: 42 },
     { demand_id: 42 },
+    { demandId: "not-a-uuid" },
+    { demand_id: "70000000-0000-4000-8000-00000000000g" },
     {
       demandId: "70000000-0000-4000-8000-000000000001",
       demand_id: "70000000-0000-4000-8000-000000000002",
