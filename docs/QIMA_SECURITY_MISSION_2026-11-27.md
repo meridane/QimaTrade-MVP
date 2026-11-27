@@ -195,3 +195,9 @@ No Supabase Production data or migrations were touched. No Production deployment
 - Vercel status on the mission branch is a provider build-rate quota failure; it is not a GitHub Actions or application test failure.
 - Classification remains: confirmed input-validation gap against the checked-in UUID RPC signature, corrected and tested synthetically; no Production exploit, live disclosure, or deployed-schema state is established.
 - No Supabase Production data/schema, migration deployment, secret, grant, RLS policy, or persistent configuration was changed.
+
+## Preview status precision — 2026-11-27
+
+- The provider build-rate quota failure noted in the earlier checkpoint applied to the prior code/test snapshot, not to a confirmed application build failure.
+- After the documentation closeout commit `8c61feb59f7cb3cc0261dac4de51ca34924c0077`, the current PR #27 Vercel status was **PENDING**. No Preview success is claimed for that documentation HEAD.
+- The code/test snapshot `726941e2517d36654be8123fef0051bdfa80731c` remains validated by QIMA CI #45932892701 and CodeQL #45932892666 as recorded above.
