@@ -458,3 +458,11 @@ Source reviewed: `app/offers/actions.ts` on the isolated SECURITY branch (same o
 
 
 - Cross-check: the `getOfferContext` query sequence was compared between PR #26 HEAD `61002cb` and SECURITY branch HEAD `326c290b`. The query shape and batching are identical; the SECURITY branch only changes the public error mapping. Therefore the nine-operation upper bound above applies to the PR #26 source snapshot as well.
+
+
+## Latest preview-status clarification — 2026-11-27 21:10 KST
+
+- Combined commit status on the current PERFORMANCE HEAD `834814aa` reports Vercel **FAILURE** with the provider's `build-rate-limit` quota response. The branch contains documentation only; this is not an application build failure.
+- At the same check, PR #26, SECURITY HEAD `2caaf0ca` and TESTS HEAD `e2d1aa94` had Vercel **SUCCESS**. QUALITY HEAD `b60bd66f` had the same provider quota failure.
+- The latest SECURITY and TESTS Verify jobs have passed their browser suites (450 and 442 tests respectively), but their overall QIMA CI runs remain in progress because PostgreSQL 16/17.6 are still at the disposable QA373 runner-privilege characterization step. QUALITY's current HEAD has a pending QIMA CI run after the login focus test stabilization.
+- No product latency, query-plan or CPU/memory benchmark is inferred from these CI/provider statuses.
