@@ -192,3 +192,13 @@ No Supabase Production data/schema, migration, secret, grant, RLS policy or pers
 - Fresh QIMA CI [#45977893896](https://github.com/meridane/QimaTrade-MVP/actions/runs/45977893896) is **IN PROGRESS**. At the latest read, TypeScript, audit and build had reached the production-build step successfully; Playwright had not yet reported a result. PostgreSQL 16 and 17.6 jobs were still active.
 - CodeQL [#45977893826](https://github.com/meridane/QimaTrade-MVP/actions/runs/45977893826) is **IN PROGRESS**.
 - The previous tab-order assertion failure is not marked resolved until the new browser Verify job completes.
+
+ 
+## Country selector focus-restoration locator correction — 2026-11-27 19:30 KST
+
+- QIMA CI [#45977893896](https://github.com/meridane/QimaTrade-MVP/actions/runs/45977893896) completed with **Verify FAILURE**: **437 Playwright passed / 1 failed (37.3 s)**. TypeScript, dependency audit, Next.js build, isolated security fixture, PostgreSQL 16 and PostgreSQL 17.6 succeeded; CodeQL [#45977893826](https://github.com/meridane/QimaTrade-MVP/actions/runs/45977893826) succeeded. Vercel Preview was blocked by the provider's build-rate quota.
+- The single failure was the focus-restoration assertion after selecting South Korea. The test kept a locator with the initial accessible name "Target market: Select a target market"; after a successful selection, the same button correctly changed its accessible name to "Target market: South Korea", so the exact-name locator no longer matched.
+- Updated only the test locator to match the stable Target market name prefix, and added an explicit assertion for the initial placeholder before interaction. The component behavior, selected value, Escape handling, tab order and focus-restoration expectations remain unchanged.
+- Code/test commit: 747a483e6aa7d0fc88d9578ba9a951139d8ae2ab. A fresh QIMA CI run is required; no browser pass is inferred yet.
+- This is a stale test-locator defect, not evidence of an application accessibility failure. The keyboard test remains focused coverage, not a complete WCAG audit.
+- No Supabase data/schema, authorization behavior, dependency, Production deployment or branch protection was changed.
