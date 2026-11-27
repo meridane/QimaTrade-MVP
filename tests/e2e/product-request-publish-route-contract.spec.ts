@@ -90,3 +90,32 @@ test("product-request publish route keeps multi-tenant selection fail-closed bef
   expect(tenantGuard).toContain("status: 409");
   expect(tenantGuard).toContain("Select an active tenant before publishing a product request.");
 });
+
+
+test("product-request publish route derives tenant membership only from the authenticated user", () => {
+  const fs = process.getBuiltinModule("node:fs") as typeof import("node:fs") | undefined;
+  if (!fs) throw new Error("Node.js fs module is unavailable");
+  const source = fs.readFileSync(
+    `${process.cwd()}/app/api/product-requests/publish/route.ts`,
+    "utf8",
+  );
+
+  const membershipStart = source.indexOf('.from("dt_memberships")');
+  const membershipEnd = source.indexOf("if (membershipError", membershipStart);
+  expect(membershipStart).toBeGreaterThanOrEqual(0);
+  expect(membershipEnd).toBeGreaterThan(membershipStart);
+
+  const membershipQuery = source.slice(membershipStart, membershipEnd);
+  expect(membershipQuery).toContain('.select("tenant_id")');
+  expect(membershipQuery).toContain('.eq("user_id", authData.user.id)');
+  expect(membershipQuery).not.toContain("body.");
+
+  expect(source).not.toContain("body.tenantId");
+  expect(source).not.toContain("body.tenant_id");
+
+  const actionStart = source.indexOf("const result = await executeUniversalAction");
+  expect(actionStart).toBeGreaterThan(membershipEnd);
+  const actionContext = source.slice(actionStart, actionStart + 500);
+  expect(actionContext).toContain("userId: authData.user.id");
+  expect(actionContext).toContain("tenantId: tenantIds[0]");
+});

@@ -364,3 +364,13 @@ No Supabase Production data or migrations were touched. No Production deployment
 - PostgreSQL 16 and PostgreSQL 17.6 are still **IN PROGRESS** at the full runner write-privilege characterization step. The overall QIMA CI is not yet closed.
 - Expected prepared-transaction failure-injection jobs concluded **FAILURE** by design; their blocking assertion jobs succeeded. The cleanup skipped-result harness was intentionally **SKIPPED** and separately asserted.
 - Vercel Preview remains blocked by the provider's build-rate-limit response. No production exploit or live tenant-policy result is inferred from the static/synthetic regression.
+
+
+## Authenticated-membership source guard and previous CI closeout — 2026-11-28 KST
+
+- Re-read QIMA CI [#46019379572](https://github.com/meridane/QimaTrade-MVP/actions/runs/46019379572) on prior HEAD `fba02d24`: overall **SUCCESS**. Verify, PostgreSQL 16 and PostgreSQL 17.6 completed successfully. CodeQL [#46019379477](https://github.com/meridane/QimaTrade-MVP/actions/runs/46019379477) completed **SUCCESS**.
+- The prepared-transaction failure-injection jobs have their expected negative conclusions; the separate blocking assertions succeeded. The skipped-result harness was intentionally skipped and its assertion succeeded.
+- Added a static source-contract regression requiring the membership query to select only `tenant_id`, bind `user_id` to `authData.user.id`, reject body-supplied tenant fields, and pass the authenticated user plus the single resolved tenant to the action context.
+- This is source-level regression coverage only. It does not execute a real authenticated multi-membership flow and does not establish live Supabase RLS behavior.
+- The new test is pending its own QIMA CI/CodeQL run; no result is inferred from the prior HEAD.
+- No application route, SQL, migration, Supabase Production data/schema, secret, grant, RLS policy, Production deployment, merge, force-push or branch-protection change.
