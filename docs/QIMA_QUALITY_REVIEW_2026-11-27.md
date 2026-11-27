@@ -202,3 +202,13 @@ No Supabase Production data/schema, migration, secret, grant, RLS policy or pers
 - Code/test commit: 747a483e6aa7d0fc88d9578ba9a951139d8ae2ab. A fresh QIMA CI run is required; no browser pass is inferred yet.
 - This is a stale test-locator defect, not evidence of an application accessibility failure. The keyboard test remains focused coverage, not a complete WCAG audit.
 - No Supabase data/schema, authorization behavior, dependency, Production deployment or branch protection was changed.
+
+
+## Country search accessible-name follow-up — 2026-11-27 20:58 KST
+
+- The CountrySelect search input previously relied on its placeholder for its accessible name. Added the explicit `aria-label="Search countries"` while preserving the visible placeholder and existing search behavior.
+- Updated the focused Playwright test to locate the search control by role and accessible name, and to assert the placeholder separately. The existing Escape, native Tab order, Enter selection, selected-name and focus-restoration checks remain intact.
+- This is a targeted accessible-name improvement, not a complete WCAG audit. Screen-reader verification and full-form keyboard coverage remain outstanding.
+- The preceding QUALITY HEAD `f062e333` completed QIMA CI [#45983046694](https://github.com/meridane/QimaTrade-MVP/actions/runs/45983046694) **SUCCESS**. Verify job `140455236116` reports **438 Playwright passed (38.6 s)**; TypeScript, dependency audit, Next.js build and the isolated QIMA security fixture passed. PostgreSQL 16 job `140455235378` and PostgreSQL 17.6 job `140455235939` both completed **SUCCESS**. CodeQL [#45983046715](https://github.com/meridane/QimaTrade-MVP/actions/runs/45983046715) completed **SUCCESS**.
+- Vercel Preview for that HEAD failed only because the provider returned its `build-rate-limit` quota response. A fresh QIMA CI/CodeQL run is required for the new accessible-name assertion; no pass is claimed yet.
+- No Supabase data/schema, authorization behavior, dependency, Production deployment or branch protection was changed.
