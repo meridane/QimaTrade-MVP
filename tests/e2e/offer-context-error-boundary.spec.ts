@@ -67,6 +67,22 @@ test("create-offer server-action errors expose only allowlisted domain codes", (
   expect(publicMessage).not.toContain("XX000");
 });
 
+test("create-offer error mapper does not trust plain objects that imitate allowlisted codes", () => {
+  const shapedBackendFailure = {
+    message: "ACTION_ALREADY_RUNNING",
+    details: "PRIVATE_ALLOWLIST_SHAPED_DETAILS",
+    hint: "PRIVATE_ALLOWLIST_SHAPED_HINT",
+    code: "P0001",
+  };
+
+  expect(toPublicCreateOfferError(shapedBackendFailure)).toBe(
+    "Unable to create the offer. Please try again.",
+  );
+  expect(toPublicCreateOfferError(new Error("ACTION_ALREADY_RUNNING: private suffix"))).toBe(
+    "Unable to create the offer. Please try again.",
+  );
+});
+
 test("createOffer catches runtime failures and returns the public error mapper result", async () => {
   const source = await readFile(resolve(process.cwd(), "app/offers/actions.ts"), "utf8");
   const start = source.indexOf("export async function createOffer");
