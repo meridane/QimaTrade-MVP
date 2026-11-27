@@ -68,7 +68,7 @@ function CountrySelect({
       <input type="hidden" id={id} name={name} value={value} readOnly />
       <button
         type="button"
-        aria-haspopup="listbox"
+        aria-label={`${label}: ${value || placeholder}`}
         aria-expanded={open}
         onClick={() => setOpen((current) => !current)}
         className="mt-2 flex w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 text-left text-sm"
@@ -91,7 +91,7 @@ function CountrySelect({
               />
             </div>
           </div>
-          <div className="max-h-64 overflow-y-auto p-1" role="listbox">
+          <div className="max-h-64 overflow-y-auto p-1" role="group" aria-label={`${label} options`}>
             {allowInternational && (
               <button
                 type="button"
