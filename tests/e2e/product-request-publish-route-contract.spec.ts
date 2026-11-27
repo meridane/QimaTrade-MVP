@@ -1,6 +1,16 @@
 import { expect, test } from "@playwright/test";
 const jsonHeaders = { "content-type": "application/json" };
 
+test("product-request publish route rejects a valid request without an authenticated session", async ({ request }) => {
+  const response = await request.post("/api/product-requests/publish", {
+    data: JSON.stringify({ requestId: "60000000-0000-4000-8000-000000000001" }),
+    headers: jsonHeaders,
+  });
+
+  expect(response.status()).toBe(401);
+  await expect(response.json()).resolves.toEqual({ error: "UNAUTHENTICATED" });
+});
+
 test("product-request publish route returns a stable 400 for malformed JSON", async ({ request }) => {
   const response = await request.post("/api/product-requests/publish", {
     data: "{",
