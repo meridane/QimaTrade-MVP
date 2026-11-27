@@ -406,3 +406,12 @@ No Supabase Production data/schema, migration, secret, grant, RLS policy or pers
 - QIMA CI [#2200](https://github.com/meridane/QimaTrade-MVP/actions/runs/46078021207) is **PENDING** with no jobs published at this checkpoint. CodeQL [#2124](https://github.com/meridane/QimaTrade-MVP/actions/runs/46078021183) is **SUCCESS**. Vercel Preview is **SUCCESS**.
 - Previous Retry-After run [#2193](https://github.com/meridane/QimaTrade-MVP/actions/runs/46069479223) completed SUCCESS, including PostgreSQL 16 and 17.6; its result does not validate these new 401/403 cases.
 - No runtime implementation, SQL, migration, Supabase Production data/schema, secret, grant, RLS policy, deployment, merge, force-push, or branch-protection change.
+
+
+## Missing action-definition response follow-up — 2026-11-28
+
+- Commit [89cf3e1f](https://github.com/meridane/QimaTrade-MVP/commit/89cf3e1f6e875d7d5a384f355acea3e5fe44855c) adds two synthetic runtime cases for an empty action-definition result set ([]) and a null definition result (null).
+- Both cases require ACTION_NOT_PUBLISHED, exactly one get_action_definition_v1 request, no dt_publish_product_request call, and no redirect. This covers the no-row branch separately from wrong key, version, draft and retired definitions.
+- Previous snapshot QIMA CI [#2200](https://github.com/meridane/QimaTrade-MVP/actions/runs/46078021207) completed Verify SUCCESS with 454 Playwright passed (36.0 s), PostgreSQL 16/17.6 SUCCESS; CodeQL [#2128](https://github.com/meridane/QimaTrade-MVP/actions/runs/46083793857) on the new HEAD is SUCCESS. The previous Verify result does not include the two new cases.
+- Current QIMA CI [#2204](https://github.com/meridane/QimaTrade-MVP/actions/runs/46083793809) is IN PROGRESS. At the latest read, npm audit, TypeScript and Next.js build were SUCCESS and Playwright was running; PostgreSQL 16 and 17.6 were also running. No result is claimed for the new cases until the run completes.
+- Current Vercel status is PENDING. No runtime implementation, SQL, Supabase Production data/schema, migration, secret, grant or persistent RLS policy was changed.
