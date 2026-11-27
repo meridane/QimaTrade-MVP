@@ -1,4 +1,4 @@
-import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import { getCreatedOfferId } from "../../lib/offers/created-offer-reference";
 import { authenticatePage } from "./offer-test-auth";
 
