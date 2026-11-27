@@ -60,6 +60,11 @@ test("product-request publish route rejects unauthenticated requests before memb
     definitions: [],
     publications: [],
   });
+
+  const resetFixture = await request.post("http://127.0.0.1:54321/__test/membership-fixture", {
+    data: { rows: null },
+  });
+  expect(resetFixture.status()).toBe(200);
 });
 
 test("product-request publish route returns a stable 400 for malformed JSON", async ({ request }) => {
