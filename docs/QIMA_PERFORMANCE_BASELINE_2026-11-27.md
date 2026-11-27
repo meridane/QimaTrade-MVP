@@ -722,3 +722,20 @@ Static total: **nine remote operations** across four sequential/concurrent waves
 This is a source-level request count only. It does not establish database latency or prove this path is slow. The next useful measurement is a staging trace that records each request's duration and the number of attribute IDs, then compares p50/p95/p99 before any batching/refactor proposal.
 
 The PostgreSQL 16 and 17.6 jobs for runs #2189, #2190 and #2191 were still in progress at this checkpoint; no database completion is inferred from the successful Verify jobs.
+
+
+## PostgreSQL validation closure — 2026-11-28 06:16 KST
+
+The three previously open mission QIMA CI runs have now completed successfully, including both PostgreSQL compatibility jobs:
+
+| Mission run | Verify / Playwright | PostgreSQL 16 | PostgreSQL 17.6 | CodeQL | Vercel Preview |
+|---|---|---|---|---|---|
+| SECURITY [#2189](https://github.com/meridane/QimaTrade-MVP/actions/runs/46065841828) | 457 passed, 35.7 s — SUCCESS | SUCCESS | SUCCESS | [#2113](https://github.com/meridane/QimaTrade-MVP/actions/runs/46065841732) SUCCESS | SUCCESS |
+| TESTS [#2190](https://github.com/meridane/QimaTrade-MVP/actions/runs/46065868815) | 452 passed, 37.1 s — SUCCESS | SUCCESS | SUCCESS | [#2114](https://github.com/meridane/QimaTrade-MVP/actions/runs/46065868843) SUCCESS | SUCCESS |
+| QUALITY [#2191](https://github.com/meridane/QimaTrade-MVP/actions/runs/46065923133) | 440 passed, 34.6 s — SUCCESS | SUCCESS | SUCCESS | [#2115](https://github.com/meridane/QimaTrade-MVP/actions/runs/46065923029) SUCCESS | SUCCESS |
+
+- The PostgreSQL 16 and 17.6 jobs completed their full integration, concurrency, replay, runner privilege, RLS/ACL and disposable cleanup steps successfully.
+- Each run also contains intentional failure-injection jobs with negative conclusions, plus an intentionally skipped harness. Separate assertion jobs passed and the overall QIMA CI workflows completed **SUCCESS**; do not interpret those isolated expected conclusions as product regressions.
+- The measured Playwright durations are CI suite durations only. They are not request latency, database latency, or a performance comparison between code versions.
+- The latest SECURITY, TESTS and QUALITY follow-up commits were published after these completed runs. Their new GitHub Actions runs were not visible at the first post-push check, so their test outcomes remain pending until the corresponding workflow runs appear.
+- No staging environment or representative benchmark dataset was available. No EXPLAIN ANALYZE, buffers, p50/p95/p99, CPU/memory profile, or production query measurement is claimed. No optimization was applied.
