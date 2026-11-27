@@ -2,6 +2,7 @@
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { executeUniversalAction } from "@/lib/actions/runtime";
+import { toPublicOfferContextError } from "@/lib/offers/public-errors";
 
 export type OfferAttributeInput = { key: string; value: string };
 type CreateOfferInput = { demandId: string; name: string; quantity: string; price: string; currency: string; conditions: string; market: string; geography: string; attributes: OfferAttributeInput[] };
@@ -41,7 +42,7 @@ export async function getOfferContext(demandId: string): Promise<{ ok: true; dat
     supabase.from("product_master_attributes").select("attribute_key, attribute_value, value_type, is_required, attribute_definition_id, unit_id").eq("product_master_id", productMasterId).order("attribute_key", { ascending: true }),
   ]);
   if (productError || !product) return { ok: false, error: "Product Master not found." };
-  if (rowsError) return { ok: false, error: rowsError.message };
+  if (rowsError) return { ok: false, error: toPublicOfferContextError(rowsError) };
   const definitionIds = (rows ?? []).map((row) => row.attribute_definition_id).filter((id): id is string => typeof id === "string");
   const unitIds = (rows ?? []).map((row) => row.unit_id).filter((id): id is string => typeof id === "string");
   const [definitionsResult, optionsResult, unitsResult] = await Promise.all([
@@ -49,7 +50,7 @@ export async function getOfferContext(demandId: string): Promise<{ ok: true; dat
     definitionIds.length ? supabase.from("attribute_options").select("attribute_definition_id, label, code, sort_order").in("attribute_definition_id", definitionIds).eq("is_active", true).order("sort_order", { ascending: true }) : Promise.resolve({ data: [], error: null }),
     unitIds.length ? supabase.from("attribute_units").select("id, symbol, name").in("id", unitIds) : Promise.resolve({ data: [], error: null }),
   ]);
-  if (definitionsResult.error || optionsResult.error || unitsResult.error) return { ok: false, error: definitionsResult.error?.message || optionsResult.error?.message || unitsResult.error?.message || "Unable to load product attributes." };
+  if (definitionsResult.error || optionsResult.error || unitsResult.error) return { ok: false, error: toPublicOfferContextError(definitionsResult.error ?? optionsResult.error ?? unitsResult.error) };
   const definitions = new Map((definitionsResult.data ?? []).map((row) => [row.id, row]));
   const optionsByDefinition = new Map<string, string[]>();
   for (const option of optionsResult.data ?? []) { const list = optionsByDefinition.get(option.attribute_definition_id) ?? []; list.push(option.label || option.code); optionsByDefinition.set(option.attribute_definition_id, list); }
