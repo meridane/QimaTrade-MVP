@@ -21,6 +21,7 @@ async function executePublishProductRequestRuntime(
   redirectStatus: RedirectStatus,
   redirectTarget: RedirectTarget = "publish",
   publishRpcStatus = 200,
+  publishRpcPayload: unknown = undefined,
 ) {
   const requestId = "60000000-0000-4000-8000-000000000001";
   const userId = "40000000-0000-4000-8000-000000000001";
@@ -108,7 +109,7 @@ async function executePublishProductRequestRuntime(
 
       if (path === "/rest/v1/rpc/dt_publish_product_request") {
         response.writeHead(200, { "Content-Type": "application/json" });
-        response.end(JSON.stringify({ demandId }));
+        response.end(JSON.stringify(publishRpcPayload === undefined ? { demandId } : publishRpcPayload));
         return;
       }
 
@@ -303,4 +304,28 @@ test("PUBLISH_PRODUCT_REQUEST runtime does not retry an upstream 503 or follow i
     p_user_id: outcome.userId,
   });
   expect(outcome.redirectTargetHits).toBe(0);
+});
+
+test("PUBLISH_PRODUCT_REQUEST runtime rejects malformed successful RPC payloads instead of reporting success", async () => {
+  for (const payload of [null, {}, { demandId: "   " }, { demand_id: 42 }]) {
+    const outcome = await executePublishProductRequestRuntime(null, "publish", 200, payload);
+
+    expect(outcome.result).toBeNull();
+    expect(outcome.errorMessage).toBe("PUBLISH_RESULT_INVALID");
+    expect(outcome.requests.map((request) => ({ path: request.path, method: request.method }))).toEqual([
+      { path: "/rest/v1/rpc/get_action_definition_v1", method: "POST" },
+      { path: "/rest/v1/rpc/dt_publish_product_request", method: "POST" },
+    ]);
+    expect(outcome.redirectTargetHits).toBe(0);
+  }
+});
+
+test("PUBLISH_PRODUCT_REQUEST runtime preserves the legacy snake_case demand ID response", async () => {
+  const outcome = await executePublishProductRequestRuntime(null, "publish", 200, {
+    demand_id: "70000000-0000-4000-8000-000000000001",
+  });
+
+  expect(outcome.errorMessage).toBeNull();
+  expect(outcome.result?.status).toBe("succeeded");
+  expect(outcome.result?.objectId).toBe(outcome.demandId);
 });
