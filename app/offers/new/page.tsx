@@ -267,6 +267,7 @@ export default function NewOfferPage() {
                 })}
                 <button type="button" aria-pressed={Boolean(commercialOther)} onClick={() => document.getElementById("commercial-other")?.focus()} className={`rounded-lg border px-3 py-2 text-sm font-bold ${commercialOther ? "border-orange-500 bg-orange-500 text-white" : "border-slate-200 bg-white text-slate-700 hover:border-orange-300 hover:text-orange-600"}`}>Other</button>
               </div>
+              <label className="sr-only" htmlFor="commercial-other">Other commercial term</label>
               <input id="commercial-other" value={commercialOther} onChange={(event) => setCommercialOther(event.target.value)} placeholder="Other commercial term..." className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm" />
             </fieldset>
 
@@ -279,7 +280,10 @@ export default function NewOfferPage() {
                   return <button key={doc} type="button" aria-pressed={selected} onClick={() => toggleDoc(doc)} className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-bold transition-colors ${selected ? "border-orange-500 bg-orange-500 text-white" : "border-slate-200 bg-white text-slate-700 hover:border-orange-300 hover:text-orange-600"}`}>{selected && <Check size={14} strokeWidth={3} />}{doc}</button>;
                 })}
               </div>
-              {selectedDocs.includes("Other") && <input value={documentationOther} onChange={(event) => setDocumentationOther(event.target.value)} placeholder="Other documentation..." className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm" />}
+              {selectedDocs.includes("Other") && <>
+                <label className="sr-only" htmlFor="documentation-other">Other documentation</label>
+                <input id="documentation-other" value={documentationOther} onChange={(event) => setDocumentationOther(event.target.value)} placeholder="Other documentation..." className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm" />
+              </>}
             </fieldset>
 
             <button type="submit" disabled={!market || !geography || isSubmitting} className="rounded-xl bg-orange-500 px-6 py-3 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50">{isSubmitting ? "Creating..." : "Create offer"}</button>
