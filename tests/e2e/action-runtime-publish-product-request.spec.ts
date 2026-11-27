@@ -309,6 +309,7 @@ test("PUBLISH_PRODUCT_REQUEST runtime does not retry an upstream 503 or follow i
 test("PUBLISH_PRODUCT_REQUEST runtime rejects malformed successful RPC payloads instead of reporting success", async () => {
   for (const payload of [
     null,
+    [],
     {},
     { demandId: "   " },
     { demandId: 42 },
