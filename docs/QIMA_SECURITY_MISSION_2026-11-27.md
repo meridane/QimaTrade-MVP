@@ -416,3 +416,13 @@ No Supabase Production data or migrations were touched. No Production deployment
 - Vercel Preview is **FAILURE** with the provider's `build-rate-limit` response; this is not a GitHub Actions build failure.
 - Expected prepared-transaction failure-injection jobs have negative conclusions by design; their independent assertions succeeded. The skipped cleanup harness was intentionally skipped and separately asserted.
 - The new route test uses the local synthetic Auth fixture. It does not establish Production RLS or live Supabase policy behavior.
+
+## Authenticated membership lookup failure integration — 2026-11-28
+
+- Added test commit [`56889470`](https://github.com/meridane/QimaTrade-MVP/commit/568894704c3f49478c1ad1b2d0ed0b9f1f3bc809) in `tests/e2e/product-request-publish-route-contract.spec.ts`.
+- The Playwright test obtains a session through the repository's synthetic OAuth callback, then sends a valid-UUID publish request through the actual Next.js route. The local mock PostgREST fixture intentionally has no `dt_memberships` endpoint, so the membership read returns an error; the expected public response is exactly HTTP 403 `TENANT_MEMBERSHIP_REQUIRED`.
+- This is an authenticated route integration test against local synthetic Auth/PostgREST fixtures. It does not access live Supabase or prove Production RLS behavior.
+- Current QIMA CI [#2186](https://github.com/meridane/QimaTrade-MVP/actions/runs/46058062077) is **IN PROGRESS**. At the latest job read, TypeScript check and all prepared-transaction assertion jobs had succeeded; production build, Playwright, the isolated security fixture, PostgreSQL 16 and PostgreSQL 17.6 were still running.
+- CodeQL [#2110](https://github.com/meridane/QimaTrade-MVP/actions/runs/46058062019) completed **SUCCESS**. Vercel Preview was **PENDING** at the latest status read.
+- The two prepared-transaction failure-injection jobs have expected negative conclusions; their separate assertions succeeded. The cleanup-skipped harness is intentionally skipped and separately asserted.
+- No application route, SQL, migration, Supabase Production data/schema, secret, grant, RLS policy, Production deployment, merge, force-push or branch-protection change.
