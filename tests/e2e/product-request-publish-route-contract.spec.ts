@@ -67,3 +67,26 @@ test("product-request publish route never returns raw exception messages", () =>
   expect(publishRouteSource).not.toContain("error: message");
   expect(publishRouteSource).not.toContain("message.includes(code)");
 });
+
+test("product-request publish route keeps multi-tenant selection fail-closed before action execution", () => {
+  const fs = process.getBuiltinModule("node:fs") as typeof import("node:fs") | undefined;
+  if (!fs) throw new Error("Node.js fs module is unavailable");
+  const source = fs.readFileSync(
+    `${process.cwd()}/app/api/product-requests/publish/route.ts`,
+    "utf8",
+  );
+
+  const tenantGuardIndex = source.indexOf("if (tenantIds.length !== 1)");
+  const actionExecutionIndex = source.indexOf("const result = await executeUniversalAction");
+
+  expect(source).toContain(
+    "const tenantIds = [...new Set(memberships.map((membership) => membership.tenant_id).filter(Boolean))]",
+  );
+  expect(tenantGuardIndex).toBeGreaterThanOrEqual(0);
+  expect(actionExecutionIndex).toBeGreaterThan(tenantGuardIndex);
+
+  const tenantGuard = source.slice(tenantGuardIndex, actionExecutionIndex);
+  expect(tenantGuard).toContain('error: "TENANT_SELECTION_REQUIRED"');
+  expect(tenantGuard).toContain("status: 409");
+  expect(tenantGuard).toContain("Select an active tenant before publishing a product request.");
+});
