@@ -524,6 +524,23 @@ test("PUBLISH_PRODUCT_REQUEST runtime normalizes action-definition HTTP 429 with
   expect(outcome.redirectTargetHits).toBe(0);
 });
 
+for (const [status, label] of [[401, "unauthenticated"], [403, "forbidden"]] as const) {
+  test(`PUBLISH_PRODUCT_REQUEST runtime normalizes ${label} action-definition responses without publishing`, async () => {
+    const outcome = await executePublishProductRequestRuntime(null, "definition", 200, undefined, null, null, null, status);
+
+    expect(outcome.result).toBeNull();
+    expect(outcome.errorMessage).toBe("ACTION_DEFINITION_LOOKUP_FAILED");
+    expect(outcome.errorMessage).not.toContain("Invalid JWT");
+    expect(outcome.errorMessage).not.toContain("permission denied");
+    expect(outcome.errorMessage).not.toContain("internal definition diagnostic");
+    expect(outcome.errorMessage).not.toContain("private rate-limit hint");
+    expect(outcome.requests.map((request) => ({ path: request.path, method: request.method }))).toEqual([
+      { path: "/rest/v1/rpc/get_action_definition_v1", method: "POST" },
+    ]);
+    expect(outcome.redirectTargetHits).toBe(0);
+  });
+}
+
 
 test("PUBLISH_PRODUCT_REQUEST runtime does not retry a publish RPC HTTP 429 or expose diagnostics", async () => {
   const outcome = await executePublishProductRequestRuntime(null, "publish", 429);
