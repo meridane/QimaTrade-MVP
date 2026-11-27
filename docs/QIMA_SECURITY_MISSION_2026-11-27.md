@@ -486,3 +486,13 @@ No production data, schema, migration, secret, grant, policy, deployment, merge,
 - Follow-up QIMA CI [#2202](https://github.com/meridane/QimaTrade-MVP/actions/runs/46078229957) is **PENDING** with no jobs published at this checkpoint. CodeQL [#2126](https://github.com/meridane/QimaTrade-MVP/actions/runs/46078229947) is **SUCCESS**. Vercel reports the provider `build-rate-limit` failure for the new HEAD.
 - The earlier membership-cardinality run [#2192](https://github.com/meridane/QimaTrade-MVP/actions/runs/46069475410) completed SUCCESS, including PostgreSQL 16 and 17.6. The failed Verify in #2198 remains a real test-fixture isolation failure and is not reclassified as success.
 - No product route, SQL, migration, Supabase Production data/schema, secret, grant, RLS policy, deployment, merge, force-push, or branch-protection change. No Production vulnerability is inferred.
+
+
+## Auth service outage boundary follow-up — 2026-11-28
+
+- Fixture commit [501253bb](https://github.com/meridane/QimaTrade-MVP/commit/501253bb0eda867d14615fdbce4221863911f9f6) adds a bounded test-only Auth response control (HTTP 200 or 503) and resets it whenever the membership fixture is reset.
+- Regression commit [26cfb570](https://github.com/meridane/QimaTrade-MVP/commit/26cfb570547c5306a0155d8bad15738007922975) authenticates through the synthetic OAuth callback, configures a valid membership, then makes the isolated Auth user endpoint return HTTP 503. The route is expected to return only HTTP 401 UNAUTHENTICATED, with zero membership, action-definition, or publish requests. A finally block restores both fixtures to defaults to prevent cross-test state leakage.
+- Previous snapshot QIMA CI [#2202](https://github.com/meridane/QimaTrade-MVP/actions/runs/46078229957) completed SUCCESS with 457 Playwright passed (38.6 s), PostgreSQL 16 and 17.6 SUCCESS; CodeQL [#2126](https://github.com/meridane/QimaTrade-MVP/actions/runs/46078229947) SUCCESS. That run predates the new Auth-503 regression.
+- Current HEAD 26cfb570 has QIMA CI [#2206](https://github.com/meridane/QimaTrade-MVP/actions/runs/46083802173) PENDING with no jobs published at this checkpoint. CodeQL [#2130](https://github.com/meridane/QimaTrade-MVP/actions/runs/46083802180) SUCCESS. Vercel status is provider build-rate-limit FAILURE.
+- The new Auth-503 test is not yet marked PASS. It is synthetic and demonstrates fail-closed behavior only; it does not establish an Auth outage or authorization vulnerability in Production.
+- No Supabase Production data/schema, migration, secret, grant, persistent RLS policy, deployment, merge, force-push or protection rule was changed.
