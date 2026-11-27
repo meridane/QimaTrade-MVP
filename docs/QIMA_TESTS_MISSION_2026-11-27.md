@@ -240,3 +240,15 @@ No Supabase Production data/schema, migration, secret, grant, RLS policy or pers
 - TypeScript, dependency audit, Next.js production build, Chromium browser suite and the isolated security-contract fixture all succeeded. CodeQL [#45995611655](https://github.com/meridane/QimaTrade-MVP/actions/runs/45995611655) completed **SUCCESS**; Vercel Preview is **SUCCESS**.
 - PostgreSQL 16 job `140494130724` and PostgreSQL 17.6 job `140494130568` remain **IN PROGRESS**, both at the disposable QA373 full-runner write-privilege characterization step (25 completed steps; no failed steps observed). Overall QIMA CI remains in progress.
 - The synthetic socket-close cases do not simulate or establish a live Supabase outage. No Production data/schema, migration deployment, secret, grant, RLS policy, persistent configuration or Production deployment was changed.
+
+
+## Final CI closeout — 2026-11-27 21:25 KST
+
+- Verified branch HEAD: `62556d9ab920fa61d2b2435b47101a9a8755b954`.
+- QIMA CI [#45996403735](https://github.com/meridane/QimaTrade-MVP/actions/runs/45996403735) completed **SUCCESS**. Verify job 140497710281 passed dependency audit, TypeScript, Next.js production build, browser tests and the isolated QIMA security-contract fixture.
+- PostgreSQL 16 integration and PostgreSQL 17.6 compatibility jobs both completed **SUCCESS**.
+- CodeQL [#45996403804](https://github.com/meridane/QimaTrade-MVP/actions/runs/45996403804) completed **SUCCESS**.
+- The expected prepared-transaction setup/cleanup failure jobs were correctly recognized by their separate assertion jobs; the skipped-result harness was intentionally skipped. The overall workflow completed successfully.
+- Vercel Preview is **FAILURE** because the provider reports “Deployment rate limited — retry in 24 hours.” No application build failure is inferred from that external status.
+- The two transport-failure tests and the HTTP 500/502/503/504 matrix are included in the code/test snapshot that passed. The runtime still intentionally does not retry these transport failures.
+- No real Supabase network outage or Production failure is claimed; the transport cases use a local synthetic HTTP server.
