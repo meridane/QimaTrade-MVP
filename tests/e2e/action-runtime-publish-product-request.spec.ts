@@ -26,6 +26,11 @@ async function executePublishProductRequestRuntime(
   truncatedResponseTarget: RedirectTarget | null = null,
   malformedJsonResponseTarget: RedirectTarget | null = null,
   definitionRpcStatus = 200,
+  definitionRpcPayload: unknown = [{
+    action_key: "PUBLISH_PRODUCT_REQUEST",
+    version: 1,
+    status: "published",
+  }],
 ) {
   const requestId = "60000000-0000-4000-8000-000000000001";
   const userId = "40000000-0000-4000-8000-000000000001";
@@ -122,11 +127,7 @@ async function executePublishProductRequestRuntime(
 
       if (path === "/rest/v1/rpc/get_action_definition_v1") {
         response.writeHead(200, { "Content-Type": "application/json" });
-        response.end(JSON.stringify([{
-          action_key: "PUBLISH_PRODUCT_REQUEST",
-          version: 1,
-          status: "published",
-        }]));
+        response.end(JSON.stringify(definitionRpcPayload));
         return;
       }
 
@@ -530,3 +531,37 @@ test("PUBLISH_PRODUCT_REQUEST runtime does not retry a publish RPC HTTP 429 or e
   ]);
   expect(outcome.redirectTargetHits).toBe(0);
 });
+
+
+
+for (const [label, definition] of [
+  ["wrong action key", [{ action_key: "CREATE_OFFER", version: 1, status: "published" }]],
+  ["wrong version", [{ action_key: "PUBLISH_PRODUCT_REQUEST", version: 2, status: "published" }]],
+  ["draft status", [{ action_key: "PUBLISH_PRODUCT_REQUEST", version: 1, status: "draft" }]],
+  ["retired status", [{ action_key: "PUBLISH_PRODUCT_REQUEST", version: 1, status: "retired" }]],
+] as const) {
+  test(`PUBLISH_PRODUCT_REQUEST runtime rejects a published definition with ${label} before publishing`, async () => {
+    const outcome = await executePublishProductRequestRuntime(
+      null,
+      "publish",
+      200,
+      undefined,
+      null,
+      null,
+      null,
+      200,
+      definition,
+    );
+
+    expect(outcome.result).toBeNull();
+    expect(outcome.errorMessage).toBe("ACTION_NOT_PUBLISHED");
+    expect(outcome.requests.map((request) => ({ path: request.path, method: request.method }))).toEqual([
+      { path: "/rest/v1/rpc/get_action_definition_v1", method: "POST" },
+    ]);
+    expect(outcome.requests[0].body).toEqual({
+      p_action_key: "PUBLISH_PRODUCT_REQUEST",
+      p_version: 1,
+    });
+    expect(outcome.redirectTargetHits).toBe(0);
+  });
+}
