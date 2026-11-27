@@ -252,3 +252,13 @@ No Supabase Production data/schema, migration, secret, grant, RLS policy or pers
 - Vercel Preview is **FAILURE** because the provider reports “Deployment rate limited — retry in 24 hours.” No application build failure is inferred from that external status.
 - The two transport-failure tests and the HTTP 500/502/503/504 matrix are included in the code/test snapshot that passed. The runtime still intentionally does not retry these transport failures.
 - No real Supabase network outage or Production failure is claimed; the transport cases use a local synthetic HTTP server.
+
+---
+
+## Current TESTS validation closeout — 2026-11-27 22:46 KST
+
+- Code/test HEAD `7c6a48c882ab359dc83d9fd14dea1ec734178788` completed QIMA CI [#45998903391](https://github.com/meridane/QimaTrade-MVP/actions/runs/45998903391) **SUCCESS**. Verify reports **442 Playwright tests passed (36.0 s)**; TypeScript, dependency audit, Next.js production build and isolated security fixture succeeded.
+- PostgreSQL 16 integration and PostgreSQL 17.6 compatibility both completed **SUCCESS**. The expected prepared-transaction failure-injection jobs returned their designed negative conclusions; their assertion jobs succeeded and the skipped-result harness was separately asserted.
+- CodeQL [#45998903487](https://github.com/meridane/QimaTrade-MVP/actions/runs/45998903487) completed **SUCCESS**. Vercel Preview is **FAILURE** only because the provider build-rate quota was reached; this is not a GitHub build/test failure.
+- The passing snapshot includes the HTTP 500/502/503/504 no-retry matrix, local socket interruption during action-definition lookup, one-attempt publish transport interruption, malformed success payload rejection, and camelCase/snake_case response compatibility.
+- These are local synthetic transport and disposable PostgreSQL tests. They do not establish a live Supabase outage or Production behavior. No Production data/schema, migration, secret, grant, persistent RLS policy, deployment, merge, force-push or branch-protection change.
