@@ -221,3 +221,6 @@ No Supabase Production data or migrations were touched. No Production deployment
 - The test also rejects reintroduction of direct `.message` forwarding from those backend error objects within the `getOfferContext` function.
 - This complements the synthetic Error/PostgREST-shaped value tests: it verifies the mapper is wired at both reviewed call sites, but it is not a live Supabase integration test.
 - Test commit: `ed016680dce3ff5919fd70f6d5c030fc37823850`. A fresh QIMA CI run is required for this additional assertion; the prior run status must not be transferred.
+
+
+- Playwright test portability follow-up: the call-site regression reads the repository source with `resolve(process.cwd(), ...)` rather than `import.meta.url`, matching the repository's existing Node/Playwright test conventions. Commit: `31ed81bf72a91fee196e0aef42f3766324a6e29e`. The final SECURITY HEAD requires a fresh CI result.
