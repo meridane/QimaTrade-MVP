@@ -396,3 +396,15 @@ These suites have different test contents and counts; the Playwright durations a
 - QUALITY's single failure is a tab-order expectation: the visible International Market button precedes filtered country choices, so the first Tab should focus it before South Korea. The browser test is being corrected to assert the native DOM order without changing the component.
 - Only TESTS has a successful current run. The two failed-suite timings are retained for traceability and excluded from successful baseline comparisons.
 - These are CI test-suite timings, not application or SQL latency measurements. They do not justify optimization; a non-production staging environment is still required for p50/p95/p99 and query plans.
+
+---
+
+## Post-correction validation runs — 2026-11-27 18:54 KST
+
+| Mission | Code/test HEAD | QIMA CI | CodeQL | Latest observed Verify state |
+|---|---|---|---|---|
+| SECURITY | `6491b8b1` | [#45977895044](https://github.com/meridane/QimaTrade-MVP/actions/runs/45977895044) IN PROGRESS | [#45977894940](https://github.com/meridane/QimaTrade-MVP/actions/runs/45977894940) IN PROGRESS | Build active; Playwright pending |
+| QUALITY | `2a42fc4d` | [#45977893896](https://github.com/meridane/QimaTrade-MVP/actions/runs/45977893896) IN PROGRESS | [#45977893826](https://github.com/meridane/QimaTrade-MVP/actions/runs/45977893826) IN PROGRESS | Build active; Playwright pending |
+
+- These reruns were triggered by the focused test-only corrections described in the mission journals. No successful test result is claimed until the corresponding jobs finish.
+- The workflow durations remain CI-suite observations only and are not application performance measurements.
