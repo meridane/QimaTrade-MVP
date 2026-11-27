@@ -304,3 +304,11 @@ These suites have different test contents and counts; the Playwright durations a
 - The SECURITY branch advanced from `a4900ee1` to `537f3859` after adding a source-contract assertion for the offer-context error-mapper call sites and switching the test's repository path resolution to `process.cwd()`.
 - At the final read, no new workflow run for `537f3859` had appeared in the commit workflow-run listing. The earlier CodeQL SUCCESS on `a4900ee1` is not transferred to this final HEAD.
 - The final SECURITY Playwright/TypeScript/build/PostgreSQL result remains **PENDING / not yet available**. Vercel remains blocked by the provider daily build-rate quota.
+
+
+### Superseding workflow state — 2026-11-27
+
+- SECURITY final HEAD `537f3859`: QIMA CI [#45945862929](https://github.com/meridane/QimaTrade-MVP/actions/runs/45945862929) is **PENDING** with no jobs published at the latest read; CodeQL [#45945862983](https://github.com/meridane/QimaTrade-MVP/actions/runs/45945862983) is **IN PROGRESS**. No final test result is claimed.
+- TESTS documentation HEAD `7eb540bd`: QIMA CI [#45945714444](https://github.com/meridane/QimaTrade-MVP/actions/runs/45945714444) is **IN PROGRESS**; PostgreSQL 16 and 17.6 are at the final runner write-privilege characterization, and Verify is still active. CodeQL [#45945714513](https://github.com/meridane/QimaTrade-MVP/actions/runs/45945714513) is **SUCCESS**.
+- QUALITY HEAD `6162a67e`: QIMA CI [#45945670309](https://github.com/meridane/QimaTrade-MVP/actions/runs/45945670309) is **PENDING** with no jobs published at the latest read; CodeQL [#45945670307](https://github.com/meridane/QimaTrade-MVP/actions/runs/45945670307) is **SUCCESS**.
+- Vercel Preview statuses on all three mission heads are blocked by the provider's daily deployment quota. This is not a GitHub Actions failure.
