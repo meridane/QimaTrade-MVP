@@ -241,3 +241,12 @@ No Supabase Production data/schema, migration, secret, grant, RLS policy or pers
 - Baseline HEAD `b0f66506c14f3b4422190f91b8b5037dc4d6e3f3` completed QIMA CI [#45998860809](https://github.com/meridane/QimaTrade-MVP/actions/runs/45998860809) **SUCCESS**: 438 Playwright passed (39.1 s), TypeScript, dependency audit, Next.js build, isolated security fixture, PostgreSQL 16 and 17.6 succeeded. CodeQL [#45998860845](https://github.com/meridane/QimaTrade-MVP/actions/runs/45998860845) **SUCCESS**; Vercel Preview **SUCCESS**.
 - New test commit: `fcaffe6ede7acf07ab2646ed6f1c7c147d6883d2`. Its own QIMA CI and CodeQL results are pending; the baseline result is not transferred to this new HEAD.
 - No Supabase data/schema, Production migration, secret, grant, RLS policy, deployment, merge, force-push or branch-protection change.
+
+
+## Country search filtering regression — 2026-11-27 23:42 KST
+
+- Extended the existing CountrySelect keyboard test: after searching for `South Korea`, it now asserts that South Korea remains visible and the non-matching `Japan` option is absent before keyboard selection.
+- The component already filters the country list by the normalized query; this change adds browser coverage only and does not change application behavior.
+- Previous code/test HEAD `2ae4cca9` completed QIMA CI [#46011184415](https://github.com/meridane/QimaTrade-MVP/actions/runs/46011184415) **SUCCESS**: 438 Playwright tests, TypeScript, dependency audit, Next.js build, isolated security fixture, PostgreSQL 16 and 17.6 all succeeded. CodeQL [#46011184330](https://github.com/meridane/QimaTrade-MVP/actions/runs/46011184330) and Vercel Preview were **SUCCESS**.
+- New test commit: `c1135a6eb3a21dedcc0cc602ba04b81c617ada51`. A fresh QIMA CI/CodeQL run is required; no result is claimed yet.
+- This remains focused keyboard/search coverage, not a complete WCAG audit. No auth behavior, database, migration, Production data, secret, grant, RLS policy, Production deployment, merge, force-push, or branch-protection change.
