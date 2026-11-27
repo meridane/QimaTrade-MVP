@@ -554,3 +554,14 @@ No optimization is proposed until measured plans and latency identify a material
 - Current documentation-only HEAD `e206722489f18c0c346d29a9c5fbac1a1e297f11` has no QIMA CI or CodeQL workflow run because no application/test files changed and the branch has no validation workflow attached.
 - Vercel status is **FAILURE** with the provider's build-rate-limit response. No application build failure or performance regression is inferred.
 - The staging-only EXPLAIN/pgbench protocol is documentation, not an executed benchmark. No p50/p95/p99, query plan, buffer profile, or CPU/memory result is claimed.
+
+
+## Latest mission Verify measurements — 2026-11-27 23:43 KST
+
+| Mission | Playwright passed | Verify duration | QIMA CI | CodeQL | PostgreSQL 16 | PostgreSQL 17.6 |
+|---|---:|---:|---|---|---|---|
+| SECURITY | 451 | 37.9 s | [#46018955888](https://github.com/meridane/QimaTrade-MVP/actions/runs/46018955888) Verify SUCCESS / overall IN PROGRESS | [#46018955943](https://github.com/meridane/QimaTrade-MVP/actions/runs/46018955943) SUCCESS | IN PROGRESS | IN PROGRESS |
+| TESTS | 443 | 37.9 s | [#46018961960](https://github.com/meridane/QimaTrade-MVP/actions/runs/46018961960) Verify SUCCESS / overall IN PROGRESS | [#46018961986](https://github.com/meridane/QimaTrade-MVP/actions/runs/46018961986) SUCCESS | IN PROGRESS | IN PROGRESS |
+| QUALITY | 438 | 36.1 s | [#46018967038](https://github.com/meridane/QimaTrade-MVP/actions/runs/46018967038) Verify SUCCESS / overall IN PROGRESS | [#46018966968](https://github.com/meridane/QimaTrade-MVP/actions/runs/46018966968) SUCCESS | IN PROGRESS | IN PROGRESS |
+
+These are CI browser-suite wall-clock durations only. They are not application request latency, database latency, or p50/p95/p99 measurements. All three Verify jobs completed dependency audit, TypeScript, Next.js build, Chromium, Playwright and the isolated security fixture successfully. The overall workflows remain open until both PostgreSQL compatibility jobs complete.
