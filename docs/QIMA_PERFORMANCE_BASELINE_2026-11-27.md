@@ -423,3 +423,23 @@ These suites have different test contents and counts; the Playwright durations a
 - The SECURITY and TESTS suite results are successful. The expected-failure and skipped harness jobs are accepted only because their separate blocking assertions succeeded.
 - These are CI suite timings from different snapshots, not controlled benchmarks. They do not measure application response latency, SQL query latency, or production workload performance and do not justify optimization.
 - No staging credentials or approved non-production database access were available in this pass. No Supabase project was reactivated and no remote SQL was executed.
+
+
+## Cross-mission CI sample closeout — 2026-11-27 20:58 KST
+
+The following values were extracted from the completed GitHub Actions Verify job logs, not estimated from PR descriptions:
+
+| Snapshot | QIMA CI | Playwright | PostgreSQL 16 | PostgreSQL 17.6 | CodeQL | Vercel |
+|---|---|---:|---|---|---|---|
+| PR #26 HEAD `61002cb` | [#2036](https://github.com/meridane/QimaTrade-MVP/actions/runs/45874542998) SUCCESS | 435 passed · 35.7 s | SUCCESS | SUCCESS | [#1962](https://github.com/meridane/QimaTrade-MVP/actions/runs/45874542972) SUCCESS | SUCCESS |
+| SECURITY `326c290b` | [#45983037115](https://github.com/meridane/QimaTrade-MVP/actions/runs/45983037115) SUCCESS | 449 passed · 35.8 s | SUCCESS | SUCCESS | [#45983037290](https://github.com/meridane/QimaTrade-MVP/actions/runs/45983037290) SUCCESS | SUCCESS |
+| TESTS `24e807bc` | [#45983044472](https://github.com/meridane/QimaTrade-MVP/actions/runs/45983044472) SUCCESS | 440 passed · 35.5 s | SUCCESS | SUCCESS | [#45983044581](https://github.com/meridane/QimaTrade-MVP/actions/runs/45983044581) SUCCESS | FAILURE: provider build-rate quota |
+| QUALITY `f062e333` | [#45983046694](https://github.com/meridane/QimaTrade-MVP/actions/runs/45983046694) SUCCESS | 438 passed · 38.6 s | SUCCESS | SUCCESS | [#45983046715](https://github.com/meridane/QimaTrade-MVP/actions/runs/45983046715) SUCCESS | FAILURE: provider build-rate quota |
+
+Interpretation and limits:
+
+- These are browser-suite durations inside GitHub-hosted CI. They are not application response-time measurements and must not be used as p50/p95/p99 product latency.
+- The QUALITY suite is 2.8–3.1 seconds longer than the other three samples, but one sample per branch is insufficient to attribute the difference to code or test cost; runner noise and suite composition remain confounders.
+- The PERFORMANCE branch itself remains documentation-only and has no workflow run. No app code was changed and no optimization was attempted.
+- The required staging environment, representative dataset, query plans, request traces and CPU/memory profiles remain unavailable. The live schema of `public.idempotency_keys` is not inferred from disposable PostgreSQL fixtures.
+- No Supabase Production data/schema, migration deployment, secret, grant, RLS policy, persistent configuration or Production deployment was changed.
