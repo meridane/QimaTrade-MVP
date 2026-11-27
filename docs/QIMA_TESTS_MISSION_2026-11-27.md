@@ -314,3 +314,14 @@ No Supabase Production data/schema, migration, secret, grant, RLS policy or pers
 - Extended the local HTTP fixture so it can truncate either the publish RPC response or the action-definition RPC response. Added a regression requiring a truncated definition response to normalize to `ACTION_DEFINITION_LOOKUP_FAILED`, make exactly one definition request and never call the publish RPC.
 - This is a local synthetic transport case, not evidence that Supabase Production returns truncated responses. The new case is pending its own CI run.
 - No application runtime, SQL, migration, Supabase Production data/schema, secret, grant, RLS policy, Production deployment, merge, force-push or branch-protection change.
+
+
+## Malformed action-definition JSON regression — 2026-11-28 KST
+
+- Previous HEAD `a2080dc8` QIMA CI [#46039827639](https://github.com/meridane/QimaTrade-MVP/actions/runs/46039827639) completed **SUCCESS**. Verify job `140647841872` reports **445 Playwright passed (37.1 s)**; npm audit, TypeScript, Next.js build, Chromium, browser tests and the isolated security fixture succeeded.
+- PostgreSQL 16 job `140647842149` and PostgreSQL 17.6 job `140647841708` both completed **SUCCESS**. CodeQL [#46039827538](https://github.com/meridane/QimaTrade-MVP/actions/runs/46039827538) completed **SUCCESS**. Vercel Preview was blocked by the provider's build-rate-limit response.
+- Extended the local PostgREST fixture to return HTTP 200 with malformed JSON from the action-definition RPC.
+- Added a regression requiring normalization to `ACTION_DEFINITION_LOOKUP_FAILED`, exactly one definition request, no publish RPC call, and no redirect.
+- This is a synthetic transport test; it does not establish that the live RPC returns malformed JSON.
+- New test commit: `62adac59c70cd91e65239205d46b4c17148925db`. A fresh QIMA CI/CodeQL run is required; no result is claimed yet.
+- No runtime implementation, database, migration, Production data, secret, grant, RLS policy, Production deployment, merge, force-push or branch-protection change.
