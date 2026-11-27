@@ -23,3 +23,32 @@ test("offer market selector has a field name and exposes its choices as buttons"
   await expect(choices.getByRole("button", { name: "South Korea" })).toBeVisible();
   await expect(page.getByRole("listbox")).toHaveCount(0);
 });
+test("offer country selector supports Escape and keyboard selection with focus restoration", async ({ page, request }) => {
+  await authenticatePage(page, request, `/offers/new?productMasterId=${PRODUCT_MASTER_GATE_ID}`);
+  await page.goto(`/offers/new?productMasterId=${PRODUCT_MASTER_GATE_ID}`);
+
+  const marketTrigger = page.getByRole("button", {
+    name: "Target market: Select a target market",
+  });
+
+  await marketTrigger.click();
+  await expect(page.getByRole("group", { name: "Target market options" })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(marketTrigger).toHaveAttribute("aria-expanded", "false");
+  await expect(marketTrigger).toBeFocused();
+
+  await marketTrigger.click();
+  const search = page.getByPlaceholder("Search country...");
+  await search.fill("South Korea");
+
+  const choices = page.getByRole("group", { name: "Target market options" });
+  const southKorea = choices.getByRole("button", { name: "South Korea", exact: true });
+  await page.keyboard.press("Tab");
+  await expect(southKorea).toBeFocused();
+  await page.keyboard.press("Enter");
+
+  await expect(marketTrigger).toHaveAttribute("aria-expanded", "false");
+  await expect(marketTrigger).toHaveAccessibleName("Target market: South Korea");
+  await expect(marketTrigger).toBeFocused();
+  await expect(choices).toHaveCount(0);
+});
