@@ -19,6 +19,7 @@ test("offer market selector has a field name and exposes its choices as buttons"
 
   const choices = page.getByRole("group", { name: "Target market options" });
   await expect(choices).toBeVisible();
+  await expect(page.getByRole("textbox", { name: "Search countries" })).toBeVisible();
   await expect(choices.getByRole("button", { name: "International Market" })).toBeVisible();
   await expect(choices.getByRole("button", { name: "South Korea" })).toBeVisible();
   await expect(page.getByRole("listbox")).toHaveCount(0);
@@ -37,7 +38,8 @@ test("offer country selector supports Escape and keyboard selection with focus r
   await expect(marketTrigger).toBeFocused();
 
   await marketTrigger.click();
-  const search = page.getByPlaceholder("Search country...");
+  const search = page.getByRole("textbox", { name: "Search countries" });
+  await expect(search).toHaveAttribute("placeholder", "Search country...");
   await search.fill("South Korea");
 
   const choices = page.getByRole("group", { name: "Target market options" });
