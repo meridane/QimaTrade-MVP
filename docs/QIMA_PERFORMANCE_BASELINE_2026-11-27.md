@@ -297,3 +297,10 @@ These suites have different test contents and counts; the Playwright durations a
 - TESTS code/test snapshot `54be4b92` is already fully validated by CI #45941406708 (440 Playwright passed, PostgreSQL 16/17.6 SUCCESS) and CodeQL #45941406675 SUCCESS. The newer documentation HEAD `7eb540bd` has its own pending/in-progress checks.
 - SECURITY’s new offer-context diagnostic-boundary test and QUALITY’s new country-selector browser test are not yet validated. Prior successful snapshots do not cover these new changes.
 - Provider quota failures are external Preview-build constraints, not GitHub Actions test failures.
+
+
+### SECURITY HEAD supersession — 2026-11-27
+
+- The SECURITY branch advanced from `a4900ee1` to `537f3859` after adding a source-contract assertion for the offer-context error-mapper call sites and switching the test's repository path resolution to `process.cwd()`.
+- At the final read, no new workflow run for `537f3859` had appeared in the commit workflow-run listing. The earlier CodeQL SUCCESS on `a4900ee1` is not transferred to this final HEAD.
+- The final SECURITY Playwright/TypeScript/build/PostgreSQL result remains **PENDING / not yet available**. Vercel remains blocked by the provider daily build-rate quota.
