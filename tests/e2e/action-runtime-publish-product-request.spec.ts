@@ -288,22 +288,24 @@ test("PUBLISH_PRODUCT_REQUEST runtime propagates one exact SQL domain error with
 });
 
 
-test("PUBLISH_PRODUCT_REQUEST runtime does not retry an upstream 503 or follow its redirect target", async () => {
-  const outcome = await executePublishProductRequestRuntime(null, "publish", 503);
+test("PUBLISH_PRODUCT_REQUEST runtime does not retry upstream 5xx failures or follow redirect targets", async () => {
+  for (const status of [500, 502, 503, 504] as const) {
+    const outcome = await executePublishProductRequestRuntime(null, "publish", status);
 
-  expect(outcome.result).toBeNull();
-  expect(outcome.errorMessage).toBe("UPSTREAM_TEMPORARILY_UNAVAILABLE");
-  expect(outcome.errorMessage).not.toContain("internal database row diagnostic");
-  expect(outcome.errorMessage).not.toContain("private troubleshooting hint");
-  expect(outcome.requests.map((request) => ({ path: request.path, method: request.method }))).toEqual([
-    { path: "/rest/v1/rpc/get_action_definition_v1", method: "POST" },
-    { path: "/rest/v1/rpc/dt_publish_product_request", method: "POST" },
-  ]);
-  expect(outcome.requests[1].body).toEqual({
-    p_request_id: outcome.requestId,
-    p_user_id: outcome.userId,
-  });
-  expect(outcome.redirectTargetHits).toBe(0);
+    expect(outcome.result, "HTTP " + status).toBeNull();
+    expect(outcome.errorMessage, "HTTP " + status).toBe("UPSTREAM_TEMPORARILY_UNAVAILABLE");
+    expect(outcome.errorMessage, "HTTP " + status).not.toContain("internal database row diagnostic");
+    expect(outcome.errorMessage, "HTTP " + status).not.toContain("private troubleshooting hint");
+    expect(outcome.requests.map((request) => ({ path: request.path, method: request.method })), "HTTP " + status).toEqual([
+      { path: "/rest/v1/rpc/get_action_definition_v1", method: "POST" },
+      { path: "/rest/v1/rpc/dt_publish_product_request", method: "POST" },
+    ]);
+    expect(outcome.requests[1].body, "HTTP " + status).toEqual({
+      p_request_id: outcome.requestId,
+      p_user_id: outcome.userId,
+    });
+    expect(outcome.redirectTargetHits, "HTTP " + status).toBe(0);
+  }
 });
 
 test("PUBLISH_PRODUCT_REQUEST runtime rejects malformed successful RPC payloads instead of reporting success", async () => {
