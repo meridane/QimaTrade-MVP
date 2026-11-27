@@ -367,3 +367,17 @@ These suites have different test contents and counts; the Playwright durations a
 
 - Playwright durations and counts were read from each completed Verify job's terminal log. The two database jobs were still at the full CREATE_OFFER runner write-privilege characterization step at this read; neither overall workflow is declared complete.
 - These measurements describe CI suite execution only. They do not measure application response latency, SQL query latency, or production workload performance. No optimization is inferred.
+
+## Completed mission CI timing samples — 2026-11-27 17:44 KST
+
+| Mission snapshot | QIMA CI | Verify / Playwright | PostgreSQL 16 | PostgreSQL 17.6 | CodeQL |
+|---|---:|---:|---|---|---|
+| SECURITY `1acf78a0` | [#45964026870](https://github.com/meridane/QimaTrade-MVP/actions/runs/45964026870) SUCCESS | 447 passed · 37.2 s | SUCCESS | SUCCESS | [#45964027025](https://github.com/meridane/QimaTrade-MVP/actions/runs/45964027025) SUCCESS |
+| TESTS `2314ce9b` | [#45964032572](https://github.com/meridane/QimaTrade-MVP/actions/runs/45964032572) SUCCESS | 440 passed · 37.8 s | SUCCESS | SUCCESS | [#45964032567](https://github.com/meridane/QimaTrade-MVP/actions/runs/45964032567) SUCCESS |
+| QUALITY `0f9eee1e` | [#45964427577](https://github.com/meridane/QimaTrade-MVP/actions/runs/45964427577) SUCCESS | 437 passed · 35.0 s | SUCCESS | SUCCESS | [#45964427540](https://github.com/meridane/QimaTrade-MVP/actions/runs/45964427540) SUCCESS |
+
+- Counts and suite durations were read from completed Verify job logs. PostgreSQL 16 and 17.6 are separate parallel jobs.
+- The QUALITY run confirms the prior auth-helper, Product Master gate-context and unused-import fixes. It predates the current keyboard focus/Escape follow-up.
+- SECURITY and TESTS runs likewise predate the current CREATE_OFFER server-action error-boundary and expanded upstream 5xx matrix changes.
+- These are CI suite timings from different branch snapshots, not a controlled benchmark. They do not establish application latency or a performance trend. No optimization is justified.
+- Current newer mission heads have fresh CI pending: SECURITY [#45968402884](https://github.com/meridane/QimaTrade-MVP/actions/runs/45968402884), TESTS [#45968462903](https://github.com/meridane/QimaTrade-MVP/actions/runs/45968462903), QUALITY [#45968255550](https://github.com/meridane/QimaTrade-MVP/actions/runs/45968255550).
