@@ -182,3 +182,11 @@ No Supabase Production data/schema, migration, secret, grant, RLS policy or pers
 - Re-read the completed Verify job log for QIMA CI [#45951783618](https://github.com/meridane/QimaTrade-MVP/actions/runs/45951783618), job 140349071723. Its final Playwright summary is **440 passed (36.0 s)**. This exact runner output supersedes the earlier rounded/incorrect 35.7 s note.
 - The workflow's PostgreSQL 16 and PostgreSQL 17.6 jobs both completed **SUCCESS**; CodeQL [#45951783633](https://github.com/meridane/QimaTrade-MVP/actions/runs/45951783633) completed **SUCCESS**.
 - No code or test behavior changed in this documentation correction.
+
+## PUBLISH_PRODUCT_REQUEST upstream 5xx matrix — 2026-11-27
+
+- Expanded the existing no-retry/no-redirect regression from one HTTP 503 case to a table-driven matrix covering HTTP 500, 502, 503 and 504.
+- Each status must produce the stable `UPSTREAM_TEMPORARILY_UNAVAILABLE` error, exactly one definition RPC plus one publish RPC, no redirect-target request, the unchanged publish payload, and no leaked synthetic `details` or `hint` values.
+- The existing local HTTP fixture already models all 5xx responses with the same upstream failure contract; the production runtime is unchanged.
+- A fresh QIMA CI run is required for the expanded matrix. No local Playwright run is claimed.
+- No Supabase Production data/schema, migration, secret, grant, RLS policy, Production deployment or branch protection was changed.
