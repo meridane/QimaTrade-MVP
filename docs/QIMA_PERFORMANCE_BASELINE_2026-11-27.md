@@ -659,3 +659,9 @@ The Verify/browser counts for the corresponding code-test commits are recorded i
 The PERFORMANCE branch itself is documentation-only at HEAD `f2c025a09839d38f748d4545d887b385f4662f72`; GitHub reports no workflow runs for that commit. Its combined Vercel status is `failure` with the provider's `build-rate-limit` URL. This is not a source-build or benchmark result.
 
 The Supabase QIMA project remains reported as paused/inactive in the latest inspected baseline. No resume, query, migration, data change, Production deployment, or optimization was attempted. API p50/p95/p99, SQL execution plans, buffers, lock waits, CPU and memory remain unmeasured pending an approved non-production staging environment.
+
+## Read-only Supabase availability recheck — 2026-11-28
+
+- Read-only Supabase project listing confirms QIMA project `yyulzlnrfcbaxovzjbnh` is **INACTIVE** in `ap-southeast-1`, PostgreSQL engine 17, database version `17.11.0.003`.
+- The project was not resumed. No SQL, schema inspection, query plan, database log query, migration or data operation was attempted.
+- The QIMA performance blocker remains an owner-authorized non-production environment or explicit authorization to use a disposable staging project. Production profiling remains out of scope.
