@@ -383,3 +383,13 @@ No Supabase Production data/schema, migration, secret, grant, RLS policy or pers
 - CodeQL [#2125](https://github.com/meridane/QimaTrade-MVP/actions/runs/46078025059) is **SUCCESS**. Vercel Preview is **SUCCESS**.
 - This is focused accessible-name and keyboard coverage, not a complete WCAG or screen-reader certification.
 - No auth/API/database contract, SQL, migration, Supabase Production data/schema, secret, grant, RLS policy, deployment, merge, force-push, or branch-protection change.
+
+
+## Country-search empty-state announcement — 2026-11-28
+
+- Commit [74f7f261](https://github.com/meridane/QimaTrade-MVP/commit/74f7f2616cdbf6f1d13ab58cfd5875cf29dfd54a) adds a Playwright regression that opens the authenticated offer form, searches for a guaranteed non-matching country string, and verifies that “No country found.” is exposed as role=status with aria-live=polite.
+- The application already contained the polite status region; this commit adds coverage only and does not change UI behavior.
+- Previous snapshot QIMA CI [#2201](https://github.com/meridane/QimaTrade-MVP/actions/runs/46078025047) completed Verify SUCCESS with 440 Playwright passed (36.1 s), PostgreSQL 16/17.6 SUCCESS; CodeQL [#2129](https://github.com/meridane/QimaTrade-MVP/actions/runs/46083798008) on the new HEAD is SUCCESS. The previous Verify result does not include this new test.
+- Current QIMA CI [#2205](https://github.com/meridane/QimaTrade-MVP/actions/runs/46083798061) is IN PROGRESS. At the latest read, npm audit and TypeScript were SUCCESS, the Next.js build was running, and PostgreSQL 16/17.6 were running. The new empty-state assertion is not yet marked PASS.
+- Current Vercel status is PENDING. This focused assertion is not a complete WCAG audit; contrast, broader screen-reader behavior and the full authenticated workflow remain unverified.
+- No Supabase Production data/schema, migration, secret, grant, persistent RLS policy, Production deployment, merge, force-push or protection rule was changed.
