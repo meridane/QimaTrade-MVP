@@ -117,3 +117,25 @@ test("supplier geography selector exposes its own labelled options and restores 
   await expect(geographyTrigger).not.toHaveAttribute("aria-controls");
   await expect(geographyTrigger).toBeFocused();
 });
+
+
+
+test("offer commercial-term and documentation toggles expose their fieldset group names", async ({ page, request }) => {
+  await authenticatePage(page, request, `/offers/new?productMasterId=${PRODUCT_MASTER_GATE_ID}`);
+  await page.goto(`/offers/new?productMasterId=${PRODUCT_MASTER_GATE_ID}`);
+
+  const commercialGroup = page.getByRole("group", { name: "Commercial terms" });
+  const documentationGroup = page.getByRole("group", { name: "Documentation available" });
+  await expect(commercialGroup).toBeVisible();
+  await expect(documentationGroup).toBeVisible();
+
+  const exw = commercialGroup.getByRole("button", { name: "EXW", exact: true });
+  await expect(exw).toHaveAttribute("aria-pressed", "false");
+  await exw.click();
+  await expect(exw).toHaveAttribute("aria-pressed", "true");
+
+  const invoice = documentationGroup.getByRole("button", { name: "Commercial Invoice", exact: true });
+  await expect(invoice).toHaveAttribute("aria-pressed", "false");
+  await invoice.click();
+  await expect(invoice).toHaveAttribute("aria-pressed", "true");
+});

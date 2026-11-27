@@ -340,3 +340,13 @@ No Supabase Production data/schema, migration, secret, grant, RLS policy or pers
 - PostgreSQL 16 integration and PostgreSQL 17.6 compatibility remain **IN PROGRESS** at this checkpoint; both have passed the initial 25 setup/characterization steps with no unexpected failed step.
 - The two prepared-transaction failure-injection jobs have expected negative conclusions and their separate assertion jobs succeeded; the skipped cleanup harness is intentionally skipped and separately asserted.
 - The QIMA CI workflow is not yet closed. No PostgreSQL success is claimed until both database jobs complete.
+
+
+
+## Offer toggle-group semantics — 2026-11-28
+
+- Replaced the non-associated text labels around the Commercial terms and Documentation available toggle sets with native `fieldset` / `legend` grouping. The existing toggle buttons and `aria-pressed` state remain unchanged.
+- Added a Playwright accessibility regression that locates both groups by their accessible legend names and verifies the EXW and Commercial Invoice buttons expose their pressed state before and after selection.
+- This is a focused semantic grouping improvement, not a complete WCAG or screen-reader certification.
+- The previous QIMA CI #2188 and CodeQL #2112 run completed successfully, including PostgreSQL 16 and 17.6; this new component/test commit requires its own CI and CodeQL validation.
+- No authentication, API, database, migration, Supabase Production data/schema, secret, grant, RLS policy, deployment, merge, force-push, or branch-protection change.
