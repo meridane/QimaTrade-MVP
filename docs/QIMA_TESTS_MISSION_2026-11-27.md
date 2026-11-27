@@ -346,3 +346,14 @@ No Supabase Production data/schema, migration, secret, grant, RLS policy or pers
 - Vercel Preview is **FAILURE** with the provider's `build-rate-limit` response; this is not a GitHub Actions build failure.
 - Expected prepared-transaction failure-injection jobs have negative conclusions by design; their independent assertions succeeded. The skipped cleanup harness was intentionally skipped and separately asserted.
 - HTTP 429 is a local synthetic PostgREST response, not evidence of a live Production rate-limit event.
+
+## Publish RPC HTTP 429 no-retry regression — 2026-11-28
+
+- Added test commit [`da3935e8`](https://github.com/meridane/QimaTrade-MVP/commit/da3935e84507e8f6b520ebe9b1d0bfee609f5735) in `tests/e2e/action-runtime-publish-product-request.spec.ts`.
+- Extended the local PostgREST fixture so a synthetic HTTP 429 from `dt_publish_product_request` returns `UPSTREAM_RATE_LIMITED` / `PGRST429` plus private diagnostic fields.
+- The regression requires a null result, normalized rate-limit message, no diagnostic disclosure, exactly one definition RPC and one publish RPC, and no redirect-target request. It does not retry the non-idempotent publish operation.
+- This is a local synthetic transport scenario, not evidence that the live Supabase RPC has returned HTTP 429.
+- Current QIMA CI [#2187](https://github.com/meridane/QimaTrade-MVP/actions/runs/46058080443) is **IN PROGRESS**. At the latest job read, TypeScript check and prepared-transaction assertion jobs had succeeded; production build, Playwright, the isolated security fixture, PostgreSQL 16 and PostgreSQL 17.6 remained in progress.
+- CodeQL [#2111](https://github.com/meridane/QimaTrade-MVP/actions/runs/46058080379) completed **SUCCESS**. Vercel Preview was **PENDING** at the latest status read.
+- Expected failure-injection jobs have negative conclusions by design and their independent assertions succeeded; the cleanup-skipped harness is intentionally skipped and separately asserted.
+- No runtime implementation, SQL, migration, Supabase Production data/schema, secret, grant, RLS policy, Production deployment, merge, force-push or branch-protection change.
