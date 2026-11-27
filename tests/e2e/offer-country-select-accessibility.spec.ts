@@ -1,6 +1,8 @@
 import { expect, test } from "@playwright/test";
+import { authenticatePage } from "./offer-test-auth";
 
-test("offer market selector has a field name and exposes its choices as buttons", async ({ page }) => {
+test("offer market selector has a field name and exposes its choices as buttons", async ({ page, request }) => {
+  await authenticatePage(page, request, "/offers/new");
   await page.goto("/offers/new");
 
   const marketTrigger = page.getByRole("button", {
