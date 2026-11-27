@@ -220,3 +220,15 @@ No Supabase Production data/schema, migration, secret, grant, RLS policy or pers
 - The setup-failure and cleanup-failure harness jobs have their expected injected failure conclusions; their assertion jobs succeeded. The skipped-result harness was skipped as designed and its assertion succeeded.
 - The HTTP 500/502/503/504 recovery matrix and UUID result validation are included in the 440 passing Playwright tests. No further duplicate case was added in this pass.
 - This is CI suite evidence, not an application latency benchmark. No Supabase Production data/schema, migration deployment, secret, grant, RLS policy, persistent configuration or Production deployment was changed.
+
+
+## Publish-runtime transport-failure regressions — 2026-11-27 20:58 KST
+
+- Extended the local HTTP fixture to terminate the socket on either the action-definition RPC or the publish RPC.
+- The definition transport failure must normalize to `ACTION_DEFINITION_LOOKUP_FAILED` and stop before the publish RPC.
+- The publish transport failure must not retry: exactly one definition request and one publish request are observed, with no redirect-target request. The runtime-level transport exception is intentionally left for the API route's public error boundary to sanitize.
+- These are local synthetic transport failures; they do not simulate or establish a live Supabase incident.
+- The preceding TESTS HEAD `24e807bc` completed QIMA CI [#45983044472](https://github.com/meridane/QimaTrade-MVP/actions/runs/45983044472) **SUCCESS**. Verify job `140451542470` reports **440 Playwright passed (35.5 s)**; TypeScript, dependency audit, Next.js build and the isolated security fixture passed. PostgreSQL 16 job `140451542668` and PostgreSQL 17.6 job `140451542896` both completed **SUCCESS**. CodeQL [#45983044581](https://github.com/meridane/QimaTrade-MVP/actions/runs/45983044581) completed **SUCCESS**.
+- Vercel Preview for that TESTS HEAD was **FAILURE** solely because the provider returned its `build-rate-limit` quota response; GitHub Actions and CodeQL were successful.
+- A fresh QIMA CI/CodeQL run is required for the two new transport cases. No pass is claimed yet.
+- No Supabase Production data/schema, migration deployment, secret, grant, RLS policy, persistent configuration or Production deployment was changed.
