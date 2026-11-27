@@ -119,3 +119,26 @@ test("product-request publish route derives tenant membership only from the auth
   expect(actionContext).toContain("userId: authData.user.id");
   expect(actionContext).toContain("tenantId: tenantIds[0]");
 });
+
+test("product-request publish route fails closed when membership lookup fails or returns no rows", () => {
+  const fs = process.getBuiltinModule("node:fs") as typeof import("node:fs") | undefined;
+  if (!fs) throw new Error("Node.js fs module is unavailable");
+  const source = fs.readFileSync(
+    `${process.cwd()}/app/api/product-requests/publish/route.ts`,
+    "utf8",
+  );
+
+  const membershipQueryStart = source.indexOf('.from("dt_memberships")');
+  const membershipFailureGuard = source.indexOf("if (membershipError || !memberships?.length)");
+  const tenantResolution = source.indexOf("const tenantIds =");
+  const actionExecution = source.indexOf("const result = await executeUniversalAction");
+
+  expect(membershipQueryStart).toBeGreaterThanOrEqual(0);
+  expect(membershipFailureGuard).toBeGreaterThan(membershipQueryStart);
+  expect(tenantResolution).toBeGreaterThan(membershipFailureGuard);
+  expect(actionExecution).toBeGreaterThan(tenantResolution);
+
+  const failureGuard = source.slice(membershipFailureGuard, tenantResolution);
+  expect(failureGuard).toContain('error: "TENANT_MEMBERSHIP_REQUIRED"');
+  expect(failureGuard).toContain("status: 403");
+});
