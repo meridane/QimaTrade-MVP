@@ -290,3 +290,14 @@ No Supabase Production data or migrations were touched. No Production deployment
 - This closes the source-contract assertion correction and validates the CREATE_OFFER server-action error-boundary tests on this snapshot. The earlier report of 34.9 s is superseded by the terminal Verify log's exact **35.8 s**.
 - Vercel Preview is **FAILURE** solely because the provider returned the build-rate-limit quota response; this is not a code-build result and does not affect the successful GitHub CI/CodeQL conclusions.
 - No Production exploit or disclosure is inferred from synthetic tests. No Supabase Production data/schema, migration deployment, secret, grant, RLS policy, persistent configuration or Production deployment was changed.
+
+
+## Allowlist-shape regression and completed CI closeout — 2026-11-27 20:58 KST
+
+- Re-read QIMA CI [#45983037115](https://github.com/meridane/QimaTrade-MVP/actions/runs/45983037115): overall **SUCCESS** on SECURITY HEAD `326c290b`. Verify job `140451518244` reports **449 Playwright passed (35.8 s)**; TypeScript, dependency audit, Next.js production build and the isolated QIMA security fixture succeeded.
+- PostgreSQL 16 job `140451517782` and PostgreSQL 17.6 job `140451518284` both completed **SUCCESS**. CodeQL [#45983037290](https://github.com/meridane/QimaTrade-MVP/actions/runs/45983037290) completed **SUCCESS**; Vercel Preview status was **SUCCESS**.
+- The prepared-transaction failure-injection jobs have their expected negative conclusions; independent assertions succeeded. The skipped harness was skipped by design and its assertion succeeded.
+- Added a focused regression ensuring a plain PostgREST-shaped object whose `message` imitates `ACTION_ALREADY_RUNNING`, or an Error with a prefixed/suffixed message, is not accepted as an exact public domain code. Only an exact Error message from the allowlist remains public.
+- This is synthetic mapper coverage, not proof of a Production disclosure or exploit. A fresh CI/CodeQL run is required for this new test; no pass is claimed yet.
+- The multi-tenant CREATE_OFFER path remains fail-closed when a user has multiple memberships. Choosing an active-tenant persistence/selection contract still requires a product decision; no behavior was guessed.
+- No Supabase Production data/schema, migration deployment, secret, grant, RLS policy, persistent configuration or Production deployment was changed.
