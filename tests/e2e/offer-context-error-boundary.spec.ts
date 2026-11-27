@@ -1,4 +1,5 @@
 import { readFile } from "node:fs/promises";
+import { resolve } from "node:path";
 import { expect, test } from "@playwright/test";
 import { toPublicOfferContextError } from "../../lib/offers/public-errors";
 
@@ -27,10 +28,7 @@ test("offer context lookup failures never expose backend diagnostics", () => {
 
 
 test("getOfferContext routes every attribute lookup failure through the public error mapper", async () => {
-  const source = await readFile(
-    new URL("../../app/offers/actions.ts", import.meta.url),
-    "utf8",
-  );
+  const source = await readFile(resolve(process.cwd(), "app/offers/actions.ts"), "utf8");
   const start = source.indexOf("export async function getOfferContext");
   const end = source.indexOf("export async function createOffer", start);
 
