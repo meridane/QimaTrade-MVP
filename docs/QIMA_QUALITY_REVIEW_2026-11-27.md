@@ -173,3 +173,13 @@ No Supabase Production data/schema, migration, secret, grant, RLS policy or pers
 - This is a focused keyboard interaction improvement; it does not claim a complete WCAG audit. Screen-reader testing and full-form keyboard coverage remain outstanding.
 - Validation is pending a fresh QIMA CI run on the updated QUALITY branch. No local browser run is claimed.
 - No Supabase data/schema, authorization behavior, dependencies, Production deployment or branch protection was changed.
+
+---
+
+## Country-selector keyboard test correction — 2026-11-27 18:54 KST
+
+- QIMA CI [#45968255550](https://github.com/meridane/QimaTrade-MVP/actions/runs/45968255550) completed with **437 Playwright passed / 1 failed (34.2 s)**. TypeScript, audit, build, isolated fixture, PostgreSQL 16/17.6 and CodeQL [#45968255521](https://github.com/meridane/QimaTrade-MVP/actions/runs/45968255521) succeeded.
+- The only failure was the new keyboard test expecting South Korea after a single Tab from the search field. The market selector intentionally keeps the separate International Market button visible ahead of the filtered country buttons; the first Tab correctly focuses that first native button.
+- Updated the test to verify the actual sequential tab order: International Market, then South Korea, followed by Enter selection and the existing focus-restoration assertions. No component behavior was changed to satisfy an incorrect test expectation.
+- A fresh QIMA CI run is required before the keyboard scenario is marked passing. This remains focused browser coverage, not a complete WCAG audit.
+- No Supabase data/schema, authorization behavior, dependency, Production deployment or branch protection was changed.
