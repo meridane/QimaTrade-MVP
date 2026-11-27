@@ -434,3 +434,14 @@ No Supabase Production data or migrations were touched. No Production deployment
 - PostgreSQL 16 integration and PostgreSQL 17.6 compatibility remain **IN PROGRESS** at this checkpoint; both have passed the initial 25 setup/characterization steps with no unexpected failed step.
 - The two prepared-transaction failure-injection jobs have expected negative conclusions and their separate assertion jobs succeeded; the skipped cleanup harness is intentionally skipped and separately asserted.
 - The QIMA CI workflow is not yet closed. No PostgreSQL success is claimed until both database jobs complete.
+
+
+
+## Authenticated membership-cardinality integration — 2026-11-28
+
+- Extended only the disposable local Supabase mock fixture with controllable `dt_memberships`, action-definition RPC, and publish RPC responses plus request capture. The default membership fixture remains a synthetic 404, preserving the existing fail-closed error-path test.
+- Added an authenticated Playwright route scenario that proves duplicate rows for one tenant are deduplicated and allow the route to reach the synthetic publish RPC; two distinct tenant IDs return HTTP 409 `TENANT_SELECTION_REQUIRED` without either action RPC; rows with a null tenant ID also fail closed before action execution.
+- The request body deliberately includes attacker-controlled `tenantId` and `tenant_id` values while the mock records the membership query's authenticated `user_id`. This complements the existing source-contract assertion that tenant identity is derived from `authData.user.id`, not request input.
+- This is a local synthetic Auth/PostgREST integration test. It does not prove live Supabase RLS behavior, production tenant membership contents, or a production vulnerability.
+- The previous QIMA CI #2186 and CodeQL #2110 run completed successfully, including PostgreSQL 16 and 17.6; this new fixture/test commit requires its own CI and CodeQL validation.
+- No production route, SQL, migration, Supabase Production data/schema, secret, grant, RLS policy, deployment, merge, force-push, or branch-protection change.

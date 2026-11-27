@@ -1,6 +1,8 @@
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 const jsonHeaders = { "content-type": "application/json" };
 
+test.describe.configure({ mode: "serial" });
+
 const SECURITY_VERIFIER_COOKIE = "sb-127-auth-token-code-verifier";
 const SECURITY_SESSION_COOKIE_PATTERN = /^sb-127-auth-token(?:[.][0-9]+)?=/i;
 
@@ -226,10 +228,103 @@ test("product-request publish route fails closed when an authenticated user's me
     return { status: result.status, body: await result.json() };
   }, requestId);
 
-  // The isolated mock PostgREST fixture deliberately has no dt_memberships endpoint.
+  // The isolated mock PostgREST fixture defaults to a synthetic 404 until a test configures rows.
   // This exercises the membership-query error path without contacting live Supabase.
   expect(response).toEqual({
     status: 403,
     body: { error: "TENANT_MEMBERSHIP_REQUIRED" },
   });
+});
+
+
+
+test("authenticated publish route deduplicates one tenant and rejects multiple tenant memberships before RPC execution", async ({ page, request }) => {
+  const requestId = "60000000-0000-4000-8000-000000000001";
+  const authenticatedUserId = "00000000-0000-4000-8000-00000000251";
+  const firstTenantId = "10000000-0000-4000-8000-000000000001";
+  const secondTenantId = "10000000-0000-4000-8000-000000000002";
+  const demandId = "70000000-0000-4000-8000-000000000001";
+
+  await authenticateSecurityTestPage(page, request);
+  await page.goto("/");
+
+  const configureMemberships = async (rows: Array<{ tenant_id: string | null }>) => {
+    const configured = await request.post("http://127.0.0.1:54321/__test/membership-fixture", {
+      data: { rows },
+    });
+    expect(configured.status()).toBe(200);
+  };
+
+  const inspectRequests = async () => {
+    const response = await request.get("http://127.0.0.1:54321/__test/publish-route-requests");
+    expect(response.status()).toBe(200);
+    return response.json();
+  };
+
+  const publish = async (tenantId: string) => page.evaluate(async ({ id, suppliedTenantId }) => {
+    const response = await fetch("/api/product-requests/publish", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        requestId: id,
+        tenantId: suppliedTenantId,
+        tenant_id: suppliedTenantId,
+      }),
+    });
+    return { status: response.status, body: await response.json() };
+  }, { id: requestId, suppliedTenantId: tenantId });
+
+  // Duplicate rows for the same authenticated tenant collapse to one distinct tenant.
+  await configureMemberships([{ tenant_id: firstTenantId }, { tenant_id: firstTenantId }]);
+  const duplicateMembershipResponse = await publish(secondTenantId);
+  expect(duplicateMembershipResponse.status).toBe(200);
+  expect(duplicateMembershipResponse.body).toMatchObject({
+    result: { status: "succeeded", objectId: demandId },
+  });
+
+  const duplicateMembershipRequests = await inspectRequests();
+  expect(duplicateMembershipRequests.memberships).toEqual([{
+    select: "tenant_id",
+    userId: `eq.${authenticatedUserId}`,
+  }]);
+  expect(duplicateMembershipRequests.definitions).toEqual([{
+    p_action_key: "PUBLISH_PRODUCT_REQUEST",
+    p_version: 1,
+  }]);
+  expect(duplicateMembershipRequests.publications).toEqual([{
+    p_request_id: requestId,
+    p_user_id: authenticatedUserId,
+  }]);
+
+  // Two distinct memberships are ambiguous: no action-definition or publish RPC may run.
+  await configureMemberships([{ tenant_id: firstTenantId }, { tenant_id: secondTenantId }]);
+  const multipleMembershipResponse = await publish(firstTenantId);
+  expect(multipleMembershipResponse).toEqual({
+    status: 409,
+    body: {
+      error: "TENANT_SELECTION_REQUIRED",
+      message: "Select an active tenant before publishing a product request.",
+    },
+  });
+
+  const multipleMembershipRequests = await inspectRequests();
+  expect(multipleMembershipRequests.memberships).toHaveLength(1);
+  expect(multipleMembershipRequests.definitions).toHaveLength(0);
+  expect(multipleMembershipRequests.publications).toHaveLength(0);
+
+  // Rows without a usable tenant identifier also fail closed before action execution.
+  await configureMemberships([{ tenant_id: null }]);
+  const unresolvedMembershipResponse = await publish(firstTenantId);
+  expect(unresolvedMembershipResponse).toEqual({
+    status: 409,
+    body: {
+      error: "TENANT_SELECTION_REQUIRED",
+      message: "Select an active tenant before publishing a product request.",
+    },
+  });
+
+  const unresolvedMembershipRequests = await inspectRequests();
+  expect(unresolvedMembershipRequests.memberships).toHaveLength(1);
+  expect(unresolvedMembershipRequests.definitions).toHaveLength(0);
+  expect(unresolvedMembershipRequests.publications).toHaveLength(0);
 });

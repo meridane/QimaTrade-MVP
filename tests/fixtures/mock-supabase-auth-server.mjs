@@ -3,6 +3,10 @@ import { createServer } from "node:http";
 const authRequests = [];
 const offerInserts = [];
 const offerFailures = [];
+const membershipRequests = [];
+const actionDefinitionRequests = [];
+const publishRequests = [];
+let membershipRows = null;
 
 const session = {
   access_token: "qa251-access-token",
@@ -78,6 +82,33 @@ const server = createServer(async (request, response) => {
     return;
   }
 
+  if (request.method === "POST" && url.pathname === "/__test/membership-fixture") {
+    try {
+      const body = await readJsonBody(request);
+      if (!body || typeof body !== "object" || Array.isArray(body) || !Array.isArray(body.rows)) {
+        sendJson(response, 400, { error: "INVALID_MEMBERSHIP_FIXTURE" });
+        return;
+      }
+      membershipRows = body.rows;
+      membershipRequests.length = 0;
+      actionDefinitionRequests.length = 0;
+      publishRequests.length = 0;
+      sendJson(response, 200, { configured: true });
+    } catch {
+      sendJson(response, 400, { error: "INVALID_MEMBERSHIP_FIXTURE" });
+    }
+    return;
+  }
+
+  if (request.method === "GET" && url.pathname === "/__test/publish-route-requests") {
+    sendJson(response, 200, {
+      memberships: membershipRequests,
+      definitions: actionDefinitionRequests,
+      publications: publishRequests,
+    });
+    return;
+  }
+
   if (request.method === "GET" && url.pathname === "/__test/offers") {
     const name = url.searchParams.get("name");
     if (!name) {
@@ -116,6 +147,73 @@ const server = createServer(async (request, response) => {
       }
     }
     sendJson(response, 200, { deleted, failuresDeleted });
+    return;
+  }
+
+  if (request.method === "GET" && url.pathname === "/rest/v1/dt_memberships") {
+    if (!hasSyntheticAuthorization(request)) {
+      sendJson(response, 401, { code: "PGRST301", message: "Unauthorized synthetic request" });
+      return;
+    }
+
+    const select = url.searchParams.get("select");
+    const userId = url.searchParams.get("user_id");
+    if (select !== "tenant_id" || userId !== `eq.${session.user.id}`) {
+      sendJson(response, 400, { code: "PGRST100", message: "Unexpected synthetic membership query" });
+      return;
+    }
+
+    membershipRequests.push({ select, userId });
+    if (membershipRows === null) {
+      sendJson(response, 404, { code: "PGRST_QIMA_MEMBERSHIP", message: "No membership fixture configured" });
+      return;
+    }
+
+    sendJson(response, 200, membershipRows);
+    return;
+  }
+
+  if (request.method === "POST" && url.pathname === "/rest/v1/rpc/get_action_definition_v1") {
+    if (!hasSyntheticAuthorization(request)) {
+      sendJson(response, 401, { code: "PGRST301", message: "Unauthorized synthetic request" });
+      return;
+    }
+
+    try {
+      const payload = await readJsonBody(request);
+      actionDefinitionRequests.push(payload);
+      if (payload?.p_action_key !== "PUBLISH_PRODUCT_REQUEST" || payload?.p_version !== 1) {
+        sendJson(response, 400, { code: "PGRST_QIMA_DEFINITION", message: "Unexpected synthetic action definition" });
+        return;
+      }
+      sendJson(response, 200, [{
+        action_key: "PUBLISH_PRODUCT_REQUEST",
+        version: 1,
+        status: "published",
+      }]);
+    } catch {
+      sendJson(response, 400, { code: "PGRST_QIMA_DEFINITION", message: "Invalid synthetic action definition request" });
+    }
+    return;
+  }
+
+  if (request.method === "POST" && url.pathname === "/rest/v1/rpc/dt_publish_product_request") {
+    if (!hasSyntheticAuthorization(request)) {
+      sendJson(response, 401, { code: "PGRST301", message: "Unauthorized synthetic request" });
+      return;
+    }
+
+    try {
+      const payload = await readJsonBody(request);
+      publishRequests.push(payload);
+      if (payload?.p_user_id !== session.user.id || typeof payload?.p_request_id !== "string") {
+        sendJson(response, 400, { code: "PGRST_QIMA_PUBLISH", message: "Unexpected synthetic publish request" });
+        return;
+      }
+      sendJson(response, 200, { demandId: "70000000-0000-4000-8000-000000000001" });
+    } catch {
+      sendJson(response, 400, { code: "PGRST_QIMA_PUBLISH", message: "Invalid synthetic publish request" });
+    }
     return;
   }
 
