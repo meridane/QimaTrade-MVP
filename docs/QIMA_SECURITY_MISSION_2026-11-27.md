@@ -334,3 +334,13 @@ No Supabase Production data or migrations were touched. No Production deployment
 - Source evidence confirms the legacy route authenticates with `auth.getUser()`, resolves `provider_actor_id` from the authenticated user's profile, and inserts with the caller's Supabase session. The route does not invoke CREATE_OFFER Universal Action Runtime. This is an architectural/business-contract distinction, not by itself a confirmed authorization bypass.
 - The unresolved provider-to-demand/tenant eligibility rule remains a product/API decision. The fixture and source review do not establish deployed Production RLS or exploitability. Do not consolidate routes until draft lifecycle and optional-price semantics are approved.
 - No Supabase Production data/schema, migration deployment, secret, grant, persistent RLS policy, Production deployment, merge, force-push or branch-protection change.
+
+
+## Multi-tenant publish guard source-contract regression — 2026-11-27 23:42 KST
+
+- Added a focused source-contract assertion to `tests/e2e/product-request-publish-route-contract.spec.ts`.
+- It verifies that memberships are reduced to distinct non-empty tenant IDs, the `tenantIds.length !== 1` guard appears before `executeUniversalAction`, and the non-unique case returns `TENANT_SELECTION_REQUIRED` with HTTP 409 and the existing selection message.
+- This is a static source-order/contract test. It does not execute an authenticated multi-membership request and does not establish live Supabase membership/RLS behavior.
+- Previous code/test HEAD `69fa9c14` completed QIMA CI [#46011154730](https://github.com/meridane/QimaTrade-MVP/actions/runs/46011154730) **SUCCESS**: Verify, PostgreSQL 16, PostgreSQL 17.6, and CodeQL [#46011154792](https://github.com/meridane/QimaTrade-MVP/actions/runs/46011154792) all succeeded. Vercel Preview was **SUCCESS**.
+- New test commit: `682f009de01e8d8db538d50ef687314ec61dc382`. A fresh QIMA CI/CodeQL run is required for this new assertion; no result is claimed yet.
+- No application route, SQL, migration, Supabase data/schema, secret, grant, RLS policy, Production deployment, merge, force-push, or branch-protection change.
