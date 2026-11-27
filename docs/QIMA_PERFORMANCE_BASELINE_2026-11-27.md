@@ -627,3 +627,16 @@ The route's `auth.getSession()` reads the server session; a conditional token re
 The previous code/test snapshots remain fully validated: SECURITY [#46043770922](https://github.com/meridane/QimaTrade-MVP/actions/runs/46043770922) (454 Playwright, PostgreSQL 16/17.6 SUCCESS), TESTS [#46043796052](https://github.com/meridane/QimaTrade-MVP/actions/runs/46043796052) (446 Playwright, PostgreSQL 16/17.6 SUCCESS), and QUALITY [#46043817903](https://github.com/meridane/QimaTrade-MVP/actions/runs/46043817903) (439 Playwright, PostgreSQL 16/17.6 SUCCESS). Their CodeQL runs #46043770905, #46043796133 and #46043817883 respectively completed SUCCESS.
 
 No p50/p95/p99, SQL plan, buffers, lock waits, CPU, memory, or network latency is inferred. A non-production staging environment is still required for measured profiling. No optimization was applied.
+
+
+## Latest independent-branch verification snapshot — 2026-11-28 KST
+
+| Mission | Verify Playwright | Verify duration | PostgreSQL 16 | PostgreSQL 17.6 | CodeQL | Vercel |
+|---|---:|---:|---|---|---|---|
+| SECURITY `45f9aa59` | 455 passed | 35.8 s | IN PROGRESS | IN PROGRESS | [#46049188093](https://github.com/meridane/QimaTrade-MVP/actions/runs/46049188093) SUCCESS | build-rate-limit FAILURE |
+| TESTS `96a96001` | 447 passed | 38.3 s | IN PROGRESS | IN PROGRESS | [#46049194629](https://github.com/meridane/QimaTrade-MVP/actions/runs/46049194629) SUCCESS | build-rate-limit FAILURE |
+| QUALITY `b1731e1a` | 439 passed | 36.7 s | IN PROGRESS | IN PROGRESS | [#46049204941](https://github.com/meridane/QimaTrade-MVP/actions/runs/46049204941) SUCCESS | build-rate-limit FAILURE |
+
+All three Verify jobs completed dependency audit, TypeScript, Next.js build, Chromium, Playwright and the isolated security fixture successfully. The PostgreSQL compatibility jobs have not yet closed, so the three overall QIMA CI workflows remain in progress. The prepared-transaction negative-result harnesses are expected failure-injection scenarios with successful independent assertions; the skipped cleanup harness is also separately asserted.
+
+The Playwright counts and durations above are CI suite measurements only. They are not application latency, SQL execution time, p50/p95/p99, buffers, lock waits, CPU, or memory profiles. The Vercel failures are provider build-rate-limit responses, not application build failures. No staging benchmark or optimization is claimed.
