@@ -70,9 +70,9 @@ create table public.subcategories (
 create or replace function public.dt_publish_product_request(p_request_id uuid, p_user_id uuid)
 returns jsonb
 language sql
-as $
+as $$
   select '{}'::jsonb
-$;
+$$;
 grant execute on function public.dt_publish_product_request(uuid, uuid) to anon;
 
 alter table public.product_requests enable row level security;
