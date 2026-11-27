@@ -507,3 +507,43 @@ Reviewed PR #26 HEAD `61002cb21aaa738a7f018794ab84bff41a2c6eb2`:
 - These are test-suite wall-clock durations only; they are not application request latency, database query latency, or p50/p95/p99 measurements.
 - The PERFORMANCE branch remains documentation-only. No application optimization is justified by these figures; live staging measurements and query plans are still required.
 - No Supabase Production access, query, data/schema change, migration, deployment, merge, force-push or branch-protection change.
+
+
+## Mission closeout and non-production measurement protocol — 2026-11-27 23:42 KST
+
+Verified the exact current mission code/test snapshots:
+
+| Mission | Verified HEAD | QIMA CI | Verify | PostgreSQL 16 | PostgreSQL 17.6 | CodeQL | Vercel |
+|---|---|---|---|---|---|---|---|
+| SECURITY | `69fa9c14` | [#46011154730](https://github.com/meridane/QimaTrade-MVP/actions/runs/46011154730) SUCCESS | SUCCESS | SUCCESS | SUCCESS | [#46011154792](https://github.com/meridane/QimaTrade-MVP/actions/runs/46011154792) SUCCESS | SUCCESS |
+| TESTS | `34c0a480` | [#46011106239](https://github.com/meridane/QimaTrade-MVP/actions/runs/46011106239) SUCCESS | SUCCESS | SUCCESS | SUCCESS | [#46011106129](https://github.com/meridane/QimaTrade-MVP/actions/runs/46011106129) SUCCESS | SUCCESS |
+| QUALITY | `2ae4cca9` | [#46011184415](https://github.com/meridane/QimaTrade-MVP/actions/runs/46011184415) SUCCESS | SUCCESS | SUCCESS | SUCCESS | [#46011184330](https://github.com/meridane/QimaTrade-MVP/actions/runs/46011184330) SUCCESS | SUCCESS |
+| PERFORMANCE | `cdba417a` | No workflow (documentation-only branch) | Not run | Not run | Not run | Not run | SUCCESS |
+
+The three QIMA CI jobs show the expected failure-injection jobs as **FAILURE** and the intentionally skipped cleanup harness as **SKIPPED**; their separate assertion jobs succeeded. The overall QIMA CI runs are **SUCCESS**.
+
+### Reproducible staging-only plan for the tenant/key lookup
+
+No live plan or latency is claimed. Once an authorized non-production staging database with representative rows is available:
+
+1. Record PostgreSQL version, row count, tenant/key cardinality, and the actual index definitions from that staging catalog.
+2. Use a dedicated staging tenant and a pre-existing idempotency key. Do not insert or update benchmark data in this measurement.
+3. Capture one execution plan inside a transaction and roll it back to release the row lock:
+
+```sql
+BEGIN;
+EXPLAIN (ANALYZE, BUFFERS, WAL, SETTINGS, FORMAT JSON)
+SELECT execution_id
+FROM public.idempotency_keys
+WHERE tenant_id = :'tenant_id'::uuid
+  AND key = :'idempotency_key'
+FOR UPDATE;
+ROLLBACK;
+```
+
+4. Separately measure repeated application-level requests with one, then several concurrent clients; record p50/p95/p99, error rate, and lock-wait time. Keep network latency separate from database execution time.
+5. Repeat warm and cold-cache observations, document the exact command and dataset shape, and compare PostgreSQL 16/17.6 only where both staging versions are available.
+
+The SQL above takes a row lock but does not mutate the row; rollback releases the lock. It must only be run against an authorized non-production staging database. No Production connection, query, schema inspection, or data change is authorized or implied.
+
+No optimization is proposed until measured plans and latency identify a material bottleneck. The disposable fixture's `UNIQUE (tenant_id, key)` constraint remains evidence about the fixture only, not the deployed schema.
