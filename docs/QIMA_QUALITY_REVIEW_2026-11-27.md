@@ -361,3 +361,14 @@ No Supabase Production data/schema, migration, secret, grant, RLS policy or pers
 - The two prepared-transaction failure-injection jobs have expected negative conclusions; their independent assertions succeeded. The cleanup-skipped harness is intentionally skipped and separately asserted.
 - This is focused semantic accessibility coverage, not a complete WCAG or screen-reader certification.
 - No authentication, API, database, migration, Supabase Production data/schema, secret, grant, RLS policy, deployment, merge, force-push or branch-protection change.
+
+
+## CI closure and keyboard activation follow-up — 2026-11-28 06:16 KST
+
+- QIMA CI [#2191](https://github.com/meridane/QimaTrade-MVP/actions/runs/46065923133) completed **SUCCESS**. Verify job 140731080646 completed **SUCCESS** with **440 Playwright passed (34.6 s)**; dependency audit, TypeScript, Next.js production build, Chromium, browser tests, and the isolated security-contract fixture succeeded.
+- PostgreSQL 16 integration job 140731080606 and PostgreSQL 17.6 compatibility job 140731080188 both completed **SUCCESS**. The CREATE_OFFER integration/concurrency and disposable RLS/ACL/cleanup checks passed.
+- CodeQL [#2115](https://github.com/meridane/QimaTrade-MVP/actions/runs/46065923029) completed **SUCCESS**. Vercel Preview for the tested code commit was **SUCCESS**.
+- The prepared-transaction failure-injection jobs intentionally have negative job conclusions; their independent cleanup/failure-propagation assertions passed. The skipped-result harness is intentionally skipped and separately asserted.
+- Follow-up commit c09bceb7 (https://github.com/meridane/QimaTrade-MVP/commit/c09bceb79c8419e89e61cefcabe4b40d8344142f) changes the focused toggle regression from pointer clicks to keyboard activation: Space for EXW and Enter for Commercial Invoice, with focus assertions before activation. The new commit's GitHub Actions run was not yet visible at the first post-push read; its test result is **pending**, not inferred. Vercel returned the provider's build-rate-limit failure for this commit; that is a Preview-capacity result, not an application build result.
+- This is targeted keyboard coverage, not a complete WCAG or screen-reader certification.
+- No production application data, API contract, SQL, migration, Supabase Production data/schema, secret, grant, RLS policy, deployment, merge, force-push, or branch-protection change.
