@@ -283,3 +283,17 @@ These suites have different test contents and counts; the Playwright durations a
 - The Supabase QIMA project’s last recorded state is INACTIVE; no reactivation or remote database query was attempted.
 - The new SECURITY offer-context error-boundary and QUALITY country-selector accessibility changes have pending fresh CI at their latest HEADs. Their results are not included in the completed samples above.
 - No application optimization is justified by these CI measurements; no optimization was made.
+
+
+## Mission validation queue — latest heads — 2026-11-27
+
+| Mission | Latest HEAD | QIMA CI | CodeQL | Vercel |
+|---|---|---|---|---|
+| SECURITY | `a4900ee1` | [#45945561058](https://github.com/meridane/QimaTrade-MVP/actions/runs/45945561058) PENDING (no jobs published at last read) | [#45945561183](https://github.com/meridane/QimaTrade-MVP/actions/runs/45945561183) SUCCESS | Provider build-rate quota failure |
+| TESTS | `7eb540bd` | [#45945714444](https://github.com/meridane/QimaTrade-MVP/actions/runs/45945714444) IN PROGRESS | [#45945714513](https://github.com/meridane/QimaTrade-MVP/actions/runs/45945714513) IN PROGRESS | Provider build-rate quota failure |
+| QUALITY | `6162a67e` | [#45945670309](https://github.com/meridane/QimaTrade-MVP/actions/runs/45945670309) PENDING (no jobs published at last read) | [#45945670307](https://github.com/meridane/QimaTrade-MVP/actions/runs/45945670307) IN PROGRESS | Provider build-rate quota failure |
+| PERFORMANCE | `c547085c` | No run (documentation-only branch) | No run (documentation-only branch) | Provider build-rate quota failure |
+
+- TESTS code/test snapshot `54be4b92` is already fully validated by CI #45941406708 (440 Playwright passed, PostgreSQL 16/17.6 SUCCESS) and CodeQL #45941406675 SUCCESS. The newer documentation HEAD `7eb540bd` has its own pending/in-progress checks.
+- SECURITY’s new offer-context diagnostic-boundary test and QUALITY’s new country-selector browser test are not yet validated. Prior successful snapshots do not cover these new changes.
+- Provider quota failures are external Preview-build constraints, not GitHub Actions test failures.
