@@ -62,10 +62,13 @@ async function executePublishProductRequestRuntime(
       });
 
       if (
-        path === "/rest/v1/rpc/dt_publish_product_request" &&
-        truncatedResponseTarget === "publish"
+        (path === "/rest/v1/rpc/get_action_definition_v1" && truncatedResponseTarget === "definition") ||
+        (path === "/rest/v1/rpc/dt_publish_product_request" && truncatedResponseTarget === "publish")
       ) {
-        const partialBody = '{"demandId":"70000000-0000-4000-8000-000000000001"}';
+        const partialBody =
+          path === "/rest/v1/rpc/get_action_definition_v1"
+            ? '[{"action_key":"PUBLISH_PRODUCT_REQUEST"'
+            : '{"demandId":"70000000-0000-4000-8000-000000000001"}';
         response.writeHead(200, {
           "Content-Type": "application/json",
           "Content-Length": String(Buffer.byteLength(partialBody) + 64),
@@ -339,6 +342,17 @@ test("PUBLISH_PRODUCT_REQUEST runtime does not retry upstream 5xx failures or fo
 
 test("PUBLISH_PRODUCT_REQUEST runtime normalizes action-definition transport failures without publishing", async () => {
   const outcome = await executePublishProductRequestRuntime(null, "publish", 200, undefined, "definition");
+
+  expect(outcome.result).toBeNull();
+  expect(outcome.errorMessage).toBe("ACTION_DEFINITION_LOOKUP_FAILED");
+  expect(outcome.requests.map((request) => ({ path: request.path, method: request.method }))).toEqual([
+    { path: "/rest/v1/rpc/get_action_definition_v1", method: "POST" },
+  ]);
+  expect(outcome.redirectTargetHits).toBe(0);
+});
+
+test("PUBLISH_PRODUCT_REQUEST runtime rejects a truncated action-definition response without publishing", async () => {
+  const outcome = await executePublishProductRequestRuntime(null, "publish", 200, undefined, null, "definition");
 
   expect(outcome.result).toBeNull();
   expect(outcome.errorMessage).toBe("ACTION_DEFINITION_LOOKUP_FAILED");
