@@ -36,8 +36,8 @@ test("getOfferContext routes every attribute lookup failure through the public e
   expect(end).toBeGreaterThan(start);
 
   const getOfferContextSource = source.slice(start, end);
-  expect(source).toContain(
-    'import { toPublicOfferContextError } from "@/lib/offers/public-errors";',
+  expect(source).toMatch(
+    /import\s*\{[^}]*toPublicOfferContextError[^}]*\}\s*from\s*"@\/lib\/offers\/public-errors";/,
   );
   expect(getOfferContextSource).toContain("toPublicOfferContextError(rowsError)");
   expect(getOfferContextSource).toContain(
