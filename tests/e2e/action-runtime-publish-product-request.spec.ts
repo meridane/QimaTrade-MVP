@@ -104,6 +104,12 @@ async function executePublishProductRequestRuntime(
         return;
       }
 
+      if (path === "/rest/v1/rpc/dt_publish_product_request" && publishRpcStatus === 204) {
+        response.writeHead(204);
+        response.end();
+        return;
+      }
+
       if (path === "/rest/v1/rpc/dt_publish_product_request" && publishRpcStatus !== 200) {
         response.writeHead(publishRpcStatus, { "Content-Type": "application/json" });
         const unavailable = publishRpcStatus >= 500;
@@ -397,4 +403,20 @@ test("PUBLISH_PRODUCT_REQUEST runtime accepts matching camelCase and snake_case 
     demandId,
     source: "dt_publish_product_request",
   });
+});
+
+test("PUBLISH_PRODUCT_REQUEST runtime rejects an empty HTTP 204 response instead of reporting success", async () => {
+  const outcome = await executePublishProductRequestRuntime(null, "publish", 204);
+
+  expect(outcome.result).toBeNull();
+  expect(outcome.errorMessage).toBe("PUBLISH_RESULT_INVALID");
+  expect(outcome.requests.map((request) => ({ path: request.path, method: request.method }))).toEqual([
+    { path: "/rest/v1/rpc/get_action_definition_v1", method: "POST" },
+    { path: "/rest/v1/rpc/dt_publish_product_request", method: "POST" },
+  ]);
+  expect(outcome.requests[1].body).toEqual({
+    p_request_id: outcome.requestId,
+    p_user_id: outcome.userId,
+  });
+  expect(outcome.redirectTargetHits).toBe(0);
 });
