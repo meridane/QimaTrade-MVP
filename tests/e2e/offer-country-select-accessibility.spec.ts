@@ -157,3 +157,19 @@ test("offer commercial-term and documentation toggles expose their fieldset grou
   const otherDocumentationInput = documentationGroup.getByRole("textbox", { name: "Other documentation" });
   await expect(otherDocumentationInput).toBeVisible();
 });
+
+
+test("offer country search announces an empty result set through a polite status", async ({ page, request }) => {
+  await authenticatePage(page, request, "/offers/new?productMasterId=" + PRODUCT_MASTER_GATE_ID);
+  await page.goto("/offers/new?productMasterId=" + PRODUCT_MASTER_GATE_ID);
+
+  const marketTrigger = page.getByRole("button", { name: /^Target market: / });
+  await marketTrigger.click();
+
+  const search = page.getByRole("textbox", { name: "Search countries" });
+  await search.fill("qima-no-country-match-20261128");
+
+  const emptyStatus = page.getByRole("status").filter({ hasText: "No country found." });
+  await expect(emptyStatus).toHaveText("No country found.");
+  await expect(emptyStatus).toHaveAttribute("aria-live", "polite");
+});
