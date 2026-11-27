@@ -7,6 +7,7 @@ const membershipRequests = [];
 const actionDefinitionRequests = [];
 const publishRequests = [];
 let membershipRows = null;
+let authUserStatus = 200;
 
 const session = {
   access_token: "qa251-access-token",
@@ -73,12 +74,35 @@ const server = createServer(async (request, response) => {
       return;
     }
 
+    if (authUserStatus !== 200) {
+      sendJson(response, authUserStatus, {
+        code: "server_error",
+        message: "Synthetic Auth service unavailable",
+      });
+      return;
+    }
+
     sendJson(response, 200, session.user);
     return;
   }
 
   if (request.method === "GET" && url.pathname === "/__test/requests") {
     sendJson(response, 200, authRequests);
+    return;
+  }
+
+  if (request.method === "POST" && url.pathname === "/__test/auth-fixture") {
+    try {
+      const body = await readJsonBody(request);
+      if (!body || typeof body !== "object" || Array.isArray(body) || ![200, 503].includes(body.status)) {
+        sendJson(response, 400, { error: "INVALID_AUTH_FIXTURE" });
+        return;
+      }
+      authUserStatus = body.status;
+      sendJson(response, 200, { configured: true });
+    } catch {
+      sendJson(response, 400, { error: "INVALID_AUTH_FIXTURE" });
+    }
     return;
   }
 
@@ -95,6 +119,7 @@ const server = createServer(async (request, response) => {
         return;
       }
       membershipRows = body.rows;
+      authUserStatus = 200;
       membershipRequests.length = 0;
       actionDefinitionRequests.length = 0;
       publishRequests.length = 0;
