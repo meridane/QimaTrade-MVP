@@ -252,3 +252,34 @@ These are GitHub Actions measurements from the two branch snapshots; they are no
 - The TESTS HEAD includes the corrected positive alias-equivalence fixture using hexadecimal letters and explicitly asserting that the uppercase UUID differs from the lowercase UUID. The earlier run #45938350591 used the superseded numeric-only fixture and is not evidence for this corrected test.
 - The SECURITY HEAD includes documentation closeout of the UUID validation CI result; the validated code/test snapshot is `726941e` (445 Playwright passed, PostgreSQL 16/17.6 and CodeQL passed). The new documentation HEAD has its own pending QIMA CI and running CodeQL.
 - These workflow states are validation status only, not performance measurements. No API latency, query plans, N+1 behavior, CPU/memory profile or end-user timings were collected.
+
+
+## Latest verified mission CI and offer-query inventory — 2026-11-27
+
+### Comparable boundaries and completed snapshots
+
+| Mission snapshot | Verify / Playwright | PostgreSQL 16 | PostgreSQL 17.6 | CodeQL |
+|---|---|---|---|---|
+| SECURITY code/test `726941e` | 445 passed · 35.5 s | SUCCESS | SUCCESS | SUCCESS |
+| TESTS code/test `54be4b9` | 440 passed · 36.0 s | SUCCESS | SUCCESS | SUCCESS |
+| QUALITY code/test `e94bd8e` | 436 passed · 35.6 s | SUCCESS | SUCCESS | SUCCESS |
+
+- SECURITY evidence: QIMA CI [#45932892701](https://github.com/meridane/QimaTrade-MVP/actions/runs/45932892701), CodeQL [#45932892666](https://github.com/meridane/QimaTrade-MVP/actions/runs/45932892666).
+- TESTS evidence: QIMA CI [#45941406708](https://github.com/meridane/QimaTrade-MVP/actions/runs/45941406708), CodeQL [#45941406675](https://github.com/meridane/QimaTrade-MVP/actions/runs/45941406675).
+- QUALITY evidence: QIMA CI [#45905000099](https://github.com/meridane/QimaTrade-MVP/actions/runs/45905000099), CodeQL [#45905000152](https://github.com/meridane/QimaTrade-MVP/actions/runs/45905000152).
+
+These suites have different test contents and counts; the Playwright durations are CI diagnostics only, not a controlled performance trend or application latency measurement.
+
+### Static query-count inventory — PR #26 HEAD `61002cb`
+
+- `app/offers/actions.ts:getOfferContext`: Auth user lookup, profile lookup, membership lookup, and demand lookup are sequential. Product plus attribute-row reads are issued together with `Promise.all`; definition, option, and unit reads are issued together with a second `Promise.all`. This is a bounded query graph, not an observed N+1. The source implies up to nine HTTP/database operations across sequential phases (including Auth), but no duration is inferred.
+- `app/offers/actions.ts:createOffer`: Auth, profile, membership, demand, action-definition RPC, and CREATE_OFFER execution RPC form sequential phases. This is a candidate for end-to-end latency measurement, not a confirmed bottleneck.
+- The metadata assembly loops operate on already-fetched arrays/maps; no database call occurs inside those loops in the inspected function.
+- No batching, parallelization, or contract change was applied. Any optimization must first measure per-phase latency and preserve the current tenant/auth ordering.
+
+### Current measurement limits
+
+- No approved active staging environment was available for route p50/p95/p99, SQL plans, CPU/memory profiling, or end-user page timing.
+- The Supabase QIMA project’s last recorded state is INACTIVE; no reactivation or remote database query was attempted.
+- The new SECURITY offer-context error-boundary and QUALITY country-selector accessibility changes have pending fresh CI at their latest HEADs. Their results are not included in the completed samples above.
+- No application optimization is justified by these CI measurements; no optimization was made.
