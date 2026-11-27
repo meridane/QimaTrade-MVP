@@ -106,3 +106,15 @@ No Supabase Production data/schema, migration, secret, grant, RLS policy or pers
 - Added synthetic regressions for `null`, empty object, whitespace ID and non-string snake_case ID, plus a positive snake_case compatibility case in `tests/e2e/action-runtime-publish-product-request.spec.ts`.
 - This is a contract-hardening change based on checked-in RPC return shapes. It does not establish that malformed responses occur in Production.
 - Validation: pending new QIMA CI and CodeQL on the updated TESTS branch. No live Supabase calls or Production changes were made.
+
+
+
+## Conflicting publish-result aliases — 2026-11-27
+
+- Follow-up review found that the runtime accepted the first non-empty string when both `demandId` and legacy `demand_id` were present, even if they disagreed. It also ignored a present non-string camelCase alias when a snake_case alias was valid.
+- The runtime now rejects present non-string/blank aliases and rejects two non-empty aliases whose values disagree (case-insensitive comparison). A single valid camelCase or legacy snake_case value remains supported.
+- Added synthetic regressions for numeric camelCase, numeric snake_case, and conflicting identifiers. Existing null/empty/blank cases remain covered.
+- This tightens interpretation of a successful RPC payload; it does not establish that conflicting results occur in Production.
+- Commits: runtime `847d569a250ee858bf98272829c412b983109de5`; Playwright `2697e9c50c2116f0c966850401feba6c75a3f82f`.
+- Validation: pending QIMA CI and CodeQL for the updated TESTS branch HEAD.
+- No database, migration, Production data, secret, grant, or RLS policy was changed.
