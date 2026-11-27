@@ -357,3 +357,11 @@ No Supabase Production data/schema, migration, secret, grant, RLS policy or pers
 - CodeQL [#2111](https://github.com/meridane/QimaTrade-MVP/actions/runs/46058080379) completed **SUCCESS**. Vercel Preview was **PENDING** at the latest status read.
 - Expected failure-injection jobs have negative conclusions by design and their independent assertions succeeded; the cleanup-skipped harness is intentionally skipped and separately asserted.
 - No runtime implementation, SQL, migration, Supabase Production data/schema, secret, grant, RLS policy, Production deployment, merge, force-push or branch-protection change.
+
+## Verify and CodeQL closeout — 2026-11-28 04:35 KST
+
+- QIMA CI [#2187](https://github.com/meridane/QimaTrade-MVP/actions/runs/46058080443) Verify job `140705352035` completed **SUCCESS**. Dependency audit, TypeScript, Next.js production build, Chromium, the complete Playwright browser step and the isolated QIMA security-contract fixture all completed successfully. The new publish-RPC HTTP 429 no-retry regression is included in that successful browser step.
+- CodeQL [#2111](https://github.com/meridane/QimaTrade-MVP/actions/runs/46058080379) completed **SUCCESS**.
+- PostgreSQL 16 integration and PostgreSQL 17.6 compatibility remain **IN PROGRESS** at this checkpoint; both have passed the initial 25 setup/characterization steps with no unexpected failed step.
+- The two prepared-transaction failure-injection jobs have expected negative conclusions and their separate assertion jobs succeeded; the skipped cleanup harness is intentionally skipped and separately asserted.
+- The QIMA CI workflow is not yet closed. No PostgreSQL success is claimed until both database jobs complete.
