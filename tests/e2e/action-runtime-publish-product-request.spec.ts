@@ -25,6 +25,7 @@ async function executePublishProductRequestRuntime(
   transportFailureTarget: RedirectTarget | null = null,
   truncatedResponseTarget: RedirectTarget | null = null,
   malformedJsonResponseTarget: RedirectTarget | null = null,
+  definitionRpcStatus = 200,
 ) {
   const requestId = "60000000-0000-4000-8000-000000000001";
   const userId = "40000000-0000-4000-8000-000000000001";
@@ -105,6 +106,17 @@ async function executePublishProductRequestRuntime(
           "Content-Type": "application/json",
         });
         response.end(JSON.stringify({ message: "PUBLISH_PRODUCT_REQUEST definition redirect fixture" }));
+        return;
+      }
+
+      if (path === "/rest/v1/rpc/get_action_definition_v1" && definitionRpcStatus !== 200) {
+        response.writeHead(definitionRpcStatus, { "Content-Type": "application/json" });
+        response.end(JSON.stringify({
+          message: "SYNTHETIC_DEFINITION_RATE_LIMIT_DETAIL",
+          code: "PGRST429",
+          details: "internal definition diagnostic",
+          hint: "private rate-limit hint",
+        }));
         return;
       }
 
@@ -480,6 +492,19 @@ test("PUBLISH_PRODUCT_REQUEST runtime normalizes malformed action-definition JSO
 
   expect(outcome.result).toBeNull();
   expect(outcome.errorMessage).toBe("ACTION_DEFINITION_LOOKUP_FAILED");
+  expect(outcome.requests.map((request) => ({ path: request.path, method: request.method }))).toEqual([
+    { path: "/rest/v1/rpc/get_action_definition_v1", method: "POST" },
+  ]);
+  expect(outcome.redirectTargetHits).toBe(0);
+});
+
+
+test("PUBLISH_PRODUCT_REQUEST runtime normalizes action-definition HTTP 429 without retrying or publishing", async () => {
+  const outcome = await executePublishProductRequestRuntime(null, "definition", 200, undefined, null, null, null, 429);
+
+  expect(outcome.result).toBeNull();
+  expect(outcome.errorMessage).toBe("ACTION_DEFINITION_LOOKUP_FAILED");
+  expect(outcome.errorMessage).not.toContain("SYNTHETIC_DEFINITION_RATE_LIMIT_DETAIL");
   expect(outcome.requests.map((request) => ({ path: request.path, method: request.method }))).toEqual([
     { path: "/rest/v1/rpc/get_action_definition_v1", method: "POST" },
   ]);
