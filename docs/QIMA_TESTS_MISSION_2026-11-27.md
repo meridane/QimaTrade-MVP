@@ -200,3 +200,14 @@ No Supabase Production data/schema, migration, secret, grant, RLS policy or pers
 - The new TESTS HEAD `578c61efc037ba79fe06097d32f123a65b94c529` expands the existing publish-runtime no-retry regression across HTTP 500, 502, 503 and 504. This matrix is not covered by the preceding successful run.
 - Current HEAD checks: QIMA CI [#45968462903](https://github.com/meridane/QimaTrade-MVP/actions/runs/45968462903) **PENDING**, CodeQL [#45968462959](https://github.com/meridane/QimaTrade-MVP/actions/runs/45968462959) **IN PROGRESS**, Vercel blocked by the provider build-rate quota.
 - No Supabase Production data/schema, migration, secret, grant, RLS policy, Production deployment, PR merge, force-push or branch-protection change was performed.
+
+---
+
+## TESTS upstream 5xx matrix CI closeout — 2026-11-27 18:54 KST
+
+- TESTS HEAD 8dcd02f52d66b3e979375d2fd8572088ad4970b5 completed QIMA CI [#45968550954](https://github.com/meridane/QimaTrade-MVP/actions/runs/45968550954) with overall **SUCCESS**.
+- Verify job 140405930823 completed **SUCCESS** with **440 Playwright tests passed (38.4 s)**; TypeScript, dependency audit, Next.js production build, Chromium and isolated QIMA security fixture succeeded.
+- PostgreSQL 16 job completed **SUCCESS** (48/48 steps); PostgreSQL 17.6 completed **SUCCESS** (33/33 steps). The failure-injection jobs had their expected negative conclusions, with independent assertion jobs successful; the skipped harness was skipped by design and its assertion passed.
+- CodeQL [#45968550995](https://github.com/meridane/QimaTrade-MVP/actions/runs/45968550995) completed **SUCCESS**.
+- This closes the current TESTS code/test snapshot, including the HTTP 500/502/503/504 no-retry/no-redirect matrix. No local test run is claimed.
+- No Supabase Production data/schema, migration, secret, grant, RLS policy, Production deployment, PR merge, force-push or branch-protection change was performed.
