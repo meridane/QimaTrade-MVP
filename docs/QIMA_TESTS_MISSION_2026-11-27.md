@@ -153,3 +153,15 @@ No Supabase Production data/schema, migration, secret, grant, RLS policy or pers
 - Added malformed-success regressions for arbitrary text and a non-hex UUID character. Existing legacy snake_case and equivalent mixed-case alias success tests remain in the same suite.
 - This change is based on the SQL return type in the checked-in migration, not on a synthetic security claim. No production schema, data, migration or grant was changed.
 - Validation status for the new runtime check and two new cases: **PENDING** until the new branch QIMA CI completes. Previous successful CI runs predate this change and are not counted as validation.
+
+
+## UUID publish-result contract CI closeout — 2026-11-27
+
+- TESTS code/test HEAD `54be4b92df3423f957e2b5c685e1e384982a7b7e` completed QIMA CI [#45941406708](https://github.com/meridane/QimaTrade-MVP/actions/runs/45941406708) with overall **SUCCESS**.
+- Verify job `140318518781` completed **SUCCESS** and reported **440 Playwright tests passed (36.0 s)**. The log explicitly shows both the malformed successful RPC payload regression and the positive camelCase/snake_case alias-equivalence test (using different UUID hex casing) as passed.
+- TypeScript, dependency audit, Next.js production build, Chromium/browser tests, and the isolated QIMA security-contract fixture all passed.
+- PostgreSQL 16 job `140318518931` and PostgreSQL 17.6 job `140318518750` both completed **SUCCESS**. Their CREATE_OFFER integration, replay, concurrency, ACL, RLS and cleanup steps passed.
+- The setup/cleanup failure-injection jobs report their intentional simulated failures; their independent blocking assertions succeeded. The skipped harness job was skipped as designed and its assertion passed. No unexpected failing job remains.
+- CodeQL [#45941406675](https://github.com/meridane/QimaTrade-MVP/actions/runs/45941406675) completed **SUCCESS**.
+- These results validate code/test HEAD `54be4b92`. The subsequent documentation closeout commit requires its own current workflow status; do not transfer the result to a later HEAD.
+- No local test run is claimed. No Supabase Production data/schema, migration, secret, grant, RLS policy, Production deployment, PR merge, force-push or branch-protection change was performed.
