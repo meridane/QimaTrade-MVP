@@ -100,6 +100,7 @@ function CountrySelect({
               <Search size={15} className="text-slate-400" />
               <input
                 autoFocus
+                aria-label="Search countries"
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Search country..."
