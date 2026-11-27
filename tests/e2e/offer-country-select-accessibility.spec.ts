@@ -43,6 +43,9 @@ test("offer country selector supports Escape and keyboard selection with focus r
 
   const choices = page.getByRole("group", { name: "Target market options" });
   const southKorea = choices.getByRole("button", { name: "South Korea", exact: true });
+  const internationalMarket = choices.getByRole("button", { name: "International Market", exact: true });
+  await page.keyboard.press("Tab");
+  await expect(internationalMarket).toBeFocused();
   await page.keyboard.press("Tab");
   await expect(southKorea).toBeFocused();
   await page.keyboard.press("Enter");
