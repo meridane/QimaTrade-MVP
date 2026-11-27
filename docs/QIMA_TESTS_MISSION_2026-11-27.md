@@ -386,3 +386,13 @@ No Supabase Production data/schema, migration, secret, grant, RLS policy or pers
 - PostgreSQL 16 integration and PostgreSQL 17.6 compatibility remain **IN PROGRESS** at this checkpoint, both in the full runner-write-privilege characterization step (25/47 and 25/32 steps). The QIMA CI workflow is not yet closed.
 - The two prepared-transaction failure-injection jobs have expected negative conclusions; their independent assertions succeeded. The cleanup-skipped harness is intentionally skipped and separately asserted.
 - No application runtime, SQL, migration, Supabase Production data/schema, secret, grant, RLS policy, deployment, merge, force-push or branch-protection change.
+
+
+## CI closure and Retry-After regression follow-up — 2026-11-28 06:16 KST
+
+- QIMA CI [#2190](https://github.com/meridane/QimaTrade-MVP/actions/runs/46065868815) completed **SUCCESS**. Verify job 140730903510 completed **SUCCESS** with **452 Playwright passed (37.1 s)**; dependency audit, TypeScript, Next.js production build, Chromium, browser tests, and the isolated security-contract fixture succeeded.
+- PostgreSQL 16 integration job 140730903603 and PostgreSQL 17.6 compatibility job 140730903602 both completed **SUCCESS**. The CREATE_OFFER integration, concurrency, replay/default-equivalence, runner-privilege, RLS, ACL and disposable cleanup checks passed on their isolated PostgreSQL services.
+- CodeQL [#2114](https://github.com/meridane/QimaTrade-MVP/actions/runs/46065868843) completed **SUCCESS**. Vercel Preview for the tested code commit was **SUCCESS**.
+- The prepared-transaction failure-injection jobs intentionally have negative job conclusions; their independent cleanup/failure-propagation assertions passed. The skipped-result harness is intentionally skipped and separately asserted.
+- Follow-up commit 3b3e3bc2 (https://github.com/meridane/QimaTrade-MVP/commit/3b3e3bc2682838697d0d5c0ed32c724506d465e4) adds a synthetic Retry-After: 0 response header to both HTTP 429 definition and publish responses. The existing assertions require one definition request, at most one publish request, and no redirect, so the run will verify that the advisory header does not trigger an automatic replay. The new commit's GitHub Actions run was not yet visible at the first post-push read; its test result is **pending**, not inferred. Vercel was **PENDING** at that read.
+- No runtime retry behavior, SQL, migration, Supabase Production data/schema, secret, grant, RLS policy, deployment, merge, force-push, or branch-protection change.
