@@ -251,3 +251,9 @@ Verify the new `aria-live` assertion in the browser test, then complete PostgreS
 - CodeQL [46179720732](https://github.com/meridane/QimaTrade-MVP/actions/runs/46179720732) completed **SUCCESS**. PostgreSQL 16 job `141086313417` and PostgreSQL 17.6 job `141086313626` remain **IN PROGRESS**; overall QIMA CI is not yet closed.
 - The combined Vercel status for code commit `41ccc5f1` currently reports **FAILURE**. The PR discussion contains a Vercel quota error (`api-deployments-free-per-day`, more than 100 deployments); this is an external Preview quota issue, not a GitHub Verify or CodeQL failure. No quota bypass or Production deployment was attempted.
 - This is a Chromium live-region semantics regression only, not a complete WCAG or screen-reader certification. No application runtime or Supabase Production resource changed.
+
+
+## Preview quota status — 2026-11-29
+
+- The combined Vercel status on current documentation head `c0c6e6f8` is **FAILURE** with target `build-rate-limit`; PR #30's Vercel bot reports the free-plan limit `api-deployments-free-per-day` (more than 100 deployments). A separate Vercel bot update reports a **Ready** Preview deployment for an earlier QUALITY branch snapshot. The Ready comment is not treated as proof that the latest documentation head deployed, and neither status is a Production deployment.
+- GitHub Verify and CodeQL results remain independent of this external Preview quota. No quota bypass or Production deployment was attempted.
