@@ -188,3 +188,11 @@ Wait for the final-head Verify and CodeQL workflows to complete; inspect the exa
 - Runs attached to superseded intermediate snapshots af687da2 and eb118022 are not evidence for the corrected final code head. The final corrected head [b3acf40a](https://github.com/meridane/QimaTrade-MVP/commit/b3acf40abf36976a91ef758aadf540f26b641491) has QIMA CI [#2255](https://github.com/meridane/QimaTrade-MVP/actions/runs/46126899372) **PENDING** and CodeQL [#2179](https://github.com/meridane/QimaTrade-MVP/actions/runs/46126899402) **IN PROGRESS** at this checkpoint. No Verify or PostgreSQL result is claimed for the new ownership case.
 - The owner-boundary scenario is synthetic and tests the migration in an isolated disposable PostgreSQL fixture. It does not establish a live Production ownership bypass or vulnerability. No Production data/schema, migration, secret, grant, RLS policy, persistent configuration, Production deployment, merge, force-push or protection-rule change was made.
 - This is a documentation-only checkpoint ([skip ci]); the corrected code head remains b3acf40a.
+
+
+## Request-owner regression — CodeQL update — 2026-11-28
+
+- CodeQL [#2179](https://github.com/meridane/QimaTrade-MVP/actions/runs/46126899402) for corrected code head b3acf40a completed **SUCCESS**.
+- QIMA CI [#2255](https://github.com/meridane/QimaTrade-MVP/actions/runs/46126899372) remains **PENDING with no jobs published**. The older QIMA CI [#2253](https://github.com/meridane/QimaTrade-MVP/actions/runs/46126870527) for superseded intermediate fixture head af687da2 is still running its isolated fixture step; its result must not be attributed to the corrected head. No Verify or PostgreSQL result is claimed for b3acf40a.
+- Vercel status for code head b3acf40a and documentation head is the external build-rate-limit failure; no Preview retry or quota bypass was attempted.
+- Documentation-only checkpoint; no code or tested head changed.
