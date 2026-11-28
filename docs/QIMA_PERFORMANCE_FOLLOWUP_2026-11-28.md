@@ -58,3 +58,10 @@ Validate the new AST guard in Verify, then obtain an authorized staging project 
 - CodeQL [#46106210349](https://github.com/meridane/QimaTrade-MVP/actions/runs/46106210349) **SUCCESS**.
 - PostgreSQL 16 and 17.6 jobs remain IN PROGRESS at full runner write-privilege characterization. Overall QIMA CI is not yet closed.
 - No latency claim is made from this AST test or Playwright duration. The staging/benchmark gate remains unchanged.
+
+ 
+## External preview and staging availability
+
+- Vercel Preview for code head 6cfbe7ff reports SUCCESS.
+- Read-only Supabase metadata confirms QIMA project yyulzlnrfcbaxovzjbnh is INACTIVE, region ap-southeast-1, PostgreSQL 17.11.0.003. No SQL query was attempted against the inactive project.
+- No authorized non-Production staging project is currently available for real query plans, latency percentiles, buffers, lock waits, CPU or memory profiling.
