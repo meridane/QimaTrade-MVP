@@ -38,3 +38,13 @@ Validate the new AST guard in Verify, then obtain an authorized staging project 
 - Playwright completed **436 tests**. The new AST query-plan guard is explicitly PASS (22 ms).
 - PostgreSQL 16 and 17.6 jobs remain IN PROGRESS, so the overall QIMA CI is not yet closed.
 - CodeQL [run 46098455416](https://github.com/meridane/QimaTrade-MVP/actions/runs/46098455416) is SUCCESS.
+
+ 
+## Parallel-wave query-plan guard — 2026-11-28
+
+- Strengthened tests/e2e/offer-context-query-budget.spec.ts to assert the first Promise.all contains the product_masters and product_master_attributes reads, and the second contains the attribute_definitions, attribute_options and attribute_units reads.
+- The three .in() metadata lookups must remain inside the second parallel wave; the test still rejects Supabase reads inside per-attribute .map() callbacks.
+- Commit: https://github.com/meridane/QimaTrade-MVP/commit/6cfbe7ff7b6a97a0ba9956937f71cbdf7c071f1f.
+- Previous code head 46a2d4fa is fully validated by QIMA CI #46098455377: 436 Playwright passed, including the original AST guard; Verify succeeded; PostgreSQL 16 48/48 and PostgreSQL 17.6 33/33 succeeded. CodeQL #46098455416 succeeded.
+- No QIMA CI or CodeQL run was visible for new head 6cfbe7ff at this checkpoint. The repository workflow file currently triggers on push to main, pull requests targeting main, schedule and workflow_dispatch; the mission PR targets the temporary validation base. An authorized workflow dispatch or equivalent CI trigger is required before claiming this new AST assertion passed.
+- This remains a static query-shape guard, not a latency benchmark. No optimization or Production query was performed. A non-Production staging environment is still required for p50/p95/p99, EXPLAIN/BUFFERS, CPU and memory profiling.
