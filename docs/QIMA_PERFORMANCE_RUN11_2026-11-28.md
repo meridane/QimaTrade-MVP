@@ -105,3 +105,15 @@ The three previously pending QIMA CI runs have now completed. Their workflow job
 This closeout supersedes the earlier run-11 status above that recorded the three PostgreSQL pairs as IN PROGRESS. It does not claim that the new run-12 changes are validated.
 
 The Playwright durations remain whole-suite CI timings, not application p50/p95/p99 or a controlled performance benchmark. The QIMA Supabase project remains INACTIVE; no database was resumed or queried.
+
+
+## Run 12 snapshot — independent branch verification
+
+- SECURITY code commit [566c2f4e](https://github.com/meridane/QimaTrade-MVP/commit/566c2f4eb06c2374fb0db0050ab2e7184a612fd3): QIMA CI #2221 is PENDING with no jobs published; CodeQL #2145 is IN PROGRESS.
+- TESTS code commit [3d3041a3](https://github.com/meridane/QimaTrade-MVP/commit/3d3041a35860464ab887104bd8c295e6638199a4): QIMA CI #2219 is IN PROGRESS; Verify passed dependency audit and is at TypeScript; PostgreSQL 16/17.6 jobs are active; CodeQL #2143 is IN PROGRESS.
+- QUALITY code commit [864c4df6](https://github.com/meridane/QimaTrade-MVP/commit/864c4df66510551e6de217c061a4e5a072927b6a): QIMA CI #2222 is IN PROGRESS; Verify is at dependency installation and PostgreSQL 16/17.6 jobs are active; CodeQL #2146 is IN PROGRESS.
+- No run-12 Playwright result is claimed yet.
+- Branch comparisons against PR HEAD 61002cb21aaa738a7f018794ab84bff41a2c6eb2 report a common merge-base and zero behind for all four mission branches. Ahead counts after run-12 changes: SECURITY 98, TESTS 70, PERFORMANCE 56, QUALITY 71.
+- No application source, SQL, migration or business contract was changed by PERFORMANCE. The six-to-nine request budget remains source-derived only; no application latency benchmark was performed.
+
+This update records CI state only. It does not imply a controlled performance result or a Production measurement.
