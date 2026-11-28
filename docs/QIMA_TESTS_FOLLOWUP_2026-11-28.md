@@ -107,3 +107,13 @@ Inspect the new test in the Verify log, then wait for PostgreSQL 16/17.6 and Cod
 - The combined Vercel status for later documentation head `e5ef6457` is **FAILURE** with provider target `build-rate-limit`; the tested code head's Preview was SUCCESS in the preceding code validation. The quota failure does not change the GitHub Verify/CodeQL result.
 - QA340 still characterizes an ambiguous legacy draft POST: a committed insert followed by a lost response and a second independent POST can create a second draft in the synthetic fixture. Whether retries should reuse an idempotency key or create independent drafts remains a product-contract decision. No behavior was changed and no Production duplicate is inferred.
 - No Production data/schema, migration, secret, grant, RLS policy, persistent configuration, Production deployment, merge, force-push or protection-rule change was made. This is a documentation-only `[skip ci]` closeout; tested code head is unchanged.
+
+
+## Publish action-definition authorization-status coverage — review note — 2026-11-28
+
+- Source reviewed at code head [337eff3b](https://github.com/meridane/QimaTrade-MVP/commit/337eff3b9d5c4dafc6a4bcc4f12d8a22aaa10806), file `tests/e2e/action-runtime-publish-product-request.spec.ts`.
+- In addition to the publish-RPC HTTP 401/403 cases already recorded above, the same suite contains distinct HTTP 401 (unauthenticated) and 403 (forbidden) action-definition lookup cases.
+- Both definition-lookup cases normalize to `ACTION_DEFINITION_LOOKUP_FAILED`, assert that raw `Invalid JWT` / `permission denied` and synthetic diagnostics are absent, and assert that only `get_action_definition_v1` is called: the publication RPC is never reached after a failed definition lookup.
+- QIMA CI [#2247](https://github.com/meridane/QimaTrade-MVP/actions/runs/46117420584) completed **SUCCESS** with **468 Playwright tests passed**; therefore these definition-lookup cases were included in the successful Verify run. PostgreSQL 16 (48/48 steps), PostgreSQL 17.6 (33/33 steps), TypeScript, dependency audit, Next.js build, isolated security fixture and CodeQL [#2171](https://github.com/meridane/QimaTrade-MVP/actions/runs/46117420576) also completed **SUCCESS**.
+- This is synthetic response-boundary coverage. It does not establish a live Auth/PostgREST permission failure or Production exposure. No runtime behavior, Production data/schema, migration, secret, grant, RLS policy, deployment, merge, force-push or protection rule was changed.
+- Documentation-only `[skip ci]` note; tested code head remains `337eff3b`.
