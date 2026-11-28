@@ -29,6 +29,9 @@ printf '%s\n' "$function_body" | grep -Fq "m.tenant_id = pr.tenant_id" || {
 printf '%s\n' "$function_body" | grep -Fq "m.user_id = p_user_id" || {
   echo "FAIL: publish RPC membership check is not scoped to the authenticated user"; exit 1;
 }
+printf '%s\n' "$function_body" | grep -Fq "and pr.user_id = p_user_id" || {
+  echo "FAIL: publish RPC does not require the request owner to match p_user_id"; exit 1;
+}
 printf '%s\n' "$function_body" | grep -Fq "for key share" || {
   echo "FAIL: publish RPC does not hold the membership row against concurrent removal"; exit 1;
 }
