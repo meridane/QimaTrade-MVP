@@ -35,7 +35,9 @@ test("an authenticated supplier can view draft confirmation without Product Mast
 
   await expect(page).toHaveURL((url) => url.pathname === "/offers/new" && url.searchParams.get("created") === OFFER_ID);
   await expect(page.getByRole("heading", { name: "Create a new offer" })).toBeVisible();
-  await expect(page.getByRole("status")).toContainText("Draft submission received");
+  const confirmationStatus = page.getByRole("status");
+  await expect(confirmationStatus).toContainText("Draft submission received");
+  await expect(confirmationStatus).toHaveAttribute("aria-live", "polite");
   await expect(page.getByText(`Offer reference: ${OFFER_ID}`, { exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "Create another offer" })).toBeVisible();
 
