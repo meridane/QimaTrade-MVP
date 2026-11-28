@@ -370,7 +370,7 @@ test("authenticated publish route deduplicates one tenant and rejects multiple t
 });
 
 
-for (const status of [500, 502, 503, 504] as const) {
+for (const status of [429, 500, 502, 503, 504] as const) {
   test(`product-request publish route rejects Auth HTTP ${status} before reading memberships`, async ({ page, request }) => {
     await authenticateSecurityTestPage(page, request);
     await page.goto("/");
