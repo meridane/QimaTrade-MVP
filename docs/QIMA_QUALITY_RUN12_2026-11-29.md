@@ -44,3 +44,12 @@
 - A fresh QIMA CI and CodeQL run for corrected code `c5503106` had not yet been returned at this checkpoint. No Playwright or PostgreSQL pass is claimed for the correction.
 - PostgreSQL 16 job `141097359364` and PostgreSQL 17.6 job `141097359810` from #2274 were still **IN PROGRESS** at the last read; their results are not inferred from the failed Verify job.
 - The injected prepared-transaction failure jobs and skipped harness retain their expected outcomes; their independent assertion jobs succeeded.
+
+## Corrected locator post-push status — 2026-11-29
+
+- Corrected test commit [`c5503106`](https://github.com/meridane/QimaTrade-MVP/commit/c550310625b5a407e047b2fd3ccf5e40b271871b) changes only the Playwright locator to the stable form submit selector; the application `aria-busy` change is unchanged.
+- Fresh QIMA CI [#2275](https://github.com/meridane/QimaTrade-MVP/actions/runs/46183507987) was created for exact code head `c5503106` and is **PENDING** with no jobs published at this read.
+- CodeQL [#2198](https://github.com/meridane/QimaTrade-MVP/actions/runs/46183508199) is **IN PROGRESS**.
+- Vercel combined status for the corrected code commit currently reports the external `build-rate-limit` / `api-deployments-free-per-day` quota failure. No quota bypass or Production deployment was attempted.
+- The PostgreSQL 16 job `141097359364` and PostgreSQL 17.6 job `141097359810` from superseded CI #2274 remain **IN PROGRESS** at runner write-privilege characterization; no result is inferred.
+- No test pass is claimed for the corrected locator until Verify #2275 completes.
