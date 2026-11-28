@@ -93,3 +93,11 @@ Verify the new `aria-live` assertion in the browser test, then complete PostgreS
 - Added a browser regression that selects Target market and Supplier geography, then constructs native `FormData` and asserts the hidden named controls still serialize `market=South Korea` and `geography=Morocco`. This protects the form payload while the visible labels target the trigger buttons.
 - The new test has not yet been validated by CI. It does not submit data to the API or alter the application runtime.
 - No Production data/schema, migration, secret, grant, RLS policy, persistent configuration, Production deployment, merge, force-push, or protection-rule change was made.
+
+
+## Country selector native form-data verification closeout — 2026-11-28
+
+- Corrected code head [827ff6d7](https://github.com/meridane/QimaTrade-MVP/commit/827ff6d7e7634e01f83a7153b5d349a03c7ff97e) is validated by QIMA CI [#2249](https://github.com/meridane/QimaTrade-MVP/actions/runs/46117478022), Verify job `140894419503`: **442 Playwright tests passed (36.3s)**. The new native `FormData` regression passed in **427 ms**, confirming the selected market and geography remain serialized through their hidden named controls.
+- Dependency security audit, TypeScript, Next.js production build, browser fixture and audit-result enforcement completed **SUCCESS**. CodeQL [#2173](https://github.com/meridane/QimaTrade-MVP/actions/runs/46117478025) is **SUCCESS**. Vercel Preview is **SUCCESS**.
+- PostgreSQL 16 and 17.6 remain **IN PROGRESS** at the full CREATE_OFFER runner write-privilege characterization step; earlier integration/replay/concurrency steps are successful. The overall QIMA CI run is not yet closed.
+- This browser test does not submit data to the API and is not a full WCAG certification. No Production data/schema, migration, secret, grant, RLS policy, deployment, merge, force-push, or protection-rule change was made.
