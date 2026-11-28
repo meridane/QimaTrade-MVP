@@ -31,6 +31,7 @@ async function executePublishProductRequestRuntime(
     version: 1,
     status: "published",
   }],
+  publishInputOverrides: { userId?: string; tenantId?: string } = {},
 ) {
   const requestId = "60000000-0000-4000-8000-000000000001";
   const userId = "40000000-0000-4000-8000-000000000001";
@@ -250,7 +251,7 @@ async function executePublishProductRequestRuntime(
     let result: ActionResult | null = null;
     let errorMessage: string | null = null;
     try {
-      result = await executeUniversalAction(context, { requestId }, accessToken);
+      result = await executeUniversalAction(context, { requestId, ...publishInputOverrides }, accessToken);
     } catch (error) {
       errorMessage = error instanceof Error ? error.message : String(error);
     }
@@ -348,6 +349,38 @@ test("PUBLISH_PRODUCT_REQUEST runtime preserves successful execution without a r
     p_request_id: outcome.requestId,
     p_user_id: outcome.userId,
   });
+});
+
+test("PUBLISH_PRODUCT_REQUEST runtime takes the actor identity only from the authenticated action context", async () => {
+  const spoofedUserId = "40000000-0000-4000-8000-000000000099";
+  const spoofedTenantId = "20000000-0000-4000-8000-000000000099";
+  const outcome = await executePublishProductRequestRuntime(
+    null,
+    "publish",
+    200,
+    undefined,
+    null,
+    null,
+    null,
+    200,
+    undefined,
+    { userId: spoofedUserId, tenantId: spoofedTenantId },
+  );
+
+  expect(outcome.errorMessage).toBeNull();
+  expect(outcome.requests).toHaveLength(2);
+  expect(outcome.requests[1].body).toEqual({
+    p_request_id: outcome.requestId,
+    p_user_id: outcome.userId,
+  });
+  expect(outcome.requests[1].body).not.toHaveProperty("userId");
+  expect(outcome.requests[1].body).not.toHaveProperty("tenantId");
+  expect(outcome.requests[1].body).not.toHaveProperty("p_tenant_id");
+  expect(outcome.requests[1].body).not.toEqual(expect.objectContaining({
+    p_user_id: spoofedUserId,
+    p_tenant_id: spoofedTenantId,
+  }));
+  expect(outcome.redirectTargetHits).toBe(0);
 });
 
 test("PUBLISH_PRODUCT_REQUEST runtime propagates one exact SQL domain error without retrying", async () => {
