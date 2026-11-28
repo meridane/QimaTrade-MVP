@@ -107,4 +107,66 @@ demand_count="$(compose exec -T qima-security-db psql -At -U postgres -d qima_se
   exit 1
 }
 
+# After the publish transaction commits, revocation must become possible.
+# This distinguishes a real row-lock boundary from an accidentally permanent
+# fixture lock and verifies that later calls observe the revoked membership.
+if ! compose exec -T qima-security-db psql -v ON_ERROR_STOP=1 -U postgres -d qima_security_test \
+  -c "delete from public.dt_memberships where tenant_id = '$tenant_id' and user_id = '$user_id'" \
+  >"$delete_log" 2>&1; then
+  echo "FAIL: membership DELETE remained blocked after the publish transaction committed." >&2
+  cat "$delete_log" >&2
+  exit 1
+fi
+
+membership_count="$(compose exec -T qima-security-db psql -At -U postgres -d qima_security_test \
+  -c "select count(*) from public.dt_memberships where tenant_id = '$tenant_id' and user_id = '$user_id';" \
+  | tr -d '[:space:]')"
+[ "$membership_count" = "0" ] || {
+  echo "FAIL: membership revocation did not persist after the publish transaction committed." >&2
+  exit 1
+}
+
+# A subsequent publish call after revocation must be denied before any write.
+if ! compose exec -T qima-security-db psql -v ON_ERROR_STOP=1 -U postgres -d qima_security_test \
+  -c "select set_config('request.jwt.claim.sub', '$user_id', false)" \
+  -c "set role authenticated" \
+  -c "do \$\$ begin
+    begin
+      perform public.dt_publish_product_request('$request_id', '$user_id');
+    exception when others then
+      if sqlerrm = 'PRODUCT_REQUEST_NOT_FOUND' then
+        raise notice 'PASS: publish retry is rejected after membership revocation.';
+        return;
+      end if;
+      raise;
+    end;
+    raise exception 'FAIL: publish unexpectedly succeeded after membership revocation.';
+  end \$\$;" >"$delete_log" 2>&1; then
+  echo "FAIL: post-revocation publish did not return the expected membership denial." >&2
+  cat "$delete_log" >&2
+  exit 1
+fi
+
+if ! grep -Fq "PASS: publish retry is rejected after membership revocation." "$delete_log"; then
+  echo "FAIL: post-revocation publish did not report the expected denial assertion." >&2
+  cat "$delete_log" >&2
+  exit 1
+fi
+
+demand_count="$(compose exec -T qima-security-db psql -At -U postgres -d qima_security_test \
+  -c "select count(*) from public.demands;" | tr -d '[:space:]')"
+[ "$demand_count" = "1" ] || {
+  echo "FAIL: post-revocation publish changed the persisted demand count." >&2
+  exit 1
+}
+
+published_request_count="$(compose exec -T qima-security-db psql -At -U postgres -d qima_security_test \
+  -c "select count(*) from public.product_requests where id = '$request_id' and status = 'published' and demand_id is not null;" \
+  | tr -d '[:space:]')"
+[ "$published_request_count" = "1" ] || {
+  echo "FAIL: post-revocation retry changed the already-published request." >&2
+  exit 1
+}
+
 echo "PASS: concurrent membership DELETE is blocked until the publish transaction releases FOR KEY SHARE."
+echo "PASS: membership revocation succeeds after commit and subsequent publish is denied without another demand write."
