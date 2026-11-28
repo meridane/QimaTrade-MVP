@@ -21,6 +21,12 @@ function isFromCall(node: ts.Node): node is ts.CallExpression {
     && node.expression.name.text === "from";
 }
 
+function isRpcCall(node: ts.Node): node is ts.CallExpression {
+  return ts.isCallExpression(node)
+    && ts.isPropertyAccessExpression(node.expression)
+    && node.expression.name.text === "rpc";
+}
+
 function isMapCall(node: ts.Node): node is ts.CallExpression {
   return ts.isCallExpression(node)
     && ts.isPropertyAccessExpression(node.expression)
@@ -101,9 +107,15 @@ test("getOfferContext keeps Supabase reads grouped outside per-attribute map cal
       (argument): argument is ts.ArrowFunction | ts.FunctionExpression =>
         ts.isArrowFunction(argument) || ts.isFunctionExpression(argument),
     ));
-  const nestedReads = mapCallbacks.flatMap((callback) => findNodes(callback, isFromCall));
+  const nestedSupabaseCalls = mapCallbacks.flatMap((callback) => [
+    ...findNodes(callback, isFromCall),
+    ...findNodes(callback, isRpcCall),
+  ]);
 
-  expect(nestedReads, "Supabase reads must not be issued once per attribute").toHaveLength(0);
+  expect(
+    nestedSupabaseCalls,
+    "Supabase table reads and RPC calls must not be issued once per attribute",
+  ).toHaveLength(0);
   const parallelWaves = findNodes(getOfferContext, isPromiseAllCall);
   expect(parallelWaves).toHaveLength(2);
   expect(findNodes(parallelWaves[0], isFromCall).map((call) =>
@@ -155,7 +167,10 @@ test("getCurrentProfile keeps authentication and tenant lookups bounded", () => 
       (argument): argument is ts.ArrowFunction | ts.FunctionExpression =>
         ts.isArrowFunction(argument) || ts.isFunctionExpression(argument),
     ));
-  expect(mapCallbacks.flatMap((callback) => findNodes(callback, isFromCall))).toHaveLength(0);
+  expect(mapCallbacks.flatMap((callback) => [
+    ...findNodes(callback, isFromCall),
+    ...findNodes(callback, isRpcCall),
+  ])).toHaveLength(0);
 });
 
 
@@ -206,8 +221,21 @@ test("createOffer keeps demand lookup and action dispatch bounded independently 
       (argument): argument is ts.ArrowFunction | ts.FunctionExpression =>
         ts.isArrowFunction(argument) || ts.isFunctionExpression(argument),
     ));
+  const mappedSupabaseCalls = mapCallbacks.flatMap((callback) => [
+    ...findNodes(callback, isFromCall),
+    ...findNodes(callback, isRpcCall),
+  ]);
   expect(
-    mapCallbacks.flatMap((callback) => findNodes(callback, isFromCall)),
-    "attribute mapping must not issue a Supabase read per attribute",
+    mappedSupabaseCalls,
+    "attribute mapping must not issue Supabase table reads or RPC calls per attribute",
   ).toHaveLength(0);
+
+  const mappedActionDispatches = mapCallbacks.flatMap((callback) =>
+    findNodes(callback, (node): node is ts.CallExpression =>
+      ts.isCallExpression(node)
+      && ts.isIdentifier(node.expression)
+      && node.expression.text === "executeUniversalAction",
+    ),
+  );
+  expect(mappedActionDispatches, "action dispatch must stay outside per-attribute map callbacks").toHaveLength(0);
 });
