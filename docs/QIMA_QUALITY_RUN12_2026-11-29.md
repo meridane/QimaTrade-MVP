@@ -23,3 +23,14 @@
 - This is a test/accessibility-only application change; no Supabase Production data/schema, migration, secret, grant, RLS policy, or persistent configuration was changed.
 - No Production deployment, PR merge, force-push, or branch-protection change was made.
 - The new browser assertion is not a complete WCAG or assistive-technology certification.
+
+## CodeQL closeout and Verify progress — 2026-11-29
+
+- CodeQL [#2197](https://github.com/meridane/QimaTrade-MVP/actions/runs/46183248880) completed **SUCCESS** for code commit `36526fb7`.
+- Vercel combined status for the tested code snapshot `36526fb7` is **SUCCESS**.
+- QIMA CI [#2274](https://github.com/meridane/QimaTrade-MVP/actions/runs/46183248875) remains **IN PROGRESS**.
+- Verify job `141097359574`: dependency audit, TypeScript, Next.js production build, and Chromium installation completed successfully; the browser-test step is **IN PROGRESS**. No Playwright count or individual result is claimed yet.
+- PostgreSQL 16 job `141097359364` and PostgreSQL 17.6 job `141097359810` remain **IN PROGRESS** at full CREATE_OFFER runner write-privilege characterization. No PostgreSQL completion is claimed.
+- Prepared-transaction failure-injection jobs show their expected injected FAILURE outcomes; independent assertion jobs are **SUCCESS**. The skipped harness remains **SKIPPED** with its assertion **SUCCESS**.
+- The latest documentation-head Vercel status is the external `build-rate-limit` failure; the code snapshot Preview is SUCCESS. No quota bypass or Production deployment was attempted.
+- The new `aria-busy` regression remains unvalidated by a completed Playwright job until Verify finishes.
