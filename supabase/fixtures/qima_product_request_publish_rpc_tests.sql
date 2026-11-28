@@ -106,7 +106,7 @@ insert into public.dt_memberships (tenant_id, user_id, role) values
 select set_config('request.jwt.claim.sub', 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', false);
 set role authenticated;
 
-do $
+do $q$
 declare
   v_denied boolean := false;
 begin
@@ -127,11 +127,11 @@ begin
     raise exception 'tenant member published a request owned by a different user';
   end if;
 end;
-$;
+$q$;
 
 reset role;
 
-do $
+do $q$
 begin
   if (select count(*) from public.demands) <> 0 then
     raise exception 'non-owner tenant member unexpectedly created a demand';
@@ -140,7 +140,7 @@ begin
     raise exception 'non-owner tenant member unexpectedly changed request status';
   end if;
 end;
-$;
+$q$;
 
 delete from public.dt_memberships
 where tenant_id = '11111111-1111-4111-8111-111111111111'
