@@ -80,14 +80,17 @@ if ! grep -Fq "canceling statement due to lock timeout" "$delete_log"; then
   exit 1
 fi
 
-if ! wait "$holder_pid"; then
+if wait "$holder_pid"; then
+  holder_status=0
+else
   holder_status=$?
-  holder_pid=""
+fi
+holder_pid=""
+if [ "$holder_status" -ne 0 ]; then
   echo "FAIL: publish lock-holder transaction failed (status $holder_status)." >&2
   cat "$holder_log" >&2
   exit 1
 fi
-holder_pid=""
 
 membership_count="$(compose exec -T qima-security-db psql -At -U postgres -d qima_security_test \
   -c "select count(*) from public.dt_memberships where tenant_id = '$tenant_id' and user_id = '$user_id';" \
