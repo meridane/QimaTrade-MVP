@@ -72,3 +72,16 @@ Wait for the final-head Verify and CodeQL workflows to complete; inspect the exa
 - Vercel Preview for code head 9bae97ec reports SUCCESS.
 - Read-only Supabase project metadata confirms QIMA project yyulzlnrfcbaxovzjbnh remains INACTIVE in ap-southeast-1, PostgreSQL 17.11.0.003. No SQL query was attempted against the inactive project.
 - The branch-only tenant-membership migration and its disposable fixture are not applied to Production. Live effective ACLs and current deployed function definition remain unverified.
+
+
+## Final PostgreSQL and CI closeout — 2026-11-28 14:10 KST
+
+- Final code head: `9bae97ec70be9e6313c73718dd5ebab8aed6ea5a`.
+- QIMA CI [#2229](https://github.com/meridane/QimaTrade-MVP/actions/runs/46106187513) is **SUCCESS**. Verify job `140859359087` completed **SUCCESS** with **464 Playwright tests passed**; TypeScript, dependency audit, Next.js production build, Chromium and the isolated QIMA security fixture all passed.
+- The complete Auth HTTP matrix (401, 403, 429, 500, 502, 503, 504) passed. The HTTP 403 case returned `UNAUTHENTICATED` before membership reads, action-definition RPC or publish RPC.
+- PostgreSQL 16 job `140859358991` completed **SUCCESS** (all 48 job steps); PostgreSQL 17.6 job `140859359013` completed **SUCCESS** (all 33 job steps). Both include the runner privilege characterization, actor-scoped RLS checks, SECURITY DEFINER wrapper checks and explicit RPC EXECUTE ACL checks. No unexpected failed step remains.
+- CodeQL [#2153](https://github.com/meridane/QimaTrade-MVP/actions/runs/46106187493) is **SUCCESS**. Vercel Preview for code head `9bae97ec` was **SUCCESS**.
+- The prepared-transaction setup/cleanup failure harness jobs and the intentionally skipped harness retain their expected outcomes; the separate assertions that these outcomes remain blocking all completed **SUCCESS**. The overall QIMA CI run is **SUCCESS**.
+- The later documentation-only branch HEAD `263b7fe5` currently has combined Vercel status **FAILURE** with provider target `build-rate-limit`. This is an external preview quota failure, not a GitHub Verify, PostgreSQL or CodeQL failure. The code head above remains the tested snapshot.
+- The source-level authorization gap and branch-only tenant-membership mitigation described above remain repository-source findings. Disposable PostgreSQL tests do not establish the live Production catalog or exploitability. QIMA remains inactive; no Production query or migration was performed.
+- No Production data/schema, migration, secret, grant, RLS policy, persistent configuration, Production deployment, merge, force-push or protection-rule change was made in this closeout. Documentation only; `[skip ci]` is used because the tested code head is unchanged.
