@@ -1,0 +1,187 @@
+# QIMA PERFORMANCE — follow-up 2026-11-28
+
+## Scope and branch
+- Branch: `work/qima-performance-baseline-20261127-0441`
+- Tested code head: `46a2d4faa7243e1299c45412cf0eee7ee489b47c`
+- Validation PR: [#31](https://github.com/meridane/QimaTrade-MVP/pull/31), OPEN / DRAFT, targets `ci/qima-mission-validation-base-20261127`.
+- Source base: PR #26 HEAD `61002cb21aaa738a7f018794ab84bff41a2c6eb2`.
+
+## New source-level guard
+- File: `tests/e2e/offer-context-query-budget.spec.ts`.
+- Initial test commit: `d77e2beea801ade3a8fe0be247491e737d1b899c`.
+- Type-safety correction: `46a2d4faa7243e1299c45412cf0eee7ee489b47c`.
+- TypeScript AST inspection asserts that `getOfferContext` contains exactly six grouped Supabase `.from()` query builders for demands, product masters, product-master attributes, attribute definitions, options and units.
+- It asserts that no `.from()` query is nested inside per-attribute `.map()` callbacks, and that the two `Promise.all` waves and three `.in()` metadata lookups remain explicit.
+
+This is a static regression guard for query-plan shape. It is not a latency benchmark and does not measure real PostgREST payload size, query plans, buffers, lock waits, CPU or memory.
+
+## Validation
+- QIMA CI [run 46098455377](https://github.com/meridane/QimaTrade-MVP/actions/runs/46098455377): IN PROGRESS; Verify and PostgreSQL 16/17.6 jobs active.
+- CodeQL [run 46098455416](https://github.com/meridane/QimaTrade-MVP/actions/runs/46098455416): IN PROGRESS.
+- Vercel Preview: pending at the latest status read.
+
+## Benchmark gate
+The QIMA Supabase project remains inactive and no authorized staging environment is available. Do not run `EXPLAIN ANALYZE`, live traces or data queries against Production. Do not optimize based on CI duration or this static AST guard alone.
+
+## Next step
+Validate the new AST guard in Verify, then obtain an authorized staging project and deterministic non-production fixtures before any real latency or query-plan profiling.
+
+
+## CodeQL and Verify progress update
+- CodeQL [run 46098455416](https://github.com/meridane/QimaTrade-MVP/actions/runs/46098455416) for code head `46a2d4fa` completed **SUCCESS**.
+- QIMA CI [run 46098455377](https://github.com/meridane/QimaTrade-MVP/actions/runs/46098455377) remains IN PROGRESS. npm audit, TypeScript and production build passed; Chromium installation completed; Playwright and both PostgreSQL jobs were still active at the latest read. The AST guard has no final browser result yet.
+- This remains a static N+1 guard, not a live benchmark.
+
+
+## Browser verification closeout
+- Verify job `140835169048` in QIMA CI [run 46098455377](https://github.com/meridane/QimaTrade-MVP/actions/runs/46098455377) completed SUCCESS: dependency audit, TypeScript, production build, Playwright and the isolated security fixture passed.
+- Playwright completed **436 tests**. The new AST query-plan guard is explicitly PASS (22 ms).
+- PostgreSQL 16 and 17.6 jobs remain IN PROGRESS, so the overall QIMA CI is not yet closed.
+- CodeQL [run 46098455416](https://github.com/meridane/QimaTrade-MVP/actions/runs/46098455416) is SUCCESS.
+
+ 
+## Parallel-wave query-plan guard — 2026-11-28
+
+- Strengthened tests/e2e/offer-context-query-budget.spec.ts to assert the first Promise.all contains the product_masters and product_master_attributes reads, and the second contains the attribute_definitions, attribute_options and attribute_units reads.
+- The three .in() metadata lookups must remain inside the second parallel wave; the test still rejects Supabase reads inside per-attribute .map() callbacks.
+- Commit: https://github.com/meridane/QimaTrade-MVP/commit/6cfbe7ff7b6a97a0ba9956937f71cbdf7c071f1f.
+- Previous code head 46a2d4fa is fully validated by QIMA CI #46098455377: 436 Playwright passed, including the original AST guard; Verify succeeded; PostgreSQL 16 48/48 and PostgreSQL 17.6 33/33 succeeded. CodeQL #46098455416 succeeded.
+- No QIMA CI or CodeQL run was visible for new head 6cfbe7ff at this checkpoint. The repository workflow file currently triggers on push to main, pull requests targeting main, schedule and workflow_dispatch; the mission PR targets the temporary validation base. An authorized workflow dispatch or equivalent CI trigger is required before claiming this new AST assertion passed.
+- This remains a static query-shape guard, not a latency benchmark. No optimization or Production query was performed. A non-Production staging environment is still required for p50/p95/p99, EXPLAIN/BUFFERS, CPU and memory profiling.
+
+ 
+## Parallel-wave AST guard — Verify closeout
+
+- New code head 6cfbe7ff: QIMA CI [#46106210330](https://github.com/meridane/QimaTrade-MVP/actions/runs/46106210330), Verify job 140859428821 **SUCCESS**, **436 Playwright passed**.
+- The strengthened query-plan AST guard explicitly passed (31 ms), confirming the first Promise.all holds the product/product-attribute reads and the second holds the three grouped metadata reads.
+- TypeScript, dependency audit, production build and isolated QIMA security fixture all passed.
+- CodeQL [#46106210349](https://github.com/meridane/QimaTrade-MVP/actions/runs/46106210349) **SUCCESS**.
+- PostgreSQL 16 and 17.6 jobs remain IN PROGRESS at full runner write-privilege characterization. Overall QIMA CI is not yet closed.
+- No latency claim is made from this AST test or Playwright duration. The staging/benchmark gate remains unchanged.
+
+ 
+## External preview and staging availability
+
+- Vercel Preview for code head 6cfbe7ff reports SUCCESS.
+- Read-only Supabase metadata confirms QIMA project yyulzlnrfcbaxovzjbnh is INACTIVE, region ap-southeast-1, PostgreSQL 17.11.0.003. No SQL query was attempted against the inactive project.
+- No authorized non-Production staging project is currently available for real query plans, latency percentiles, buffers, lock waits, CPU or memory profiling.
+
+
+## Final PostgreSQL and CI closeout — 2026-11-28 14:10 KST
+
+- Final tested code head: `6cfbe7ff7b6a97a0ba9956937f71cbdf7c071f1f`.
+- QIMA CI [#2231](https://github.com/meridane/QimaTrade-MVP/actions/runs/46106210330) is **SUCCESS**. Verify job `140859428821` completed **SUCCESS** with **436 Playwright tests passed**. The strengthened AST query-wave guard explicitly passed in 31 ms; dependency audit, TypeScript, Next.js production build, Chromium and the isolated QIMA security fixture also passed.
+- PostgreSQL 16 job `140859428597` completed **SUCCESS** (48 job steps); PostgreSQL 17.6 job `140859428928` completed **SUCCESS** (33 job steps).
+- CodeQL [#2155](https://github.com/meridane/QimaTrade-MVP/actions/runs/46106210349) is **SUCCESS**. Vercel Preview for code head `6cfbe7ff` was **SUCCESS**.
+- The prepared-transaction failure-injection outcomes and skipped harness are expected and their separate assertion jobs succeeded.
+- The later documentation-only branch HEAD `0e0a6ddf` currently has combined Vercel status **FAILURE** with provider target `build-rate-limit`. This is an external preview quota failure, not a CI or CodeQL failure. No application optimization was performed.
+- The AST guard proves only the inspected static query shape: six table reads, no Supabase reads inside per-attribute map callbacks, and two explicit Promise.all waves with grouped metadata .in() calls. It is not a latency benchmark and does not establish p50/p95/p99, buffers, lock waits, CPU or memory.
+- QIMA Supabase remains inactive and no authorized non-Production staging environment is available. No SQL profiling or live query was run.
+- No Production data/schema, migration, secret, grant, RLS policy, persistent configuration, Production deployment, merge, force-push or protection-rule change was made in this closeout. Documentation only; `[skip ci]` is used because the tested code head is unchanged.
+
+## Narrow query-projection regression — 2026-11-28
+
+- Extended `tests/e2e/offer-context-query-budget.spec.ts` in commit [03be500a](https://github.com/meridane/QimaTrade-MVP/commit/03be500aa84f12c508dc47f0624b926181080309).
+- The AST guard now asserts the exact six explicit `.select(...)` projections used inside `getOfferContext` and rejects wildcard/dynamic projections. This complements the existing six-table inventory, two parallel waves, three metadata `.in()` lookups, and no-per-attribute-read assertion.
+- QIMA CI [#2238](https://github.com/meridane/QimaTrade-MVP/actions/runs/46113004405), Verify job `140880491411`, completed **SUCCESS** with **436 Playwright tests passed (37.8s)**. The query-budget AST test passed in 28 ms; dependency audit, TypeScript, Next.js production build and isolated security fixture also passed.
+- CodeQL [#2162](https://github.com/meridane/QimaTrade-MVP/actions/runs/46113004493) completed **SUCCESS**. Vercel Preview for the code snapshot reports the external `build-rate-limit` quota failure.
+- PostgreSQL 16 and PostgreSQL 17.6 jobs in #2238 remain **IN PROGRESS** at the full CREATE_OFFER runner write-privilege characterization step; the overall QIMA CI run is not yet closed.
+- This is a source-level projection regression guard, not a database benchmark. It does not provide latency percentiles, EXPLAIN plans, buffers, lock, CPU, or memory measurements. No optimization or Production query was performed.
+
+
+## Shared profile and membership query-budget guard — 2026-11-28
+
+- The prior projection-guard snapshot is now fully validated by QIMA CI [#2242](https://github.com/meridane/QimaTrade-MVP/actions/runs/46113212524): Verify **436 Playwright passed (37.0s)**, PostgreSQL 16 and PostgreSQL 17.6 **SUCCESS**, and CodeQL [#2166](https://github.com/meridane/QimaTrade-MVP/actions/runs/46113212532) **SUCCESS**.
+- Added a second AST regression for `getCurrentProfile`: exactly two bounded reads (`profiles.actor_id` and `dt_memberships.tenant_id`), one `auth.getUser()` call, and no Supabase reads inside map callbacks. This complements the existing `getOfferContext` query/projection guard.
+- The new check is a source-level budget guard only. It does not provide p50/p95/p99, SQL plans, buffer, lock, CPU, or memory measurements; no optimization was made.
+- The new guard has not yet been validated by GitHub Actions. No Production query, schema/data change, migration, secret, grant, RLS policy, deployment, merge, force-push, or protection-rule change was made.
+
+
+## Shared identity query-budget verification closeout — 2026-11-28
+
+- Corrected code head [86b1988c](https://github.com/meridane/QimaTrade-MVP/commit/86b1988c7ff57d0bd5c6fce1e46577c89c1d5a2a) is validated by QIMA CI [#2248](https://github.com/meridane/QimaTrade-MVP/actions/runs/46117451473), Verify job `140894333908`: **437 Playwright tests passed (36.3s)**. The new `getCurrentProfile` AST guard passed in **8 ms**; the existing `getOfferContext` guard passed in 26 ms.
+- Dependency security audit, TypeScript and Next.js production build completed **SUCCESS**. CodeQL [#2172](https://github.com/meridane/QimaTrade-MVP/actions/runs/46117451489) is **SUCCESS**. Vercel Preview is **SUCCESS**.
+- PostgreSQL 16 and 17.6 remain **IN PROGRESS** at the full CREATE_OFFER runner write-privilege characterization step; earlier integration/replay/concurrency steps are successful. The overall QIMA CI run is not yet closed.
+- Both AST checks are static regression guards, not latency or throughput benchmarks. No optimization or Production query was performed; staging and p50/p95/p99/SQL-plan measurements remain unavailable.
+
+
+## Shared identity query-budget guard — final CI closeout — 2026-11-28
+
+- Tested code head: [86b1988c](https://github.com/meridane/QimaTrade-MVP/commit/86b1988c7ff57d0bd5c6fce1e46577c89c1d5a2a); documentation head before this closeout: `4e482022`.
+- QIMA CI [#2248](https://github.com/meridane/QimaTrade-MVP/actions/runs/46117451473) completed **SUCCESS**. Verify job `140894333908` completed **SUCCESS** with **437 Playwright tests passed (36.3s)**. The new `getCurrentProfile` AST guard passed in **8 ms**; the existing `getOfferContext` query/projection guard passed in **26 ms**.
+- Dependency audit, TypeScript, Next.js production build, Chromium and the isolated QIMA security fixture all passed.
+- PostgreSQL 16 job `140894334175` completed **SUCCESS** (48/48 steps); PostgreSQL 17.6 job `140894334172` completed **SUCCESS** (33/33 steps). CodeQL [#2172](https://github.com/meridane/QimaTrade-MVP/actions/runs/46117451489) completed **SUCCESS**.
+- The prepared-transaction failure-injection jobs and intentionally skipped harness retain their expected outcomes; their independent assertion jobs completed SUCCESS. No unexpected failing job remains.
+- The combined Vercel status for documentation head `4e482022` is **FAILURE** with provider target `build-rate-limit`. This is an external Preview quota failure, not a Verify, PostgreSQL or CodeQL failure.
+- Both AST guards are static structural checks only. They do not establish latency, throughput, p50/p95/p99, query plans, buffers, lock waits, CPU or memory. QIMA Supabase remains inactive and no authorized non-Production staging environment is available; no live query or optimization was attempted.
+- No Production data/schema, migration, secret, grant, RLS policy, persistent configuration, Production deployment, merge, force-push or protection-rule change was made. This is a documentation-only `[skip ci]` closeout; tested code head is unchanged.
+
+
+## createOffer static query-shape baseline — validation in progress — 2026-11-29
+
+- Added test-only commit [`8f7f9b87`](https://github.com/meridane/QimaTrade-MVP/commit/8f7f9b8712397f718bb814fbbb8c658b3653d82b) in `tests/e2e/offer-context-query-budget.spec.ts`.
+- The new AST regression requires `createOffer` to contain exactly one direct `demands` lookup with the explicit projection `id, target_market, scope`, exactly one `executeUniversalAction` dispatch, and no Supabase `.from()` call inside per-attribute `.map()` callbacks. This guards against an N+1 query shape without changing runtime code.
+- QIMA CI [#2270](https://github.com/meridane/QimaTrade-MVP/actions/runs/46165043082) is **IN PROGRESS**. Dependency audit, TypeScript and Next.js production build have completed **SUCCESS**; Chromium/Playwright and PostgreSQL 16/17.6 are still running. No result is yet claimed for the new AST regression.
+- CodeQL [#2194](https://github.com/meridane/QimaTrade-MVP/actions/runs/46165043036) completed **SUCCESS**. Vercel Preview Comments check completed **SUCCESS**.
+- This is a static query-shape budget, not a database latency benchmark. No p50/p95/p99, EXPLAIN ANALYZE, buffer, lock, CPU or memory measurement is inferred. An authorized staging environment is still required before optimization.
+- No application runtime, business contract, Supabase Production data/schema, migration, secret, grant, RLS policy, Production deployment, merge, force-push or branch-protection rule was changed.
+
+
+## createOffer query-shape Verify checkpoint — 2026-11-29
+
+- QIMA CI [#2270](https://github.com/meridane/QimaTrade-MVP/actions/runs/46165043082), code head [`8f7f9b87`](https://github.com/meridane/QimaTrade-MVP/commit/8f7f9b8712397f718bb814fbbb8c658b3653d82b): dependency audit, TypeScript, Next.js production build, Chromium installation and the browser-test step have completed **SUCCESS**. The Verify job is still completing its isolated QIMA security fixture and post-job steps; the overall CI run remains **IN PROGRESS**.
+- PostgreSQL 16 job `141040581216` and PostgreSQL 17.6 job `141040581020` remain **IN PROGRESS** at full CREATE_OFFER runner write-privilege characterization. No PostgreSQL completion is claimed yet.
+- CodeQL [#2194](https://github.com/meridane/QimaTrade-MVP/actions/runs/46165043036) completed **SUCCESS**. The browser-test step succeeded, but the run log is not yet available to extract the exact Playwright count or the new test's individual duration; those details remain pending final job-log retrieval.
+- The AST test remains a static query-shape guard, not a latency benchmark. No runtime optimization or Production access was performed.
+
+
+
+## createOffer query-shape — final CI closeout — 2026-11-29
+
+- Tested code head: [`8f7f9b87`](https://github.com/meridane/QimaTrade-MVP/commit/8f7f9b8712397f718bb814fbbb8c658b3653d82b).
+- QIMA CI [#2270](https://github.com/meridane/QimaTrade-MVP/actions/runs/46165043082) completed **SUCCESS**. Verify job `141040581276` completed **SUCCESS** with **438 Playwright tests passed (36.6 s)**. The new `createOffer` AST query-shape regression passed explicitly in **11 ms**.
+- Dependency audit, TypeScript, Next.js production build, Chromium/browser tests and the isolated QIMA security fixture completed **SUCCESS**.
+- PostgreSQL 16 job `141040581216` and PostgreSQL 17.6 job `141040581020` both completed **SUCCESS**. Their CREATE_OFFER integration/concurrency, replay, runner-safety and legacy RLS/ACL checks completed.
+- CodeQL [#2194](https://github.com/meridane/QimaTrade-MVP/actions/runs/46165043036) completed **SUCCESS**. Vercel Preview Comments for the tested code snapshot completed **SUCCESS**.
+- The prepared-transaction failure-injection jobs reported their expected injected **FAILURE** outcomes; the independent assertion jobs completed **SUCCESS**. The intentionally skipped harness remained **SKIPPED** and its assertion completed **SUCCESS**. The overall QIMA CI run completed **SUCCESS** with no unexpected failing job.
+- This is a static query-shape guard only. It does not establish database latency, throughput, p50/p95/p99, EXPLAIN plans, buffers, lock waits, CPU or memory. No runtime optimization or Production query was performed; an authorized non-Production staging environment is still required.
+- No Supabase Production data/schema, migration, secret, grant, RLS policy, Production deployment, merge, force-push or branch-protection change was made. Documentation-only `[skip ci]` closeout; tested code head remains `8f7f9b87`.
+
+
+## Per-attribute RPC N+1 guard — validation pending — 2026-11-29
+
+- Added test-only commit [`7ae99848`](https://github.com/meridane/QimaTrade-MVP/commit/7ae99848eafb378644fe0b0a0338192dc3d35db2) to `tests/e2e/offer-context-query-budget.spec.ts`.
+- Extended the existing AST query-shape guards for `getOfferContext`, `getCurrentProfile`, and `createOffer` to reject both Supabase `.from()` reads and `.rpc()` calls inside per-item `.map()` callbacks. The `createOffer` guard also rejects `executeUniversalAction` dispatch inside those callbacks while preserving the exactly-one dispatch assertion.
+- No application runtime, database query, business contract, migration, or production configuration changed. This is a static structural regression guard, not a latency benchmark.
+- Immediately after the code push, the PR #31 head was `7ae99848`; GitHub Actions workflow-run discovery returned no run yet. The combined commit status exposed only Vercel **PENDING**. Therefore TypeScript, Playwright, PostgreSQL 16/17.6, CodeQL, and Vercel deployment results for this new code head remain **PENDING / NOT YET OBSERVED**; no test pass is claimed.
+- The previous code snapshot `8f7f9b87` remains fully validated by QIMA CI #2270 (438 Playwright, PostgreSQL 16/17.6, TypeScript, audit, build, CodeQL). That result does not validate the new RPC-in-map assertions.
+- No Supabase Production data/schema, migration, secret, grant, RLS policy, Production deployment, merge, force-push, or branch-protection rule was changed.
+
+
+## Per-attribute RPC N+1 guard — workflow progress — 2026-11-29
+
+- QIMA CI run [46179658296](https://github.com/meridane/QimaTrade-MVP/actions/runs/46179658296) for code commit [`7ae99848`](https://github.com/meridane/QimaTrade-MVP/commit/7ae99848eafb378644fe0b0a0338192dc3d35db2) is **IN PROGRESS**. Verify job `141086115198`: dependency audit and TypeScript **SUCCESS**; production build **SUCCESS**; Chromium installation **IN PROGRESS**; Playwright and the isolated security fixture have not run yet. PostgreSQL 16 job `141086114960` and PostgreSQL 17.6 job `141086115241` are **IN PROGRESS**; the PostgreSQL 16 job is at client setup and PostgreSQL 17.6 has begun the base integration step. No result is claimed for the new RPC-in-map assertions.
+- CodeQL [46179658293](https://github.com/meridane/QimaTrade-MVP/actions/runs/46179658293) completed **SUCCESS**. Vercel Preview for the tested code snapshot is **SUCCESS**.
+- The new AST assertions remain unvalidated by Playwright until Verify completes. No application runtime, production query, or Supabase Production resource was touched.
+
+
+## Per-attribute RPC N+1 guard — live Verify checkpoint — 2026-11-29
+
+- QIMA CI [46179658296](https://github.com/meridane/QimaTrade-MVP/actions/runs/46179658296) remains **IN PROGRESS**. Verify job `141086115198`: dependency audit, TypeScript, production build and Chromium installation are **SUCCESS**; browser tests are **IN PROGRESS**; isolated security fixture is pending. The new AST test has not yet been individually confirmed by the Playwright log.
+- PostgreSQL 16 job `141086114960` remains **IN PROGRESS**. PostgreSQL 17.6 job `141086115241` has passed its base CREATE_OFFER integration/concurrency step and remains **IN PROGRESS** for subsequent checks.
+- CodeQL [46179658293](https://github.com/meridane/QimaTrade-MVP/actions/runs/46179658293) is **SUCCESS**; Vercel Preview is **SUCCESS**. No new test pass is claimed before Verify and both PostgreSQL jobs finish.
+
+
+## Per-attribute RPC N+1 guard — Verify closeout, PostgreSQL pending — 2026-11-29
+
+- For code commit [`7ae99848`](https://github.com/meridane/QimaTrade-MVP/commit/7ae99848eafb378644fe0b0a0338192dc3d35db2), QIMA CI [46179658296](https://github.com/meridane/QimaTrade-MVP/actions/runs/46179658296) Verify job `141086115198` completed **SUCCESS** with **438 Playwright tests passed (38.5 s)**. The new AST regression `createOffer keeps demand lookup and action dispatch bounded independently of attribute count` passed explicitly in **16 ms**.
+- Dependency audit, TypeScript, Next.js production build, Chromium installation, browser suite and isolated QIMA security fixture all completed **SUCCESS**. The run log also confirms the isolated fixture cleanup removed its disposable container, network and named volume.
+- PostgreSQL 16 job `141086114960` and PostgreSQL 17.6 job `141086115241` were still **IN PROGRESS** at the latest read; PostgreSQL 17.6's base integration/concurrency step is successful, with later characterization steps pending. Overall QIMA CI is therefore not yet closed.
+- CodeQL [46179658293](https://github.com/meridane/QimaTrade-MVP/actions/runs/46179658293) is **SUCCESS** and Vercel Preview is **SUCCESS**.
+- The new guard validates only static query shape; it is not a latency/throughput benchmark. No Production query or runtime optimization was performed.
+
+
+## Preview quota status — 2026-11-29
+
+- The combined Vercel status on current documentation head `4dcc75b4` is **FAILURE** with target `build-rate-limit`; PR #31's Vercel bot also reports the free-plan limit `api-deployments-free-per-day` (more than 100 deployments). A separate Vercel bot update reports a **Ready** Preview deployment for the performance branch snapshot (`bbsQ2GHHQxHPQWmChEVoDyuNxiPP`). This Preview comment is not treated as proof that the latest documentation head deployed, and neither status is a Production deployment.
+- GitHub Verify and CodeQL results remain independent of this external Preview quota. No quota bypass or Production deployment was attempted.

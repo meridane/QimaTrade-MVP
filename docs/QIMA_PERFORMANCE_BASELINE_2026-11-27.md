@@ -1,0 +1,832 @@
+# QimaTrade — performance mission checkpoint
+
+Date: 2026-11-27 (Asia/Seoul)
+
+## Provenance
+
+- Repository: `meridane/QimaTrade-MVP`
+- PR: [#26](https://github.com/meridane/QimaTrade-MVP/pull/26)
+- Verified base HEAD: `61002cb21aaa738a7f018794ab84bff41a2c6eb2`
+- Mission branch: `work/qima-performance-baseline-20261127-0441`
+- Branch created directly from the verified PR HEAD
+
+## Reproducible CI timing snapshot
+
+Two consecutive successful runs of the same workflow were inspected using GitHub Actions job start/completion timestamps.
+
+| Job | CI #2035 | CI #2036 | Interpretation |
+|---|---:|---:|---|
+| Typecheck, audit, build and browser tests | 124 s | 116 s | 1m56s–2m04s |
+| CREATE_OFFER PostgreSQL integration | 467 s | 446 s | 7m26s–7m47s |
+| PostgreSQL 17.6 compatibility | 433 s | 440 s | 7m13s–7m20s |
+| CodeQL JavaScript/TypeScript | 64 s | 66 s | 1m04s–1m06s |
+
+Evidence:
+- [QIMA CI #2035](https://github.com/meridane/QimaTrade-MVP/actions/runs/45870613897)
+- [QIMA CI #2036](https://github.com/meridane/QimaTrade-MVP/actions/runs/45874542998)
+- [CodeQL #1961](https://github.com/meridane/QimaTrade-MVP/actions/runs/45870613891)
+- [CodeQL #1962](https://github.com/meridane/QimaTrade-MVP/actions/runs/45874542972)
+
+The PostgreSQL jobs execute in parallel. The Verify job is materially shorter than the database integration jobs. This is a CI pipeline baseline, not an application response-time benchmark. Two runs are useful for orientation but are not enough to establish a statistically stable trend.
+
+## Static request-path inventory
+
+### CREATE_OFFER
+
+In `app/api/actions/create-offer/route.ts`, the source currently performs these dependent steps:
+1. Supabase Auth `getUser(token)`.
+2. Profile lookup by authenticated user ID.
+3. Tenant-membership lookup by authenticated user ID.
+4. `get_action_definition_v1` RPC.
+5. `execute_create_offer_v1` RPC.
+
+The profile and membership reads occur sequentially after authentication even though they use the same authenticated identity. This is a **measurement candidate only**. No change is justified until route latency and database timing show that this segment is material.
+
+### PUBLISH_PRODUCT_REQUEST
+
+In `app/api/product-requests/publish/route.ts`, the source path includes:
+1. Auth `getUser()`.
+2. Tenant-membership query.
+3. `get_action_definition_v1` RPC.
+4. `dt_publish_product_request` RPC.
+
+The subsequent `getSession()` access-token read is not counted as a network round trip here; this source review did not measure its implementation cost.
+
+## Measurement plan before optimization
+
+For a staging environment with explicit authorization and a non-production test tenant:
+- record route-level p50/p95/p99 latency, status distribution, and request count;
+- separate Auth, PostgREST query, definition RPC and execution RPC timings;
+- run warm-up requests, then at least 30 measured samples per route;
+- keep payload, user, tenant, region and concurrency fixed between comparisons;
+- test concurrency at 1, 5 and 10 requests only with disposable/idempotent fixtures;
+- capture query plans only for the exact read queries and only in an approved non-production environment;
+- repeat the run and compare confidence intervals before accepting an optimization.
+
+Do not benchmark by creating uncontrolled offers or publishing production requests. Do not log bearer tokens, cookies, personal data or full request bodies.
+
+## Result and next step
+
+- Confirmed: current CI job durations and source-level request ordering above.
+- Not measured: production/staging API latency, database query latency, allocations, memory, CPU profiles, N+1 behavior, or end-user page timings.
+- No performance optimization was applied; no business contract was changed.
+- Next: obtain a safe staging base URL and disposable test identity, run the controlled benchmark, and profile only a segment shown to be material.
+
+No Supabase Production data/schema, migration, secret, grant, RLS policy or persistent configuration was changed. No Production deployment, PR merge, force-push, or branch-protection change was performed.
+
+## Additional CI measurement — TESTS mission run 45891165262
+
+Measured from GitHub Actions job timestamps (not application request latency):
+
+| Job | Duration |
+|---|---:|
+| TypeScript, audit, build and browser tests | 146 s |
+| PostgreSQL integration tests | 446 s |
+| PostgreSQL 17.6 compatibility | 438 s |
+
+All three jobs completed successfully. The browser suite reported 436 passed. These figures are a CI baseline sample only; they do not establish p50/p95/p99 API latency, database query cost, or an application performance regression. No optimization was made from this sample.
+
+## SECURITY Verify job sample — QIMA CI 45891959349
+
+- TypeScript, dependency audit, production build and 443 browser tests completed in **145 s**.
+- This is a completed Verify-job measurement only. PostgreSQL 16 and 17.6 jobs were still in progress, so no full-workflow duration is recorded.
+- The sample is CI infrastructure timing, not application latency; no product optimization is justified by it.
+
+## Completed SECURITY and TESTS CI samples — 2026-11-27
+
+| Mission run | Verify / browser suite | PostgreSQL 16 | PostgreSQL 17.6 | CodeQL |
+|---|---|---|---|---|
+| SECURITY [45892064684](https://github.com/meridane/QimaTrade-MVP/actions/runs/45892064684) | SUCCESS; 443 passed (39.2 s) | SUCCESS | SUCCESS | [45892064718](https://github.com/meridane/QimaTrade-MVP/actions/runs/45892064718) SUCCESS |
+| TESTS [45892188791](https://github.com/meridane/QimaTrade-MVP/actions/runs/45892188791) | SUCCESS; 436 passed (35.9 s) | SUCCESS | SUCCESS | [45892188778](https://github.com/meridane/QimaTrade-MVP/actions/runs/45892188778) SUCCESS |
+
+These are completed CI validation samples, not route/API latency or database query benchmarks. The Verify times above are Playwright suite durations, not total job durations. No optimization is justified by these figures; staging p50/p95/p99 and query-level profiling remain blocked on an approved non-production environment.
+
+## Live database environment availability — 2026-11-27
+
+- Read-only Supabase project metadata reports QIMA as **INACTIVE (paused)** on PostgreSQL 17.11 in ap-southeast-1.
+- No SQL, table, query-plan, database-log, or performance query was run; the project was not resumed.
+- Without an active approved staging environment and disposable identity, database query timing, API p50/p95/p99, N+1 behavior and CPU/memory profiling remain **not measured**.
+- Do not resume the project or incur compute cost without owner authorization. Continue to treat CI durations as infrastructure-only measurements.
+## Completed multi-mission CI samples — 2026-11-27
+
+| Mission | QIMA CI run | Playwright | PostgreSQL 16 | PostgreSQL 17.6 | CodeQL |
+|---|---:|---:|---|---|---|
+| SECURITY | [45901460978](https://github.com/meridane/QimaTrade-MVP/actions/runs/45901460978) | 443 passed (37.2 s) | SUCCESS | SUCCESS | [45901460932](https://github.com/meridane/QimaTrade-MVP/actions/runs/45901460932) SUCCESS |
+| TESTS | [45901244355](https://github.com/meridane/QimaTrade-MVP/actions/runs/45901244355) | 436 passed (37.3 s) | SUCCESS | SUCCESS | [45901244710](https://github.com/meridane/QimaTrade-MVP/actions/runs/45901244710) SUCCESS |
+| QUALITY | [45901538164](https://github.com/meridane/QimaTrade-MVP/actions/runs/45901538164) | 436 passed (38.1 s) | SUCCESS | SUCCESS | [45901538086](https://github.com/meridane/QimaTrade-MVP/actions/runs/45901538086) SUCCESS |
+
+- These are Playwright suite durations from GitHub Actions logs, not application route latency or database query timings.
+- The three runs are validation samples from different branch snapshots; they are not a controlled benchmark and should not be compared as a performance trend.
+- No optimization is justified by these values. API p50/p95/p99, database query plans, N+1 behavior, allocations, CPU and memory remain unmeasured.
+- The Supabase QIMA project was last reported INACTIVE (paused). No query, resume, or compute-cost action was taken. Continue to require owner authorization or a separate approved staging environment.
+## Full GitHub Actions job timing sample — 2026-11-27
+
+Durations below are calculated from the GitHub Actions job `started_at` and `completed_at` timestamps. They describe CI execution, not application performance.
+
+| Mission run | Verify job | PostgreSQL 16 | PostgreSQL 17.6 | Playwright suite |
+|---|---:|---:|---:|---:|
+| SECURITY [45901460978](https://github.com/meridane/QimaTrade-MVP/actions/runs/45901460978) | 132 s | 447 s | 426 s | 37.2 s |
+| TESTS [45901244355](https://github.com/meridane/QimaTrade-MVP/actions/runs/45901244355) | 129 s | 459 s | 433 s | 37.3 s |
+| QUALITY [45901538164](https://github.com/meridane/QimaTrade-MVP/actions/runs/45901538164) | 139 s | 457 s | 438 s | 38.1 s |
+
+- All three Verify jobs and both PostgreSQL jobs per run completed successfully.
+- The PostgreSQL 16 and 17.6 jobs run concurrently, so their durations should not be summed to estimate wall-clock workflow time.
+- These three runs share the same workflow shape but different branch snapshots and are too few for a stable trend. No application performance regression or optimization is inferred.
+
+
+## Latest completed mission CI timing sample — 2026-11-27
+
+Durations are computed from GitHub Actions job `started_at` and `completed_at` timestamps. They measure CI infrastructure, not application response time.
+
+| Mission run | Verify job | PostgreSQL 16 | PostgreSQL 17.6 | Playwright |
+|---|---:|---:|---:|---:|
+| SECURITY [45904993720](https://github.com/meridane/QimaTrade-MVP/actions/runs/45904993720) | 125 s | 459 s | 440 s | 36.7 s |
+| TESTS [45904998333](https://github.com/meridane/QimaTrade-MVP/actions/runs/45904998333) | 117 s | 461 s | 433 s | 34.9 s |
+| QUALITY [45905000099](https://github.com/meridane/QimaTrade-MVP/actions/runs/45905000099) | 116 s | 455 s | 432 s | 35.6 s |
+
+- All three Verify jobs and both PostgreSQL jobs per run completed successfully. The TESTS run reported 437 Playwright passes including the synthetic upstream-503 no-retry/no-redirect case.
+- PostgreSQL 16 and 17.6 jobs run concurrently; do not sum their durations to estimate wall-clock workflow time.
+- These runs are separate branch snapshots, not a controlled benchmark. No application performance trend, regression or optimization is inferred.
+- Application API p50/p95/p99, SQL query plans, N+1 behavior, CPU and memory remain unmeasured. The Supabase QIMA project remains paused; no resume or query was attempted.
+
+
+## Static query-topology review — 2026-11-27
+
+Reviewed the current PR #26 source for the CREATE_OFFER path and adjacent offer/product metadata reads. This is source inspection, not runtime profiling.
+
+- `app/api/actions/create-offer/route.ts`: after authentication and request validation, the route reads `profiles.actor_id`, then reads `dt_memberships.tenant_id`, then calls the universal action runtime. The two database reads are sequential in the current source. They are a **candidate** for later timing/parallelization review, not a measured bottleneck; authorization and error semantics must be preserved.
+- `app/offers/actions.ts`: the product metadata path reads the demand first, then loads product master and product attributes in `Promise.all`, followed by attribute definitions, active options and units in a second `Promise.all`. Options are grouped in memory; no database call was found inside that loop. No N+1 pattern was established in the reviewed function.
+- `lib/actions/runtime.ts`: action-definition RPC and the business RPC are sequential by contract. No retry loop was found in the reviewed runtime. Do not parallelize or reorder these calls without an explicit contract analysis.
+- No source-level finding alone establishes high latency, excessive allocation, or an N+1 defect. No application code was changed.
+
+Next measurement: on an approved non-production environment, capture per-query and end-to-end timings for authenticated CREATE_OFFER requests, record row counts and query plans, and compare p50/p95/p99 over a repeatable sample before considering changes.
+
+
+## Partial TESTS follow-up run sample — 2026-11-27
+
+- QIMA CI [#45913960558](https://github.com/meridane/QimaTrade-MVP/actions/runs/45913960558) ran on the TESTS follow-up containing the HTTP 503 diagnostic-redaction assertions.
+- Verify job 140228626258 completed **SUCCESS** in **153 s** and reported **437 Playwright passed (39.1 s)**, including the updated 503 no-retry/no-redirect and synthetic details/hint non-disclosure assertions.
+- At this checkpoint PostgreSQL 16 job 140228626138 and PostgreSQL 17.6 job 140228626133 were still running. Their durations and the overall workflow result are intentionally left pending until GitHub reports completion.
+- This is a CI timing observation only; it is not an application latency benchmark or a controlled comparison with earlier runs.
+
+
+## Completed mission CI samples — 2026-11-27
+
+The following are completed GitHub Actions observations, not application latency measurements:
+
+| Mission snapshot | QIMA CI | Playwright Verify | PostgreSQL 16 | PostgreSQL 17.6 | CodeQL |
+|---|---|---:|---|---|---|
+| SECURITY `d8eea385` | [#45914072857](https://github.com/meridane/QimaTrade-MVP/actions/runs/45914072857) SUCCESS | 443 passed, 36.0 s | SUCCESS | SUCCESS | [#45914072774](https://github.com/meridane/QimaTrade-MVP/actions/runs/45914072774) SUCCESS |
+| TESTS `14e1f1f0` | [#45914236475](https://github.com/meridane/QimaTrade-MVP/actions/runs/45914236475) SUCCESS | 437 passed, 33.9 s | SUCCESS | SUCCESS | [#45914236465](https://github.com/meridane/QimaTrade-MVP/actions/runs/45914236465) SUCCESS |
+| QUALITY `51a7c1fe` | [#45914093235](https://github.com/meridane/QimaTrade-MVP/actions/runs/45914093235) SUCCESS | 436 passed, 34.1 s | SUCCESS | SUCCESS | [#45914093193](https://github.com/meridane/QimaTrade-MVP/actions/runs/45914093193) SUCCESS |
+
+- The SECURITY Verify log includes the isolated tenant-membership fixture. The TESTS Verify log includes the HTTP 503 no-retry/no-redirect and diagnostic-redaction assertions. The QUALITY Verify log includes the keyboard focus-order and scoped OAuth alert checks.
+- The SECURITY EXECUTE-ACL fixture assertion added after snapshot `d8eea385` and the TESTS malformed-success-payload regression added after snapshot `14e1f1f0` are newer changes. Their new CI runs are pending/in progress at this checkpoint and are intentionally excluded from the completed samples above.
+- These measurements characterize CI execution only. They do not establish QimaTrade request latency, database query plans, N+1 behavior, or production capacity.
+
+
+
+## Latest completed branch-validation samples — 2026-11-27
+
+These observations were retrieved from the current mission PR heads before the newest follow-up edits in this run. They are CI validation snapshots, not a controlled performance benchmark.
+
+| Mission snapshot | QIMA CI | Playwright | PostgreSQL 16 | PostgreSQL 17.6 | CodeQL | Vercel |
+|---|---|---:|---|---|---|---|
+| SECURITY `c61f5370` | [#45924017660](https://github.com/meridane/QimaTrade-MVP/actions/runs/45924017660) SUCCESS | 443 passed (35.9 s) | SUCCESS | SUCCESS | [#45924017684](https://github.com/meridane/QimaTrade-MVP/actions/runs/45924017684) SUCCESS | SUCCESS |
+| TESTS `981cb906` | [#45919013224](https://github.com/meridane/QimaTrade-MVP/actions/runs/45919013224) SUCCESS | 439 passed (37.7 s) | SUCCESS | SUCCESS | [#45919013147](https://github.com/meridane/QimaTrade-MVP/actions/runs/45919013147) SUCCESS | Provider quota failure |
+| QUALITY `51a7c1fe` | [#45914093235](https://github.com/meridane/QimaTrade-MVP/actions/runs/45914093235) SUCCESS | 436 passed (34.1 s) | SUCCESS | SUCCESS | [#45914093193](https://github.com/meridane/QimaTrade-MVP/actions/runs/45914093193) SUCCESS | Provider quota failure |
+
+- The SECURITY Verify log explicitly reports the isolated publish-RPC ACL and tenant-membership fixture passing. PostgreSQL 16 and 17.6 both completed successfully.
+- The TESTS sample includes the malformed-success payload coverage as it existed on HEAD `981cb906`; it does not include the newer alias-conflict and non-object payload follow-ups added after this snapshot.
+- The QUALITY sample validates the keyboard focus-order and OAuth alert checks already present on HEAD `51a7c1fe`.
+- These are independent branch snapshots and different test counts. They must not be treated as a performance trend or compared as an application benchmark.
+- No application API p50/p95/p99, SQL query plan, N+1 behavior, CPU/memory profile, or end-user page timing was measured. No optimization was made.
+
+
+
+## Current follow-up validation state — 2026-11-27
+
+The latest SECURITY and TESTS commits contain new code/test cases and are not included in the completed timing samples above.
+
+| Mission | Current HEAD | QIMA CI | CodeQL | Vercel |
+|---|---|---|---|---|
+| SECURITY | `726941e2517d36654be8123fef0051bdfa80731c` | [#45932892701](https://github.com/meridane/QimaTrade-MVP/actions/runs/45932892701) PENDING, no jobs published at last read | [#45932892666](https://github.com/meridane/QimaTrade-MVP/actions/runs/45932892666) SUCCESS | Provider build-rate quota failure |
+| TESTS | `2beb027f81c9dc2d7ff8dabf1c2f32e4685c85e4` | [#45932862346](https://github.com/meridane/QimaTrade-MVP/actions/runs/45932862346) PENDING, no jobs published at last read | [#45932861481](https://github.com/meridane/QimaTrade-MVP/actions/runs/45932861481) SUCCESS | Provider build-rate quota failure |
+
+- These pending CI runs are not treated as performance samples and no Playwright or PostgreSQL result is inferred from them.
+- The CodeQL successes do not replace QIMA CI validation.
+- The Vercel failure is the external `api-deployments-free-per-day` quota response, not an application performance measurement.
+- No staging environment was made available; API latency, database plans, allocations, CPU and memory remain unmeasured. No optimization was applied.
+
+## Completed follow-up CI samples — SECURITY and TESTS — 2026-11-27
+
+These are GitHub Actions measurements from the two branch snapshots; they are not application latency benchmarks.
+
+| Mission snapshot | QIMA CI | Playwright | PostgreSQL 16 | PostgreSQL 17.6 | CodeQL |
+|---|---|---:|---|---|---|
+| SECURITY `726941e` | [#45932892701](https://github.com/meridane/QimaTrade-MVP/actions/runs/45932892701) SUCCESS | 445 passed (35.5 s) | SUCCESS | SUCCESS | [#45932892666](https://github.com/meridane/QimaTrade-MVP/actions/runs/45932892666) SUCCESS |
+| TESTS `2beb027` | [#45932862346](https://github.com/meridane/QimaTrade-MVP/actions/runs/45932862346) SUCCESS | 439 passed (37.1 s) | SUCCESS | SUCCESS | [#45932861481](https://github.com/meridane/QimaTrade-MVP/actions/runs/45932861481) SUCCESS |
+
+- The SECURITY sample includes the two UUID input-rejection cases and the isolated publish-RPC security fixture.
+- The TESTS sample includes the malformed/non-object/conflicting-alias publish-result cases, but not the later positive case for matching camelCase/snake_case aliases with case-only UUID differences.
+- The two snapshots have different suite contents and are not a controlled before/after benchmark. Do not infer an application performance trend from their durations.
+- Vercel's combined status for these mission branches was blocked by the provider's daily deployment quota. GitHub Actions validation is independent.
+- No API p50/p95/p99, SQL query plan, N+1 behavior, CPU/memory profile, or end-user page timing was measured. No optimization was made.
+
+## Superseding CI status — latest SECURITY and TESTS branch snapshots — 2026-11-27
+
+- SECURITY code/test HEAD `726941e2517d36654be8123fef0051bdfa80731c` is now fully validated by QIMA CI [#45932892701](https://github.com/meridane/QimaTrade-MVP/actions/runs/45932892701): **445 Playwright tests passed (35.5 s)**, isolated security fixture PASS, PostgreSQL 16 and 17.6 SUCCESS, TypeScript/audit/build SUCCESS. CodeQL [#45932892666](https://github.com/meridane/QimaTrade-MVP/actions/runs/45932892666) SUCCESS.
+- TESTS code/test HEAD `2beb027f81c9dc2d7ff8dabf1c2f32e4685c85e4` is fully validated by QIMA CI [#45932862346](https://github.com/meridane/QimaTrade-MVP/actions/runs/45932862346): **439 Playwright tests passed (37.1 s)**, isolated security fixture PASS, PostgreSQL 16 and 17.6 SUCCESS, TypeScript/audit/build SUCCESS. CodeQL [#45932861481](https://github.com/meridane/QimaTrade-MVP/actions/runs/45932861481) SUCCESS.
+- A subsequent TESTS-only positive regression for equivalent camelCase/snake_case UUID aliases was committed as `4afdf99de8cf665731eb9f168d2359b1659bba2f`; its new QIMA CI [#45938350591](https://github.com/meridane/QimaTrade-MVP/actions/runs/45938350591) is **IN PROGRESS** and CodeQL [#45938350660](https://github.com/meridane/QimaTrade-MVP/actions/runs/45938350660) is **IN PROGRESS**. The earlier 439-test result does not include this new test.
+- Documentation-only closeout commits on SECURITY and PERFORMANCE do not alter the validated SECURITY code/test snapshot. The current PR #27 and #28 Vercel statuses are PENDING; no new Preview success is inferred.
+- These timings are CI test durations, not application route latency. The samples have different suite contents and are not a controlled performance comparison. No application optimization is justified or applied.
+- Staging API p50/p95/p99, query plans, N+1 behavior, CPU/memory profiles and page timings remain unmeasured because no approved active non-production environment is available.
+
+## Latest mission-head validation queue — 2026-11-27
+
+| Mission | Current PR head | QIMA CI | CodeQL | Vercel |
+|---|---|---|---|---|
+| SECURITY | `64997f6b6ea801dfb4881857d1497f63c2f35373` | [#45938444757](https://github.com/meridane/QimaTrade-MVP/actions/runs/45938444757) PENDING | [#45938444751](https://github.com/meridane/QimaTrade-MVP/actions/runs/45938444751) IN PROGRESS | Provider daily build-rate quota failure |
+| TESTS | `54be4b92df3423f957e2b5c685e1e384982a7b7e` | [#45938477648](https://github.com/meridane/QimaTrade-MVP/actions/runs/45938477648) PENDING | [#45938477677](https://github.com/meridane/QimaTrade-MVP/actions/runs/45938477677) IN PROGRESS | Provider daily build-rate quota failure |
+
+- The TESTS HEAD includes the corrected positive alias-equivalence fixture using hexadecimal letters and explicitly asserting that the uppercase UUID differs from the lowercase UUID. The earlier run #45938350591 used the superseded numeric-only fixture and is not evidence for this corrected test.
+- The SECURITY HEAD includes documentation closeout of the UUID validation CI result; the validated code/test snapshot is `726941e` (445 Playwright passed, PostgreSQL 16/17.6 and CodeQL passed). The new documentation HEAD has its own pending QIMA CI and running CodeQL.
+- These workflow states are validation status only, not performance measurements. No API latency, query plans, N+1 behavior, CPU/memory profile or end-user timings were collected.
+
+
+## Latest verified mission CI and offer-query inventory — 2026-11-27
+
+### Comparable boundaries and completed snapshots
+
+| Mission snapshot | Verify / Playwright | PostgreSQL 16 | PostgreSQL 17.6 | CodeQL |
+|---|---|---|---|---|
+| SECURITY code/test `726941e` | 445 passed · 35.5 s | SUCCESS | SUCCESS | SUCCESS |
+| TESTS code/test `54be4b9` | 440 passed · 36.0 s | SUCCESS | SUCCESS | SUCCESS |
+| QUALITY code/test `e94bd8e` | 436 passed · 35.6 s | SUCCESS | SUCCESS | SUCCESS |
+
+- SECURITY evidence: QIMA CI [#45932892701](https://github.com/meridane/QimaTrade-MVP/actions/runs/45932892701), CodeQL [#45932892666](https://github.com/meridane/QimaTrade-MVP/actions/runs/45932892666).
+- TESTS evidence: QIMA CI [#45941406708](https://github.com/meridane/QimaTrade-MVP/actions/runs/45941406708), CodeQL [#45941406675](https://github.com/meridane/QimaTrade-MVP/actions/runs/45941406675).
+- QUALITY evidence: QIMA CI [#45905000099](https://github.com/meridane/QimaTrade-MVP/actions/runs/45905000099), CodeQL [#45905000152](https://github.com/meridane/QimaTrade-MVP/actions/runs/45905000152).
+
+These suites have different test contents and counts; the Playwright durations are CI diagnostics only, not a controlled performance trend or application latency measurement.
+
+### Static query-count inventory — PR #26 HEAD `61002cb`
+
+- `app/offers/actions.ts:getOfferContext`: Auth user lookup, profile lookup, membership lookup, and demand lookup are sequential. Product plus attribute-row reads are issued together with `Promise.all`; definition, option, and unit reads are issued together with a second `Promise.all`. This is a bounded query graph, not an observed N+1. The source implies up to nine HTTP/database operations across sequential phases (including Auth), but no duration is inferred.
+- `app/offers/actions.ts:createOffer`: Auth, profile, membership, demand, action-definition RPC, and CREATE_OFFER execution RPC form sequential phases. This is a candidate for end-to-end latency measurement, not a confirmed bottleneck.
+- The metadata assembly loops operate on already-fetched arrays/maps; no database call occurs inside those loops in the inspected function.
+- No batching, parallelization, or contract change was applied. Any optimization must first measure per-phase latency and preserve the current tenant/auth ordering.
+
+### Current measurement limits
+
+- No approved active staging environment was available for route p50/p95/p99, SQL plans, CPU/memory profiling, or end-user page timing.
+- The Supabase QIMA project’s last recorded state is INACTIVE; no reactivation or remote database query was attempted.
+- The new SECURITY offer-context error-boundary and QUALITY country-selector accessibility changes have pending fresh CI at their latest HEADs. Their results are not included in the completed samples above.
+- No application optimization is justified by these CI measurements; no optimization was made.
+
+
+## Mission validation queue — latest heads — 2026-11-27
+
+| Mission | Latest HEAD | QIMA CI | CodeQL | Vercel |
+|---|---|---|---|---|
+| SECURITY | `a4900ee1` | [#45945561058](https://github.com/meridane/QimaTrade-MVP/actions/runs/45945561058) PENDING (no jobs published at last read) | [#45945561183](https://github.com/meridane/QimaTrade-MVP/actions/runs/45945561183) SUCCESS | Provider build-rate quota failure |
+| TESTS | `7eb540bd` | [#45945714444](https://github.com/meridane/QimaTrade-MVP/actions/runs/45945714444) IN PROGRESS | [#45945714513](https://github.com/meridane/QimaTrade-MVP/actions/runs/45945714513) IN PROGRESS | Provider build-rate quota failure |
+| QUALITY | `6162a67e` | [#45945670309](https://github.com/meridane/QimaTrade-MVP/actions/runs/45945670309) PENDING (no jobs published at last read) | [#45945670307](https://github.com/meridane/QimaTrade-MVP/actions/runs/45945670307) IN PROGRESS | Provider build-rate quota failure |
+| PERFORMANCE | `c547085c` | No run (documentation-only branch) | No run (documentation-only branch) | Provider build-rate quota failure |
+
+- TESTS code/test snapshot `54be4b92` is already fully validated by CI #45941406708 (440 Playwright passed, PostgreSQL 16/17.6 SUCCESS) and CodeQL #45941406675 SUCCESS. The newer documentation HEAD `7eb540bd` has its own pending/in-progress checks.
+- SECURITY’s new offer-context diagnostic-boundary test and QUALITY’s new country-selector browser test are not yet validated. Prior successful snapshots do not cover these new changes.
+- Provider quota failures are external Preview-build constraints, not GitHub Actions test failures.
+
+
+### SECURITY HEAD supersession — 2026-11-27
+
+- The SECURITY branch advanced from `a4900ee1` to `537f3859` after adding a source-contract assertion for the offer-context error-mapper call sites and switching the test's repository path resolution to `process.cwd()`.
+- At the final read, no new workflow run for `537f3859` had appeared in the commit workflow-run listing. The earlier CodeQL SUCCESS on `a4900ee1` is not transferred to this final HEAD.
+- The final SECURITY Playwright/TypeScript/build/PostgreSQL result remains **PENDING / not yet available**. Vercel remains blocked by the provider daily build-rate quota.
+
+
+### Superseding workflow state — 2026-11-27
+
+- SECURITY final HEAD `537f3859`: QIMA CI [#45945862929](https://github.com/meridane/QimaTrade-MVP/actions/runs/45945862929) is **PENDING** with no jobs published at the latest read; CodeQL [#45945862983](https://github.com/meridane/QimaTrade-MVP/actions/runs/45945862983) is **IN PROGRESS**. No final test result is claimed.
+- TESTS documentation HEAD `7eb540bd`: QIMA CI [#45945714444](https://github.com/meridane/QimaTrade-MVP/actions/runs/45945714444) is **IN PROGRESS**; PostgreSQL 16 and 17.6 are at the final runner write-privilege characterization, and Verify is still active. CodeQL [#45945714513](https://github.com/meridane/QimaTrade-MVP/actions/runs/45945714513) is **SUCCESS**.
+- QUALITY HEAD `6162a67e`: QIMA CI [#45945670309](https://github.com/meridane/QimaTrade-MVP/actions/runs/45945670309) is **PENDING** with no jobs published at the latest read; CodeQL [#45945670307](https://github.com/meridane/QimaTrade-MVP/actions/runs/45945670307) is **SUCCESS**.
+- Vercel Preview statuses on all three mission heads are blocked by the provider's daily deployment quota. This is not a GitHub Actions failure.
+
+
+### TESTS Verify closeout — current documentation HEAD — 2026-11-27
+
+- TESTS HEAD `7eb540bd`: Verify job `140329806236` in QIMA CI [#45945714444](https://github.com/meridane/QimaTrade-MVP/actions/runs/45945714444) completed **SUCCESS** with **440 Playwright tests passed (35.7 s)**. The malformed successful publish-result regression is included in the passing suite.
+- PostgreSQL 16 job `140329806149` and PostgreSQL 17.6 job `140329806090` remain **IN PROGRESS** at the final full-runner write-privilege characterization. Therefore the overall QIMA CI run is not yet SUCCESS.
+- CodeQL [#45945714513](https://github.com/meridane/QimaTrade-MVP/actions/runs/45945714513) is **SUCCESS**.
+
+
+## Mission validation refresh — 2026-11-27 15:22 KST
+
+| Mission code/test snapshot | QIMA CI | Verify / Playwright | PostgreSQL 16 | PostgreSQL 17.6 | CodeQL |
+|---|---|---|---|---|---|
+| SECURITY `537f3859` | [#45945862929](https://github.com/meridane/QimaTrade-MVP/actions/runs/45945862929) SUCCESS | 447 passed · 34.9 s | SUCCESS | SUCCESS | [#45945862983](https://github.com/meridane/QimaTrade-MVP/actions/runs/45945862983) SUCCESS |
+| TESTS `7eb540bd` | [#45945714444](https://github.com/meridane/QimaTrade-MVP/actions/runs/45945714444) SUCCESS | 440 passed · 35.7 s | SUCCESS | SUCCESS | [#45945714513](https://github.com/meridane/QimaTrade-MVP/actions/runs/45945714513) SUCCESS |
+| QUALITY previous `6162a67e` | [#45945670309](https://github.com/meridane/QimaTrade-MVP/actions/runs/45945670309) FAILURE | Browser job: 6 failed | SUCCESS | SUCCESS | [#45945670307](https://github.com/meridane/QimaTrade-MVP/actions/runs/45945670307) SUCCESS |
+
+- QUALITY failure diagnosis from the Verify job log: one new accessibility test reached protected `/offers/new` without authenticating; five existing offer-confirmation flows still expected the removed `aria-haspopup=listbox` / `role=listbox` semantics and timed out. TypeScript, dependency audit, production build and the security fixture succeeded; the PostgreSQL jobs also succeeded. This is a test integration regression from the semantic UI change, not a measured performance issue.
+- QUALITY follow-up is now on HEAD `31d88dc8`: shared test authentication helper, authenticated accessibility smoke, and all five country-selection flows updated to the labelled button/group contract. QIMA CI [#45951688863](https://github.com/meridane/QimaTrade-MVP/actions/runs/45951688863) is **PENDING**; CodeQL [#45951688883](https://github.com/meridane/QimaTrade-MVP/actions/runs/45951688883) is **IN PROGRESS**; Vercel Preview is **PENDING**. No result is inferred before those checks finish.
+- The SECURITY and TESTS snapshots above are fully validated; the QUALITY fix is not yet validated. These CI timings are browser-suite diagnostics only, not application latency benchmarks.
+- No p50/p95/p99, SQL plan, CPU/memory profile or user-perceived page timing was collected. No performance optimization was made. An approved active staging environment remains required.
+- No Supabase Production data/schema, migration, secret, grant, RLS policy, Production deployment, PR merge, force-push or branch-protection change was performed.
+
+
+## Exact Verify measurements from completed CI logs — 2026-11-27
+
+| Mission snapshot | Workflow | Verify job | Playwright result | Exact suite duration |
+|---|---:|---:|---:|---:|
+| SECURITY `1e843f08` | [#45951778425](https://github.com/meridane/QimaTrade-MVP/actions/runs/45951778425) | 140349055547 | 447 passed | 36.2 s |
+| TESTS `ff71855f` | [#45951783618](https://github.com/meridane/QimaTrade-MVP/actions/runs/45951783618) | 140349071723 | 440 passed | 36.0 s |
+
+- Durations were read from the terminal Playwright summaries in the actual completed job logs, not inferred from total workflow duration.
+- Both runs also completed PostgreSQL 16 and PostgreSQL 17.6 integration jobs successfully; their CodeQL runs succeeded.
+- These are CI suite timings only. They are not application latency, database query latency, or a statistically controlled performance comparison. No optimization is justified from these samples.
+- QUALITY run [#45951688863](https://github.com/meridane/QimaTrade-MVP/actions/runs/45951688863) failed at TypeScript before build/browser execution because the extracted offer auth helper left two existing synthetic constants undefined in the original spec. The constants were restored on the QUALITY branch; rerun [#45963833330](https://github.com/meridane/QimaTrade-MVP/actions/runs/45963833330) is currently in progress, so no post-fix performance or test result is claimed yet.
+
+
+## QUALITY CI test-integration sample — 2026-11-27
+
+- QIMA CI [#45963833330](https://github.com/meridane/QimaTrade-MVP/actions/runs/45963833330), Verify job 140387673807, completed TypeScript, dependency audit, Next.js build and the isolated SECURITY fixture successfully. Its Playwright suite reported **436 passed / 1 failed (34.8 s)**.
+- The single failure was the new country-selector accessibility test opening `/offers/new` without the Product Master gate context required by the existing offer-creation test fixture. This is a test setup/integration failure, not an application performance result.
+- The test was corrected to authenticate and open `/offers/new?productMasterId=<synthetic gate id>`. The follow-up QIMA CI [#45964193515](https://github.com/meridane/QimaTrade-MVP/actions/runs/45964193515) is **PENDING** at this checkpoint; no post-fix test duration is claimed.
+- PostgreSQL 16 and PostgreSQL 17.6 jobs in #45963833330 were still in progress at the latest read. The run is not treated as complete.
+- This sample is retained only as CI test-suite timing with a known failed case. It is excluded from any successful baseline comparison and does not justify an application optimization.
+
+
+## Latest documentation-head Verify samples — 2026-11-27
+
+| Mission | QIMA CI | Verify job | Playwright | TypeScript / audit / build / security fixture | PostgreSQL 16 / 17.6 | CodeQL |
+|---|---:|---:|---:|---|---|---|
+| SECURITY `1acf78a0` | [#45964026870](https://github.com/meridane/QimaTrade-MVP/actions/runs/45964026870) | 140388311417 | 447 passed · 37.2 s | SUCCESS | IN PROGRESS / IN PROGRESS | SUCCESS |
+| TESTS `2314ce9b` | [#45964032572](https://github.com/meridane/QimaTrade-MVP/actions/runs/45964032572) | 140388328253 | 440 passed · 37.8 s | SUCCESS | IN PROGRESS / IN PROGRESS | SUCCESS |
+
+- Playwright durations and counts were read from each completed Verify job's terminal log. The two database jobs were still at the full CREATE_OFFER runner write-privilege characterization step at this read; neither overall workflow is declared complete.
+- These measurements describe CI suite execution only. They do not measure application response latency, SQL query latency, or production workload performance. No optimization is inferred.
+
+## Completed mission CI timing samples — 2026-11-27 17:44 KST
+
+| Mission snapshot | QIMA CI | Verify / Playwright | PostgreSQL 16 | PostgreSQL 17.6 | CodeQL |
+|---|---:|---:|---|---|---|
+| SECURITY `1acf78a0` | [#45964026870](https://github.com/meridane/QimaTrade-MVP/actions/runs/45964026870) SUCCESS | 447 passed · 37.2 s | SUCCESS | SUCCESS | [#45964027025](https://github.com/meridane/QimaTrade-MVP/actions/runs/45964027025) SUCCESS |
+| TESTS `2314ce9b` | [#45964032572](https://github.com/meridane/QimaTrade-MVP/actions/runs/45964032572) SUCCESS | 440 passed · 37.8 s | SUCCESS | SUCCESS | [#45964032567](https://github.com/meridane/QimaTrade-MVP/actions/runs/45964032567) SUCCESS |
+| QUALITY `0f9eee1e` | [#45964427577](https://github.com/meridane/QimaTrade-MVP/actions/runs/45964427577) SUCCESS | 437 passed · 35.0 s | SUCCESS | SUCCESS | [#45964427540](https://github.com/meridane/QimaTrade-MVP/actions/runs/45964427540) SUCCESS |
+
+- Counts and suite durations were read from completed Verify job logs. PostgreSQL 16 and 17.6 are separate parallel jobs.
+- The QUALITY run confirms the prior auth-helper, Product Master gate-context and unused-import fixes. It predates the current keyboard focus/Escape follow-up.
+- SECURITY and TESTS runs likewise predate the current CREATE_OFFER server-action error-boundary and expanded upstream 5xx matrix changes.
+- These are CI suite timings from different branch snapshots, not a controlled benchmark. They do not establish application latency or a performance trend. No optimization is justified.
+- Current newer mission heads have fresh CI pending: SECURITY [#45968402884](https://github.com/meridane/QimaTrade-MVP/actions/runs/45968402884), TESTS [#45968462903](https://github.com/meridane/QimaTrade-MVP/actions/runs/45968462903), QUALITY [#45968255550](https://github.com/meridane/QimaTrade-MVP/actions/runs/45968255550).
+
+---
+
+## Latest mission CI observations — 2026-11-27 18:54 KST
+
+| Mission snapshot | QIMA CI | Verify / Playwright | PostgreSQL 16 | PostgreSQL 17.6 | CodeQL |
+|---|---:|---:|---|---|---|
+| SECURITY a8d43954 | [#45968546521](https://github.com/meridane/QimaTrade-MVP/actions/runs/45968546521) FAILURE | 448 passed / 1 failed · 35.5 s | SUCCESS | SUCCESS | [#45968546528](https://github.com/meridane/QimaTrade-MVP/actions/runs/45968546528) SUCCESS |
+| TESTS 8dcd02f5 | [#45968550954](https://github.com/meridane/QimaTrade-MVP/actions/runs/45968550954) SUCCESS | 440 passed · 38.4 s | SUCCESS | SUCCESS | [#45968550995](https://github.com/meridane/QimaTrade-MVP/actions/runs/45968550995) SUCCESS |
+| QUALITY 4d01ea77 | [#45968255550](https://github.com/meridane/QimaTrade-MVP/actions/runs/45968255550) FAILURE | 437 passed / 1 failed · 34.2 s | SUCCESS | SUCCESS | [#45968255521](https://github.com/meridane/QimaTrade-MVP/actions/runs/45968255521) SUCCESS |
+
+- SECURITY's single failure is a brittle source-contract import assertion: implementation uses a combined named import, while the test expected a standalone import. The assertion is being corrected without changing runtime code.
+- QUALITY's single failure is a tab-order expectation: the visible International Market button precedes filtered country choices, so the first Tab should focus it before South Korea. The browser test is being corrected to assert the native DOM order without changing the component.
+- Only TESTS has a successful current run. The two failed-suite timings are retained for traceability and excluded from successful baseline comparisons.
+- These are CI test-suite timings, not application or SQL latency measurements. They do not justify optimization; a non-production staging environment is still required for p50/p95/p99 and query plans.
+
+---
+
+## Post-correction validation runs — 2026-11-27 18:54 KST
+
+| Mission | Code/test HEAD | QIMA CI | CodeQL | Latest observed Verify state |
+|---|---|---|---|---|
+| SECURITY | `6491b8b1` | [#45977895044](https://github.com/meridane/QimaTrade-MVP/actions/runs/45977895044) IN PROGRESS | [#45977894940](https://github.com/meridane/QimaTrade-MVP/actions/runs/45977894940) IN PROGRESS | Build active; Playwright pending |
+| QUALITY | `2a42fc4d` | [#45977893896](https://github.com/meridane/QimaTrade-MVP/actions/runs/45977893896) IN PROGRESS | [#45977893826](https://github.com/meridane/QimaTrade-MVP/actions/runs/45977893826) IN PROGRESS | Build active; Playwright pending |
+
+- These reruns were triggered by the focused test-only corrections described in the mission journals. No successful test result is claimed until the corresponding jobs finish.
+- The workflow durations remain CI-suite observations only and are not application performance measurements.
+
+ 
+## Latest mission CI timing samples — 2026-11-27 19:30 KST
+
+| Mission snapshot | QIMA CI | Verify / Playwright | PostgreSQL 16 | PostgreSQL 17.6 | CodeQL | Vercel |
+|---|---|---:|---|---|---|---|
+| SECURITY b2b6c88c | [#45978034038](https://github.com/meridane/QimaTrade-MVP/actions/runs/45978034038) SUCCESS | 449 passed · 35.8 s | SUCCESS | SUCCESS | [#45978034162](https://github.com/meridane/QimaTrade-MVP/actions/runs/45978034162) SUCCESS | build-rate quota failure |
+| TESTS fd5f0859 | [#45977903723](https://github.com/meridane/QimaTrade-MVP/actions/runs/45977903723) SUCCESS | 440 passed · 37.1 s | SUCCESS | SUCCESS | [#45977903707](https://github.com/meridane/QimaTrade-MVP/actions/runs/45977903707) SUCCESS | SUCCESS |
+| QUALITY 2a42fc4d | [#45978037447](https://github.com/meridane/QimaTrade-MVP/actions/runs/45978037447) FAILURE | 437 passed / 1 failed · 37.3 s | SUCCESS | SUCCESS | [#45978037399](https://github.com/meridane/QimaTrade-MVP/actions/runs/45978037399) SUCCESS | build-rate quota failure |
+
+- Counts and durations were read from terminal Verify job logs, not estimated from workflow timestamps. PostgreSQL 16 and 17.6 were independent successful jobs for all three snapshots.
+- The QUALITY failure is isolated to a stale Playwright locator that retained the initial placeholder accessible name after selecting South Korea. The application correctly changes the button's accessible name to the selected value. The test locator has been corrected on the QUALITY branch; its next CI result is pending.
+- The SECURITY and TESTS suite results are successful. The expected-failure and skipped harness jobs are accepted only because their separate blocking assertions succeeded.
+- These are CI suite timings from different snapshots, not controlled benchmarks. They do not measure application response latency, SQL query latency, or production workload performance and do not justify optimization.
+- No staging credentials or approved non-production database access were available in this pass. No Supabase project was reactivated and no remote SQL was executed.
+
+
+## Cross-mission CI sample closeout — 2026-11-27 20:58 KST
+
+The following values were extracted from the completed GitHub Actions Verify job logs, not estimated from PR descriptions:
+
+| Snapshot | QIMA CI | Playwright | PostgreSQL 16 | PostgreSQL 17.6 | CodeQL | Vercel |
+|---|---|---:|---|---|---|---|
+| PR #26 HEAD `61002cb` | [#2036](https://github.com/meridane/QimaTrade-MVP/actions/runs/45874542998) SUCCESS | 435 passed · 35.7 s | SUCCESS | SUCCESS | [#1962](https://github.com/meridane/QimaTrade-MVP/actions/runs/45874542972) SUCCESS | SUCCESS |
+| SECURITY `326c290b` | [#45983037115](https://github.com/meridane/QimaTrade-MVP/actions/runs/45983037115) SUCCESS | 449 passed · 35.8 s | SUCCESS | SUCCESS | [#45983037290](https://github.com/meridane/QimaTrade-MVP/actions/runs/45983037290) SUCCESS | SUCCESS |
+| TESTS `24e807bc` | [#45983044472](https://github.com/meridane/QimaTrade-MVP/actions/runs/45983044472) SUCCESS | 440 passed · 35.5 s | SUCCESS | SUCCESS | [#45983044581](https://github.com/meridane/QimaTrade-MVP/actions/runs/45983044581) SUCCESS | FAILURE: provider build-rate quota |
+| QUALITY `f062e333` | [#45983046694](https://github.com/meridane/QimaTrade-MVP/actions/runs/45983046694) SUCCESS | 438 passed · 38.6 s | SUCCESS | SUCCESS | [#45983046715](https://github.com/meridane/QimaTrade-MVP/actions/runs/45983046715) SUCCESS | FAILURE: provider build-rate quota |
+
+Interpretation and limits:
+
+- These are browser-suite durations inside GitHub-hosted CI. They are not application response-time measurements and must not be used as p50/p95/p99 product latency.
+- The QUALITY suite is 2.8–3.1 seconds longer than the other three samples, but one sample per branch is insufficient to attribute the difference to code or test cost; runner noise and suite composition remain confounders.
+- The PERFORMANCE branch itself remains documentation-only and has no workflow run. No app code was changed and no optimization was attempted.
+- The required staging environment, representative dataset, query plans, request traces and CPU/memory profiles remain unavailable. The live schema of `public.idempotency_keys` is not inferred from disposable PostgreSQL fixtures.
+- No Supabase Production data/schema, migration deployment, secret, grant, RLS policy, persistent configuration or Production deployment was changed.
+
+
+## Static query-shape inventory — 2026-11-27 21:06 KST
+
+Source reviewed: `app/offers/actions.ts` on the isolated SECURITY branch (same offer-context implementation under review), plus `lib/actions/runtime.ts`.
+
+- `getOfferContext` has a maximum of nine Supabase/Auth operations when all optional metadata groups are populated: Auth `getUser`, profile lookup, membership lookup, demand lookup, then product-master and product-attribute reads in parallel, followed by definition, option and unit reads in parallel. This is a six-stage critical path (four sequential stages, then two parallel batches), not nine sequential round trips.
+- Attribute definitions/options/units use batched `.in(..., ids)` queries rather than a per-attribute query loop. No N+1 pattern was found in this path.
+- `createOffer` performs Auth/profile/membership/demand checks before the action-definition RPC and CREATE_OFFER RPC. The two action RPCs are sequential by contract. Session retrieval is kept separate from the DB-query count because the server client may satisfy it from the cookie-backed session.
+- Candidate future measurements: latency of the sequential profile/membership/demand stage, the product/attribute batch, and the metadata batch; row counts for each `.in` query; p50/p95/p99 under a representative staging dataset.
+- No code was parallelized or cached. The serial checks depend on authenticated identity and tenant membership; changing their ordering without measured evidence could weaken authorization assumptions.
+- This is a static call/query-shape inventory, not a measured latency profile. Staging credentials, representative data, SQL plans and request tracing remain unavailable. No production performance claim is made.
+
+
+- Cross-check: the `getOfferContext` query sequence was compared between PR #26 HEAD `61002cb` and SECURITY branch HEAD `326c290b`. The query shape and batching are identical; the SECURITY branch only changes the public error mapping. Therefore the nine-operation upper bound above applies to the PR #26 source snapshot as well.
+
+
+## Latest preview-status clarification — 2026-11-27 21:10 KST
+
+- Combined commit status on the current PERFORMANCE HEAD `834814aa` reports Vercel **FAILURE** with the provider's `build-rate-limit` quota response. The branch contains documentation only; this is not an application build failure.
+- At the same check, PR #26, SECURITY HEAD `2caaf0ca` and TESTS HEAD `e2d1aa94` had Vercel **SUCCESS**. QUALITY HEAD `b60bd66f` had the same provider quota failure.
+- The latest SECURITY and TESTS Verify jobs have passed their browser suites (450 and 442 tests respectively), but their overall QIMA CI runs remain in progress because PostgreSQL 16/17.6 are still at the disposable QA373 runner-privilege characterization step. QUALITY's current HEAD has a pending QIMA CI run after the login focus test stabilization.
+- No product latency, query-plan or CPU/memory benchmark is inferred from these CI/provider statuses.
+
+
+## Completed mission CI closeout — 2026-11-27 21:25 KST
+
+The following workflow runs were re-read from GitHub Actions for the exact mission HEADs. These are verification outcomes, not product latency measurements.
+
+| Mission | HEAD | QIMA CI | Verify | PostgreSQL 16 | PostgreSQL 17.6 | CodeQL | Vercel |
+|---|---|---|---|---|---|---|---|
+| SECURITY | `8f0c842a` | [#45996397685](https://github.com/meridane/QimaTrade-MVP/actions/runs/45996397685) SUCCESS | SUCCESS | SUCCESS | SUCCESS | [#45996397739](https://github.com/meridane/QimaTrade-MVP/actions/runs/45996397739) SUCCESS | provider rate limit |
+| TESTS | `62556d9a` | [#45996403735](https://github.com/meridane/QimaTrade-MVP/actions/runs/45996403735) SUCCESS | SUCCESS | SUCCESS | SUCCESS | [#45996403804](https://github.com/meridane/QimaTrade-MVP/actions/runs/45996403804) SUCCESS | provider rate limit |
+| QUALITY | `ecbaf2d0` | [#45996409933](https://github.com/meridane/QimaTrade-MVP/actions/runs/45996409933) SUCCESS | SUCCESS | SUCCESS | SUCCESS | [#45996409885](https://github.com/meridane/QimaTrade-MVP/actions/runs/45996409885) SUCCESS | provider rate limit |
+
+- Verify job steps for all three missions completed dependency audit, TypeScript, Next.js production build, Chromium/browser tests and the isolated QIMA security fixture successfully.
+- The prepared-transaction setup/cleanup jobs have expected negative conclusions; their separate assertion jobs succeeded. The skipped-result harness is intentionally skipped and separately asserted. These are harness contracts, not unexpected CI failures.
+- Vercel returned “Deployment rate limited — retry in 24 hours” for these mission heads. This is an external Preview-capacity limit and is not treated as a build failure.
+- The PERFORMANCE branch remains documentation-only and has no workflow run; no application code was changed on this track.
+
+## Static idempotency index-shape review — 2026-11-27 21:25 KST
+
+Reviewed PR #26 HEAD `61002cb21aaa738a7f018794ab84bff41a2c6eb2`:
+
+- The disposable schema fixture `tests/sql/fixtures/create-offer-schema.sql` defines `public.idempotency_keys` with `UNIQUE (tenant_id, key)`. PostgreSQL implements this unique constraint with a unique B-tree index in that fixture.
+- The CREATE_OFFER function in `supabase/migrations/20261027090000_fix_create_offer_action_status_contract.sql` first takes a transaction-scoped advisory lock derived from `tenant_id:key`, then selects the row using equality predicates on both `tenant_id` and `key` with `FOR UPDATE`.
+- The fixture's unique key shape is compatible with that equality lookup and enforces the same tenant/key uniqueness scope in the disposable database.
+- Evidence limit: this does **not** establish that the deployed Supabase schema has the same constraint or index. The repository fixture is not a production catalog snapshot. No live catalog query or EXPLAIN plan was available, and none was attempted against Production.
+- No index or migration change is proposed without a staging catalog and measured query plan. The next useful measurement is `EXPLAIN (ANALYZE, BUFFERS)` for the tenant/key lookup on an authorized non-production schema with representative row counts.
+
+---
+
+## Verified mission CI baselines — 2026-11-27 22:46 KST
+
+| Mission snapshot | Playwright | Verify duration | QIMA CI | CodeQL | Vercel |
+|---|---:|---:|---|---|---|
+| SECURITY `30f0514d` | 450 passed | 36.5 s | [#45998898739](https://github.com/meridane/QimaTrade-MVP/actions/runs/45998898739) SUCCESS | [#45998898589](https://github.com/meridane/QimaTrade-MVP/actions/runs/45998898589) SUCCESS | provider rate limit |
+| TESTS `7c6a48c8` | 442 passed | 36.0 s | [#45998903391](https://github.com/meridane/QimaTrade-MVP/actions/runs/45998903391) SUCCESS | [#45998903487](https://github.com/meridane/QimaTrade-MVP/actions/runs/45998903487) SUCCESS | provider rate limit |
+| QUALITY `b0f66506` | 438 passed | 39.1 s | [#45998860809](https://github.com/meridane/QimaTrade-MVP/actions/runs/45998860809) SUCCESS | [#45998860845](https://github.com/meridane/QimaTrade-MVP/actions/runs/45998860845) SUCCESS | SUCCESS |
+
+- All three Verify logs show TypeScript, dependency audit, Next.js build, Chromium/Playwright and isolated security fixture success. PostgreSQL 16 and 17.6 jobs completed successfully on each snapshot.
+- These are test-suite wall-clock durations only; they are not application request latency, database query latency, or p50/p95/p99 measurements.
+- The PERFORMANCE branch remains documentation-only. No application optimization is justified by these figures; live staging measurements and query plans are still required.
+- No Supabase Production access, query, data/schema change, migration, deployment, merge, force-push or branch-protection change.
+
+
+## Mission closeout and non-production measurement protocol — 2026-11-27 23:42 KST
+
+Verified the exact current mission code/test snapshots:
+
+| Mission | Verified HEAD | QIMA CI | Verify | PostgreSQL 16 | PostgreSQL 17.6 | CodeQL | Vercel |
+|---|---|---|---|---|---|---|---|
+| SECURITY | `69fa9c14` | [#46011154730](https://github.com/meridane/QimaTrade-MVP/actions/runs/46011154730) SUCCESS | SUCCESS | SUCCESS | SUCCESS | [#46011154792](https://github.com/meridane/QimaTrade-MVP/actions/runs/46011154792) SUCCESS | SUCCESS |
+| TESTS | `34c0a480` | [#46011106239](https://github.com/meridane/QimaTrade-MVP/actions/runs/46011106239) SUCCESS | SUCCESS | SUCCESS | SUCCESS | [#46011106129](https://github.com/meridane/QimaTrade-MVP/actions/runs/46011106129) SUCCESS | SUCCESS |
+| QUALITY | `2ae4cca9` | [#46011184415](https://github.com/meridane/QimaTrade-MVP/actions/runs/46011184415) SUCCESS | SUCCESS | SUCCESS | SUCCESS | [#46011184330](https://github.com/meridane/QimaTrade-MVP/actions/runs/46011184330) SUCCESS | SUCCESS |
+| PERFORMANCE | `cdba417a` | No workflow (documentation-only branch) | Not run | Not run | Not run | Not run | SUCCESS |
+
+The three QIMA CI jobs show the expected failure-injection jobs as **FAILURE** and the intentionally skipped cleanup harness as **SKIPPED**; their separate assertion jobs succeeded. The overall QIMA CI runs are **SUCCESS**.
+
+### Reproducible staging-only plan for the tenant/key lookup
+
+No live plan or latency is claimed. Once an authorized non-production staging database with representative rows is available:
+
+1. Record PostgreSQL version, row count, tenant/key cardinality, and the actual index definitions from that staging catalog.
+2. Use a dedicated staging tenant and a pre-existing idempotency key. Do not insert or update benchmark data in this measurement.
+3. Capture one execution plan inside a transaction and roll it back to release the row lock:
+
+```sql
+BEGIN;
+EXPLAIN (ANALYZE, BUFFERS, WAL, SETTINGS, FORMAT JSON)
+SELECT execution_id
+FROM public.idempotency_keys
+WHERE tenant_id = :'tenant_id'::uuid
+  AND key = :'idempotency_key'
+FOR UPDATE;
+ROLLBACK;
+```
+
+4. Separately measure repeated application-level requests with one, then several concurrent clients; record p50/p95/p99, error rate, and lock-wait time. Keep network latency separate from database execution time.
+5. Repeat warm and cold-cache observations, document the exact command and dataset shape, and compare PostgreSQL 16/17.6 only where both staging versions are available.
+
+The SQL above takes a row lock but does not mutate the row; rollback releases the lock. It must only be run against an authorized non-production staging database. No Production connection, query, schema inspection, or data change is authorized or implied.
+
+No optimization is proposed until measured plans and latency identify a material bottleneck. The disposable fixture's `UNIQUE (tenant_id, key)` constraint remains evidence about the fixture only, not the deployed schema.
+
+
+## Preview status for current measurement-protocol HEAD — 2026-11-27 23:42 KST
+
+- Current documentation-only HEAD `e206722489f18c0c346d29a9c5fbac1a1e297f11` has no QIMA CI or CodeQL workflow run because no application/test files changed and the branch has no validation workflow attached.
+- Vercel status is **FAILURE** with the provider's build-rate-limit response. No application build failure or performance regression is inferred.
+- The staging-only EXPLAIN/pgbench protocol is documentation, not an executed benchmark. No p50/p95/p99, query plan, buffer profile, or CPU/memory result is claimed.
+
+
+## Latest mission Verify measurements — 2026-11-27 23:43 KST
+
+| Mission | Playwright passed | Verify duration | QIMA CI | CodeQL | PostgreSQL 16 | PostgreSQL 17.6 |
+|---|---:|---:|---|---|---|---|
+| SECURITY | 451 | 37.9 s | [#46018955888](https://github.com/meridane/QimaTrade-MVP/actions/runs/46018955888) Verify SUCCESS / overall IN PROGRESS | [#46018955943](https://github.com/meridane/QimaTrade-MVP/actions/runs/46018955943) SUCCESS | IN PROGRESS | IN PROGRESS |
+| TESTS | 443 | 37.9 s | [#46018961960](https://github.com/meridane/QimaTrade-MVP/actions/runs/46018961960) Verify SUCCESS / overall IN PROGRESS | [#46018961986](https://github.com/meridane/QimaTrade-MVP/actions/runs/46018961986) SUCCESS | IN PROGRESS | IN PROGRESS |
+| QUALITY | 438 | 36.1 s | [#46018967038](https://github.com/meridane/QimaTrade-MVP/actions/runs/46018967038) Verify SUCCESS / overall IN PROGRESS | [#46018966968](https://github.com/meridane/QimaTrade-MVP/actions/runs/46018966968) SUCCESS | IN PROGRESS | IN PROGRESS |
+
+These are CI browser-suite wall-clock durations only. They are not application request latency, database latency, or p50/p95/p99 measurements. All three Verify jobs completed dependency audit, TypeScript, Next.js build, Chromium, Playwright and the isolated security fixture successfully. The overall workflows remain open until both PostgreSQL compatibility jobs complete.
+
+
+## PostgreSQL compatibility jobs closed — 2026-11-28 KST
+
+The previously pending PostgreSQL jobs for all three independent code/test snapshots have completed. The current GitHub Actions run records are:
+
+| Mission | HEAD | QIMA CI | Verify | PostgreSQL 16 | PostgreSQL 17.6 | CodeQL |
+|---|---|---|---|---|---|---|
+| SECURITY | `fba02d24` | [#46019379572](https://github.com/meridane/QimaTrade-MVP/actions/runs/46019379572) SUCCESS | SUCCESS | SUCCESS | SUCCESS | [#46019379477](https://github.com/meridane/QimaTrade-MVP/actions/runs/46019379477) SUCCESS |
+| TESTS | `41c23a08` | [#46019383512](https://github.com/meridane/QimaTrade-MVP/actions/runs/46019383512) SUCCESS | SUCCESS | SUCCESS | SUCCESS | [#46019383564](https://github.com/meridane/QimaTrade-MVP/actions/runs/46019383564) SUCCESS |
+| QUALITY | `8a5f42fe` | [#46019386856](https://github.com/meridane/QimaTrade-MVP/actions/runs/46019386856) SUCCESS | SUCCESS | SUCCESS | SUCCESS | [#46019386864](https://github.com/meridane/QimaTrade-MVP/actions/runs/46019386864) SUCCESS |
+
+The failure conclusions in the two prepared-transaction failure-injection jobs are intentional. Their independent assertion jobs succeeded. The cleanup skipped-result harness was intentionally skipped and its assertion succeeded. No unexpected failing job remains in these overall workflows.
+
+The already recorded Playwright counts for these code/test snapshots are SECURITY 451, TESTS 443 and QUALITY 438. They are CI suite counts, not application performance measurements. This rerun closes the pending PostgreSQL status but supplies no new p50/p95/p99, SQL plan, buffer, lock-wait, CPU or memory evidence.
+
+No staging database was available for the documented EXPLAIN protocol. No Production query, schema inspection, optimization, data change or migration was performed.
+
+## Closed PostgreSQL and Verify results — 2026-11-28 KST
+
+| Mission snapshot | QIMA CI | Playwright passed | Verify duration | PostgreSQL 16 | PostgreSQL 17.6 | CodeQL | Vercel |
+|---|---|---:|---:|---|---|---|---|
+| SECURITY `63b007ff` | [#46028363428](https://github.com/meridane/QimaTrade-MVP/actions/runs/46028363428) SUCCESS | 452 | 35.9 s | SUCCESS | SUCCESS | [#46028363292](https://github.com/meridane/QimaTrade-MVP/actions/runs/46028363292) SUCCESS | SUCCESS |
+| TESTS `86ba0441` | [#46028401186](https://github.com/meridane/QimaTrade-MVP/actions/runs/46028401186) SUCCESS | 444 | 39.2 s | SUCCESS | SUCCESS | [#46028401242](https://github.com/meridane/QimaTrade-MVP/actions/runs/46028401242) SUCCESS | SUCCESS |
+| QUALITY `78da177e` | [#46028468443](https://github.com/meridane/QimaTrade-MVP/actions/runs/46028468443) SUCCESS | 438 | 36.6 s | SUCCESS | SUCCESS | [#46028468426](https://github.com/meridane/QimaTrade-MVP/actions/runs/46028468426) SUCCESS | SUCCESS |
+
+All three QIMA CI workflows completed successfully, including the PostgreSQL 16 and 17.6 compatibility jobs. The negative conclusions in the prepared-transaction failure-injection jobs were expected and separately asserted; the intentional skipped cleanup harness was also asserted.
+
+These browser-suite counts and wall-clock durations are CI verification measurements only. They do not measure application latency, database query latency, p50/p95/p99, buffers, lock waits, CPU or memory. No staging environment was available for the documented EXPLAIN/benchmark protocol, and no optimization is justified by these measurements.
+
+
+## Latest CI verification baseline — 2026-11-28 KST
+
+The following completed runs were re-read from GitHub Actions job logs. They are test-suite verification timings, not product or database latency measurements.
+
+| Mission snapshot | QIMA CI run | Playwright passed | Browser-suite duration | PostgreSQL 16 | PostgreSQL 17.6 | CodeQL |
+|---|---:|---:|---:|---|---|---|
+| SECURITY `f30dca01` | [#46039825666](https://github.com/meridane/QimaTrade-MVP/actions/runs/46039825666) | 453 | 37.3 s | SUCCESS | SUCCESS | [#46039825625](https://github.com/meridane/QimaTrade-MVP/actions/runs/46039825625) SUCCESS |
+| TESTS `a2080dc8` | [#46039827639](https://github.com/meridane/QimaTrade-MVP/actions/runs/46039827639) | 445 | 37.1 s | SUCCESS | SUCCESS | [#46039827538](https://github.com/meridane/QimaTrade-MVP/actions/runs/46039827538) SUCCESS |
+| QUALITY `4b3e8a64` | [#46039834840](https://github.com/meridane/QimaTrade-MVP/actions/runs/46039834840) | 439 | 37.8 s | SUCCESS | SUCCESS | [#46039834738](https://github.com/meridane/QimaTrade-MVP/actions/runs/46039834738) SUCCESS |
+
+The Verify jobs also completed dependency audit, TypeScript, Next.js production build, Chromium installation, Playwright and the isolated QIMA security fixture successfully. The prepared-transaction failure-injection jobs have expected negative conclusions with separate assertions proving those failures remain blocking; the intentional skipped cleanup harness is also asserted.
+
+No p50/p95/p99, SQL execution time, buffers, lock waits, CPU or memory profile can be inferred from these CI timings. The staging/EXPLAIN protocol remains pending an authorized non-production environment. No optimization is justified by this snapshot.
+
+
+## Static outbound-request budget: product-request publish — 2026-11-28 03:14 KST
+
+Source review of `app/api/product-requests/publish/route.ts` and `lib/actions/runtime.ts` identifies this steady-state request sequence:
+
+| Step | Operation | Expected remote request |
+|---|---|---:|
+| 1 | `supabase.auth.getUser()` | 1 Auth API request |
+| 2 | `dt_memberships` tenant lookup | 1 PostgREST read |
+| 3 | `get_action_definition_v1` | 1 RPC |
+| 4 | `dt_publish_product_request` | 1 RPC |
+
+The route's `auth.getSession()` reads the server session; a conditional token refresh is not included in this steady-state count. The runtime call graph contains one definition lookup and one publish handler invocation, with no loop over memberships and no retry in the inspected path. This is a source-derived request-count inventory, not a measured latency benchmark or a claim about all application paths.
+
+The previous code/test snapshots remain fully validated: SECURITY [#46043770922](https://github.com/meridane/QimaTrade-MVP/actions/runs/46043770922) (454 Playwright, PostgreSQL 16/17.6 SUCCESS), TESTS [#46043796052](https://github.com/meridane/QimaTrade-MVP/actions/runs/46043796052) (446 Playwright, PostgreSQL 16/17.6 SUCCESS), and QUALITY [#46043817903](https://github.com/meridane/QimaTrade-MVP/actions/runs/46043817903) (439 Playwright, PostgreSQL 16/17.6 SUCCESS). Their CodeQL runs #46043770905, #46043796133 and #46043817883 respectively completed SUCCESS.
+
+No p50/p95/p99, SQL plan, buffers, lock waits, CPU, memory, or network latency is inferred. A non-production staging environment is still required for measured profiling. No optimization was applied.
+
+
+## Latest independent-branch verification snapshot — 2026-11-28 KST
+
+| Mission | Verify Playwright | Verify duration | PostgreSQL 16 | PostgreSQL 17.6 | CodeQL | Vercel |
+|---|---:|---:|---|---|---|---|
+| SECURITY `45f9aa59` | 455 passed | 35.8 s | IN PROGRESS | IN PROGRESS | [#46049188093](https://github.com/meridane/QimaTrade-MVP/actions/runs/46049188093) SUCCESS | build-rate-limit FAILURE |
+| TESTS `96a96001` | 447 passed | 38.3 s | IN PROGRESS | IN PROGRESS | [#46049194629](https://github.com/meridane/QimaTrade-MVP/actions/runs/46049194629) SUCCESS | build-rate-limit FAILURE |
+| QUALITY `b1731e1a` | 439 passed | 36.7 s | IN PROGRESS | IN PROGRESS | [#46049204941](https://github.com/meridane/QimaTrade-MVP/actions/runs/46049204941) SUCCESS | build-rate-limit FAILURE |
+
+All three Verify jobs completed dependency audit, TypeScript, Next.js build, Chromium, Playwright and the isolated security fixture successfully. The PostgreSQL compatibility jobs have not yet closed, so the three overall QIMA CI workflows remain in progress. The prepared-transaction negative-result harnesses are expected failure-injection scenarios with successful independent assertions; the skipped cleanup harness is also separately asserted.
+
+The Playwright counts and durations above are CI suite measurements only. They are not application latency, SQL execution time, p50/p95/p99, buffers, lock waits, CPU, or memory profiles. The Vercel failures are provider build-rate-limit responses, not application build failures. No staging benchmark or optimization is claimed.
+
+
+## Completed independent mission CI closeout — 2026-11-28 04:35 KST
+
+The latest documentation HEADs on the independent SECURITY, TESTS and QUALITY branches were checked against GitHub Actions:
+
+| Mission | QIMA CI run | Run number | Conclusion | CodeQL run | CodeQL conclusion |
+|---|---:|---:|---|---:|---|
+| SECURITY | [46049654838](https://github.com/meridane/QimaTrade-MVP/actions/runs/46049654838) | #2182 | SUCCESS | [46049654819](https://github.com/meridane/QimaTrade-MVP/actions/runs/46049654819) | SUCCESS |
+| TESTS | [46049659871](https://github.com/meridane/QimaTrade-MVP/actions/runs/46049659871) | #2183 | SUCCESS | [46049659832](https://github.com/meridane/QimaTrade-MVP/actions/runs/46049659832) | SUCCESS |
+| QUALITY | [46049668005](https://github.com/meridane/QimaTrade-MVP/actions/runs/46049668005) | #2184 | SUCCESS | [46049668021](https://github.com/meridane/QimaTrade-MVP/actions/runs/46049668021) | SUCCESS |
+
+For each of the three QIMA CI runs, the Verify job, PostgreSQL 16 integration job and PostgreSQL 17.6 compatibility job completed successfully. The isolated security fixture and the assertion jobs for prepared-transaction failure propagation also completed successfully. The two failure-injection jobs themselves intentionally concluded with failure, and the skipped-cleanup harness intentionally concluded as skipped; neither is an unexpected workflow failure.
+
+The Verify/browser counts for the corresponding code-test commits are recorded in their mission journals: SECURITY 455, TESTS 447, QUALITY 439. These are Playwright suite counts, not application latency measurements.
+
+The PERFORMANCE branch itself is documentation-only at HEAD `f2c025a09839d38f748d4545d887b385f4662f72`; GitHub reports no workflow runs for that commit. Its combined Vercel status is `failure` with the provider's `build-rate-limit` URL. This is not a source-build or benchmark result.
+
+The Supabase QIMA project remains reported as paused/inactive in the latest inspected baseline. No resume, query, migration, data change, Production deployment, or optimization was attempted. API p50/p95/p99, SQL execution plans, buffers, lock waits, CPU and memory remain unmeasured pending an approved non-production staging environment.
+
+## Read-only Supabase availability recheck — 2026-11-28
+
+- Read-only Supabase project listing confirms QIMA project `yyulzlnrfcbaxovzjbnh` is **INACTIVE** in `ap-southeast-1`, PostgreSQL engine 17, database version `17.11.0.003`.
+- The project was not resumed. No SQL, schema inspection, query plan, database log query, migration or data operation was attempted.
+- The QIMA performance blocker remains an owner-authorized non-production environment or explicit authorization to use a disposable staging project. Production profiling remains out of scope.
+
+## Current multi-mission Verify snapshot — 2026-11-28 04:35 KST
+
+| Mission | QIMA CI | Verify job | Browser step | CodeQL | PostgreSQL 16 / 17.6 |
+|---|---|---|---|---|---|
+| SECURITY | [#2186](https://github.com/meridane/QimaTrade-MVP/actions/runs/46058062077) IN PROGRESS | SUCCESS | SUCCESS | [#2110](https://github.com/meridane/QimaTrade-MVP/actions/runs/46058062019) SUCCESS | IN PROGRESS / IN PROGRESS |
+| TESTS | [#2187](https://github.com/meridane/QimaTrade-MVP/actions/runs/46058080443) IN PROGRESS | SUCCESS | SUCCESS | [#2111](https://github.com/meridane/QimaTrade-MVP/actions/runs/46058080379) SUCCESS | IN PROGRESS / IN PROGRESS |
+| QUALITY | [#2188](https://github.com/meridane/QimaTrade-MVP/actions/runs/46058096100) IN PROGRESS | SUCCESS | SUCCESS | [#2112](https://github.com/meridane/QimaTrade-MVP/actions/runs/46058096099) SUCCESS | IN PROGRESS / IN PROGRESS |
+
+For all three Verify jobs, dependency audit, TypeScript, Next.js production build, Chromium, browser tests and the isolated security-contract fixture completed successfully. The newly added SECURITY membership-lookup failure integration test, TESTS publish-RPC HTTP 429 no-retry test, and QUALITY empty-search live-region assertion are included in their respective successful browser steps.
+
+At the latest job read, PostgreSQL 16 had completed its initial 25 of 47 steps and PostgreSQL 17.6 its initial 25 of 32 steps in each run, with no unexpected failed step. The two prepared-transaction failure-injection jobs have expected negative conclusions and their independent assertions succeeded; the skipped cleanup harness is intentionally skipped and separately asserted. The overall QIMA CI workflows remain **IN PROGRESS** until both PostgreSQL jobs finish.
+
+These CI outcomes are validation evidence only; they do not provide application latency, query plans, p50/p95/p99, buffers, lock waits, CPU or memory measurements. The QIMA Supabase project is confirmed INACTIVE and was not resumed. No database query, migration, data change, or optimization was performed.
+
+
+## Completed PostgreSQL and Verify timing sample — 2026-11-28
+
+The three multi-mission workflows previously recorded as still running have now completed. Durations below are calculated from GitHub Actions job `started_at` and `completed_at` timestamps (UTC), not application response times.
+
+| Mission | QIMA CI run | Verify job | PostgreSQL 16 | PostgreSQL 17.6 | CodeQL |
+|---|---:|---:|---:|---:|---|
+| SECURITY | [#2186](https://github.com/meridane/QimaTrade-MVP/actions/runs/46058062077) | 141 s — SUCCESS | 434 s — SUCCESS | 435 s — SUCCESS | [#2110](https://github.com/meridane/QimaTrade-MVP/actions/runs/46058062019) SUCCESS |
+| TESTS | [#2187](https://github.com/meridane/QimaTrade-MVP/actions/runs/46058080443) | 134 s — SUCCESS | 430 s — SUCCESS | 439 s — SUCCESS | [#2111](https://github.com/meridane/QimaTrade-MVP/actions/runs/46058080379) SUCCESS |
+| QUALITY | [#2188](https://github.com/meridane/QimaTrade-MVP/actions/runs/46058096100) | 130 s — SUCCESS | 452 s — SUCCESS | 421 s — SUCCESS | [#2112](https://github.com/meridane/QimaTrade-MVP/actions/runs/46058096099) SUCCESS |
+
+- All three Verify jobs completed dependency audit, TypeScript, Next.js production build, Chromium/browser tests and the isolated security-contract fixture successfully.
+- PostgreSQL 16 and 17.6 compatibility jobs completed successfully in all three runs. The prepared-transaction setup/cleanup failure-injection jobs intentionally concluded negatively; their separate assertions passed. The intentionally skipped harness was separately asserted.
+- The jobs ran concurrently and the branch test suites differ. These values are a CI infrastructure timing sample, not a controlled benchmark and not evidence of API/database latency. They must not be interpreted as p50/p95/p99, query cost, or a performance trend.
+- Vercel Preview for the three code branches reported the provider `build-rate-limit`; this is separate from successful GitHub Actions build and Verify jobs.
+- The QIMA Supabase project remains **INACTIVE**. No SQL, query plan, data, schema, migration, or compute-resume action was performed. Application latency, buffers, lock waits, CPU and memory remain unmeasured.
+
+
+## Latest mission Verify timing and offer-context query graph — 2026-11-28
+
+The new SECURITY, TESTS and QUALITY Verify jobs completed successfully. Their durations are measured from GitHub Actions job timestamps; the associated PostgreSQL jobs were still running at this checkpoint.
+
+| Mission | QIMA CI run | Verify duration | Browser result | CodeQL |
+|---|---:|---:|---:|---|
+| SECURITY | [#2189](https://github.com/meridane/QimaTrade-MVP/actions/runs/46065841828) | 122 s — SUCCESS | 457 passed (35.7 s) | [#2113](https://github.com/meridane/QimaTrade-MVP/actions/runs/46065841732) SUCCESS |
+| TESTS | [#2190](https://github.com/meridane/QimaTrade-MVP/actions/runs/46065868815) | 139 s — SUCCESS | 452 passed (37.1 s) | [#2114](https://github.com/meridane/QimaTrade-MVP/actions/runs/46065868843) SUCCESS |
+| QUALITY | [#2191](https://github.com/meridane/QimaTrade-MVP/actions/runs/46065923133) | 113 s — SUCCESS | 440 passed (34.6 s) | [#2115](https://github.com/meridane/QimaTrade-MVP/actions/runs/46065923029) SUCCESS |
+
+### Static offer-context request graph
+
+A source review of `app/offers/actions.ts` identified a separate, potentially query-heavy path that was not included in the earlier four-call product-request publish budget:
+
+1. `getCurrentProfile`: Auth `getUser`, profile lookup, membership lookup (three sequential remote operations).
+2. `getOfferContext`: demand lookup (one sequential operation).
+3. Product master lookup and product-master attribute rows run in parallel (two requests).
+4. Attribute definitions, active options, and units run in parallel using batched `.in(...)` lookups (three requests).
+
+Static total: **nine remote operations** across four sequential/concurrent waves (Auth/profile/membership; demand; product+attribute rows; definitions+options+units). The three metadata lookups are batched rather than repeated per attribute, so no per-attribute N+1 is apparent in this path.
+
+This is a source-level request count only. It does not establish database latency or prove this path is slow. The next useful measurement is a staging trace that records each request's duration and the number of attribute IDs, then compares p50/p95/p99 before any batching/refactor proposal.
+
+The PostgreSQL 16 and 17.6 jobs for runs #2189, #2190 and #2191 were still in progress at this checkpoint; no database completion is inferred from the successful Verify jobs.
+
+
+## PostgreSQL validation closure — 2026-11-28 06:16 KST
+
+The three previously open mission QIMA CI runs have now completed successfully, including both PostgreSQL compatibility jobs:
+
+| Mission run | Verify / Playwright | PostgreSQL 16 | PostgreSQL 17.6 | CodeQL | Vercel Preview |
+|---|---|---|---|---|---|
+| SECURITY [#2189](https://github.com/meridane/QimaTrade-MVP/actions/runs/46065841828) | 457 passed, 35.7 s — SUCCESS | SUCCESS | SUCCESS | [#2113](https://github.com/meridane/QimaTrade-MVP/actions/runs/46065841732) SUCCESS | SUCCESS |
+| TESTS [#2190](https://github.com/meridane/QimaTrade-MVP/actions/runs/46065868815) | 452 passed, 37.1 s — SUCCESS | SUCCESS | SUCCESS | [#2114](https://github.com/meridane/QimaTrade-MVP/actions/runs/46065868843) SUCCESS | SUCCESS |
+| QUALITY [#2191](https://github.com/meridane/QimaTrade-MVP/actions/runs/46065923133) | 440 passed, 34.6 s — SUCCESS | SUCCESS | SUCCESS | [#2115](https://github.com/meridane/QimaTrade-MVP/actions/runs/46065923029) SUCCESS | SUCCESS |
+
+- The PostgreSQL 16 and 17.6 jobs completed their full integration, concurrency, replay, runner privilege, RLS/ACL and disposable cleanup steps successfully.
+- Each run also contains intentional failure-injection jobs with negative conclusions, plus an intentionally skipped harness. Separate assertion jobs passed and the overall QIMA CI workflows completed **SUCCESS**; do not interpret those isolated expected conclusions as product regressions.
+- The measured Playwright durations are CI suite durations only. They are not request latency, database latency, or a performance comparison between code versions.
+- The latest SECURITY, TESTS and QUALITY follow-up commits were published after these completed runs. Their new GitHub Actions runs were not visible at the first post-push check, so their test outcomes remain pending until the corresponding workflow runs appear.
+- No staging environment or representative benchmark dataset was available. No EXPLAIN ANALYZE, buffers, p50/p95/p99, CPU/memory profile, or production query measurement is claimed. No optimization was applied.
+
+
+## Follow-up CI closure and next benchmark gate — 2026-11-28
+
+The follow-up SECURITY, TESTS and QUALITY code commits from the previous checkpoint have now completed their full GitHub Actions and CodeQL validations:
+
+| Mission | QIMA CI | Verify/browser | PostgreSQL 16 | PostgreSQL 17.6 | CodeQL | Vercel |
+|---|---|---|---|---|---|---|
+| SECURITY | [#2192](https://github.com/meridane/QimaTrade-MVP/actions/runs/46069475410) SUCCESS | SUCCESS | SUCCESS | SUCCESS | [#2116](https://github.com/meridane/QimaTrade-MVP/actions/runs/46069475402) SUCCESS | SUCCESS |
+| TESTS | [#2193](https://github.com/meridane/QimaTrade-MVP/actions/runs/46069479223) SUCCESS | SUCCESS | SUCCESS | SUCCESS | [#2117](https://github.com/meridane/QimaTrade-MVP/actions/runs/46069479345) SUCCESS | SUCCESS |
+| QUALITY | [#2194](https://github.com/meridane/QimaTrade-MVP/actions/runs/46069485017) SUCCESS | SUCCESS | SUCCESS | SUCCESS | [#2118](https://github.com/meridane/QimaTrade-MVP/actions/runs/46069485051) SUCCESS | FAILURE (provider `build-rate-limit`)
+
+- Each QIMA CI run's PostgreSQL 16 integration and PostgreSQL 17.6 compatibility jobs completed **SUCCESS**. The prepared-transaction setup/cleanup negative jobs are deliberate failure-injection cases; their separate assertions succeeded. The skipped harness is expected and separately asserted.
+- These CI conclusions close the code commits they ran against. They do not automatically validate later or newly added commits.
+- No application latency or SQL execution-time measurement is inferred from CI durations.
+- The nine-operation `getOfferContext` source graph remains a static count across four waves. No N+1 was identified in the inspected attribute metadata path, but no p50/p95/p99, EXPLAIN ANALYZE, buffers, lock-wait, CPU or memory measurements exist.
+- The QIMA Supabase project remains inactive. No compute resume, SQL query, schema/data/migration change, or Production access was performed.
+- Next non-blocking action: retain the query graph and prepare a staging-only trace protocol; do not optimize until an authorized staging target and representative dataset are available.
+
+
+## Reproducible staging trace protocol — 2026-11-28
+
+**Status: protocol prepared, not executed.** The QIMA project is currently `INACTIVE`; no staging target is available. Do not resume the project or substitute Production.
+
+### Preconditions
+
+- An explicitly authorized non-production Supabase project with status `ACTIVE_HEALTHY`.
+- A disposable tenant and fixed Product Master/demand fixture with no customer data.
+- A recorded application commit SHA and PostgreSQL version.
+- No Production URL, key, token, or dataset in the benchmark environment.
+
+### Workload and samples
+
+- Exercise only `getOfferContext` through its normal application entry point.
+- Prepare three deterministic fixture sizes: 0, 10, and 50 product-master attribute rows, with fixed definitions/options/units.
+- Run 10 warm-up calls, then 50 measured calls per fixture size, sequentially to avoid mixing request latency with deliberate concurrency load.
+- Run a separate concurrency experiment only after the sequential baseline is recorded.
+
+### Instrumentation
+
+Use a monotonic clock (`performance.now()`) around each remote operation and each wave. Record only operation name, elapsed milliseconds, status class, returned row counts, and the number of requested IDs. Do not record auth headers, tokens, raw user/tenant identifiers, or row contents.
+
+Capture:
+- total server-action wall time;
+- Auth/profile/membership wave duration;
+- demand lookup duration;
+- Product Master + attribute-row wave duration;
+- definitions/options/units wave duration;
+- remote request count and response row counts;
+- error rate and cold/warm sample distinction.
+
+Report p50, p95 and p99 for each operation and the total. Preserve raw timing samples as a staging-only artifact and record the tested commit, fixture-size profile and database version.
+
+### Query-plan gate
+
+For any candidate query, use a read-only transaction on staging and capture `EXPLAIN (ANALYZE, BUFFERS, SETTINGS, FORMAT JSON)`. Do not run write statements or migrations. An optimization proposal requires a repeatable hotspot or request-count growth that scales with attribute count; CI duration alone is not sufficient evidence.
+
+No benchmark, EXPLAIN, query, project resume, schema/data change, or Production access was performed in this run.
+
+
+## Latest isolated mission CI timing closeout — 2026-11-28
+
+The following code/test snapshots have completed their GitHub Actions Verify and disposable PostgreSQL jobs. These are CI/harness timings, not application latency measurements.
+
+| Mission snapshot | QIMA CI | Playwright | Verify job | PostgreSQL 16 | PostgreSQL 17.6 | CodeQL |
+|---|---|---:|---|---|---|---|
+| SECURITY `9347ce22` | [#2202](https://github.com/meridane/QimaTrade-MVP/actions/runs/46078229957) | 457 passed / 38.6 s | SUCCESS | SUCCESS | SUCCESS | [#2126](https://github.com/meridane/QimaTrade-MVP/actions/runs/46078229947) SUCCESS |
+| TESTS `dc5a097e` | [#2200](https://github.com/meridane/QimaTrade-MVP/actions/runs/46078021207) | 454 passed / 36.0 s | SUCCESS | SUCCESS | SUCCESS | [#2124](https://github.com/meridane/QimaTrade-MVP/actions/runs/46078021183) SUCCESS |
+| QUALITY `c2c8d283` | [#2201](https://github.com/meridane/QimaTrade-MVP/actions/runs/46078025047) | 440 passed / 36.1 s | SUCCESS | SUCCESS | SUCCESS | [#2125](https://github.com/meridane/QimaTrade-MVP/actions/runs/46078025059) SUCCESS |
+
+- The earlier SECURITY run #2198 had one Playwright failure caused by synthetic membership fixture state leaking into the next serial test. The fixture gained an explicit reset path and the subsequent #2202 Verify completed with all 457 tests passing. A transient `ECONNRESET` message appeared in the browser log but no Playwright test failed in #2202; retain it as runner noise, not as a production network finding.
+- The expected prepared-transaction failure-injection jobs still conclude `failure` at their deliberate failing steps; independent assertion jobs pass. The skipped harness is expected and separately asserted.
+- These results close only the exact code/test snapshots listed above. They do not validate subsequent commits added after these runs.
+- No p50/p95/p99 application timings, SQL plans, buffers, lock waits, CPU or memory metrics are inferred from these job durations. The QIMA Supabase project remains inactive; no project resume or live database query was performed.
+- Next action remains a staging-only trace of `getOfferContext` after an explicitly authorized non-production project and deterministic fixtures are available.
+
+
+## Interim Verify measurements for the 2026-11-28 follow-up
+
+These measurements are limited to completed Verify jobs; PostgreSQL and full-workflow conclusions remain separate.
+
+| Mission code/test HEAD | QIMA CI | Playwright | Verify | PostgreSQL 16 | PostgreSQL 17.6 | CodeQL |
+|---|---|---:|---|---|---|---|
+| TESTS `89cf3e1f` | [#2204](https://github.com/meridane/QimaTrade-MVP/actions/runs/46083793809) | 456 passed / 37.7 s | SUCCESS | IN PROGRESS (25/47) | IN PROGRESS (25/32) | [#2128](https://github.com/meridane/QimaTrade-MVP/actions/runs/46083793857) SUCCESS |
+| QUALITY `74f7f261` | [#2205](https://github.com/meridane/QimaTrade-MVP/actions/runs/46083798061) | 441 passed / 38.9 s | SUCCESS | IN PROGRESS (25/47) | IN PROGRESS (25/32) | [#2129](https://github.com/meridane/QimaTrade-MVP/actions/runs/46083798008) SUCCESS |
+| SECURITY `26cfb570` | [#2206](https://github.com/meridane/QimaTrade-MVP/actions/runs/46083802173) | Not run | CANCELLED before jobs | Not run | Not run | [#2130](https://github.com/meridane/QimaTrade-MVP/actions/runs/46083802180) SUCCESS |
+
+- SECURITY's replacement QIMA CI [#2207](https://github.com/meridane/QimaTrade-MVP/actions/runs/46084022720) on documentation HEAD `5d11fcf0` is PENDING with no jobs published. The earlier #2202 result (457 passed) predates the Auth-503 regression and is not reused.
+- Verify logs for #2204 and #2205 contain transient `ECONNRESET: Auth network connection reset` messages, but the browser jobs completed with 456 and 441 passing tests respectively. No Playwright failure is attributed to those messages; treat them as runner/fixture teardown noise unless a failed test or independent reproduction establishes otherwise.
+- Both PostgreSQL versions for TESTS and QUALITY are still at the full runner write-privilege characterization step, with no failed step observed. Do not mark those full workflows successful until the jobs finish.
+- These CI times are not application latency. No p50/p95/p99, SQL plan, buffer, lock-wait, CPU or memory result is inferred.
