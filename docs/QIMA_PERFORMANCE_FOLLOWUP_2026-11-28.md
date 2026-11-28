@@ -133,3 +133,16 @@ Validate the new AST guard in Verify, then obtain an authorized staging project 
 - PostgreSQL 16 job `141040581216` and PostgreSQL 17.6 job `141040581020` remain **IN PROGRESS** at full CREATE_OFFER runner write-privilege characterization. No PostgreSQL completion is claimed yet.
 - CodeQL [#2194](https://github.com/meridane/QimaTrade-MVP/actions/runs/46165043036) completed **SUCCESS**. The browser-test step succeeded, but the run log is not yet available to extract the exact Playwright count or the new test's individual duration; those details remain pending final job-log retrieval.
 - The AST test remains a static query-shape guard, not a latency benchmark. No runtime optimization or Production access was performed.
+
+
+
+## createOffer query-shape — final CI closeout — 2026-11-29
+
+- Tested code head: [`8f7f9b87`](https://github.com/meridane/QimaTrade-MVP/commit/8f7f9b8712397f718bb814fbbb8c658b3653d82b).
+- QIMA CI [#2270](https://github.com/meridane/QimaTrade-MVP/actions/runs/46165043082) completed **SUCCESS**. Verify job `141040581276` completed **SUCCESS** with **438 Playwright tests passed (36.6 s)**. The new `createOffer` AST query-shape regression passed explicitly in **11 ms**.
+- Dependency audit, TypeScript, Next.js production build, Chromium/browser tests and the isolated QIMA security fixture completed **SUCCESS**.
+- PostgreSQL 16 job `141040581216` and PostgreSQL 17.6 job `141040581020` both completed **SUCCESS**. Their CREATE_OFFER integration/concurrency, replay, runner-safety and legacy RLS/ACL checks completed.
+- CodeQL [#2194](https://github.com/meridane/QimaTrade-MVP/actions/runs/46165043036) completed **SUCCESS**. Vercel Preview Comments for the tested code snapshot completed **SUCCESS**.
+- The prepared-transaction failure-injection jobs reported their expected injected **FAILURE** outcomes; the independent assertion jobs completed **SUCCESS**. The intentionally skipped harness remained **SKIPPED** and its assertion completed **SUCCESS**. The overall QIMA CI run completed **SUCCESS** with no unexpected failing job.
+- This is a static query-shape guard only. It does not establish database latency, throughput, p50/p95/p99, EXPLAIN plans, buffers, lock waits, CPU or memory. No runtime optimization or Production query was performed; an authorized non-Production staging environment is still required.
+- No Supabase Production data/schema, migration, secret, grant, RLS policy, Production deployment, merge, force-push or branch-protection change was made. Documentation-only `[skip ci]` closeout; tested code head remains `8f7f9b87`.
