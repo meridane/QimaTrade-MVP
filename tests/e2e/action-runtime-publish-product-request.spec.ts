@@ -628,3 +628,19 @@ for (const [label, definition] of [
     expect(outcome.redirectTargetHits).toBe(0);
   });
 }
+
+for (const status of [500, 502, 503, 504] as const) {
+  test(`PUBLISH_PRODUCT_REQUEST runtime normalizes action-definition HTTP ${status} without retrying or publishing`, async () => {
+    const outcome = await executePublishProductRequestRuntime(null, "definition", 200, undefined, null, null, null, status);
+
+    expect(outcome.result).toBeNull();
+    expect(outcome.errorMessage).toBe("ACTION_DEFINITION_LOOKUP_FAILED");
+    expect(outcome.errorMessage).not.toContain("SYNTHETIC_DEFINITION_LOOKUP_DETAIL");
+    expect(outcome.errorMessage).not.toContain("internal definition diagnostic");
+    expect(outcome.errorMessage).not.toContain("private rate-limit hint");
+    expect(outcome.requests.map((request) => ({ path: request.path, method: request.method }))).toEqual([
+      { path: "/rest/v1/rpc/get_action_definition_v1", method: "POST" },
+    ]);
+    expect(outcome.redirectTargetHits).toBe(0);
+  });
+}
