@@ -125,3 +125,11 @@ Validate the new AST guard in Verify, then obtain an authorized staging project 
 - CodeQL [#2194](https://github.com/meridane/QimaTrade-MVP/actions/runs/46165043036) completed **SUCCESS**. Vercel Preview Comments check completed **SUCCESS**.
 - This is a static query-shape budget, not a database latency benchmark. No p50/p95/p99, EXPLAIN ANALYZE, buffer, lock, CPU or memory measurement is inferred. An authorized staging environment is still required before optimization.
 - No application runtime, business contract, Supabase Production data/schema, migration, secret, grant, RLS policy, Production deployment, merge, force-push or branch-protection rule was changed.
+
+
+## createOffer query-shape Verify checkpoint — 2026-11-29
+
+- QIMA CI [#2270](https://github.com/meridane/QimaTrade-MVP/actions/runs/46165043082), code head [`8f7f9b87`](https://github.com/meridane/QimaTrade-MVP/commit/8f7f9b8712397f718bb814fbbb8c658b3653d82b): dependency audit, TypeScript, Next.js production build, Chromium installation and the browser-test step have completed **SUCCESS**. The Verify job is still completing its isolated QIMA security fixture and post-job steps; the overall CI run remains **IN PROGRESS**.
+- PostgreSQL 16 job `141040581216` and PostgreSQL 17.6 job `141040581020` remain **IN PROGRESS** at full CREATE_OFFER runner write-privilege characterization. No PostgreSQL completion is claimed yet.
+- CodeQL [#2194](https://github.com/meridane/QimaTrade-MVP/actions/runs/46165043036) completed **SUCCESS**. The browser-test step succeeded, but the run log is not yet available to extract the exact Playwright count or the new test's individual duration; those details remain pending final job-log retrieval.
+- The AST test remains a static query-shape guard, not a latency benchmark. No runtime optimization or Production access was performed.
