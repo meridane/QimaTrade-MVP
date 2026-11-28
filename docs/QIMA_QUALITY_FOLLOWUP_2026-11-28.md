@@ -101,3 +101,14 @@ Verify the new `aria-live` assertion in the browser test, then complete PostgreS
 - Dependency security audit, TypeScript, Next.js production build, browser fixture and audit-result enforcement completed **SUCCESS**. CodeQL [#2173](https://github.com/meridane/QimaTrade-MVP/actions/runs/46117478025) is **SUCCESS**. Vercel Preview is **SUCCESS**.
 - PostgreSQL 16 and 17.6 remain **IN PROGRESS** at the full CREATE_OFFER runner write-privilege characterization step; earlier integration/replay/concurrency steps are successful. The overall QIMA CI run is not yet closed.
 - This browser test does not submit data to the API and is not a full WCAG certification. No Production data/schema, migration, secret, grant, RLS policy, deployment, merge, force-push, or protection-rule change was made.
+
+
+## Country-selector native form-data regression — final CI closeout — 2026-11-28
+
+- Tested code head: [827ff6d7](https://github.com/meridane/QimaTrade-MVP/commit/827ff6d7e7634e01f83a7153b5d349a03c7ff97e); documentation head before this closeout: `84807f99`.
+- QIMA CI [#2249](https://github.com/meridane/QimaTrade-MVP/actions/runs/46117478022) completed **SUCCESS**. Verify job `140894419503` completed **SUCCESS** with **442 Playwright tests passed (36.3s)**. The native FormData regression passed in **427 ms**, confirming `market=South Korea` and `geography=Morocco` remain serialized by the hidden named controls.
+- Dependency audit, TypeScript, Next.js production build, Chromium and the isolated QIMA security fixture all passed.
+- PostgreSQL 16 job `140894419648` completed **SUCCESS** (48/48 steps); PostgreSQL 17.6 job `140894419635` completed **SUCCESS** (33/33 steps). CodeQL [#2173](https://github.com/meridane/QimaTrade-MVP/actions/runs/46117478025) completed **SUCCESS**.
+- Existing country-selector checks also cover the visible label/button association, Escape dismissal, focus restoration, keyboard selection, empty-result announcement, and search-field focus. The current test scope is targeted Chromium accessibility/form behavior, not a full WCAG or screen-reader certification.
+- The combined Vercel status for documentation head `84807f99` is **FAILURE** with provider target `build-rate-limit`; the tested code head's Preview was SUCCESS in the preceding code validation. This external quota does not change the completed GitHub Verify/CodeQL results.
+- No Production data/schema, migration, secret, grant, RLS policy, persistent configuration, Production deployment, merge, force-push or protection-rule change was made. This is a documentation-only `[skip ci]` closeout; tested code head is unchanged.
