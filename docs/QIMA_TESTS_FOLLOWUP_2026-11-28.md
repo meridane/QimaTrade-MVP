@@ -59,3 +59,15 @@ Inspect the new test in the Verify log, then wait for PostgreSQL 16/17.6 and Cod
 
 - Vercel Preview for code head 7d61b99f reports SUCCESS.
 - QIMA CI overall remains IN PROGRESS only because PostgreSQL 16 and 17.6 runner-write-privilege characterization jobs have not completed yet; Verify and CodeQL are successful.
+
+
+## Final PostgreSQL and CI closeout — 2026-11-28 14:10 KST
+
+- Final tested code head: `7d61b99f40ad0895c068eabc25d55d17ac30d19b`.
+- QIMA CI [#2230](https://github.com/meridane/QimaTrade-MVP/actions/runs/46106205447) is **SUCCESS**. Verify job `140859414003` completed **SUCCESS** with **466 Playwright tests passed**. The four HTTP 500/502/503/504 publish-RPC cases explicitly passed, alongside dependency audit, TypeScript, Next.js production build, Chromium and the isolated QIMA security fixture.
+- PostgreSQL 16 job `140859413974` completed **SUCCESS** (48 job steps); PostgreSQL 17.6 job `140859414069` completed **SUCCESS** (33 job steps). No unexpected failed integration step remains.
+- CodeQL [#2154](https://github.com/meridane/QimaTrade-MVP/actions/runs/46106205431) is **SUCCESS**. Vercel Preview for code head `7d61b99f` was **SUCCESS**.
+- Prepared-transaction failure-injection jobs report their expected negative outcomes; their independent blocking assertions passed. The intentionally skipped harness is also checked by a successful assertion job.
+- The later documentation-only branch HEAD `c60850f2` currently has combined Vercel status **FAILURE** with provider target `build-rate-limit`. This is an external preview quota issue, not a failed QIMA CI, PostgreSQL or CodeQL check. The code head above is the validated snapshot.
+- These tests use synthetic HTTP responses and verify error normalization, no-retry/no-redirect behavior and output minimization. They do not establish a live Production RPC outage or data leak.
+- No Production data/schema, migration, secret, grant, RLS policy, persistent configuration, Production deployment, merge, force-push or protection-rule change was made in this closeout. Documentation only; `[skip ci]` is used because the tested code head is unchanged.
