@@ -95,3 +95,11 @@ Validate the new AST guard in Verify, then obtain an authorized staging project 
 - Added a second AST regression for `getCurrentProfile`: exactly two bounded reads (`profiles.actor_id` and `dt_memberships.tenant_id`), one `auth.getUser()` call, and no Supabase reads inside map callbacks. This complements the existing `getOfferContext` query/projection guard.
 - The new check is a source-level budget guard only. It does not provide p50/p95/p99, SQL plans, buffer, lock, CPU, or memory measurements; no optimization was made.
 - The new guard has not yet been validated by GitHub Actions. No Production query, schema/data change, migration, secret, grant, RLS policy, deployment, merge, force-push, or protection-rule change was made.
+
+
+## Shared identity query-budget verification closeout — 2026-11-28
+
+- Corrected code head [86b1988c](https://github.com/meridane/QimaTrade-MVP/commit/86b1988c7ff57d0bd5c6fce1e46577c89c1d5a2a) is validated by QIMA CI [#2248](https://github.com/meridane/QimaTrade-MVP/actions/runs/46117451473), Verify job `140894333908`: **437 Playwright tests passed (36.3s)**. The new `getCurrentProfile` AST guard passed in **8 ms**; the existing `getOfferContext` guard passed in 26 ms.
+- Dependency security audit, TypeScript and Next.js production build completed **SUCCESS**. CodeQL [#2172](https://github.com/meridane/QimaTrade-MVP/actions/runs/46117451489) is **SUCCESS**. Vercel Preview is **SUCCESS**.
+- PostgreSQL 16 and 17.6 remain **IN PROGRESS** at the full CREATE_OFFER runner write-privilege characterization step; earlier integration/replay/concurrency steps are successful. The overall QIMA CI run is not yet closed.
+- Both AST checks are static regression guards, not latency or throughput benchmarks. No optimization or Production query was performed; staging and p50/p95/p99/SQL-plan measurements remain unavailable.
