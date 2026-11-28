@@ -76,8 +76,12 @@ const server = createServer(async (request, response) => {
 
     if (authUserStatus !== 200) {
       sendJson(response, authUserStatus, {
-        code: authUserStatus === 401 ? "invalid_token" : "server_error",
-        message: authUserStatus === 401 ? "Invalid synthetic access token" : "Synthetic Auth service unavailable",
+        code: authUserStatus === 401 ? "invalid_token" : authUserStatus === 403 ? "access_denied" : "server_error",
+        message: authUserStatus === 401
+          ? "Invalid synthetic access token"
+          : authUserStatus === 403
+            ? "Synthetic Auth access denied"
+            : "Synthetic Auth service unavailable",
       });
       return;
     }
@@ -94,7 +98,7 @@ const server = createServer(async (request, response) => {
   if (request.method === "POST" && url.pathname === "/__test/auth-fixture") {
     try {
       const body = await readJsonBody(request);
-      if (!body || typeof body !== "object" || Array.isArray(body) || ![200, 401, 429, 500, 502, 503, 504].includes(body.status)) {
+      if (!body || typeof body !== "object" || Array.isArray(body) || ![200, 401, 403, 429, 500, 502, 503, 504].includes(body.status)) {
         sendJson(response, 400, { error: "INVALID_AUTH_FIXTURE" });
         return;
       }
