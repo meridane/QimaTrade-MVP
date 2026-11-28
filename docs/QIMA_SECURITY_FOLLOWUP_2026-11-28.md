@@ -164,3 +164,15 @@ Wait for the final-head Verify and CodeQL workflows to complete; inspect the exa
 - QIMA CI [#2251](https://github.com/meridane/QimaTrade-MVP/actions/runs/46122546590) remains **IN PROGRESS** on superseded code head `0da391f2`; its jobs are not evidence for corrected head 21178dab.
 - No Verify, PostgreSQL, or CodeQL conclusion is attributed to the new authenticated-subject mismatch case until the corrected-head workflows complete.
 - This entry is documentation-only (`[skip ci]`); it does not change the tested code head.
+
+
+## Authenticated-subject binding — final CI closeout — 2026-11-28
+
+- Corrected code head: [21178dab](https://github.com/meridane/QimaTrade-MVP/commit/21178dabaa0a5f7a1292a8a46307da8de3ea47eb). The subsequent documentation-only branch head before this closeout was `b9b73d50`.
+- QIMA CI [#2252](https://github.com/meridane/QimaTrade-MVP/actions/runs/46122567881) completed **SUCCESS** on code head `21178dab`. Verify job `140911724283` completed **SUCCESS** with **464 Playwright tests passed (39.1s)**; dependency audit, TypeScript, Next.js production build, browser smoke tests, and the isolated QIMA security-contract fixture all passed.
+- The successful fixture step invokes `supabase/fixtures/qima_product_request_publish_rpc_tests.sql` after applying the disposable migration. That fixture authenticates synthetic user A, calls the RPC with user B as `p_user_id`, requires `UNAUTHENTICATED`, and verifies no demand was inserted and the request remains `draft`. The fixture is disposable and the shell runner tears down its Compose project and named volume; this does not inspect or mutate Supabase Production.
+- PostgreSQL 16 integration job `140911724253` completed **SUCCESS** (all 48 steps); PostgreSQL 17.6 compatibility job `140911724219` completed **SUCCESS** (all 33 steps). The logs also confirm the prior tenant-membership and concurrent-revocation checks.
+- CodeQL [#2176](https://github.com/meridane/QimaTrade-MVP/actions/runs/46122567877) completed **SUCCESS** on corrected code head `21178dab`.
+- QIMA CI [#2251](https://github.com/meridane/QimaTrade-MVP/actions/runs/46122546590) remains a **FAILURE on superseded head `0da391f2`** caused by the over-escaped grep assertion; it is not evidence against corrected head `21178dab`. CodeQL #2175 on that superseded head was successful but is not used as validation for the corrected head.
+- The new authenticated-subject test is synthetic characterization of the existing migration predicate. It does not establish a live Production mismatch or vulnerability. The live function definition, effective ACLs and RLS policies remain unverified because the QIMA Supabase project is inactive.
+- This closeout is documentation-only and uses `[skip ci]`; the tested code head is unchanged. No Production data/schema, migration, secret, grant, RLS policy, persistent configuration, Production deployment, merge, force-push or protection-rule change was made.
