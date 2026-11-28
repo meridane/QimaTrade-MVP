@@ -508,6 +508,25 @@ test("PUBLISH_PRODUCT_REQUEST runtime rejects a truncated publish RPC response w
 });
 
 
+test("PUBLISH_PRODUCT_REQUEST runtime rejects malformed successful publish JSON without retrying", async () => {
+  const outcome = await executePublishProductRequestRuntime(null, "publish", 200, undefined, null, null, "publish");
+
+  expect(outcome.result).toBeNull();
+  expect(outcome.errorMessage).toBeTruthy();
+  expect(outcome.errorMessage).not.toContain("internal database row diagnostic");
+  expect(outcome.errorMessage).not.toContain("private troubleshooting hint");
+  expect(outcome.requests.map((request) => ({ path: request.path, method: request.method }))).toEqual([
+    { path: "/rest/v1/rpc/get_action_definition_v1", method: "POST" },
+    { path: "/rest/v1/rpc/dt_publish_product_request", method: "POST" },
+  ]);
+  expect(outcome.requests[1].body).toEqual({
+    p_request_id: outcome.requestId,
+    p_user_id: outcome.userId,
+  });
+  expect(outcome.redirectTargetHits).toBe(0);
+});
+
+
 test("PUBLISH_PRODUCT_REQUEST runtime normalizes malformed action-definition JSON without publishing", async () => {
   const outcome = await executePublishProductRequestRuntime(null, "publish", 200, undefined, null, null, "definition");
 
