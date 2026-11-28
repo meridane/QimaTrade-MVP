@@ -115,3 +115,13 @@ Validate the new AST guard in Verify, then obtain an authorized staging project 
 - The combined Vercel status for documentation head `4e482022` is **FAILURE** with provider target `build-rate-limit`. This is an external Preview quota failure, not a Verify, PostgreSQL or CodeQL failure.
 - Both AST guards are static structural checks only. They do not establish latency, throughput, p50/p95/p99, query plans, buffers, lock waits, CPU or memory. QIMA Supabase remains inactive and no authorized non-Production staging environment is available; no live query or optimization was attempted.
 - No Production data/schema, migration, secret, grant, RLS policy, persistent configuration, Production deployment, merge, force-push or protection-rule change was made. This is a documentation-only `[skip ci]` closeout; tested code head is unchanged.
+
+
+## createOffer static query-shape baseline — validation in progress — 2026-11-29
+
+- Added test-only commit [`8f7f9b87`](https://github.com/meridane/QimaTrade-MVP/commit/8f7f9b8712397f718bb814fbbb8c658b3653d82b) in `tests/e2e/offer-context-query-budget.spec.ts`.
+- The new AST regression requires `createOffer` to contain exactly one direct `demands` lookup with the explicit projection `id, target_market, scope`, exactly one `executeUniversalAction` dispatch, and no Supabase `.from()` call inside per-attribute `.map()` callbacks. This guards against an N+1 query shape without changing runtime code.
+- QIMA CI [#2270](https://github.com/meridane/QimaTrade-MVP/actions/runs/46165043082) is **IN PROGRESS**. Dependency audit, TypeScript and Next.js production build have completed **SUCCESS**; Chromium/Playwright and PostgreSQL 16/17.6 are still running. No result is yet claimed for the new AST regression.
+- CodeQL [#2194](https://github.com/meridane/QimaTrade-MVP/actions/runs/46165043036) completed **SUCCESS**. Vercel Preview Comments check completed **SUCCESS**.
+- This is a static query-shape budget, not a database latency benchmark. No p50/p95/p99, EXPLAIN ANALYZE, buffer, lock, CPU or memory measurement is inferred. An authorized staging environment is still required before optimization.
+- No application runtime, business contract, Supabase Production data/schema, migration, secret, grant, RLS policy, Production deployment, merge, force-push or branch-protection rule was changed.
