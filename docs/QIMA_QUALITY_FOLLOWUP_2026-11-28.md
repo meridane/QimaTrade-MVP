@@ -180,3 +180,14 @@ Verify the new `aria-live` assertion in the browser test, then complete PostgreS
 - The prepared-transaction setup/cleanup harness jobs report their intentionally injected failure outcomes; their separate assertion jobs succeeded. The skipped harness is **SKIPPED** and its assertion succeeded. No unexpected failure is established in the completed Verify job.
 - This entry records the final browser/Verify evidence while PostgreSQL compatibility remains pending. No Supabase Production data/schema, migration, secret, grant, persistent RLS policy, Production deployment, merge, force-push or branch-protection change was made.
 
+
+
+## QIMA CI #2267 PostgreSQL closeout — 2026-11-28
+
+- For code commit [`618405fa`](https://github.com/meridane/QimaTrade-MVP/commit/618405faaab0444e8344f0cfafba2eb4a6e424e2), QIMA CI [run 46157121516](https://github.com/meridane/QimaTrade-MVP/actions/runs/46157121516) completed **SUCCESS**.
+- Verify job `141016121971` completed **SUCCESS**: **446 Playwright tests passed (36.2 s)**, dependency audit reported 0 vulnerabilities, TypeScript and Next.js production build passed, Chromium/browser tests passed, and the isolated QIMA security fixture passed.
+- PostgreSQL 16 job `141016121967` and PostgreSQL 17.6 job `141016122002` both completed **SUCCESS**. The CREATE_OFFER integration/concurrency, replay, runner-safety, and legacy RLS/ACL checks in both jobs completed successfully.
+- CodeQL [run 46157121469](https://github.com/meridane/QimaTrade-MVP/actions/runs/46157121469) (#2191) completed **SUCCESS**. Vercel Preview for code commit `618405fa` completed **SUCCESS**.
+- The prepared-transaction setup/cleanup harness jobs report their intentionally injected failure outcomes; the separate assertion jobs completed **SUCCESS**. The skipped harness is **SKIPPED** and its assertion completed **SUCCESS**. No unexpected failure remains in QIMA CI #2267.
+- This closes the prior pending PostgreSQL checkpoint. It does not validate the later test-only commit `7a98c7e4`; that commit is being checked separately by QIMA CI [run 46160330258](https://github.com/meridane/QimaTrade-MVP/actions/runs/46160330258) (#2268) and CodeQL [run 46160330263](https://github.com/meridane/QimaTrade-MVP/actions/runs/46160330263) (#2192), both **IN PROGRESS** at this checkpoint.
+- No Supabase Production data/schema, migration, secret, grant, persistent RLS policy, Production deployment, merge, force-push or branch-protection change was made.
