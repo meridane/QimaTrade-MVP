@@ -252,3 +252,11 @@ Wait for the final-head Verify and CodeQL workflows to complete; inspect the exa
 - QIMA CI [run 46142812112](https://github.com/meridane/QimaTrade-MVP/actions/runs/46142812112) targets the superseded malformed snapshot `ac877284`; it was still in progress at the last read and is not a validation result for the corrected code.
 - Corrected code head [`066da056`](https://github.com/meridane/QimaTrade-MVP/commit/066da056d66f97063f458938b1e8d3b72f253211) has a fresh QIMA CI [run 46142947939](https://github.com/meridane/QimaTrade-MVP/actions/runs/46142947939) **PENDING** and CodeQL [run 46142947871](https://github.com/meridane/QimaTrade-MVP/actions/runs/46142947871) **IN PROGRESS**. No RLS test pass is claimed yet.
 - The correction changes only disposable fixture test syntax. It does not change the source migrations, production grants, production RLS policies, or application behavior.
+
+
+## Direct RLS regression — CodeQL closeout and Verify wait — 2026-11-28
+
+- CodeQL [run 46142947871](https://github.com/meridane/QimaTrade-MVP/actions/runs/46142947871) for corrected code head `066da056d66f97063f458938b1e8d3b72f253211` completed **SUCCESS**.
+- QIMA CI [run 46142947939](https://github.com/meridane/QimaTrade-MVP/actions/runs/46142947939) for the same corrected code head remains **PENDING** with no jobs published at this read. No TypeScript/Playwright/PostgreSQL or direct-RLS pass is claimed for the new fixture yet.
+- The Vercel combined status for corrected code head `066da056` is **SUCCESS**. The prior CI run `46142812112` is still attached to superseded malformed commit `ac877284` and must not be used as evidence for the corrected fixture.
+- The current PR branch head after this documentation-only note remains code-equivalent to `066da056`; only this follow-up journal is appended.
