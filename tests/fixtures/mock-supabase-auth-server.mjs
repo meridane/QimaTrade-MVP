@@ -94,7 +94,7 @@ const server = createServer(async (request, response) => {
   if (request.method === "POST" && url.pathname === "/__test/auth-fixture") {
     try {
       const body = await readJsonBody(request);
-      if (!body || typeof body !== "object" || Array.isArray(body) || ![200, 503].includes(body.status)) {
+      if (!body || typeof body !== "object" || Array.isArray(body) || ![200, 500, 502, 503, 504].includes(body.status)) {
         sendJson(response, 400, { error: "INVALID_AUTH_FIXTURE" });
         return;
       }
