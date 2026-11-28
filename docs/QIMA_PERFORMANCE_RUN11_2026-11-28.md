@@ -129,3 +129,11 @@ All three run-12 CodeQL workflows completed SUCCESS. QIMA CI #2219 and #2222 rem
 - TESTS Verify completed SUCCESS with 461 Playwright passed (35.8 s); the new malformed publish JSON test is explicitly PASS. PostgreSQL 16/17.6 remain active, so QIMA CI #2219 is still in progress overall.
 - QUALITY browser smoke-test step completed SUCCESS, but the Verify job is still waiting for the isolated security-contract fixture. PostgreSQL 16/17.6 remain active; no final Playwright count is claimed.
 - SECURITY QIMA CI #2221 remains pending with no jobs published. All three run-12 CodeQL workflows are SUCCESS.
+
+### Run 12 Verify closeout update — 2026-11-28
+
+- TESTS #2219 Verify: SUCCESS, 461 Playwright passed (35.8 s); PostgreSQL 16 and 17.6 still active.
+- QUALITY #2222 Verify: SUCCESS, 441 Playwright passed (36.5 s); PostgreSQL 16 and 17.6 still active.
+- SECURITY #2221 remains PENDING with no jobs published.
+- CodeQL #2143, #2145 and #2146 are all SUCCESS.
+- These are whole-suite CI timings only. They do not replace the blocked application/database benchmark.
