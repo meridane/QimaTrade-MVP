@@ -32,3 +32,9 @@ Wait for the final-head Verify and CodeQL workflows to complete; inspect the exa
 ## CodeQL closeout update
 - CodeQL [run 46098403749](https://github.com/meridane/QimaTrade-MVP/actions/runs/46098403749) for final code head `ff1643ed` completed **SUCCESS**.
 - QIMA CI [run 46098403789](https://github.com/meridane/QimaTrade-MVP/actions/runs/46098403789) remains PENDING with no jobs published; the intermediate fixture-only run [46098394680](https://github.com/meridane/QimaTrade-MVP/actions/runs/46098394680) is still IN PROGRESS. The Auth 401 matrix has no final Verify result yet.
+
+
+## Intermediate Verify closeout
+- The fixture-only intermediate run [46098394680](https://github.com/meridane/QimaTrade-MVP/actions/runs/46098394680) completed its Verify job SUCCESS: dependency audit, TypeScript, production build, browser tests and the isolated QIMA security fixture all passed.
+- This intermediate commit did not yet include the new Auth 401 test loop. Its result must not be used as validation of the final 401 matrix.
+- The final-head run [46098403789](https://github.com/meridane/QimaTrade-MVP/actions/runs/46098403789) remains PENDING with no jobs; CodeQL [46098403749](https://github.com/meridane/QimaTrade-MVP/actions/runs/46098403749) is SUCCESS.
