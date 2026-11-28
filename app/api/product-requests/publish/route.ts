@@ -5,12 +5,36 @@ import { randomUUID } from "crypto";
 
 export const dynamic = "force-dynamic";
 
+const publicPublishErrorCodes = new Set([
+  "PRODUCT_REQUEST_NOT_FOUND",
+  "PRODUCT_MASTER_NOT_FOUND",
+  "ACTOR_NOT_LINKED",
+  "UNAUTHENTICATED",
+  "PRODUCT_REQUEST_ID_REQUIRED",
+]);
+
+const requestIdPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    let parsedBody: unknown;
+    try {
+      parsedBody = await request.json();
+    } catch {
+      return NextResponse.json({ error: "INVALID_REQUEST_BODY" }, { status: 400 });
+    }
+
+    if (!parsedBody || typeof parsedBody !== "object" || Array.isArray(parsedBody)) {
+      return NextResponse.json({ error: "INVALID_REQUEST_BODY" }, { status: 400 });
+    }
+
+    const body = parsedBody as Record<string, unknown>;
     const requestId = typeof body.requestId === "string" ? body.requestId.trim() : "";
     if (!requestId) {
       return NextResponse.json({ error: "requestId is required" }, { status: 400 });
+    }
+    if (!requestIdPattern.test(requestId)) {
+      return NextResponse.json({ error: "INVALID_REQUEST_ID" }, { status: 400 });
     }
 
     const supabase = await createSupabaseServerClient();
@@ -60,15 +84,11 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ result }, { status: result.status === "succeeded" ? 200 : 409 });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unable to publish product request";
-    const known = [
-      "PRODUCT_REQUEST_NOT_FOUND",
-      "PRODUCT_MASTER_NOT_FOUND",
-      "ACTOR_NOT_LINKED",
-      "UNAUTHENTICATED",
-      "PRODUCT_REQUEST_ID_REQUIRED",
-    ];
-    const status = known.some((code) => message.includes(code)) ? 400 : 500;
-    return NextResponse.json({ error: message }, { status });
+    const message = error instanceof Error ? error.message : "";
+    if (publicPublishErrorCodes.has(message)) {
+      const publicCode = message;
+      return NextResponse.json({ error: publicCode }, { status: 400 });
+    }
+    return NextResponse.json({ error: "Unable to publish product request." }, { status: 500 });
   }
 }

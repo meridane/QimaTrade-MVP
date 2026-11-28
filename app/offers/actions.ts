@@ -2,6 +2,7 @@
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { executeUniversalAction } from "@/lib/actions/runtime";
+import { toPublicCreateOfferError, toPublicOfferContextError } from "@/lib/offers/public-errors";
 
 export type OfferAttributeInput = { key: string; value: string };
 type CreateOfferInput = { demandId: string; name: string; quantity: string; price: string; currency: string; conditions: string; market: string; geography: string; attributes: OfferAttributeInput[] };
@@ -41,7 +42,7 @@ export async function getOfferContext(demandId: string): Promise<{ ok: true; dat
     supabase.from("product_master_attributes").select("attribute_key, attribute_value, value_type, is_required, attribute_definition_id, unit_id").eq("product_master_id", productMasterId).order("attribute_key", { ascending: true }),
   ]);
   if (productError || !product) return { ok: false, error: "Product Master not found." };
-  if (rowsError) return { ok: false, error: rowsError.message };
+  if (rowsError) return { ok: false, error: toPublicOfferContextError(rowsError) };
   const definitionIds = (rows ?? []).map((row) => row.attribute_definition_id).filter((id): id is string => typeof id === "string");
   const unitIds = (rows ?? []).map((row) => row.unit_id).filter((id): id is string => typeof id === "string");
   const [definitionsResult, optionsResult, unitsResult] = await Promise.all([
@@ -49,7 +50,7 @@ export async function getOfferContext(demandId: string): Promise<{ ok: true; dat
     definitionIds.length ? supabase.from("attribute_options").select("attribute_definition_id, label, code, sort_order").in("attribute_definition_id", definitionIds).eq("is_active", true).order("sort_order", { ascending: true }) : Promise.resolve({ data: [], error: null }),
     unitIds.length ? supabase.from("attribute_units").select("id, symbol, name").in("id", unitIds) : Promise.resolve({ data: [], error: null }),
   ]);
-  if (definitionsResult.error || optionsResult.error || unitsResult.error) return { ok: false, error: definitionsResult.error?.message || optionsResult.error?.message || unitsResult.error?.message || "Unable to load product attributes." };
+  if (definitionsResult.error || optionsResult.error || unitsResult.error) return { ok: false, error: toPublicOfferContextError(definitionsResult.error ?? optionsResult.error ?? unitsResult.error) };
   const definitions = new Map((definitionsResult.data ?? []).map((row) => [row.id, row]));
   const optionsByDefinition = new Map<string, string[]>();
   for (const option of optionsResult.data ?? []) { const list = optionsByDefinition.get(option.attribute_definition_id) ?? []; list.push(option.label || option.code); optionsByDefinition.set(option.attribute_definition_id, list); }
@@ -58,57 +59,62 @@ export async function getOfferContext(demandId: string): Promise<{ ok: true; dat
 }
 
 export async function createOffer(input: CreateOfferInput): Promise<CreateOfferResult> {
-  const demandId = input.demandId.trim();
-  const name = input.name.trim();
-  const quantity = Number(input.quantity);
-  const priceRaw = input.price.trim();
-  const price = priceRaw ? Number(priceRaw) : null;
-  const currency = input.currency.trim();
-  const conditions = input.conditions.trim();
-  const market = input.market.trim();
-  const geography = input.geography.trim();
-  const attributes = Array.isArray(input.attributes) ? input.attributes.filter((item) => item && typeof item.key === "string" && typeof item.value === "string" && item.value.trim()).map((item) => ({ key: item.key.trim(), value: item.value.trim() })) : [];
-
-  if (!demandId || !name || !Number.isFinite(quantity) || quantity <= 0) return { ok: false, error: "Please provide a valid demand, offer name and quantity." };
-  if (price === null) return { ok: false, error: "Please enter a price when responding to a buyer demand." };
-  if (!Number.isFinite(price) || price < 0) return { ok: false, error: "Price must be a valid number greater than or equal to zero." };
-  if (!currencies.has(currency)) return { ok: false, error: "Please select a valid currency." };
-
-  const { supabase, profile, tenantId, user, error } = await getCurrentProfile();
-  if (!profile || !tenantId || !user) return { ok: false, error: error ?? "Authentication failed." };
-  const { data: demand, error: demandError } = await supabase.from("demands").select("id, target_market, scope").eq("id", demandId).single();
-  if (demandError || !demand) return { ok: false, error: "Demand not found or unavailable." };
-  const productMasterId = getProductMasterId(demand.scope);
-  if (!productMasterId) return { ok: false, error: "This demand is not linked to a canonical Product Master yet." };
-
-  const result = await executeUniversalAction({
-    userId: user.id,
-    tenantId,
-    actionKey: "CREATE_OFFER",
-    actionVersion: 1,
-    objectType: "Demand",
-    objectId: demand.id,
-    correlationId: crypto.randomUUID(),
-    idempotencyKey: crypto.randomUUID(),
-  }, {
-    name,
-    demandId: demand.id,
-    productMasterId,
-    providerActorId: profile.actor_id,
-    quantity,
-    price,
-    currency,
-    conditions: conditions || null,
-    market: market || demand.target_market || null,
-    geography: geography || null,
-    attributes: Object.fromEntries(attributes.map((item) => [item.key, item.value])),
-    documentationStatus: "incomplete",
-    lifecycle: "draft",
-    offerType: "supplier_offer",
-    pricingModel: "fixed",
-  }, await (async () => { const { data: { session } } = await supabase.auth.getSession(); return session?.access_token ?? ""; })());
-
-  const offerId = (result as { offerId?: string; objectId?: string } | null)?.offerId ?? (result as { objectId?: string } | null)?.objectId;
-  if (!offerId) return { ok: false, error: "Action completed without an offer identifier." };
-  return { ok: true, offerId };
+  try {
+  
+    const demandId = input.demandId.trim();
+    const name = input.name.trim();
+    const quantity = Number(input.quantity);
+    const priceRaw = input.price.trim();
+    const price = priceRaw ? Number(priceRaw) : null;
+    const currency = input.currency.trim();
+    const conditions = input.conditions.trim();
+    const market = input.market.trim();
+    const geography = input.geography.trim();
+    const attributes = Array.isArray(input.attributes) ? input.attributes.filter((item) => item && typeof item.key === "string" && typeof item.value === "string" && item.value.trim()).map((item) => ({ key: item.key.trim(), value: item.value.trim() })) : [];
+  
+    if (!demandId || !name || !Number.isFinite(quantity) || quantity <= 0) return { ok: false, error: "Please provide a valid demand, offer name and quantity." };
+    if (price === null) return { ok: false, error: "Please enter a price when responding to a buyer demand." };
+    if (!Number.isFinite(price) || price < 0) return { ok: false, error: "Price must be a valid number greater than or equal to zero." };
+    if (!currencies.has(currency)) return { ok: false, error: "Please select a valid currency." };
+  
+    const { supabase, profile, tenantId, user, error } = await getCurrentProfile();
+    if (!profile || !tenantId || !user) return { ok: false, error: error ?? "Authentication failed." };
+    const { data: demand, error: demandError } = await supabase.from("demands").select("id, target_market, scope").eq("id", demandId).single();
+    if (demandError || !demand) return { ok: false, error: "Demand not found or unavailable." };
+    const productMasterId = getProductMasterId(demand.scope);
+    if (!productMasterId) return { ok: false, error: "This demand is not linked to a canonical Product Master yet." };
+  
+    const result = await executeUniversalAction({
+      userId: user.id,
+      tenantId,
+      actionKey: "CREATE_OFFER",
+      actionVersion: 1,
+      objectType: "Demand",
+      objectId: demand.id,
+      correlationId: crypto.randomUUID(),
+      idempotencyKey: crypto.randomUUID(),
+    }, {
+      name,
+      demandId: demand.id,
+      productMasterId,
+      providerActorId: profile.actor_id,
+      quantity,
+      price,
+      currency,
+      conditions: conditions || null,
+      market: market || demand.target_market || null,
+      geography: geography || null,
+      attributes: Object.fromEntries(attributes.map((item) => [item.key, item.value])),
+      documentationStatus: "incomplete",
+      lifecycle: "draft",
+      offerType: "supplier_offer",
+      pricingModel: "fixed",
+    }, await (async () => { const { data: { session } } = await supabase.auth.getSession(); return session?.access_token ?? ""; })());
+  
+    const offerId = (result as { offerId?: string; objectId?: string } | null)?.offerId ?? (result as { objectId?: string } | null)?.objectId;
+    if (!offerId) return { ok: false, error: "Action completed without an offer identifier." };
+    return { ok: true, offerId };
+  } catch (error) {
+    return { ok: false, error: toPublicCreateOfferError(error) };
+  }
 }
