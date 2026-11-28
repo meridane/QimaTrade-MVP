@@ -370,44 +370,46 @@ test("authenticated publish route deduplicates one tenant and rejects multiple t
 });
 
 
-test("product-request publish route rejects an Auth lookup outage before reading memberships", async ({ page, request }) => {
-  await authenticateSecurityTestPage(page, request);
-  await page.goto("/");
+for (const status of [500, 502, 503, 504] as const) {
+  test(`product-request publish route rejects Auth HTTP ${status} before reading memberships`, async ({ page, request }) => {
+    await authenticateSecurityTestPage(page, request);
+    await page.goto("/");
 
-  const membershipConfigured = await request.post("http://127.0.0.1:54321/__test/membership-fixture", {
-    data: { rows: [{ tenant_id: "10000000-0000-4000-8000-000000000001" }] },
-  });
-  expect(membershipConfigured.status()).toBe(200);
+    const membershipConfigured = await request.post("http://127.0.0.1:54321/__test/membership-fixture", {
+      data: { rows: [{ tenant_id: "10000000-0000-4000-8000-000000000001" }] },
+    });
+    expect(membershipConfigured.status()).toBe(200);
 
-  const authConfigured = await request.post("http://127.0.0.1:54321/__test/auth-fixture", {
-    data: { status: 503 },
-  });
-  expect(authConfigured.status()).toBe(200);
+    const authConfigured = await request.post("http://127.0.0.1:54321/__test/auth-fixture", {
+      data: { status },
+    });
+    expect(authConfigured.status()).toBe(200);
 
-  try {
-    const response = await page.evaluate(async () => {
-      const result = await fetch("/api/product-requests/publish", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ requestId: "60000000-0000-4000-8000-000000000001" }),
+    try {
+      const response = await page.evaluate(async () => {
+        const result = await fetch("/api/product-requests/publish", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ requestId: "60000000-0000-4000-8000-000000000001" }),
+        });
+        return { status: result.status, body: await result.json() };
       });
-      return { status: result.status, body: await result.json() };
-    });
 
-    expect(response).toEqual({
-      status: 401,
-      body: { error: "UNAUTHENTICATED" },
-    });
+      expect(response).toEqual({
+        status: 401,
+        body: { error: "UNAUTHENTICATED" },
+      });
 
-    const observed = await request.get("http://127.0.0.1:54321/__test/publish-route-requests");
-    expect(observed.status()).toBe(200);
-    await expect(observed.json()).resolves.toEqual({
-      memberships: [],
-      definitions: [],
-      publications: [],
-    });
-  } finally {
-    await request.post("http://127.0.0.1:54321/__test/auth-fixture", { data: { status: 200 } });
-    await request.post("http://127.0.0.1:54321/__test/membership-fixture", { data: { rows: null } });
-  }
-});
+      const observed = await request.get("http://127.0.0.1:54321/__test/publish-route-requests");
+      expect(observed.status()).toBe(200);
+      await expect(observed.json()).resolves.toEqual({
+        memberships: [],
+        definitions: [],
+        publications: [],
+      });
+    } finally {
+      await request.post("http://127.0.0.1:54321/__test/auth-fixture", { data: { status: 200 } });
+      await request.post("http://127.0.0.1:54321/__test/membership-fixture", { data: { rows: null } });
+    }
+  });
+}
