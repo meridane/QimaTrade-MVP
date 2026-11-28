@@ -65,3 +65,16 @@ Validate the new AST guard in Verify, then obtain an authorized staging project 
 - Vercel Preview for code head 6cfbe7ff reports SUCCESS.
 - Read-only Supabase metadata confirms QIMA project yyulzlnrfcbaxovzjbnh is INACTIVE, region ap-southeast-1, PostgreSQL 17.11.0.003. No SQL query was attempted against the inactive project.
 - No authorized non-Production staging project is currently available for real query plans, latency percentiles, buffers, lock waits, CPU or memory profiling.
+
+
+## Final PostgreSQL and CI closeout — 2026-11-28 14:10 KST
+
+- Final tested code head: `6cfbe7ff7b6a97a0ba9956937f71cbdf7c071f1f`.
+- QIMA CI [#2231](https://github.com/meridane/QimaTrade-MVP/actions/runs/46106210330) is **SUCCESS**. Verify job `140859428821` completed **SUCCESS** with **436 Playwright tests passed**. The strengthened AST query-wave guard explicitly passed in 31 ms; dependency audit, TypeScript, Next.js production build, Chromium and the isolated QIMA security fixture also passed.
+- PostgreSQL 16 job `140859428597` completed **SUCCESS** (48 job steps); PostgreSQL 17.6 job `140859428928` completed **SUCCESS** (33 job steps).
+- CodeQL [#2155](https://github.com/meridane/QimaTrade-MVP/actions/runs/46106210349) is **SUCCESS**. Vercel Preview for code head `6cfbe7ff` was **SUCCESS**.
+- The prepared-transaction failure-injection outcomes and skipped harness are expected and their separate assertion jobs succeeded.
+- The later documentation-only branch HEAD `0e0a6ddf` currently has combined Vercel status **FAILURE** with provider target `build-rate-limit`. This is an external preview quota failure, not a CI or CodeQL failure. No application optimization was performed.
+- The AST guard proves only the inspected static query shape: six table reads, no Supabase reads inside per-attribute map callbacks, and two explicit Promise.all waves with grouped metadata .in() calls. It is not a latency benchmark and does not establish p50/p95/p99, buffers, lock waits, CPU or memory.
+- QIMA Supabase remains inactive and no authorized non-Production staging environment is available. No SQL profiling or live query was run.
+- No Production data/schema, migration, secret, grant, RLS policy, persistent configuration, Production deployment, merge, force-push or protection-rule change was made in this closeout. Documentation only; `[skip ci]` is used because the tested code head is unchanged.
