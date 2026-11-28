@@ -44,3 +44,22 @@ Complete QIMA CI #2215 and CodeQL #2139. If the Tab assertion fails, inspect the
 - PostgreSQL 16 and PostgreSQL 17.6 remain **IN PROGRESS** at step 26, full CREATE_OFFER runner write-privilege characterization. Later RLS/ACL steps remain pending; the overall QIMA CI run is not yet closed.
 - Vercel Preview for the code commit `50353476` was pending at the last status read; the docs-only HEAD has the provider's build-rate quota failure.
 - The expected prepared-transaction failure-injection harnesses have their deliberate FAILURE conclusions, with separate assertion jobs successful; the skipped harness is intentionally SKIPPED and separately asserted.
+
+
+## Run 11 closeout and run 12 change snapshot — 2026-11-28
+
+### Previous validation closeout
+- QIMA CI #2215: [run 46090757958](https://github.com/meridane/QimaTrade-MVP/actions/runs/46090757958) completed SUCCESS; Verify reported 441 Playwright passed (35.8 s).
+- PostgreSQL 16 integration and PostgreSQL 17.6 compatibility jobs both completed SUCCESS.
+- CodeQL #2139: [run 46090757968](https://github.com/meridane/QimaTrade-MVP/actions/runs/46090757968) completed SUCCESS.
+- Expected prepared-transaction failure-injection jobs and the skipped cleanup harness were separately asserted.
+
+### New run 12 change
+- Commit [864c4df6](https://github.com/meridane/QimaTrade-MVP/commit/864c4df66510551e6de217c061a4e5a072927b6a) adds reverse keyboard traversal coverage: after Tab focuses the newly revealed Other documentation textbox, Shift+Tab must return focus to the Other toggle.
+
+### Run 12 validation status
+- QIMA CI #2222: [run 46094839888](https://github.com/meridane/QimaTrade-MVP/actions/runs/46094839888) is IN PROGRESS. PostgreSQL 16 and 17.6 jobs are active; Verify is still installing dependencies.
+- CodeQL #2146: [run 46094839871](https://github.com/meridane/QimaTrade-MVP/actions/runs/46094839871) is IN PROGRESS.
+- The reverse-tab assertion is not declared passing until Verify completes.
+
+This is a focused keyboard-navigation regression, not a complete WCAG or screen-reader certification. This docs-only snapshot uses [skip ci] and does not claim a separate test run.
