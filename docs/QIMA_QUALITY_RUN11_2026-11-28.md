@@ -78,3 +78,10 @@ This is a focused keyboard-navigation regression, not a complete WCAG or screen-
 - PostgreSQL 16 and PostgreSQL 17.6 remain IN PROGRESS.
 - CodeQL #2146 completed SUCCESS.
 - The final Playwright count and overall Verify conclusion are not yet claimed.
+
+### Verify closeout — 2026-11-28
+
+- QIMA CI #2222 Verify job 140823715418 completed SUCCESS with 441 Playwright passed (36.5 s).
+- npm audit, TypeScript, production build, Chromium installation and browser smoke tests all completed successfully. The reverse Shift+Tab assertion is part of the passing existing commercial/documentation keyboard test.
+- The isolated QIMA security-contract fixture step and PostgreSQL 16/17.6 jobs were still active at the latest workflow-job read. The overall QIMA CI #2222 is therefore not yet closed.
+- CodeQL #2146 completed SUCCESS.
