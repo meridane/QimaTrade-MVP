@@ -59,11 +59,11 @@ test("getOfferContext keeps Supabase reads grouped outside per-attribute map cal
       ts.isFunctionDeclaration(node) && node.name?.text === "getOfferContext",
   )[0];
 
-  expect(getOfferContext, "getOfferContext function must remain discoverable").toBeDefined();
+  if (!getOfferContext) throw new Error("getOfferContext function must remain discoverable");
 
   const fromCalls = findNodes(getOfferContext, isFromCall);
   const tables = fromCalls.map((call) =>
-    ts.isStringLiteral(call.arguments[0]) ? call.arguments[0].text : "<dynamic>",
+    call.arguments[0] && ts.isStringLiteral(call.arguments[0]) ? call.arguments[0].text : "<dynamic>",
   ).sort();
 
   expect(tables).toEqual([
