@@ -53,3 +53,24 @@ Required to proceed: an explicitly approved non-production base URL, disposable 
 ## Next step
 
 Keep the baseline unchanged until an approved staging environment exists. Then execute the documented warm-up and repeated-sample protocol, separate each query wave, and optimize only a segment shown by measurements to be material.
+
+## Static request-budget refinement — getOfferContext
+
+A source-level count of the inspected `app/offers/actions.ts` path yields:
+
+| Operation | Remote calls |
+|---|---:|
+| Auth `getUser` | 1 |
+| Profile lookup | 1 |
+| Membership lookup | 1 |
+| Demand lookup | 1 |
+| Product Master lookup | 1 |
+| Product Master attributes lookup | 1 |
+| Attribute definitions lookup | 0 or 1 |
+| Attribute options lookup | 0 or 1 |
+| Attribute units lookup | 0 or 1 |
+| **Total** | **6–9** |
+
+The first six calls are sequential/required for a successful context. The two product/attribute reads are issued in one `Promise.all`; the three metadata lookups are issued in a second `Promise.all` and are conditionally skipped when their identifier arrays are empty.
+
+This is a source-derived call budget, not an observed request count or latency measurement. Duplicate IDs in the arrays, data cardinality, PostgREST planning, network overhead and database execution time are not measured here. No deduplication or other optimization is proposed without a controlled benchmark.
