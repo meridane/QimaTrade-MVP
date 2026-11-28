@@ -20,6 +20,18 @@ test.describe.configure({ mode: "serial" });
 async function executePublishProductRequestRuntime(
   redirectStatus: RedirectStatus,
   redirectTarget: RedirectTarget = "publish",
+  publishRpcStatus = 200,
+  publishRpcPayload: unknown = undefined,
+  transportFailureTarget: RedirectTarget | null = null,
+  truncatedResponseTarget: RedirectTarget | null = null,
+  malformedJsonResponseTarget: RedirectTarget | null = null,
+  definitionRpcStatus = 200,
+  definitionRpcPayload: unknown = [{
+    action_key: "PUBLISH_PRODUCT_REQUEST",
+    version: 1,
+    status: "published",
+  }],
+  publishInputOverrides: { userId?: string; tenantId?: string } = {},
 ) {
   const requestId = "60000000-0000-4000-8000-000000000001";
   const userId = "40000000-0000-4000-8000-000000000001";
@@ -58,6 +70,39 @@ async function executePublishProductRequestRuntime(
       });
 
       if (
+        (path === "/rest/v1/rpc/get_action_definition_v1" && malformedJsonResponseTarget === "definition") ||
+        (path === "/rest/v1/rpc/dt_publish_product_request" && malformedJsonResponseTarget === "publish")
+      ) {
+        response.writeHead(200, { "Content-Type": "application/json" });
+        response.end("{");
+        return;
+      }
+
+      if (
+        (path === "/rest/v1/rpc/get_action_definition_v1" && truncatedResponseTarget === "definition") ||
+        (path === "/rest/v1/rpc/dt_publish_product_request" && truncatedResponseTarget === "publish")
+      ) {
+        const partialBody =
+          path === "/rest/v1/rpc/get_action_definition_v1"
+            ? '[{"action_key":"PUBLISH_PRODUCT_REQUEST"'
+            : '{"demandId":"70000000-0000-4000-8000-000000000001"}';
+        response.writeHead(200, {
+          "Content-Type": "application/json",
+          "Content-Length": String(Buffer.byteLength(partialBody) + 64),
+        });
+        response.end(partialBody);
+        return;
+      }
+
+      if (
+        (path === "/rest/v1/rpc/get_action_definition_v1" && transportFailureTarget === "definition") ||
+        (path === "/rest/v1/rpc/dt_publish_product_request" && transportFailureTarget === "publish")
+      ) {
+        response.destroy();
+        return;
+      }
+
+      if (
         path === "/rest/v1/rpc/get_action_definition_v1" &&
         redirectStatus !== null &&
         redirectTarget === "definition"
@@ -70,13 +115,32 @@ async function executePublishProductRequestRuntime(
         return;
       }
 
+      if (path === "/rest/v1/rpc/get_action_definition_v1" && definitionRpcStatus !== 200) {
+        const rateLimited = definitionRpcStatus === 429;
+        const unauthorized = definitionRpcStatus === 401;
+        const forbidden = definitionRpcStatus === 403;
+        response.writeHead(definitionRpcStatus, {
+          "Content-Type": "application/json",
+          ...(rateLimited ? { "Retry-After": "0" } : {}),
+        });
+        response.end(JSON.stringify({
+          message: rateLimited
+            ? "SYNTHETIC_DEFINITION_RATE_LIMIT_DETAIL"
+            : unauthorized
+              ? "Invalid JWT"
+              : forbidden
+                ? "permission denied"
+                : "SYNTHETIC_DEFINITION_LOOKUP_DETAIL",
+          code: rateLimited ? "PGRST429" : unauthorized ? "PGRST301" : forbidden ? "42501" : "PGRST_QIMA_DEFINITION",
+          details: "internal definition diagnostic",
+          hint: "private rate-limit hint",
+        }));
+        return;
+      }
+
       if (path === "/rest/v1/rpc/get_action_definition_v1") {
         response.writeHead(200, { "Content-Type": "application/json" });
-        response.end(JSON.stringify([{
-          action_key: "PUBLISH_PRODUCT_REQUEST",
-          version: 1,
-          status: "published",
-        }]));
+        response.end(JSON.stringify(definitionRpcPayload));
         return;
       }
 
@@ -93,9 +157,41 @@ async function executePublishProductRequestRuntime(
         return;
       }
 
+      if (path === "/rest/v1/rpc/dt_publish_product_request" && publishRpcStatus === 204) {
+        response.writeHead(204);
+        response.end();
+        return;
+      }
+
+      if (path === "/rest/v1/rpc/dt_publish_product_request" && publishRpcStatus !== 200) {
+        const rateLimited = publishRpcStatus === 429;
+        const unauthorized = publishRpcStatus === 401;
+        const forbidden = publishRpcStatus === 403;
+        response.writeHead(publishRpcStatus, {
+          "Content-Type": "application/json",
+          ...(rateLimited ? { "Retry-After": "0" } : {}),
+        });
+        const unavailable = publishRpcStatus >= 500;
+        response.end(JSON.stringify({
+          message: rateLimited
+            ? "UPSTREAM_RATE_LIMITED"
+            : unauthorized
+              ? "Invalid JWT"
+              : forbidden
+                ? "permission denied"
+                : unavailable
+                  ? "UPSTREAM_TEMPORARILY_UNAVAILABLE"
+                  : "PRODUCT_REQUEST_NOT_FOUND",
+          code: rateLimited ? "PGRST429" : unauthorized ? "PGRST301" : forbidden ? "42501" : unavailable ? "PGRST000" : "P0001",
+          details: "internal database row diagnostic",
+          hint: "private troubleshooting hint",
+        }));
+        return;
+      }
+
       if (path === "/rest/v1/rpc/dt_publish_product_request") {
         response.writeHead(200, { "Content-Type": "application/json" });
-        response.end(JSON.stringify({ demandId }));
+        response.end(JSON.stringify(publishRpcPayload === undefined ? { demandId } : publishRpcPayload));
         return;
       }
 
@@ -155,7 +251,7 @@ async function executePublishProductRequestRuntime(
     let result: ActionResult | null = null;
     let errorMessage: string | null = null;
     try {
-      result = await executeUniversalAction(context, { requestId }, accessToken);
+      result = await executeUniversalAction(context, { requestId, ...publishInputOverrides }, accessToken);
     } catch (error) {
       errorMessage = error instanceof Error ? error.message : String(error);
     }
@@ -254,3 +350,407 @@ test("PUBLISH_PRODUCT_REQUEST runtime preserves successful execution without a r
     p_user_id: outcome.userId,
   });
 });
+
+test("PUBLISH_PRODUCT_REQUEST runtime takes the actor identity only from the authenticated action context", async () => {
+  const spoofedUserId = "40000000-0000-4000-8000-000000000099";
+  const spoofedTenantId = "20000000-0000-4000-8000-000000000099";
+  const outcome = await executePublishProductRequestRuntime(
+    null,
+    "publish",
+    200,
+    undefined,
+    null,
+    null,
+    null,
+    200,
+    undefined,
+    { userId: spoofedUserId, tenantId: spoofedTenantId },
+  );
+
+  expect(outcome.errorMessage).toBeNull();
+  expect(outcome.requests).toHaveLength(2);
+  expect(outcome.requests[1].body).toEqual({
+    p_request_id: outcome.requestId,
+    p_user_id: outcome.userId,
+  });
+  expect(outcome.requests[1].body).not.toHaveProperty("userId");
+  expect(outcome.requests[1].body).not.toHaveProperty("tenantId");
+  expect(outcome.requests[1].body).not.toHaveProperty("p_tenant_id");
+  expect(outcome.requests[1].body).not.toEqual(expect.objectContaining({
+    p_user_id: spoofedUserId,
+    p_tenant_id: spoofedTenantId,
+  }));
+  expect(outcome.redirectTargetHits).toBe(0);
+});
+
+test("PUBLISH_PRODUCT_REQUEST runtime propagates one exact SQL domain error without retrying", async () => {
+  const outcome = await executePublishProductRequestRuntime(null, "publish", 400);
+
+  expect(outcome.result).toBeNull();
+  expect(outcome.errorMessage).toBe("PRODUCT_REQUEST_NOT_FOUND");
+  expect(outcome.errorMessage).not.toContain("internal database row diagnostic");
+  expect(outcome.errorMessage).not.toContain("private troubleshooting hint");
+  expect(outcome.requests.map((request) => ({ path: request.path, method: request.method }))).toEqual([
+    { path: "/rest/v1/rpc/get_action_definition_v1", method: "POST" },
+    { path: "/rest/v1/rpc/dt_publish_product_request", method: "POST" },
+  ]);
+  expect(outcome.requests[1].body).toEqual({
+    p_request_id: outcome.requestId,
+    p_user_id: outcome.userId,
+  });
+  expect(outcome.redirectTargetHits).toBe(0);
+});
+
+
+test("PUBLISH_PRODUCT_REQUEST runtime does not retry upstream 5xx failures or follow redirect targets", async () => {
+  for (const status of [500, 502, 503, 504] as const) {
+    const outcome = await executePublishProductRequestRuntime(null, "publish", status);
+
+    expect(outcome.result, "HTTP " + status).toBeNull();
+    expect(outcome.errorMessage, "HTTP " + status).toBe("UPSTREAM_TEMPORARILY_UNAVAILABLE");
+    expect(outcome.errorMessage, "HTTP " + status).not.toContain("internal database row diagnostic");
+    expect(outcome.errorMessage, "HTTP " + status).not.toContain("private troubleshooting hint");
+    expect(outcome.requests.map((request) => ({ path: request.path, method: request.method })), "HTTP " + status).toEqual([
+      { path: "/rest/v1/rpc/get_action_definition_v1", method: "POST" },
+      { path: "/rest/v1/rpc/dt_publish_product_request", method: "POST" },
+    ]);
+    expect(outcome.requests[1].body, "HTTP " + status).toEqual({
+      p_request_id: outcome.requestId,
+      p_user_id: outcome.userId,
+    });
+    expect(outcome.redirectTargetHits, "HTTP " + status).toBe(0);
+  }
+});
+
+test("PUBLISH_PRODUCT_REQUEST runtime normalizes action-definition transport failures without publishing", async () => {
+  const outcome = await executePublishProductRequestRuntime(null, "publish", 200, undefined, "definition");
+
+  expect(outcome.result).toBeNull();
+  expect(outcome.errorMessage).toBe("ACTION_DEFINITION_LOOKUP_FAILED");
+  expect(outcome.requests.map((request) => ({ path: request.path, method: request.method }))).toEqual([
+    { path: "/rest/v1/rpc/get_action_definition_v1", method: "POST" },
+  ]);
+  expect(outcome.redirectTargetHits).toBe(0);
+});
+
+test("PUBLISH_PRODUCT_REQUEST runtime rejects a truncated action-definition response without publishing", async () => {
+  const outcome = await executePublishProductRequestRuntime(null, "publish", 200, undefined, null, "definition");
+
+  expect(outcome.result).toBeNull();
+  expect(outcome.errorMessage).toBe("ACTION_DEFINITION_LOOKUP_FAILED");
+  expect(outcome.requests.map((request) => ({ path: request.path, method: request.method }))).toEqual([
+    { path: "/rest/v1/rpc/get_action_definition_v1", method: "POST" },
+  ]);
+  expect(outcome.redirectTargetHits).toBe(0);
+});
+
+test("PUBLISH_PRODUCT_REQUEST runtime does not retry a publish transport failure", async () => {
+  const outcome = await executePublishProductRequestRuntime(null, "publish", 200, undefined, "publish");
+
+  expect(outcome.result).toBeNull();
+  expect(outcome.errorMessage).toBeTruthy();
+  expect(outcome.errorMessage).not.toContain("internal database row diagnostic");
+  expect(outcome.errorMessage).not.toContain("private troubleshooting hint");
+  expect(outcome.requests.map((request) => ({ path: request.path, method: request.method }))).toEqual([
+    { path: "/rest/v1/rpc/get_action_definition_v1", method: "POST" },
+    { path: "/rest/v1/rpc/dt_publish_product_request", method: "POST" },
+  ]);
+  expect(outcome.redirectTargetHits).toBe(0);
+});
+
+test("PUBLISH_PRODUCT_REQUEST runtime rejects malformed successful RPC payloads instead of reporting success", async () => {
+  for (const payload of [
+    null,
+    [],
+    {},
+    { demandId: "   " },
+    { demandId: 42 },
+    { demand_id: 42 },
+    { demandId: "not-a-uuid" },
+    { demand_id: "70000000-0000-4000-8000-00000000000g" },
+    {
+      demandId: "70000000-0000-4000-8000-000000000001",
+      demand_id: "70000000-0000-4000-8000-000000000002",
+    },
+  ]) {
+    const outcome = await executePublishProductRequestRuntime(null, "publish", 200, payload);
+
+    expect(outcome.result).toBeNull();
+    expect(outcome.errorMessage).toBe("PUBLISH_RESULT_INVALID");
+    expect(outcome.requests.map((request) => ({ path: request.path, method: request.method }))).toEqual([
+      { path: "/rest/v1/rpc/get_action_definition_v1", method: "POST" },
+      { path: "/rest/v1/rpc/dt_publish_product_request", method: "POST" },
+    ]);
+    expect(outcome.redirectTargetHits).toBe(0);
+  }
+});
+
+test("PUBLISH_PRODUCT_REQUEST runtime preserves the legacy snake_case demand ID response", async () => {
+  const outcome = await executePublishProductRequestRuntime(null, "publish", 200, {
+    demand_id: "70000000-0000-4000-8000-000000000001",
+  });
+
+  expect(outcome.errorMessage).toBeNull();
+  expect(outcome.result?.status).toBe("succeeded");
+  expect(outcome.result?.objectId).toBe(outcome.demandId);
+});
+
+test("PUBLISH_PRODUCT_REQUEST runtime accepts matching camelCase and snake_case demand IDs regardless of UUID hex casing", async () => {
+  const demandId = "abcdefab-cdef-4abc-8def-abcdefabcdef";
+  const upperDemandId = demandId.toUpperCase();
+  expect(upperDemandId).not.toBe(demandId);
+
+  const outcome = await executePublishProductRequestRuntime(null, "publish", 200, {
+    demandId,
+    demand_id: upperDemandId,
+  });
+
+  expect(outcome.errorMessage).toBeNull();
+  expect(outcome.result?.status).toBe("succeeded");
+  expect(outcome.result?.objectId).toBe(demandId);
+  expect(outcome.result?.result).toEqual({
+    requestId: outcome.requestId,
+    demandId,
+    source: "dt_publish_product_request",
+  });
+});
+
+test("PUBLISH_PRODUCT_REQUEST runtime discards unrecognized publish RPC metadata", async () => {
+  const outcome = await executePublishProductRequestRuntime(null, "publish", 200, {
+    demandId: "70000000-0000-4000-8000-000000000001",
+    details: "SYNTHETIC_INTERNAL_DETAILS",
+    hint: "SYNTHETIC_PRIVATE_HINT",
+    tenant_id: "90000000-0000-4000-8000-000000000001",
+  });
+
+  expect(outcome.errorMessage).toBeNull();
+  expect(outcome.result?.status).toBe("succeeded");
+  expect(outcome.result?.result).toEqual({
+    requestId: outcome.requestId,
+    demandId: outcome.demandId,
+    source: "dt_publish_product_request",
+  });
+  expect(JSON.stringify(outcome.result)).not.toContain("SYNTHETIC_INTERNAL_DETAILS");
+  expect(JSON.stringify(outcome.result)).not.toContain("SYNTHETIC_PRIVATE_HINT");
+});
+
+test("PUBLISH_PRODUCT_REQUEST runtime rejects an empty HTTP 204 response instead of reporting success", async () => {
+  const outcome = await executePublishProductRequestRuntime(null, "publish", 204);
+
+  expect(outcome.result).toBeNull();
+  expect(outcome.errorMessage).toBe("PUBLISH_RESULT_INVALID");
+  expect(outcome.requests.map((request) => ({ path: request.path, method: request.method }))).toEqual([
+    { path: "/rest/v1/rpc/get_action_definition_v1", method: "POST" },
+    { path: "/rest/v1/rpc/dt_publish_product_request", method: "POST" },
+  ]);
+  expect(outcome.requests[1].body).toEqual({
+    p_request_id: outcome.requestId,
+    p_user_id: outcome.userId,
+  });
+  expect(outcome.redirectTargetHits).toBe(0);
+});
+
+
+test("PUBLISH_PRODUCT_REQUEST runtime rejects a truncated publish RPC response without retrying", async () => {
+  const outcome = await executePublishProductRequestRuntime(null, "publish", 200, undefined, null, "publish");
+
+  expect(outcome.result).toBeNull();
+  expect(outcome.errorMessage).toBeTruthy();
+  expect(outcome.errorMessage).not.toContain("internal database row diagnostic");
+  expect(outcome.errorMessage).not.toContain("private troubleshooting hint");
+  expect(outcome.requests.map((request) => ({ path: request.path, method: request.method }))).toEqual([
+    { path: "/rest/v1/rpc/get_action_definition_v1", method: "POST" },
+    { path: "/rest/v1/rpc/dt_publish_product_request", method: "POST" },
+  ]);
+  expect(outcome.redirectTargetHits).toBe(0);
+});
+
+
+test("PUBLISH_PRODUCT_REQUEST runtime rejects malformed successful publish JSON without retrying", async () => {
+  const outcome = await executePublishProductRequestRuntime(null, "publish", 200, undefined, null, null, "publish");
+
+  expect(outcome.result).toBeNull();
+  expect(outcome.errorMessage).toBeTruthy();
+  expect(outcome.errorMessage).not.toContain("internal database row diagnostic");
+  expect(outcome.errorMessage).not.toContain("private troubleshooting hint");
+  expect(outcome.requests.map((request) => ({ path: request.path, method: request.method }))).toEqual([
+    { path: "/rest/v1/rpc/get_action_definition_v1", method: "POST" },
+    { path: "/rest/v1/rpc/dt_publish_product_request", method: "POST" },
+  ]);
+  expect(outcome.requests[1].body).toEqual({
+    p_request_id: outcome.requestId,
+    p_user_id: outcome.userId,
+  });
+  expect(outcome.redirectTargetHits).toBe(0);
+});
+
+
+test("PUBLISH_PRODUCT_REQUEST runtime normalizes malformed action-definition JSON without publishing", async () => {
+  const outcome = await executePublishProductRequestRuntime(null, "publish", 200, undefined, null, null, "definition");
+
+  expect(outcome.result).toBeNull();
+  expect(outcome.errorMessage).toBe("ACTION_DEFINITION_LOOKUP_FAILED");
+  expect(outcome.requests.map((request) => ({ path: request.path, method: request.method }))).toEqual([
+    { path: "/rest/v1/rpc/get_action_definition_v1", method: "POST" },
+  ]);
+  expect(outcome.redirectTargetHits).toBe(0);
+});
+
+
+test("PUBLISH_PRODUCT_REQUEST runtime normalizes action-definition HTTP 429 without retrying or publishing", async () => {
+  const outcome = await executePublishProductRequestRuntime(null, "definition", 200, undefined, null, null, null, 429);
+
+  expect(outcome.result).toBeNull();
+  expect(outcome.errorMessage).toBe("ACTION_DEFINITION_LOOKUP_FAILED");
+  expect(outcome.errorMessage).not.toContain("SYNTHETIC_DEFINITION_RATE_LIMIT_DETAIL");
+  expect(outcome.requests.map((request) => ({ path: request.path, method: request.method }))).toEqual([
+    { path: "/rest/v1/rpc/get_action_definition_v1", method: "POST" },
+  ]);
+  expect(outcome.redirectTargetHits).toBe(0);
+});
+
+for (const [status, label] of [[401, "unauthenticated"], [403, "forbidden"]] as const) {
+  test(`PUBLISH_PRODUCT_REQUEST runtime normalizes ${label} action-definition responses without publishing`, async () => {
+    const outcome = await executePublishProductRequestRuntime(null, "definition", 200, undefined, null, null, null, status);
+
+    expect(outcome.result).toBeNull();
+    expect(outcome.errorMessage).toBe("ACTION_DEFINITION_LOOKUP_FAILED");
+    expect(outcome.errorMessage).not.toContain("Invalid JWT");
+    expect(outcome.errorMessage).not.toContain("permission denied");
+    expect(outcome.errorMessage).not.toContain("internal definition diagnostic");
+    expect(outcome.errorMessage).not.toContain("private rate-limit hint");
+    expect(outcome.requests.map((request) => ({ path: request.path, method: request.method }))).toEqual([
+      { path: "/rest/v1/rpc/get_action_definition_v1", method: "POST" },
+    ]);
+    expect(outcome.redirectTargetHits).toBe(0);
+  });
+}
+
+
+for (const [status, message] of [[401, "Invalid JWT"], [403, "permission denied"]] as const) {
+  test(`PUBLISH_PRODUCT_REQUEST runtime does not retry publish RPC HTTP ${status} or expose diagnostics`, async () => {
+    const outcome = await executePublishProductRequestRuntime(null, "publish", status);
+
+    expect(outcome.result).toBeNull();
+    expect(outcome.errorMessage).toBe(message);
+    expect(outcome.errorMessage).not.toContain("internal database row diagnostic");
+    expect(outcome.errorMessage).not.toContain("private troubleshooting hint");
+    expect(outcome.requests.map((request) => ({ path: request.path, method: request.method }))).toEqual([
+      { path: "/rest/v1/rpc/get_action_definition_v1", method: "POST" },
+      { path: "/rest/v1/rpc/dt_publish_product_request", method: "POST" },
+    ]);
+    expect(outcome.redirectTargetHits).toBe(0);
+  });
+}
+
+test("PUBLISH_PRODUCT_REQUEST runtime does not retry a publish RPC HTTP 429 or expose diagnostics", async () => {
+  const outcome = await executePublishProductRequestRuntime(null, "publish", 429);
+
+  expect(outcome.result).toBeNull();
+  expect(outcome.errorMessage).toBe("UPSTREAM_RATE_LIMITED");
+  expect(outcome.errorMessage).not.toContain("internal database row diagnostic");
+  expect(outcome.errorMessage).not.toContain("private troubleshooting hint");
+  expect(outcome.requests.map((request) => ({ path: request.path, method: request.method }))).toEqual([
+    { path: "/rest/v1/rpc/get_action_definition_v1", method: "POST" },
+    { path: "/rest/v1/rpc/dt_publish_product_request", method: "POST" },
+  ]);
+  expect(outcome.redirectTargetHits).toBe(0);
+});
+
+for (const status of [500, 502, 503, 504] as const) {
+  test(`PUBLISH_PRODUCT_REQUEST runtime does not retry publish RPC HTTP ${status} or expose diagnostics`, async () => {
+    const outcome = await executePublishProductRequestRuntime(null, "publish", status);
+
+    expect(outcome.result).toBeNull();
+    expect(outcome.errorMessage).toBe("UPSTREAM_TEMPORARILY_UNAVAILABLE");
+    expect(outcome.errorMessage).not.toContain("internal database row diagnostic");
+    expect(outcome.errorMessage).not.toContain("private troubleshooting hint");
+    expect(outcome.requests.map((request) => ({ path: request.path, method: request.method }))).toEqual([
+      { path: "/rest/v1/rpc/get_action_definition_v1", method: "POST" },
+      { path: "/rest/v1/rpc/dt_publish_product_request", method: "POST" },
+    ]);
+    expect(outcome.redirectTargetHits).toBe(0);
+  });
+}
+
+
+
+
+for (const [label, definition] of [
+  ["wrong action key", [{ action_key: "CREATE_OFFER", version: 1, status: "published" }]],
+  ["wrong version", [{ action_key: "PUBLISH_PRODUCT_REQUEST", version: 2, status: "published" }]],
+  ["draft status", [{ action_key: "PUBLISH_PRODUCT_REQUEST", version: 1, status: "draft" }]],
+  ["retired status", [{ action_key: "PUBLISH_PRODUCT_REQUEST", version: 1, status: "retired" }]],
+] as const) {
+  test(`PUBLISH_PRODUCT_REQUEST runtime rejects a published definition with ${label} before publishing`, async () => {
+    const outcome = await executePublishProductRequestRuntime(
+      null,
+      "publish",
+      200,
+      undefined,
+      null,
+      null,
+      null,
+      200,
+      definition,
+    );
+
+    expect(outcome.result).toBeNull();
+    expect(outcome.errorMessage).toBe("ACTION_NOT_PUBLISHED");
+    expect(outcome.requests.map((request) => ({ path: request.path, method: request.method }))).toEqual([
+      { path: "/rest/v1/rpc/get_action_definition_v1", method: "POST" },
+    ]);
+    expect(outcome.requests[0].body).toEqual({
+      p_action_key: "PUBLISH_PRODUCT_REQUEST",
+      p_version: 1,
+    });
+    expect(outcome.redirectTargetHits).toBe(0);
+  });
+}
+
+
+for (const [label, definition] of [
+  ["empty definition result set", []],
+  ["null definition result", null],
+] as const) {
+  test("PUBLISH_PRODUCT_REQUEST runtime rejects a missing action definition from " + label + " without publishing", async () => {
+    const outcome = await executePublishProductRequestRuntime(
+      null,
+      "publish",
+      200,
+      undefined,
+      null,
+      null,
+      null,
+      200,
+      definition,
+    );
+
+    expect(outcome.result).toBeNull();
+    expect(outcome.errorMessage).toBe("ACTION_NOT_PUBLISHED");
+    expect(outcome.requests.map((request) => ({ path: request.path, method: request.method }))).toEqual([
+      { path: "/rest/v1/rpc/get_action_definition_v1", method: "POST" },
+    ]);
+    expect(outcome.requests[0].body).toEqual({
+      p_action_key: "PUBLISH_PRODUCT_REQUEST",
+      p_version: 1,
+    });
+    expect(outcome.redirectTargetHits).toBe(0);
+  });
+}
+
+for (const status of [500, 502, 503, 504] as const) {
+  test(`PUBLISH_PRODUCT_REQUEST runtime normalizes action-definition HTTP ${status} without retrying or publishing`, async () => {
+    const outcome = await executePublishProductRequestRuntime(null, "definition", 200, undefined, null, null, null, status);
+
+    expect(outcome.result).toBeNull();
+    expect(outcome.errorMessage).toBe("ACTION_DEFINITION_LOOKUP_FAILED");
+    expect(outcome.errorMessage).not.toContain("SYNTHETIC_DEFINITION_LOOKUP_DETAIL");
+    expect(outcome.errorMessage).not.toContain("internal definition diagnostic");
+    expect(outcome.errorMessage).not.toContain("private rate-limit hint");
+    expect(outcome.requests.map((request) => ({ path: request.path, method: request.method }))).toEqual([
+      { path: "/rest/v1/rpc/get_action_definition_v1", method: "POST" },
+    ]);
+    expect(outcome.redirectTargetHits).toBe(0);
+  });
+}

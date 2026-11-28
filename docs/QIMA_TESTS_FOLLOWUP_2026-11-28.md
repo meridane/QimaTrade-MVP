@@ -1,0 +1,143 @@
+# QIMA TESTS — follow-up 2026-11-28
+
+## Scope and branch
+- Branch: `work/qima-tests-publish-runtime-20261127-0441`
+- Tested code head: `175ff9f5e7cf324379e76c80830d8cd36b3733f6`
+- Mission PR: [#28](https://github.com/meridane/QimaTrade-MVP/pull/28), OPEN / DRAFT.
+- Source base: PR #26 HEAD `61002cb21aaa738a7f018794ab84bff41a2c6eb2`.
+
+## New regression
+- File: `tests/e2e/action-runtime-publish-product-request.spec.ts`.
+- Commit: `175ff9f5e7cf324379e76c80830d8cd36b3733f6`.
+- A successful HTTP 200 publish RPC response includes the valid `demandId` plus unknown `details`, `hint` and `tenant_id` fields.
+- The public ActionResult must contain only the normalized request ID, demand ID and source; the synthetic internal fields must not be propagated.
+
+This complements existing tests for empty HTTP 204, malformed/truncated JSON, 401/403/429/5xx, absent definitions, invalid UUIDs and no-retry behavior.
+
+## Validation
+- Previous snapshot `3d3041a3`: QIMA CI [run 46094833714](https://github.com/meridane/QimaTrade-MVP/actions/runs/46094833714) SUCCESS, 461 Playwright tests, PostgreSQL 16 and 17.6 SUCCESS; CodeQL [run 46094833583](https://github.com/meridane/QimaTrade-MVP/actions/runs/46094833583) SUCCESS.
+- Current QIMA CI [run 46098391508](https://github.com/meridane/QimaTrade-MVP/actions/runs/46098391508): IN PROGRESS. Verify is still building; PostgreSQL 16 and 17.6 jobs are active. No result is yet claimed for the new unknown-metadata test.
+- CodeQL [run 46098391500](https://github.com/meridane/QimaTrade-MVP/actions/runs/46098391500): IN PROGRESS.
+- Vercel Preview: PENDING at the latest status read.
+
+## Interpretation
+The test checks response normalization and output minimization in a local synthetic HTTP server. It does not prove that a Production endpoint leaked data.
+
+## Next step
+Inspect the new test in the Verify log, then wait for PostgreSQL 16/17.6 and CodeQL conclusions.
+
+
+## Verify closeout update
+- Verify job `140834981554` in QIMA CI [run 46098391508](https://github.com/meridane/QimaTrade-MVP/actions/runs/46098391508) completed SUCCESS: npm audit, TypeScript, production build, Chromium and the isolated security fixture passed; Playwright completed **462 tests**.
+- The new `PUBLISH_PRODUCT_REQUEST runtime discards unrecognized publish RPC metadata` test is explicitly PASS (5 ms).
+- PostgreSQL 16 and 17.6 jobs remained IN PROGRESS at the latest read, so the overall QIMA CI run is not yet closed.
+- CodeQL [run 46098391500](https://github.com/meridane/QimaTrade-MVP/actions/runs/46098391500) completed SUCCESS.
+- Vercel Preview was PENDING at the latest status read.
+
+ 
+## Publish RPC 5xx retry boundary — 2026-11-28
+
+- Added parameterized HTTP 500, 502, 503 and 504 cases to tests/e2e/action-runtime-publish-product-request.spec.ts.
+- Each case requires a null result, the normalized upstream-unavailable message, no details/hint disclosure, exactly one definition request followed by one publish request, and no redirect/retry.
+- Commit: https://github.com/meridane/QimaTrade-MVP/commit/7d61b99f40ad0895c068eabc25d55d17ac30d19b.
+- Previous head 175ff9f5 is fully validated by QIMA CI #46098391508: 462 Playwright passed, including the unknown-metadata allowlist regression; Verify succeeded; PostgreSQL 16 48/48 and PostgreSQL 17.6 33/33 succeeded. CodeQL #46098391500 succeeded.
+- New head 7d61b99f has QIMA CI #46106205447 QUEUED and CodeQL #46106205431 IN PROGRESS at this checkpoint. The new 5xx matrix is not yet marked PASS.
+- All 5xx responses are synthetic local-server fixtures; this does not establish a Production RPC outage or data exposure.
+
+ 
+## Publish RPC 5xx matrix — Verify closeout
+
+- New code head 7d61b99f: QIMA CI [#46106205447](https://github.com/meridane/QimaTrade-MVP/actions/runs/46106205447), Verify job 140859414003 **SUCCESS**, **466 Playwright passed**.
+- All four new HTTP 500, 502, 503 and 504 publish-RPC cases explicitly passed. Each asserts no retry, no redirect, normalized upstream-unavailable error and no details/hint disclosure.
+- TypeScript, dependency audit, production build and isolated QIMA security fixture all passed.
+- CodeQL [#46106205431](https://github.com/meridane/QimaTrade-MVP/actions/runs/46106205431) **SUCCESS**.
+- PostgreSQL 16 and 17.6 remain IN PROGRESS at full runner write-privilege characterization. Overall QIMA CI is not yet closed.
+- The two deliberately failing prepared-transaction harness jobs are expected; their separate blocking assertion jobs passed. The intentionally skipped harness and its assertion also behaved as expected.
+
+ 
+## External preview
+
+- Vercel Preview for code head 7d61b99f reports SUCCESS.
+- QIMA CI overall remains IN PROGRESS only because PostgreSQL 16 and 17.6 runner-write-privilege characterization jobs have not completed yet; Verify and CodeQL are successful.
+
+
+## Final PostgreSQL and CI closeout — 2026-11-28 14:10 KST
+
+- Final tested code head: `7d61b99f40ad0895c068eabc25d55d17ac30d19b`.
+- QIMA CI [#2230](https://github.com/meridane/QimaTrade-MVP/actions/runs/46106205447) is **SUCCESS**. Verify job `140859414003` completed **SUCCESS** with **466 Playwright tests passed**. The four HTTP 500/502/503/504 publish-RPC cases explicitly passed, alongside dependency audit, TypeScript, Next.js production build, Chromium and the isolated QIMA security fixture.
+- PostgreSQL 16 job `140859413974` completed **SUCCESS** (48 job steps); PostgreSQL 17.6 job `140859414069` completed **SUCCESS** (33 job steps). No unexpected failed integration step remains.
+- CodeQL [#2154](https://github.com/meridane/QimaTrade-MVP/actions/runs/46106205431) is **SUCCESS**. Vercel Preview for code head `7d61b99f` was **SUCCESS**.
+- Prepared-transaction failure-injection jobs report their expected negative outcomes; their independent blocking assertions passed. The intentionally skipped harness is also checked by a successful assertion job.
+- The later documentation-only branch HEAD `c60850f2` currently has combined Vercel status **FAILURE** with provider target `build-rate-limit`. This is an external preview quota issue, not a failed QIMA CI, PostgreSQL or CodeQL check. The code head above is the validated snapshot.
+- These tests use synthetic HTTP responses and verify error normalization, no-retry/no-redirect behavior and output minimization. They do not establish a live Production RPC outage or data leak.
+- No Production data/schema, migration, secret, grant, RLS policy, persistent configuration, Production deployment, merge, force-push or protection-rule change was made in this closeout. Documentation only; `[skip ci]` is used because the tested code head is unchanged.
+
+## Ambiguous legacy draft response — behavior characterized, decision deferred
+
+- The existing browser regression `characterizes an ambiguous response after the legacy draft INSERT commits before the browser connection is lost` passed in QIMA CI [#2230](https://github.com/meridane/QimaTrade-MVP/actions/runs/46106205447), Verify job `140859414003` (466 Playwright tests total).
+- The synthetic fixture lets the first POST commit, then drops only the browser-facing response. Retrying the unchanged form creates a second draft with a different UUID; the test verifies both persisted rows and their payloads.
+- This is a **confirmed behavior of the legacy route in the disposable browser fixture**, not evidence of duplicate records in Production.
+- The likely product-level question is whether an ambiguous retry should reuse a stable idempotency key or whether the legacy draft flow intentionally treats each POST as a new draft. The existing CREATE_OFFER idempotency contract does not automatically settle the legacy multipart draft route.
+- No runtime behavior was changed. Keep this as a documented decision point until the product owner defines the retry/idempotency contract; do not silently deduplicate or alter the route in this test-only mission.
+
+
+## Publish RPC authentication/permission failures — 2026-11-28
+
+- The prior response-boundary snapshot is now fully validated by QIMA CI [#2239](https://github.com/meridane/QimaTrade-MVP/actions/runs/46113016431): Verify **466 Playwright passed (38.1s)**, PostgreSQL 16 and PostgreSQL 17.6 **SUCCESS**, and CodeQL [#2163](https://github.com/meridane/QimaTrade-MVP/actions/runs/46113016538) **SUCCESS**.
+- Added synthetic PostgREST response cases for publish-RPC HTTP 401 (`PGRST301` / `Invalid JWT`) and 403 (`42501` / `permission denied`). Each asserts one definition lookup, one publish request, no retry/redirect, and no exposure of `details` or `hint`.
+- The new 401/403 tests are not yet validated by CI. They characterize RPC authorization failures after the existing Auth user lookup; they do not establish a live authorization failure or a Production data leak.
+- No runtime contract or Production data/schema, migration, secret, grant, RLS policy, persistent configuration, Production deployment, merge, force-push, or protection-rule change was made.
+
+
+## Publish RPC 401/403 verification closeout — 2026-11-28
+
+- Corrected code head [337eff3b](https://github.com/meridane/QimaTrade-MVP/commit/337eff3b9d5c4dafc6a4bcc4f12d8a22aaa10806) is validated by QIMA CI [#2247](https://github.com/meridane/QimaTrade-MVP/actions/runs/46117420584), Verify job `140894244340`: **468 Playwright tests passed (34.4s)**. Both new cases, publish-RPC HTTP 401 and 403, are explicitly **PASS**.
+- Dependency security audit, TypeScript, Next.js production build, browser fixture, and audit-result enforcement all completed **SUCCESS**. CodeQL [#2171](https://github.com/meridane/QimaTrade-MVP/actions/runs/46117420576) is **SUCCESS**. Vercel Preview is **SUCCESS**.
+- PostgreSQL 16 and 17.6 remain **IN PROGRESS** at the full CREATE_OFFER runner write-privilege characterization step; the earlier integration/replay/concurrency steps are successful. The overall QIMA CI run is not yet closed.
+- These are synthetic PostgREST responses after a successful Auth lookup. They do not prove a live permission failure or a Production exposure. No Production data/schema, migration, secret, grant, RLS policy, deployment, merge, force-push, or protection-rule change was made.
+
+
+## Publish RPC authorization-status matrix — final CI closeout — 2026-11-28
+
+- Tested code head: [337eff3b](https://github.com/meridane/QimaTrade-MVP/commit/337eff3b9d5c4dafc6a4bcc4f12d8a22aaa10806); documentation head before this closeout: `e5ef6457`.
+- QIMA CI [#2247](https://github.com/meridane/QimaTrade-MVP/actions/runs/46117420584) completed **SUCCESS**. Verify job `140894244340` completed **SUCCESS** with **468 Playwright tests passed**; the new synthetic publish-RPC HTTP 401 and 403 cases passed, alongside the existing 429 and 5xx no-retry/non-disclosure matrix.
+- Dependency audit, TypeScript, Next.js production build, Chromium and the isolated QIMA security fixture all passed.
+- PostgreSQL 16 job `140894244403` completed **SUCCESS** (48/48 steps); PostgreSQL 17.6 job `140894244352` completed **SUCCESS** (33/33 steps). CodeQL [#2171](https://github.com/meridane/QimaTrade-MVP/actions/runs/46117420576) completed **SUCCESS**.
+- The prepared-transaction setup/cleanup failure jobs and skipped harness retain their expected outcomes; the independent assertions that those outcomes remain blocking completed SUCCESS. No unexpected failing job remains.
+- The combined Vercel status for later documentation head `e5ef6457` is **FAILURE** with provider target `build-rate-limit`; the tested code head's Preview was SUCCESS in the preceding code validation. The quota failure does not change the GitHub Verify/CodeQL result.
+- QA340 still characterizes an ambiguous legacy draft POST: a committed insert followed by a lost response and a second independent POST can create a second draft in the synthetic fixture. Whether retries should reuse an idempotency key or create independent drafts remains a product-contract decision. No behavior was changed and no Production duplicate is inferred.
+- No Production data/schema, migration, secret, grant, RLS policy, persistent configuration, Production deployment, merge, force-push or protection-rule change was made. This is a documentation-only `[skip ci]` closeout; tested code head is unchanged.
+
+
+## Publish action-definition authorization-status coverage — review note — 2026-11-28
+
+- Source reviewed at code head [337eff3b](https://github.com/meridane/QimaTrade-MVP/commit/337eff3b9d5c4dafc6a4bcc4f12d8a22aaa10806), file `tests/e2e/action-runtime-publish-product-request.spec.ts`.
+- In addition to the publish-RPC HTTP 401/403 cases already recorded above, the same suite contains distinct HTTP 401 (unauthenticated) and 403 (forbidden) action-definition lookup cases.
+- Both definition-lookup cases normalize to `ACTION_DEFINITION_LOOKUP_FAILED`, assert that raw `Invalid JWT` / `permission denied` and synthetic diagnostics are absent, and assert that only `get_action_definition_v1` is called: the publication RPC is never reached after a failed definition lookup.
+- QIMA CI [#2247](https://github.com/meridane/QimaTrade-MVP/actions/runs/46117420584) completed **SUCCESS** with **468 Playwright tests passed**; therefore these definition-lookup cases were included in the successful Verify run. PostgreSQL 16 (48/48 steps), PostgreSQL 17.6 (33/33 steps), TypeScript, dependency audit, Next.js build, isolated security fixture and CodeQL [#2171](https://github.com/meridane/QimaTrade-MVP/actions/runs/46117420576) also completed **SUCCESS**.
+- This is synthetic response-boundary coverage. It does not establish a live Auth/PostgREST permission failure or Production exposure. No runtime behavior, Production data/schema, migration, secret, grant, RLS policy, deployment, merge, force-push or protection rule was changed.
+- Documentation-only `[skip ci]` note; tested code head remains `337eff3b`.
+
+
+## Publish actor identity provenance — validation in progress — 2026-11-29
+
+- Added test-only commit [`c9fd8064`](https://github.com/meridane/QimaTrade-MVP/commit/c9fd80642610d91c40e3d607f9048bae2d9fd867) in `tests/e2e/action-runtime-publish-product-request.spec.ts`.
+- The synthetic local PostgREST fixture now accepts controlled action-input overrides. The new regression supplies forged `userId` and `tenantId` fields in the action input, then asserts that `executeUniversalAction` sends only the authenticated `ActionContext.userId` as `p_user_id`; no caller-provided `userId`, `tenantId`, or `p_tenant_id` is forwarded in the publish RPC body.
+- QIMA CI [#2269](https://github.com/meridane/QimaTrade-MVP/actions/runs/46164948032): Verify job `141040292043` completed **SUCCESS** with **469 Playwright tests passed (34.4 s)**. The new actor-identity provenance test passed explicitly (5 ms). Dependency audit, TypeScript, Next.js production build, Chromium and the isolated QIMA security fixture all completed successfully.
+- CodeQL [#2193](https://github.com/meridane/QimaTrade-MVP/actions/runs/46164948010) completed **SUCCESS**. Vercel Preview Comments check completed **SUCCESS**.
+- PostgreSQL 16 job `141040291818` and PostgreSQL 17.6 job `141040292065` remain **IN PROGRESS** at the final CREATE_OFFER runner write-privilege characterization step. The overall QIMA CI run is not yet closed; no PostgreSQL completion is claimed for this new code head.
+- This is synthetic request-construction coverage. It does not prove a Production identity-spoofing vulnerability; the production runtime was not changed.
+- No Supabase Production data/schema, migration, secret, grant, RLS policy, deployment, merge, force-push or branch-protection change was made.
+
+
+
+## Publish actor identity provenance — final CI closeout — 2026-11-29
+
+- Tested code head: [`c9fd8064`](https://github.com/meridane/QimaTrade-MVP/commit/c9fd80642610d91c40e3d607f9048bae2d9fd867).
+- QIMA CI [#2269](https://github.com/meridane/QimaTrade-MVP/actions/runs/46164948032) completed **SUCCESS**. Verify job `141040292043` completed **SUCCESS** with **469 Playwright tests passed (34.4 s)**; the new actor-identity provenance regression passed explicitly in 5 ms.
+- Dependency audit, TypeScript, Next.js production build, Chromium/browser tests and the isolated QIMA security fixture completed **SUCCESS**.
+- PostgreSQL 16 job `141040291818` and PostgreSQL 17.6 job `141040292065` both completed **SUCCESS**. Their full CREATE_OFFER integration/concurrency, replay, runner-safety and legacy RLS/ACL checks completed.
+- CodeQL [#2193](https://github.com/meridane/QimaTrade-MVP/actions/runs/46164948010) completed **SUCCESS**. The Vercel Preview Comments check for the tested code snapshot completed **SUCCESS**.
+- The prepared-transaction failure-injection jobs reported their expected injected **FAILURE** outcomes; the independent assertion jobs completed **SUCCESS**. The intentionally skipped harness remained **SKIPPED** and its assertion completed **SUCCESS**. The overall QIMA CI run completed **SUCCESS** with no unexpected failing job.
+- This is synthetic request-construction coverage. It does not prove a Production identity-spoofing vulnerability; the application runtime was not changed.
+- No Supabase Production data/schema, migration, secret, grant, RLS policy, Production deployment, merge, force-push or branch-protection change was made. Documentation-only `[skip ci]` closeout; tested code head remains `c9fd8064`.
