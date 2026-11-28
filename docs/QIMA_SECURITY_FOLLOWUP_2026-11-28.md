@@ -27,3 +27,8 @@ The 401 case is synthetic contract coverage. It does not establish a live Auth o
 
 ## Next step
 Wait for the final-head Verify and CodeQL workflows to complete; inspect the exact Auth 401 Playwright result before marking this regression validated.
+
+
+## CodeQL closeout update
+- CodeQL [run 46098403749](https://github.com/meridane/QimaTrade-MVP/actions/runs/46098403749) for final code head `ff1643ed` completed **SUCCESS**.
+- QIMA CI [run 46098403789](https://github.com/meridane/QimaTrade-MVP/actions/runs/46098403789) remains PENDING with no jobs published; the intermediate fixture-only run [46098394680](https://github.com/meridane/QimaTrade-MVP/actions/runs/46098394680) is still IN PROGRESS. The Auth 401 matrix has no final Verify result yet.
