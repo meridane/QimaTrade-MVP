@@ -83,6 +83,14 @@ test("getOfferContext keeps Supabase reads grouped outside per-attribute map cal
   const nestedReads = mapCallbacks.flatMap((callback) => findNodes(callback, isFromCall));
 
   expect(nestedReads, "Supabase reads must not be issued once per attribute").toHaveLength(0);
-  expect(findNodes(getOfferContext, isPromiseAllCall)).toHaveLength(2);
+  const parallelWaves = findNodes(getOfferContext, isPromiseAllCall);
+  expect(parallelWaves).toHaveLength(2);
+  expect(findNodes(parallelWaves[0], isFromCall).map((call) =>
+    call.arguments[0] && ts.isStringLiteral(call.arguments[0]) ? call.arguments[0].text : "<dynamic>",
+  ).sort()).toEqual(["product_master_attributes", "product_masters"]);
+  expect(findNodes(parallelWaves[1], isFromCall).map((call) =>
+    call.arguments[0] && ts.isStringLiteral(call.arguments[0]) ? call.arguments[0].text : "<dynamic>",
+  ).sort()).toEqual(["attribute_definitions", "attribute_options", "attribute_units"]);
+  expect(findNodes(parallelWaves[1], isInCall)).toHaveLength(3);
   expect(findNodes(getOfferContext, isInCall)).toHaveLength(3);
 });
