@@ -117,3 +117,14 @@ Inspect the new test in the Verify log, then wait for PostgreSQL 16/17.6 and Cod
 - QIMA CI [#2247](https://github.com/meridane/QimaTrade-MVP/actions/runs/46117420584) completed **SUCCESS** with **468 Playwright tests passed**; therefore these definition-lookup cases were included in the successful Verify run. PostgreSQL 16 (48/48 steps), PostgreSQL 17.6 (33/33 steps), TypeScript, dependency audit, Next.js build, isolated security fixture and CodeQL [#2171](https://github.com/meridane/QimaTrade-MVP/actions/runs/46117420576) also completed **SUCCESS**.
 - This is synthetic response-boundary coverage. It does not establish a live Auth/PostgREST permission failure or Production exposure. No runtime behavior, Production data/schema, migration, secret, grant, RLS policy, deployment, merge, force-push or protection rule was changed.
 - Documentation-only `[skip ci]` note; tested code head remains `337eff3b`.
+
+
+## Publish actor identity provenance — validation in progress — 2026-11-29
+
+- Added test-only commit [`c9fd8064`](https://github.com/meridane/QimaTrade-MVP/commit/c9fd80642610d91c40e3d607f9048bae2d9fd867) in `tests/e2e/action-runtime-publish-product-request.spec.ts`.
+- The synthetic local PostgREST fixture now accepts controlled action-input overrides. The new regression supplies forged `userId` and `tenantId` fields in the action input, then asserts that `executeUniversalAction` sends only the authenticated `ActionContext.userId` as `p_user_id`; no caller-provided `userId`, `tenantId`, or `p_tenant_id` is forwarded in the publish RPC body.
+- QIMA CI [#2269](https://github.com/meridane/QimaTrade-MVP/actions/runs/46164948032): Verify job `141040292043` completed **SUCCESS** with **469 Playwright tests passed (34.4 s)**. The new actor-identity provenance test passed explicitly (5 ms). Dependency audit, TypeScript, Next.js production build, Chromium and the isolated QIMA security fixture all completed successfully.
+- CodeQL [#2193](https://github.com/meridane/QimaTrade-MVP/actions/runs/46164948010) completed **SUCCESS**. Vercel Preview Comments check completed **SUCCESS**.
+- PostgreSQL 16 job `141040291818` and PostgreSQL 17.6 job `141040292065` remain **IN PROGRESS** at the final CREATE_OFFER runner write-privilege characterization step. The overall QIMA CI run is not yet closed; no PostgreSQL completion is claimed for this new code head.
+- This is synthetic request-construction coverage. It does not prove a Production identity-spoofing vulnerability; the production runtime was not changed.
+- No Supabase Production data/schema, migration, secret, grant, RLS policy, deployment, merge, force-push or branch-protection change was made.
