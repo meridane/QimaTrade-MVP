@@ -145,3 +145,14 @@ Wait for the final-head Verify and CodeQL workflows to complete; inspect the exa
 - The combined Vercel status for documentation head `f921ae03` is **FAILURE** solely with the provider target `build-rate-limit`. This is an external preview quota failure, not a Verify, PostgreSQL or CodeQL failure. No deployment retry or quota bypass was attempted.
 - The historical source-level membership gap and branch-only mitigation remain as previously classified. Disposable tests do not prove the deployed Production catalog or exploitability. QIMA Supabase remains inactive and live ACL/function definitions remain unverified.
 - No Production data/schema, migration, secret, grant, RLS policy, persistent configuration, Production deployment, merge, force-push or protection-rule change was made. This commit is documentation-only and uses `[skip ci]`; the tested code head is unchanged.
+
+
+## Authenticated-subject argument binding regression — pending validation — 2026-11-28
+
+- Source review found that the existing static guard required the presence of `auth.uid()` and the membership predicate using `p_user_id`, but did not independently require the RPC to bind its caller-supplied user argument to the authenticated JWT subject.
+- Added a static assertion for the explicit `auth.uid() <> p_user_id` rejection predicate in `tests/sql/test-product-request-publish-membership-contract.sh`.
+- Added a disposable SQL fixture case that authenticates synthetic user A, calls the publish RPC with synthetic user B as `p_user_id`, requires `UNAUTHENTICATED`, and verifies that no demand is inserted and the request remains `draft`.
+- Corrected code commit: [21178dab](https://github.com/meridane/QimaTrade-MVP/commit/21178dabaa0a5f7a1292a8a46307da8de3ea47eb). It includes the fixture test and corrected static guard.
+- The immediately preceding code commit [0da391f2](https://github.com/meridane/QimaTrade-MVP/commit/0da391f2115b557bf34114de142f596475a86de9) was superseded after source inspection caught an over-escaped grep pattern before treating its checks as valid. QIMA CI run [46122546590](https://github.com/meridane/QimaTrade-MVP/actions/runs/46122546590) and CodeQL run [46122546586](https://github.com/meridane/QimaTrade-MVP/actions/runs/46122546586) were associated with that superseded SHA and do **not** validate corrected head 21178dab.
+- No GitHub Actions run was visible for corrected head 21178dab at this checkpoint. No Verify, PostgreSQL or CodeQL result is claimed for the new mismatch test yet.
+- This is synthetic fixture coverage of the existing migration predicate, not evidence of a live Production mismatch or vulnerability. No Production data/schema, migration, secret, grant, RLS policy, persistent configuration, Production deployment, merge, force-push or protection-rule change was made.
