@@ -65,7 +65,7 @@ Complete QIMA CI #2214 and CodeQL #2138, then inspect the PostgreSQL 16/17.6 con
 - The test expects no successful result, a non-empty normalized error, no internal PostgREST diagnostics, exactly one definition request and one publication request, and no redirect. Runtime and business contracts are unchanged.
 
 ### Run 12 validation status
-- QIMA CI #2219: [run 46094833714](https://github.com/meridane/QimaTrade-MVP/actions/runs/46094833714) is IN PROGRESS. PostgreSQL 16 and 17.6 jobs are active; Verify is at TypeScript after dependency audit passed.
+- QIMA CI #2219: [run 46094833714](https://github.com/meridane/QimaTrade-MVP/actions/runs/46094833714) remains IN PROGRESS overall. Verify completed SUCCESS with 461 Playwright passed (35.8 s); PostgreSQL 16 and 17.6 jobs remain active.
 - CodeQL #2143: [run 46094833583](https://github.com/meridane/QimaTrade-MVP/actions/runs/46094833583) completed SUCCESS.
 - No Playwright result is claimed until Verify completes.
 
@@ -76,4 +76,12 @@ The malformed response is local and synthetic. This docs-only snapshot uses [ski
 
 - CodeQL #2143 is SUCCESS.
 - QIMA CI #2219 remains IN PROGRESS. Verify passed dependency audit, TypeScript, production build and Chromium installation; browser smoke tests are running. PostgreSQL 16 and 17.6 jobs remain active.
-- The malformed publish-response Playwright assertion has no final result yet.
+- The new `PUBLISH_PRODUCT_REQUEST runtime rejects malformed successful publish JSON without retrying` test is explicitly PASS in the Verify log.
+
+
+### Verify completion — 2026-11-28
+
+- Verify job `140823698599` completed SUCCESS: npm audit, TypeScript, production build, Chromium, 461 Playwright tests and the isolated QIMA security-contract fixture all passed.
+- The new malformed publish JSON test is explicitly listed as PASS (6 ms).
+- PostgreSQL 16 and PostgreSQL 17.6 remain IN PROGRESS; the overall QIMA CI #2219 is not yet closed.
+- CodeQL #2143 completed SUCCESS.
