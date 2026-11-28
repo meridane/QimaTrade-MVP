@@ -61,7 +61,13 @@ Complete QIMA CI #2213 and CodeQL #2137. Inspect any failing step before adding 
 
 ### Run 12 validation status
 - QIMA CI #2221: [run 46094838391](https://github.com/meridane/QimaTrade-MVP/actions/runs/46094838391) is PENDING; the jobs endpoint currently returns no jobs. No Playwright result is claimed.
-- CodeQL #2145: [run 46094838407](https://github.com/meridane/QimaTrade-MVP/actions/runs/46094838407) is IN PROGRESS.
+- CodeQL #2145: [run 46094838407](https://github.com/meridane/QimaTrade-MVP/actions/runs/46094838407) completed SUCCESS.
 - No Production Auth failure, RLS defect, data exposure or exploitable vulnerability is inferred from this synthetic fixture.
 
 The run-12 test commit is validated only when its own Verify workflow completes. This docs-only snapshot uses [skip ci] and does not claim a separate test run.
+
+
+### Status refresh — 2026-11-28 10:45 KST
+
+- CodeQL #2145 completed SUCCESS.
+- QIMA CI #2221 remains PENDING and its jobs endpoint currently returns no jobs. No Playwright result is claimed for the Auth 429 matrix.
