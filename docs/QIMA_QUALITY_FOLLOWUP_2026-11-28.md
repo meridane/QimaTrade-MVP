@@ -23,3 +23,11 @@ This asserts the existing error announcement semantics in a browser test. It is 
 
 ## Next step
 Verify the new `aria-live` assertion in the browser test, then complete PostgreSQL 16/17.6 and CodeQL checks.
+
+
+## First Verify attempt and selector correction
+- QIMA CI [run 46098398812](https://github.com/meridane/QimaTrade-MVP/actions/runs/46098398812), code head `688b563b`: npm audit, TypeScript and production build passed, but Playwright failed in the existing submission-error test because `getByRole("alert")` matched both the form's alert paragraph and Next.js's route-announcer alert.
+- This was a strict-mode ambiguity in the test locator, not an application behavior failure.
+- Corrected in commit [`2d196854`](https://github.com/meridane/QimaTrade-MVP/commit/2d196854266a1f821b55374b53948a5a233e528f): scope the locator to `p[role="alert"]`, then assert the exact generic message and `aria-live="assertive"`.
+- Replacement QIMA CI [run 46098624833](https://github.com/meridane/QimaTrade-MVP/actions/runs/46098624833) is PENDING with no jobs published at the latest read; no passing Playwright result is claimed for the correction yet.
+- CodeQL [run 46098398780](https://github.com/meridane/QimaTrade-MVP/actions/runs/46098398780) for the first code head completed SUCCESS; CodeQL for the corrected head [run 46098624871](https://github.com/meridane/QimaTrade-MVP/actions/runs/46098624871) is IN PROGRESS.
