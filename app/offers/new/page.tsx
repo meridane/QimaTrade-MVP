@@ -79,8 +79,9 @@ function CountrySelect({
       }}
     >
       <label className="text-sm font-bold text-slate-800" htmlFor={id}>{label}</label>
-      <input type="hidden" id={id} name={name} value={value} readOnly />
+      <input type="hidden" name={name} value={value} readOnly />
       <button
+        id={id}
         ref={triggerRef}
         type="button"
         aria-label={`${label}: ${value || placeholder}`}
