@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, Check, ChevronDown, Search } from "lucide-react";
 import Link from "next/link";
 import { getCreatedOfferId } from "@/lib/offers/created-offer-reference";
@@ -50,27 +50,44 @@ function CountrySelect({
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const triggerRef = useRef<HTMLButtonElement>(null);
 
   const filteredCountries = useMemo(() => {
     const q = query.trim().toLowerCase();
     return countries.filter((country) => country.toLowerCase().includes(q));
   }, [query]);
 
-  function choose(country: string) {
-    onChange(country);
+  function close() {
     setQuery("");
     setOpen(false);
+    triggerRef.current?.focus();
+  }
+
+  function choose(country: string) {
+    onChange(country);
+    close();
   }
 
   return (
-    <div className="relative">
+    <div
+      className="relative"
+      onKeyDown={(event) => {
+        if (event.key === "Escape" && open) {
+          event.preventDefault();
+          close();
+        }
+      }}
+    >
       <label className="text-sm font-bold text-slate-800" htmlFor={id}>{label}</label>
-      <input type="hidden" id={id} name={name} value={value} readOnly />
+      <input type="hidden" name={name} value={value} readOnly />
       <button
+        id={id}
+        ref={triggerRef}
         type="button"
-        aria-haspopup="listbox"
+        aria-label={`${label}: ${value || placeholder}`}
         aria-expanded={open}
-        onClick={() => setOpen((current) => !current)}
+        aria-controls={open ? `${id}-options` : undefined}
+        onClick={() => (open ? close() : setOpen(true))}
         className="mt-2 flex w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 text-left text-sm"
       >
         <span className={value ? "text-slate-800" : "text-slate-400"}>{value || placeholder}</span>
@@ -84,6 +101,7 @@ function CountrySelect({
               <Search size={15} className="text-slate-400" />
               <input
                 autoFocus
+                aria-label="Search countries"
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Search country..."
@@ -91,7 +109,7 @@ function CountrySelect({
               />
             </div>
           </div>
-          <div className="max-h-64 overflow-y-auto p-1" role="listbox">
+          <div id={`${id}-options`} className="max-h-64 overflow-y-auto p-1" role="group" aria-label={`${label} options`}>
             {allowInternational && (
               <button
                 type="button"
@@ -111,7 +129,7 @@ function CountrySelect({
                 {country}
               </button>
             ))}
-            {filteredCountries.length === 0 && <p className="px-3 py-4 text-sm text-slate-400">No country found.</p>}
+            {filteredCountries.length === 0 && <p role="status" aria-live="polite" className="px-3 py-4 text-sm text-slate-400">No country found.</p>}
           </div>
         </div>
       )}
@@ -192,7 +210,7 @@ export default function NewOfferPage() {
   }
 
   const commercialValue = [...selectedTerms, ...(commercialOther.trim() ? [`Other: ${commercialOther.trim()}`] : [])].join(", ");
-  const documentationValue = [...selectedDocs.filter((doc) => doc !== "Other"), ...(documentationOther.trim() ? [`Other: ${documentationOther.trim()}`] : [])].join(", ");
+  const documentationValue = [...selectedDocs.filter((doc) => doc !== "Other"), ...(selectedDocs.includes("Other") && documentationOther.trim() ? [`Other: ${documentationOther.trim()}`] : [])].join(", ");
 
   return (
     <main className="min-h-screen bg-slate-50 px-5 py-10 sm:px-8">
@@ -218,7 +236,7 @@ export default function NewOfferPage() {
               </Link>
             </div>
           ) : (
-          <form action="/api/offers" method="post" onSubmit={submitForm} data-no-loading="true" className="mt-8 space-y-5">
+          <form action="/api/offers" method="post" onSubmit={submitForm} data-no-loading="true" aria-busy={isSubmitting} className="mt-8 space-y-5">
             {submissionError && (
               <p role="alert" aria-live="assertive" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
                 {submissionError}
@@ -240,21 +258,22 @@ export default function NewOfferPage() {
               <CountrySelect id="geography" name="geography" label="Supplier geography" value={geography} onChange={setGeography} placeholder="Select supplier geography" />
             </div>
 
-            <div>
-              <label className="text-sm font-bold text-slate-800">Commercial terms</label>
+            <fieldset className="min-w-0">
+              <legend className="text-sm font-bold text-slate-800">Commercial terms</legend>
               <input name="conditions" type="hidden" value={commercialValue} readOnly />
               <div className="mt-2 flex flex-wrap gap-2 rounded-xl border border-slate-200 p-3">
                 {commercialTerms.map((term) => {
                   const selected = selectedTerms.includes(term);
                   return <button key={term} type="button" aria-pressed={selected} onClick={() => toggleTerm(term)} className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-bold transition-colors ${selected ? "border-orange-500 bg-orange-500 text-white" : "border-slate-200 bg-white text-slate-700 hover:border-orange-300 hover:text-orange-600"}`}>{selected && <Check size={14} strokeWidth={3} />}{term}</button>;
                 })}
-                <button type="button" aria-pressed={Boolean(commercialOther)} onClick={() => document.getElementById("commercial-other")?.focus()} className={`rounded-lg border px-3 py-2 text-sm font-bold ${commercialOther ? "border-orange-500 bg-orange-500 text-white" : "border-slate-200 bg-white text-slate-700 hover:border-orange-300 hover:text-orange-600"}`}>Other</button>
+                <button type="button" onClick={() => document.getElementById("commercial-other")?.focus()} className={`rounded-lg border px-3 py-2 text-sm font-bold ${commercialOther ? "border-orange-500 bg-orange-500 text-white" : "border-slate-200 bg-white text-slate-700 hover:border-orange-300 hover:text-orange-600"}`}>Other</button>
               </div>
+              <label className="sr-only" htmlFor="commercial-other">Other commercial term</label>
               <input id="commercial-other" value={commercialOther} onChange={(event) => setCommercialOther(event.target.value)} placeholder="Other commercial term..." className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm" />
-            </div>
+            </fieldset>
 
-            <div>
-              <label className="text-sm font-bold text-slate-800">Documentation available</label>
+            <fieldset className="min-w-0">
+              <legend className="text-sm font-bold text-slate-800">Documentation available</legend>
               <input name="documentation" type="hidden" value={documentationValue} readOnly />
               <div className="mt-2 flex flex-wrap gap-2 rounded-xl border border-slate-200 p-3">
                 {documentationOptions.map((doc) => {
@@ -262,8 +281,11 @@ export default function NewOfferPage() {
                   return <button key={doc} type="button" aria-pressed={selected} onClick={() => toggleDoc(doc)} className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-bold transition-colors ${selected ? "border-orange-500 bg-orange-500 text-white" : "border-slate-200 bg-white text-slate-700 hover:border-orange-300 hover:text-orange-600"}`}>{selected && <Check size={14} strokeWidth={3} />}{doc}</button>;
                 })}
               </div>
-              {selectedDocs.includes("Other") && <input value={documentationOther} onChange={(event) => setDocumentationOther(event.target.value)} placeholder="Other documentation..." className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm" />}
-            </div>
+              {selectedDocs.includes("Other") && <>
+                <label className="sr-only" htmlFor="documentation-other">Other documentation</label>
+                <input id="documentation-other" value={documentationOther} onChange={(event) => setDocumentationOther(event.target.value)} placeholder="Other documentation..." className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm" />
+              </>}
+            </fieldset>
 
             <button type="submit" disabled={!market || !geography || isSubmitting} className="rounded-xl bg-orange-500 px-6 py-3 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50">{isSubmitting ? "Creating..." : "Create offer"}</button>
           </form>

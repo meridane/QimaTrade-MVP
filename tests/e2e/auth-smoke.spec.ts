@@ -8,12 +8,36 @@ test("login page displays Google authentication", async ({ page }) => {
   await expect(page.getByRole("button", { name: /continue with google/i })).toBeVisible();
 });
 
-test("login page explains a failed OAuth callback", async ({ page }) => {
+test("login page explains a failed OAuth callback through an alert", async ({ page }) => {
   await page.goto("/login?error=oauth_callback_failed");
 
   await expect(
-    page.getByText("We could not complete your Google sign-in. Please try again.", { exact: true }),
-  ).toBeVisible();
+    page
+      .getByRole("alert")
+      .filter({ hasText: "We could not complete your Google sign-in. Please try again." }),
+  ).toHaveText("We could not complete your Google sign-in. Please try again.");
+});
+
+test("login controls are reachable by keyboard and expose accessible names", async ({ page }) => {
+  await page.goto("/login");
+
+  const googleButton = page.getByRole("button", { name: /continue with google/i });
+  const backLink = page.getByRole("link", { name: "Back to home" });
+  await expect(googleButton).toBeVisible();
+  await expect(backLink).toBeVisible();
+
+  // Start from a deterministic document focus rather than relying on browser state after navigation.
+  await page.evaluate(() => {
+    document.body.setAttribute("tabindex", "-1");
+    document.body.focus();
+  });
+  await expect(page.locator("body")).toBeFocused();
+
+  await page.keyboard.press("Tab");
+  await expect(googleButton).toBeFocused();
+
+  await page.keyboard.press("Tab");
+  await expect(backLink).toBeFocused();
 });
 
 test("OAuth callback without a code returns to login with a clear error", async ({ page }) => {

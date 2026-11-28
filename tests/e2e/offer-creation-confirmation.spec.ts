@@ -1,63 +1,10 @@
-import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import { getCreatedOfferId } from "../../lib/offers/created-offer-reference";
+import { authenticatePage } from "./offer-test-auth";
 
 const OFFER_ID = "7d2d1f7e-7d4e-4f3e-9d8b-3f8d0e6f2c11";
-const VERIFIER_COOKIE = "sb-127-auth-token-code-verifier";
-const SESSION_COOKIE_PATTERN = /^sb-127-auth-token(?:[.][0-9]+)?=/i;
-const APP_COOKIE_DOMAINS = ["127.0.0.1", "localhost"];
 const PRODUCT_MASTER_GATE_ID = "60000000-0000-4000-8000-00000000336";
 const SYNTHETIC_PROVIDER_ACTOR_ID = "30000000-0000-4000-8000-00000000336";
-
-function encodeVerifierCookie(value: string) {
-  return `base64-${Buffer.from(JSON.stringify(value), "utf8").toString("base64url")}`;
-}
-
-async function authenticatePage(
-  page: Page,
-  request: APIRequestContext,
-  next: string,
-) {
-  const params = new URLSearchParams({
-    code: "qa251-valid-code",
-    next,
-  });
-  const response = await request.get(`/auth/callback?${params.toString()}`, {
-    maxRedirects: 0,
-    headers: {
-      cookie: `${VERIFIER_COOKIE}=${encodeVerifierCookie("fresh-verifier")}`,
-    },
-  });
-
-  expect(response.status()).toBe(307);
-  const location = new URL(response.headers().location!, "http://127.0.0.1:3000");
-  expect(location.pathname).toBe(new URL(next, "http://127.0.0.1:3000").pathname);
-
-  const setCookies = (await response.headersArray())
-    .filter(({ name }) => name.toLowerCase() === "set-cookie")
-    .map(({ value }) => value);
-  const sessionCookies = setCookies.filter((value) => SESSION_COOKIE_PATTERN.test(value));
-
-  expect(sessionCookies.length).toBeGreaterThan(0);
-
-  for (const setCookie of sessionCookies) {
-    const pair = setCookie.split(";", 1)[0];
-    const separator = pair.indexOf("=");
-    expect(separator).toBeGreaterThan(0);
-
-    for (const domain of APP_COOKIE_DOMAINS) {
-      await page.context().addCookies([{
-        name: pair.slice(0, separator),
-        value: pair.slice(separator + 1),
-        domain,
-        path: "/",
-        httpOnly: true,
-        secure: false,
-        sameSite: "Lax",
-      }]);
-    }
-  }
-}
-
 test("offer confirmation accepts the UUID v4 reference emitted after a successful draft insert", () => {
   expect(getCreatedOfferId(`?created=${OFFER_ID}`)).toBe(OFFER_ID);
 });
@@ -88,7 +35,9 @@ test("an authenticated supplier can view draft confirmation without Product Mast
 
   await expect(page).toHaveURL((url) => url.pathname === "/offers/new" && url.searchParams.get("created") === OFFER_ID);
   await expect(page.getByRole("heading", { name: "Create a new offer" })).toBeVisible();
-  await expect(page.getByRole("status")).toContainText("Draft submission received");
+  const confirmationStatus = page.getByRole("status");
+  await expect(confirmationStatus).toContainText("Draft submission received");
+  await expect(confirmationStatus).toHaveAttribute("aria-live", "polite");
   await expect(page.getByText(`Offer reference: ${OFFER_ID}`, { exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "Create another offer" })).toBeVisible();
 
@@ -121,11 +70,11 @@ test("an authenticated supplier can submit the independent draft form through PO
   await page.getByLabel("Offer name").fill(offerName);
   await page.getByLabel("Quantity").fill("2");
 
-  const countrySelectors = page.locator('button[aria-haspopup="listbox"]');
+  const countrySelectors = page.getByRole("button", { name: /^(Target market|Supplier geography): / });
   await countrySelectors.nth(0).click();
-  await page.getByRole("listbox").getByRole("button", { name: "South Korea", exact: true }).click();
+  await page.getByRole("group", { name: "Target market options" }).getByRole("button", { name: "South Korea", exact: true }).click();
   await countrySelectors.nth(1).click();
-  await page.getByRole("listbox").getByRole("button", { name: "South Korea", exact: true }).click();
+  await page.getByRole("group", { name: "Supplier geography options" }).getByRole("button", { name: "South Korea", exact: true }).click();
 
   const postResponsePromise = page.waitForResponse((response) =>
     response.url().endsWith("/api/offers") && response.request().method() === "POST",
@@ -183,11 +132,11 @@ test("an authenticated supplier sees a generic retry message and no confirmation
   );
   await page.goto(`/offers/new?productMasterId=${PRODUCT_MASTER_GATE_ID}`);
 
-  const countrySelectors = page.locator('button[aria-haspopup="listbox"]');
+  const countrySelectors = page.getByRole("button", { name: /^(Target market|Supplier geography): / });
   await countrySelectors.nth(0).click();
-  await page.getByRole("listbox").getByRole("button", { name: "South Korea", exact: true }).click();
+  await page.getByRole("group", { name: "Target market options" }).getByRole("button", { name: "South Korea", exact: true }).click();
   await countrySelectors.nth(1).click();
-  await page.getByRole("listbox").getByRole("button", { name: "South Korea", exact: true }).click();
+  await page.getByRole("group", { name: "Supplier geography options" }).getByRole("button", { name: "South Korea", exact: true }).click();
 
   for (const upstreamStatus of [400, 403, 500]) {
     const offerName = `QA337 PostgREST failure ${upstreamStatus} retry-${testInfo.retry}`;
@@ -202,12 +151,14 @@ test("an authenticated supplier sees a generic retry message and no confirmation
     const postResponsePromise = page.waitForResponse((response) =>
       response.url().endsWith("/api/offers") && response.request().method() === "POST",
     );
-    await page.getByRole("button", { name: "Create offer", exact: true }).click();
+    await page.getByRole("button", { name: "Create offer", exact: true }).press("Enter");
     const postResponse = await postResponsePromise;
 
     // The handler intentionally maps all upstream insert failures to one generic response.
     expect(postResponse.status()).toBe(500);
-    await expect(page.locator('p[role="alert"]')).toHaveText("We couldn't submit your offer. Please try again.");
+    const submissionAlert = page.locator('p[role="alert"]');
+    await expect(submissionAlert).toHaveText("We couldn't submit your offer. Please try again.");
+    await expect(submissionAlert).toHaveAttribute("aria-live", "assertive");
     await expect(page.locator('[aria-busy="true"]')).toHaveCount(0);
     await expect(page.getByRole("heading", { name: "Create a new offer" })).toBeVisible();
     await expect(page.getByRole("status")).toHaveCount(0);
@@ -255,11 +206,11 @@ test("an authenticated supplier can retry a draft after one transient PostgREST 
   await page.getByLabel("Offer name").fill(offerName);
   await page.getByLabel("Quantity").fill("2");
 
-  const countrySelectors = page.locator('button[aria-haspopup="listbox"]');
+  const countrySelectors = page.getByRole("button", { name: /^(Target market|Supplier geography): / });
   await countrySelectors.nth(0).click();
-  await page.getByRole("listbox").getByRole("button", { name: "South Korea", exact: true }).click();
+  await page.getByRole("group", { name: "Target market options" }).getByRole("button", { name: "South Korea", exact: true }).click();
   await countrySelectors.nth(1).click();
-  await page.getByRole("listbox").getByRole("button", { name: "South Korea", exact: true }).click();
+  await page.getByRole("group", { name: "Supplier geography options" }).getByRole("button", { name: "South Korea", exact: true }).click();
 
   const firstPostPromise = page.waitForResponse((response) =>
     response.url().endsWith("/api/offers") && response.request().method() === "POST",
@@ -355,11 +306,11 @@ test("an authenticated supplier can retry a draft after a browser network interr
   await page.getByLabel("Offer name").fill(offerName);
   await page.getByLabel("Quantity").fill("2");
 
-  const countrySelectors = page.locator('button[aria-haspopup="listbox"]');
+  const countrySelectors = page.getByRole("button", { name: /^(Target market|Supplier geography): / });
   await countrySelectors.nth(0).click();
-  await page.getByRole("listbox").getByRole("button", { name: "South Korea", exact: true }).click();
+  await page.getByRole("group", { name: "Target market options" }).getByRole("button", { name: "South Korea", exact: true }).click();
   await countrySelectors.nth(1).click();
-  await page.getByRole("listbox").getByRole("button", { name: "South Korea", exact: true }).click();
+  await page.getByRole("group", { name: "Supplier geography options" }).getByRole("button", { name: "South Korea", exact: true }).click();
 
   let connectionWasInterrupted = false;
   await page.route("**/api/offers", async (route) => {
@@ -468,11 +419,11 @@ test("characterizes an ambiguous response after the legacy draft INSERT commits 
   await page.getByLabel("Offer name").fill(offerName);
   await page.getByLabel("Quantity").fill("2");
 
-  const countrySelectors = page.locator('button[aria-haspopup="listbox"]');
+  const countrySelectors = page.getByRole("button", { name: /^(Target market|Supplier geography): / });
   await countrySelectors.nth(0).click();
-  await page.getByRole("listbox").getByRole("button", { name: "South Korea", exact: true }).click();
+  await page.getByRole("group", { name: "Target market options" }).getByRole("button", { name: "South Korea", exact: true }).click();
   await countrySelectors.nth(1).click();
-  await page.getByRole("listbox").getByRole("button", { name: "South Korea", exact: true }).click();
+  await page.getByRole("group", { name: "Supplier geography options" }).getByRole("button", { name: "South Korea", exact: true }).click();
 
   let firstRequestForwarded = false;
   let firstUpstreamStatus: number | null = null;
@@ -590,3 +541,58 @@ test("characterizes an ambiguous response after the legacy draft INSERT commits 
   );
   expect(cleanup.ok()).toBe(true);
 });
+
+test("offer draft form exposes its pending submission state to assistive technology", async ({ page, request }) => {
+  await authenticatePage(page, request, `/offers/new?productMasterId=${PRODUCT_MASTER_GATE_ID}`);
+  await page.goto(`/offers/new?productMasterId=${PRODUCT_MASTER_GATE_ID}`);
+
+  await page.getByLabel("Offer name").fill("QA448 accessible pending submission");
+  await page.getByLabel("Quantity").fill("2");
+
+  const countrySelectors = page.getByRole("button", { name: /^(Target market|Supplier geography): / });
+  await countrySelectors.nth(0).click();
+  await page.getByRole("group", { name: "Target market options" }).getByRole("button", { name: "South Korea", exact: true }).click();
+  await countrySelectors.nth(1).click();
+  await page.getByRole("group", { name: "Supplier geography options" }).getByRole("button", { name: "Morocco", exact: true }).click();
+
+  let postCount = 0;
+  let releaseResponse!: () => void;
+  const responseGate = new Promise<void>((resolve) => {
+    releaseResponse = resolve;
+  });
+
+  await page.route("**/api/offers", async (route) => {
+    postCount += 1;
+    await responseGate;
+    await route.fulfill({
+      status: 500,
+      contentType: "application/json",
+      body: JSON.stringify({ error: "SYNTHETIC_UPSTREAM_FAILURE" }),
+    });
+  });
+
+  const form = page.locator('form[action="/api/offers"]');
+  // Keep this locator stable while the accessible button name changes to "Creating...".
+  const submit = form.locator('button[type="submit"]');
+
+  try {
+    await submit.click();
+
+    await expect(form).toHaveAttribute("aria-busy", "true");
+    await expect(submit).toBeDisabled();
+    await expect(submit).toHaveText("Creating...");
+    expect(postCount).toBe(1);
+
+    releaseResponse();
+
+    const submissionError = form.locator('p[role="alert"]');
+    await expect(submissionError).toHaveText("We couldn't submit your offer. Please try again.");
+    await expect(form).toHaveAttribute("aria-busy", "false");
+    await expect(submit).toBeEnabled();
+    await expect(submit).toHaveText("Create offer");
+    expect(postCount).toBe(1);
+  } finally {
+    releaseResponse();
+  }
+});
+
