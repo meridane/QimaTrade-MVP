@@ -156,3 +156,10 @@ Validate the new AST guard in Verify, then obtain an authorized staging project 
 - Immediately after the code push, the PR #31 head was `7ae99848`; GitHub Actions workflow-run discovery returned no run yet. The combined commit status exposed only Vercel **PENDING**. Therefore TypeScript, Playwright, PostgreSQL 16/17.6, CodeQL, and Vercel deployment results for this new code head remain **PENDING / NOT YET OBSERVED**; no test pass is claimed.
 - The previous code snapshot `8f7f9b87` remains fully validated by QIMA CI #2270 (438 Playwright, PostgreSQL 16/17.6, TypeScript, audit, build, CodeQL). That result does not validate the new RPC-in-map assertions.
 - No Supabase Production data/schema, migration, secret, grant, RLS policy, Production deployment, merge, force-push, or branch-protection rule was changed.
+
+
+## Per-attribute RPC N+1 guard — workflow progress — 2026-11-29
+
+- QIMA CI run [46179658296](https://github.com/meridane/QimaTrade-MVP/actions/runs/46179658296) for code commit [`7ae99848`](https://github.com/meridane/QimaTrade-MVP/commit/7ae99848eafb378644fe0b0a0338192dc3d35db2) is **IN PROGRESS**. Verify job `141086115198`: dependency audit and TypeScript **SUCCESS**; production build **SUCCESS**; Chromium installation **IN PROGRESS**; Playwright and the isolated security fixture have not run yet. PostgreSQL 16 job `141086114960` and PostgreSQL 17.6 job `141086115241` are **IN PROGRESS**; the PostgreSQL 16 job is at client setup and PostgreSQL 17.6 has begun the base integration step. No result is claimed for the new RPC-in-map assertions.
+- CodeQL [46179658293](https://github.com/meridane/QimaTrade-MVP/actions/runs/46179658293) completed **SUCCESS**. Vercel Preview for the tested code snapshot is **SUCCESS**.
+- The new AST assertions remain unvalidated by Playwright until Verify completes. No application runtime, production query, or Supabase Production resource was touched.
