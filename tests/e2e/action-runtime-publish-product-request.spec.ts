@@ -602,6 +602,23 @@ test("PUBLISH_PRODUCT_REQUEST runtime does not retry a publish RPC HTTP 429 or e
   expect(outcome.redirectTargetHits).toBe(0);
 });
 
+for (const status of [500, 502, 503, 504] as const) {
+  test(`PUBLISH_PRODUCT_REQUEST runtime does not retry publish RPC HTTP ${status} or expose diagnostics`, async () => {
+    const outcome = await executePublishProductRequestRuntime(null, "publish", status);
+
+    expect(outcome.result).toBeNull();
+    expect(outcome.errorMessage).toBe("UPSTREAM_TEMPORARILY_UNAVAILABLE");
+    expect(outcome.errorMessage).not.toContain("internal database row diagnostic");
+    expect(outcome.errorMessage).not.toContain("private troubleshooting hint");
+    expect(outcome.requests.map((request) => ({ path: request.path, method: request.method }))).toEqual([
+      { path: "/rest/v1/rpc/get_action_definition_v1", method: "POST" },
+      { path: "/rest/v1/rpc/dt_publish_product_request", method: "POST" },
+    ]);
+    expect(outcome.redirectTargetHits).toBe(0);
+  });
+}
+
+
 
 
 for (const [label, definition] of [
