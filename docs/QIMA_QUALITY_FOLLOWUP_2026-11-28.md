@@ -160,3 +160,14 @@ Verify the new `aria-live` assertion in the browser test, then complete PostgreS
 - The preceding selected/custom-value serialization test passed in QIMA CI [run 46143804559](https://github.com/meridane/QimaTrade-MVP/actions/runs/46143804559): **444 Playwright tests passed (34.2 s)**; PostgreSQL 16/17.6, TypeScript, audit, build and CodeQL #2188 all completed successfully. That run does not cover deselection of Other.
 - No Production data/schema, Supabase migration, secret, grant, RLS policy, persistent configuration, Production deployment, PR merge, force-push or branch-protection change was made. This entry is documentation-only; validation of the new code remains tied to QIMA CI #2266.
 
+
+## Commercial Other focus action semantics — validation pending — 2026-11-28
+
+- Review of `app/offers/new/page.tsx` confirmed that the Commercial terms “Other” button only focuses the custom text field; it does not toggle selection. Its prior `aria-pressed={Boolean(commercialOther)}` therefore exposed a toggle state that was actually derived from text entry, not a button activation. Removed `aria-pressed` while preserving the focus action and existing visual indication.
+- Added a Playwright regression in `tests/e2e/offer-country-select-accessibility.spec.ts`: the button has no pressed-state attribute, activation focuses “Other commercial term”, and the trimmed custom value serializes as `Other: Custom inspection window` in native FormData.
+- Code commit [`618405fa`](https://github.com/meridane/QimaTrade-MVP/commit/618405faaab0444e8344f0cfafba2eb4a6e424e2) changes only the page and its E2E test.
+- QIMA CI [run 46157121516](https://github.com/meridane/QimaTrade-MVP/actions/runs/46157121516) (#2267) is **IN PROGRESS** at this checkpoint. Dependency audit, TypeScript and Next.js production build are **SUCCESS**; Playwright is pending while Chromium installation runs; PostgreSQL 16 and 17.6 jobs are in progress.
+- CodeQL [run 46157121469](https://github.com/meridane/QimaTrade-MVP/actions/runs/46157121469) (#2191) is **IN PROGRESS**. Vercel Preview for the code commit is **PENDING**.
+- The two prepared-transaction setup/cleanup jobs report their intentionally injected failure outcomes; their separate assertion jobs succeeded. The deliberately skipped harness is **SKIPPED** and its assertion succeeded. No unexpected failure is established.
+- This is a focused accessibility semantics correction, not evidence of a security issue. No Supabase Production data/schema, migration, secret, grant, persistent RLS policy, Production deployment, merge, force-push or branch-protection change was made.
+
