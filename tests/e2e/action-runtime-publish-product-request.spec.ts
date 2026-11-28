@@ -164,6 +164,8 @@ async function executePublishProductRequestRuntime(
 
       if (path === "/rest/v1/rpc/dt_publish_product_request" && publishRpcStatus !== 200) {
         const rateLimited = publishRpcStatus === 429;
+        const unauthorized = publishRpcStatus === 401;
+        const forbidden = publishRpcStatus === 403;
         response.writeHead(publishRpcStatus, {
           "Content-Type": "application/json",
           ...(rateLimited ? { "Retry-After": "0" } : {}),
@@ -172,10 +174,14 @@ async function executePublishProductRequestRuntime(
         response.end(JSON.stringify({
           message: rateLimited
             ? "UPSTREAM_RATE_LIMITED"
-            : unavailable
-              ? "UPSTREAM_TEMPORARILY_UNAVAILABLE"
-              : "PRODUCT_REQUEST_NOT_FOUND",
-          code: rateLimited ? "PGRST429" : unavailable ? "PGRST000" : "P0001",
+            : unauthorized
+              ? "Invalid JWT"
+              : forbidden
+                ? "permission denied"
+                : unavailable
+                  ? "UPSTREAM_TEMPORARILY_UNAVAILABLE"
+                  : "PRODUCT_REQUEST_NOT_FOUND",
+          code: rateLimited ? "PGRST429" : unauthorized ? "PGRST301" : forbidden ? "42501" : unavailable ? "PGRST000" : "P0001",
           details: "internal database row diagnostic",
           hint: "private troubleshooting hint",
         }));
@@ -587,6 +593,22 @@ for (const [status, label] of [[401, "unauthenticated"], [403, "forbidden"]] as 
   });
 }
 
+
+for (const [status, message] of [[401, "Invalid JWT"], [403, "permission denied"]] as const) {
+  test(`PUBLISH_PRODUCT_REQUEST runtime does not retry publish RPC HTTP ${status} or expose diagnostics`, async () => {
+    const outcome = await executePublishProductRequestRuntime(null, "publish", status);
+
+    expect(outcome.result).toBeNull();
+    expect(outcome.errorMessage).toBe(message);
+    expect(outcome.errorMessage).not.toContain("internal database row diagnostic");
+    expect(outcome.errorMessage).not.toContain("private troubleshooting hint");
+    expect(outcome.requests.map((request) => ({ path: request.path, method: request.method }))).toEqual([
+      { path: "/rest/v1/rpc/get_action_definition_v1", method: "POST" },
+      { path: "/rest/v1/rpc/dt_publish_product_request", method: "POST" },
+    ]);
+    expect(outcome.redirectTargetHits).toBe(0);
+  });
+}
 
 test("PUBLISH_PRODUCT_REQUEST runtime does not retry a publish RPC HTTP 429 or expose diagnostics", async () => {
   const outcome = await executePublishProductRequestRuntime(null, "publish", 429);

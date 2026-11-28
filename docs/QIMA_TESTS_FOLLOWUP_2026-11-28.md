@@ -79,3 +79,11 @@ Inspect the new test in the Verify log, then wait for PostgreSQL 16/17.6 and Cod
 - This is a **confirmed behavior of the legacy route in the disposable browser fixture**, not evidence of duplicate records in Production.
 - The likely product-level question is whether an ambiguous retry should reuse a stable idempotency key or whether the legacy draft flow intentionally treats each POST as a new draft. The existing CREATE_OFFER idempotency contract does not automatically settle the legacy multipart draft route.
 - No runtime behavior was changed. Keep this as a documented decision point until the product owner defines the retry/idempotency contract; do not silently deduplicate or alter the route in this test-only mission.
+
+
+## Publish RPC authentication/permission failures — 2026-11-28
+
+- The prior response-boundary snapshot is now fully validated by QIMA CI [#2239](https://github.com/meridane/QimaTrade-MVP/actions/runs/46113016431): Verify **466 Playwright passed (38.1s)**, PostgreSQL 16 and PostgreSQL 17.6 **SUCCESS**, and CodeQL [#2163](https://github.com/meridane/QimaTrade-MVP/actions/runs/46113016538) **SUCCESS**.
+- Added synthetic PostgREST response cases for publish-RPC HTTP 401 (`PGRST301` / `Invalid JWT`) and 403 (`42501` / `permission denied`). Each asserts one definition lookup, one publish request, no retry/redirect, and no exposure of `details` or `hint`.
+- The new 401/403 tests are not yet validated by CI. They characterize RPC authorization failures after the existing Auth user lookup; they do not establish a live authorization failure or a Production data leak.
+- No runtime contract or Production data/schema, migration, secret, grant, RLS policy, persistent configuration, Production deployment, merge, force-push, or protection-rule change was made.
