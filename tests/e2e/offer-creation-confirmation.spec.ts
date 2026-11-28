@@ -154,7 +154,7 @@ test("an authenticated supplier sees a generic retry message and no confirmation
 
     // The handler intentionally maps all upstream insert failures to one generic response.
     expect(postResponse.status()).toBe(500);
-    const submissionAlert = page.getByRole("alert");
+    const submissionAlert = page.locator('p[role="alert"]');
     await expect(submissionAlert).toHaveText("We couldn't submit your offer. Please try again.");
     await expect(submissionAlert).toHaveAttribute("aria-live", "assertive");
     await expect(page.locator('[aria-busy="true"]')).toHaveCount(0);
