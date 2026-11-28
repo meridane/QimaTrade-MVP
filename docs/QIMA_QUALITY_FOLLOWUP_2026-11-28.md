@@ -112,3 +112,13 @@ Verify the new `aria-live` assertion in the browser test, then complete PostgreS
 - Existing country-selector checks also cover the visible label/button association, Escape dismissal, focus restoration, keyboard selection, empty-result announcement, and search-field focus. The current test scope is targeted Chromium accessibility/form behavior, not a full WCAG or screen-reader certification.
 - The combined Vercel status for documentation head `84807f99` is **FAILURE** with provider target `build-rate-limit`; the tested code head's Preview was SUCCESS in the preceding code validation. This external quota does not change the completed GitHub Verify/CodeQL results.
 - No Production data/schema, migration, secret, grant, RLS policy, persistent configuration, Production deployment, merge, force-push or protection-rule change was made. This is a documentation-only `[skip ci]` closeout; tested code head is unchanged.
+
+
+## Offer form native field semantics regression — validation pending — 2026-11-28
+
+- Added `tests/e2e/offer-form-field-accessibility.spec.ts` at code commit [`fb5e92a5`](https://github.com/meridane/QimaTrade-MVP/commit/fb5e92a5fb8dd8acd92805942e8e979a12f0c3f2). The new browser test uses the existing `authenticatePage` fixture and checks accessible names for Offer name, Quantity, Price and Currency.
+- Assertions require Offer name and Quantity to be natively required; Quantity must retain `min=0.000001` and `step=any`; Price remains optional with `min=0`; Currency remains a labelled combobox defaulting to USD with the five configured options. This is distinct from the existing country-selector label/keyboard/FormData suite and the offer-submission behavior suite.
+- The source was reviewed in `app/offers/new/page.tsx`; all four controls have explicit label associations. No application component or runtime behavior was changed.
+- PR #30 now points to code head [`fb5e92a5`](https://github.com/meridane/QimaTrade-MVP/commit/fb5e92a5fb8dd8acd92805942e8e979a12f0c3f2), with nine changed files. The PR briefly reported `mergeable=false` while GitHub recalculated; a subsequent read reported `mergeable=true`. Compare against `ci/qima-mission-validation-base-20261127` reports the branch 94 commits ahead / 2 behind, with merge-base still PR #26 HEAD `61002cb2`; no merge or base update was performed.
+- At the first post-push check, no PR-triggered workflow run was yet returned for the new code head and Vercel status was **PENDING**. No test result is claimed for this new test until its Verify workflow completes.
+- No Production data/schema, Supabase migration, secret, grant, RLS policy, persistent configuration, Production deployment, PR merge, force-push or branch-protection change was made.
