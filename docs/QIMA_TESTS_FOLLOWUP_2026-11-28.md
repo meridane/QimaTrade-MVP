@@ -87,3 +87,11 @@ Inspect the new test in the Verify log, then wait for PostgreSQL 16/17.6 and Cod
 - Added synthetic PostgREST response cases for publish-RPC HTTP 401 (`PGRST301` / `Invalid JWT`) and 403 (`42501` / `permission denied`). Each asserts one definition lookup, one publish request, no retry/redirect, and no exposure of `details` or `hint`.
 - The new 401/403 tests are not yet validated by CI. They characterize RPC authorization failures after the existing Auth user lookup; they do not establish a live authorization failure or a Production data leak.
 - No runtime contract or Production data/schema, migration, secret, grant, RLS policy, persistent configuration, Production deployment, merge, force-push, or protection-rule change was made.
+
+
+## Publish RPC 401/403 verification closeout — 2026-11-28
+
+- Corrected code head [337eff3b](https://github.com/meridane/QimaTrade-MVP/commit/337eff3b9d5c4dafc6a4bcc4f12d8a22aaa10806) is validated by QIMA CI [#2247](https://github.com/meridane/QimaTrade-MVP/actions/runs/46117420584), Verify job `140894244340`: **468 Playwright tests passed (34.4s)**. Both new cases, publish-RPC HTTP 401 and 403, are explicitly **PASS**.
+- Dependency security audit, TypeScript, Next.js production build, browser fixture, and audit-result enforcement all completed **SUCCESS**. CodeQL [#2171](https://github.com/meridane/QimaTrade-MVP/actions/runs/46117420576) is **SUCCESS**. Vercel Preview is **SUCCESS**.
+- PostgreSQL 16 and 17.6 remain **IN PROGRESS** at the full CREATE_OFFER runner write-privilege characterization step; the earlier integration/replay/concurrency steps are successful. The overall QIMA CI run is not yet closed.
+- These are synthetic PostgREST responses after a successful Auth lookup. They do not prove a live permission failure or a Production exposure. No Production data/schema, migration, secret, grant, RLS policy, deployment, merge, force-push, or protection-rule change was made.
