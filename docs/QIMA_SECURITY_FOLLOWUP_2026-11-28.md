@@ -65,3 +65,10 @@ Wait for the final-head Verify and CodeQL workflows to complete; inspect the exa
 - The branch-only migration 20261127100000_harden_product_request_publish_tenant_membership.sql adds an exact request-tenant membership predicate, then takes FOR KEY SHARE on that membership row before publishing; it also revokes PUBLIC and anon EXECUTE and grants authenticated EXECUTE.
 - The disposable two-tenant fixture proves the branch migration rejects a user who owns a request in Tenant A but is currently a member only of Tenant B, performs no demand write, and permits the same request after Tenant A membership is restored. The isolated security fixture passed in Verify.
 - Classification: **confirmed source-level authorization gap in the earlier repository function; branch-only mitigation covered by a synthetic PostgreSQL fixture.** This is not proof that the live Production function currently has that exact definition or that Production was exploitable. The live catalog remains unverified; prior read-only connection attempts failed before query execution with 28P01. No Production migration, data, policy, grant or secret was changed.
+
+ 
+## External preview and live-environment boundary
+
+- Vercel Preview for code head 9bae97ec reports SUCCESS.
+- Read-only Supabase project metadata confirms QIMA project yyulzlnrfcbaxovzjbnh remains INACTIVE in ap-southeast-1, PostgreSQL 17.11.0.003. No SQL query was attempted against the inactive project.
+- The branch-only tenant-membership migration and its disposable fixture are not applied to Production. Live effective ACLs and current deployed function definition remain unverified.
