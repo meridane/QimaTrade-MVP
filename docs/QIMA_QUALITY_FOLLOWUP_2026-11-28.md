@@ -201,3 +201,15 @@ Verify the new `aria-live` assertion in the browser test, then complete PostgreS
 - The two prepared-transaction failure-injection jobs report their expected injected failures; their separate assertion jobs completed **SUCCESS**. The skipped cleanup harness is **SKIPPED** as expected and its assertion completed **SUCCESS**.
 - The prior code commit `618405fa` is fully validated by QIMA CI #2267, including 446 Playwright tests and PostgreSQL 16/17.6. That result does not validate the later test-only commit `7a98c7e4`.
 - No Supabase Production data/schema, migration, secret, grant, persistent RLS policy, Production deployment, merge, force-push or branch-protection change was made.
+
+
+## QIMA CI #2268 — native offer-form validation regression — final closeout — 2026-11-29
+
+- Tested code head: [`7a98c7e4`](https://github.com/meridane/QimaTrade-MVP/commit/7a98c7e46565f50913e9e3442864f05f4f9cf4df).
+- QIMA CI [#2268](https://github.com/meridane/QimaTrade-MVP/actions/runs/46160330258) completed **SUCCESS**. Verify job `141025994543` completed **SUCCESS** with **447 Playwright tests passed (38.5 s)**. The new `native required and minimum constraints block offer API submission` case passed explicitly; invalid quantity and missing required offer name produced no `/api/offers` request.
+- Dependency audit, TypeScript, Next.js production build, Chromium/browser tests and the isolated QIMA security fixture all completed **SUCCESS**.
+- PostgreSQL 16 job `141025994277` and PostgreSQL 17.6 job `141025994588` both completed **SUCCESS**. The CREATE_OFFER integration/concurrency, replay, runner-safety, and legacy RLS/ACL checks completed successfully on both versions.
+- CodeQL [#2192](https://github.com/meridane/QimaTrade-MVP/actions/runs/46160330263) completed **SUCCESS**. Vercel Preview Comments check for the resulting documentation head was **SUCCESS**; this is not a claim about Production deployment.
+- The two prepared-transaction failure-injection jobs reported their expected negative outcomes; the independent blocking assertions completed **SUCCESS**. The intentionally skipped harness remained **SKIPPED** and its assertion completed **SUCCESS**. No unexpected failure remains in QIMA CI #2268.
+- The new regression tests native browser validation only. No application runtime or business contract changed. This is Chromium coverage, not a full WCAG or screen-reader certification.
+- No Supabase Production data/schema, migration, secret, grant, persistent RLS policy, Production deployment, merge, force-push or branch-protection change was made. Documentation-only `[skip ci]` closeout; tested code head is unchanged.
