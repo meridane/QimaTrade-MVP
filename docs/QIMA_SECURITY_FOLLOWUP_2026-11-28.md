@@ -156,3 +156,11 @@ Wait for the final-head Verify and CodeQL workflows to complete; inspect the exa
 - The immediately preceding code commit [0da391f2](https://github.com/meridane/QimaTrade-MVP/commit/0da391f2115b557bf34114de142f596475a86de9) was superseded after source inspection caught an over-escaped grep pattern before treating its checks as valid. QIMA CI run [46122546590](https://github.com/meridane/QimaTrade-MVP/actions/runs/46122546590) and CodeQL run [46122546586](https://github.com/meridane/QimaTrade-MVP/actions/runs/46122546586) were associated with that superseded SHA and do **not** validate corrected head 21178dab.
 - No GitHub Actions run was visible for corrected head 21178dab at this checkpoint. No Verify, PostgreSQL or CodeQL result is claimed for the new mismatch test yet.
 - This is synthetic fixture coverage of the existing migration predicate, not evidence of a live Production mismatch or vulnerability. No Production data/schema, migration, secret, grant, RLS policy, persistent configuration, Production deployment, merge, force-push or protection-rule change was made.
+
+
+## Corrected-head workflow scheduling — 2026-11-28
+
+- Corrected code head [21178dab](https://github.com/meridane/QimaTrade-MVP/commit/21178dabaa0a5f7a1292a8a46307da8de3ea47eb) now has QIMA CI [#2252](https://github.com/meridane/QimaTrade-MVP/actions/runs/46122567881) **PENDING** with no jobs published, and CodeQL [#2176](https://github.com/meridane/QimaTrade-MVP/actions/runs/46122567877) **IN PROGRESS**.
+- QIMA CI [#2251](https://github.com/meridane/QimaTrade-MVP/actions/runs/46122546590) remains **IN PROGRESS** on superseded code head `0da391f2`; its jobs are not evidence for corrected head 21178dab.
+- No Verify, PostgreSQL, or CodeQL conclusion is attributed to the new authenticated-subject mismatch case until the corrected-head workflows complete.
+- This entry is documentation-only (`[skip ci]`); it does not change the tested code head.
