@@ -157,3 +157,57 @@ test("getCurrentProfile keeps authentication and tenant lookups bounded", () => 
     ));
   expect(mapCallbacks.flatMap((callback) => findNodes(callback, isFromCall))).toHaveLength(0);
 });
+
+
+test("createOffer keeps demand lookup and action dispatch bounded independently of attribute count", () => {
+  const source = readFileSync(
+    `${process.cwd()}/app/offers/actions.ts`,
+    "utf8",
+  );
+  const sourceFile = ts.createSourceFile(
+    "app/offers/actions.ts",
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TS,
+  );
+  const createOffer = findNodes(
+    sourceFile,
+    (node): node is ts.FunctionDeclaration =>
+      ts.isFunctionDeclaration(node) && node.name?.text === "createOffer",
+  )[0];
+
+  if (!createOffer) throw new Error("createOffer function must remain discoverable");
+
+  const demandReads = findNodes(createOffer, isFromCall);
+  expect(demandReads).toHaveLength(1);
+  expect(demandReads[0].arguments[0]).toBeDefined();
+  expect(ts.isStringLiteral(demandReads[0].arguments[0])).toBe(true);
+  expect((demandReads[0].arguments[0] as ts.StringLiteral).text).toBe("demands");
+
+  const projections = findNodes(createOffer, isSelectCall).map((call) => {
+    const projection = call.arguments[0];
+    return projection && ts.isStringLiteral(projection) ? projection.text : "<dynamic>";
+  });
+  expect(projections).toEqual(["id, target_market, scope"]);
+  expect(projections).not.toContain("*");
+
+  const actionDispatches = findNodes(
+    createOffer,
+    (node): node is ts.CallExpression =>
+      ts.isCallExpression(node)
+      && ts.isIdentifier(node.expression)
+      && node.expression.text === "executeUniversalAction",
+  );
+  expect(actionDispatches).toHaveLength(1);
+
+  const mapCallbacks = findNodes(createOffer, isMapCall)
+    .flatMap((call) => call.arguments.filter(
+      (argument): argument is ts.ArrowFunction | ts.FunctionExpression =>
+        ts.isArrowFunction(argument) || ts.isFunctionExpression(argument),
+    ));
+  expect(
+    mapCallbacks.flatMap((callback) => findNodes(callback, isFromCall)),
+    "attribute mapping must not issue a Supabase read per attribute",
+  ).toHaveLength(0);
+});
