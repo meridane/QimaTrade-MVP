@@ -116,3 +116,11 @@ Wait for the final-head Verify and CodeQL workflows to complete; inspect the exa
 - Added static assertions to `tests/sql/test-product-request-publish-membership-contract.sh`: the publish function must remain `SECURITY DEFINER`, pin `search_path = public`, and call the schema-qualified `auth.uid()` helper. This guards the security context of the RPC without changing its SQL definition, grants, or policies.
 - The new guard has not yet been run in GitHub Actions at this checkpoint. It is a source/fixture regression assertion, not evidence about the live Supabase catalog or Production exploitability.
 - No Production data/schema, migration, secret, grant, RLS policy, persistent configuration, Production deployment, merge, force-push, or protection-rule change was made.
+
+
+
+## Static guard correction — 2026-11-28
+
+- The first generated search-path guard snapshot in commit [9787a91d](https://github.com/meridane/QimaTrade-MVP/commit/9787a91d7167fd476c5a436408282aee33c29b4c) contained a malformed shell insertion. It is superseded by this commit before treating the guard as validated.
+- Replaced the affected test script with a complete, single-pass assertion set preserving the original tenant, lock and ACL checks and adding only the `SECURITY DEFINER`, pinned `search_path = public`, and qualified `auth.uid()` invariants.
+- QIMA CI [#2246](https://github.com/meridane/QimaTrade-MVP/actions/runs/46117390159) belongs to the superseded snapshot; its result must not be attributed to this corrected file. A new run will validate the corrected HEAD.
