@@ -271,3 +271,11 @@ Wait for the final-head Verify and CodeQL workflows to complete; inspect the exa
 - The test confirms the source-defined tenant-scoped SELECT behavior; whether same-tenant members should see each other's requests remains a business privacy decision. No Production vulnerability is inferred from the synthetic fixture. No Supabase Production data/schema, migration, secret, grant, RLS policy, persistent configuration, deployment, merge, force-push or branch-protection change was made.
 - This is a documentation-only closeout. The tested code remains `066da056`; this note does not claim a new code validation.
 
+
+
+## Read-only Supabase project availability recheck — 2026-11-29
+
+- Read-only project metadata for QIMA ref `yyulzlnrfcbaxovzjbnh` reports status **INACTIVE**, region `ap-southeast-1`, PostgreSQL engine 17 / version `17.11.0.003`.
+- No SQL query was attempted, no project restore/reactivation was requested, and no database catalog, data, migration, grant, secret or policy was accessed or changed. The deployed function definition and effective Production ACL/RLS state therefore remain **unverified**.
+- The source-level authorization gap in the earlier SECURITY DEFINER function and the branch-only membership/lock mitigation remain as documented above. The disposable fixture's successful results are not evidence of the live Production catalog or exploitability.
+- This is documentation-only. No Production deployment, merge, force-push or branch-protection change was made.
