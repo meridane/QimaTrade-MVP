@@ -36,3 +36,11 @@ No UI component or production markup was changed in this run.
 ## Next step
 
 Complete QIMA CI #2215 and CodeQL #2139. If the Tab assertion fails, inspect the actual native tab order before changing markup; do not alter production UI without evidence.
+
+## Post-push validation update
+
+- QIMA CI #2215: [run 46090757958](https://github.com/meridane/QimaTrade-MVP/actions/runs/46090757958). Verify completed **SUCCESS** with **441 Playwright passed (35.8 s)**. The optional-documentation Tab-order assertion is included in the passing fieldset/keyboard regression; npm audit, TypeScript, Next.js build, Chromium and the isolated security fixture passed.
+- CodeQL #2139: [run 46090757968](https://github.com/meridane/QimaTrade-MVP/actions/runs/46090757968) **SUCCESS**.
+- PostgreSQL 16 and PostgreSQL 17.6 remain **IN PROGRESS** at step 26, full CREATE_OFFER runner write-privilege characterization. Later RLS/ACL steps remain pending; the overall QIMA CI run is not yet closed.
+- Vercel Preview for the code commit `50353476` was pending at the last status read; the docs-only HEAD has the provider's build-rate quota failure.
+- The expected prepared-transaction failure-injection harnesses have their deliberate FAILURE conclusions, with separate assertion jobs successful; the skipped harness is intentionally SKIPPED and separately asserted.
