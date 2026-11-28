@@ -50,7 +50,7 @@ Wait for the final-head Verify and CodeQL workflows to complete; inspect the exa
 - Extended the disposable Auth fixture to return a distinct synthetic 403 access_denied response.
 - Added HTTP 403 to the pre-membership Auth failure matrix: 401, 403, 429, 500, 502, 503 and 504.
 - Every status must return 401 UNAUTHENTICATED before any membership read, action-definition RPC or publish RPC.
-- Code commits: fixture change (parent of 9bae97ec) and https://github.com/meridane/QimaTrade-MVP/commit/9bae97ec70be9e6313c73718dd5ebab8aed6ea5a (route regression).
+- Code commits: [3c385c03](https://github.com/meridane/QimaTrade-MVP/commit/3c385c0310a9b0c50146e3ad1fa6d98a26766eec) (synthetic Auth 403 fixture) and [9bae97ec](https://github.com/meridane/QimaTrade-MVP/commit/9bae97ec70be9e6313c73718dd5ebab8aed6ea5a) (route regression).
 - The previous final code head ff1643ed is now fully validated by QIMA CI #46098403789: 463 Playwright passed, including Auth 401/429/500/502/503/504; Verify succeeded; PostgreSQL 16 48/48 and PostgreSQL 17.6 33/33 succeeded. CodeQL #46098403749 succeeded.
 - New head 9bae97ec has QIMA CI #46106187513 IN PROGRESS and CodeQL #46106187493 IN PROGRESS at this checkpoint. No passing result is attributed to the new 403 case yet.
 - The new 403 case is synthetic. It does not prove a live Auth outage, RLS defect, cross-tenant leak or exploitable Production vulnerability. No Production data, schema, policy, grant or secret was changed.
