@@ -16,6 +16,10 @@ printf '%s\n' "$function_body" | grep -Eiq '^[[:space:]]*set search_path = publi
 printf '%s\n' "$function_body" | grep -Fq "auth.uid()" || {
   echo "FAIL: publish RPC must use the schema-qualified auth.uid() helper"; exit 1;
 }
+
+printf '%s\\n' "$function_body" | grep -Eiq 'auth\\.uid\\(\\)[[:space:]]*<>[[:space:]]*p_user_id' || {
+  echo "FAIL: publish RPC must bind p_user_id to the authenticated subject"; exit 1;
+}
 printf '%s\n' "$function_body" | grep -Fq "from public.dt_memberships m" || {
   echo "FAIL: publish RPC does not consult dt_memberships"; exit 1;
 }

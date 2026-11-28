@@ -32,6 +32,44 @@ begin
   begin
     perform public.dt_publish_product_request(
       '55555555-5555-4555-8555-555555555555',
+      'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
+    );
+  exception when others then
+    if sqlerrm = 'UNAUTHENTICATED' then
+      v_denied := true;
+    else
+      raise;
+    end if;
+  end;
+
+  if not v_denied then
+    raise exception 'publish RPC accepted a caller-supplied user id that differs from auth.uid()';
+  end if;
+end;
+$$;
+
+reset role;
+
+do $$
+begin
+  if (select count(*) from public.demands) <> 0 then
+    raise exception 'mismatched user-id publish unexpectedly created a demand';
+  end if;
+  if (select status from public.product_requests where id = '55555555-5555-4555-8555-555555555555') <> 'draft' then
+    raise exception 'mismatched user-id publish unexpectedly changed request status';
+  end if;
+end;
+$$;
+
+set role authenticated;
+
+do $$
+declare
+  v_denied boolean := false;
+begin
+  begin
+    perform public.dt_publish_product_request(
+      '55555555-5555-4555-8555-555555555555',
       'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
     );
   exception when others then
