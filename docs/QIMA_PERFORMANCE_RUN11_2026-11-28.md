@@ -84,3 +84,24 @@ This is a source-derived call budget, not an observed request count or latency m
 | QUALITY | [#2215](https://github.com/meridane/QimaTrade-MVP/actions/runs/46090757958) | 441 passed, 35.8 s | SUCCESS | [#2139](https://github.com/meridane/QimaTrade-MVP/actions/runs/46090757968) SUCCESS | IN PROGRESS / IN PROGRESS |
 
 The three Verify jobs completed successfully, including dependency audit, TypeScript, production build, Chromium and Playwright. The three PostgreSQL pairs are still at step 26, full CREATE_OFFER runner write-privilege characterization; no PostgreSQL conclusion is claimed yet. These suite durations remain CI measurements, not application latency benchmarks.
+
+
+## Closeout of run 11 PostgreSQL validation
+
+The three previously pending QIMA CI runs have now completed. Their workflow job summaries show both PostgreSQL jobs and the Verify job completed successfully:
+
+| Mission | QIMA CI | PostgreSQL 16 integration | PostgreSQL 17.6 compatibility | Verify |
+|---|---|---|---|---|
+| SECURITY | [#2213](https://github.com/meridane/QimaTrade-MVP/actions/runs/46090747586) | SUCCESS | SUCCESS | SUCCESS — 461 Playwright |
+| TESTS | [#2214](https://github.com/meridane/QimaTrade-MVP/actions/runs/46090754067) | SUCCESS | SUCCESS | SUCCESS — 460 Playwright |
+| QUALITY | [#2215](https://github.com/meridane/QimaTrade-MVP/actions/runs/46090757958) | SUCCESS | SUCCESS | SUCCESS — 441 Playwright |
+
+- The PostgreSQL 16 job completed its CREATE_OFFER integration, replay, runner-privilege, legacy RLS/ACL and cleanup steps successfully.
+- The PostgreSQL 17.6 compatibility job completed its corresponding compatibility, replay, wrapper-owner and EXECUTE ACL steps successfully.
+- The prepared-transaction setup/cleanup failure-injection jobs intentionally ended with FAILURE conclusions. Their separate assertion jobs completed SUCCESS and confirmed that those failures remain blocking.
+- The intentionally skipped cleanup harness remained SKIPPED and its separate assertion passed.
+- CodeQL #2137, #2138 and #2139 each completed SUCCESS.
+
+This closeout supersedes the earlier run-11 status above that recorded the three PostgreSQL pairs as IN PROGRESS. It does not claim that the new run-12 changes are validated.
+
+The Playwright durations remain whole-suite CI timings, not application p50/p95/p99 or a controlled performance benchmark. The QIMA Supabase project remains INACTIVE; no database was resumed or queried.
