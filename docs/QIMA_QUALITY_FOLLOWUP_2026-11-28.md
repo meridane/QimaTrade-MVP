@@ -235,3 +235,10 @@ Verify the new `aria-live` assertion in the browser test, then complete PostgreS
 
 - QIMA CI [46179720782](https://github.com/meridane/QimaTrade-MVP/actions/runs/46179720782) remains **IN PROGRESS**. Verify job `141086313653`: dependency audit, TypeScript and production build are **SUCCESS**; Chromium installation is **IN PROGRESS**; browser tests and the isolated security fixture are pending. No result is claimed yet for the new `aria-live="polite"` assertion.
 - PostgreSQL 16 job `141086313417` and PostgreSQL 17.6 job `141086313626` are **IN PROGRESS** at their integration stages. CodeQL [46179720732](https://github.com/meridane/QimaTrade-MVP/actions/runs/46179720732) is **IN PROGRESS**; Vercel Preview remains **PENDING**.
+
+
+## Offer-confirmation live-region announcement — browser step closeout, remaining CI pending — 2026-11-29
+
+- QIMA CI [46179720782](https://github.com/meridane/QimaTrade-MVP/actions/runs/46179720782) Verify job `141086313653`: dependency audit, TypeScript, production build, Chromium installation and the **browser-test step** are now **SUCCESS**. The job is still **IN PROGRESS** while the isolated QIMA security fixture and post-job steps finish. The exact Playwright count and individual assertion line were not available from the job-log endpoint at this read, so no numeric count or individual timing is recorded.
+- PostgreSQL 16 job `141086313417` and PostgreSQL 17.6 job `141086313626` remain **IN PROGRESS**. CodeQL [46179720732](https://github.com/meridane/QimaTrade-MVP/actions/runs/46179720732) remains **IN PROGRESS**; Vercel Preview remains **PENDING**.
+- The browser-test step success includes the current test snapshot, but the new `aria-live="polite"` assertion is not separately quoted until the log becomes available. Overall CI is not closed.
