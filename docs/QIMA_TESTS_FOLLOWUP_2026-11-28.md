@@ -53,3 +53,9 @@ Inspect the new test in the Verify log, then wait for PostgreSQL 16/17.6 and Cod
 - CodeQL [#46106205431](https://github.com/meridane/QimaTrade-MVP/actions/runs/46106205431) **SUCCESS**.
 - PostgreSQL 16 and 17.6 remain IN PROGRESS at full runner write-privilege characterization. Overall QIMA CI is not yet closed.
 - The two deliberately failing prepared-transaction harness jobs are expected; their separate blocking assertion jobs passed. The intentionally skipped harness and its assertion also behaved as expected.
+
+ 
+## External preview
+
+- Vercel Preview for code head 7d61b99f reports SUCCESS.
+- QIMA CI overall remains IN PROGRESS only because PostgreSQL 16 and 17.6 runner-write-privilege characterization jobs have not completed yet; Verify and CodeQL are successful.
