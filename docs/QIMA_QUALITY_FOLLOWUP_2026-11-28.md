@@ -213,3 +213,12 @@ Verify the new `aria-live` assertion in the browser test, then complete PostgreS
 - The two prepared-transaction failure-injection jobs reported their expected negative outcomes; the independent blocking assertions completed **SUCCESS**. The intentionally skipped harness remained **SKIPPED** and its assertion completed **SUCCESS**. No unexpected failure remains in QIMA CI #2268.
 - The new regression tests native browser validation only. No application runtime or business contract changed. This is Chromium coverage, not a full WCAG or screen-reader certification.
 - No Supabase Production data/schema, migration, secret, grant, persistent RLS policy, Production deployment, merge, force-push or branch-protection change was made. Documentation-only `[skip ci]` closeout; tested code head is unchanged.
+
+
+## Offer-confirmation live-region announcement — validation pending — 2026-11-29
+
+- Added test-only commit [`41ccc5f1`](https://github.com/meridane/QimaTrade-MVP/commit/41ccc5f1998bc664ab4d9c4559e1d12feaa559db) in `tests/e2e/offer-creation-confirmation.spec.ts`.
+- The authenticated supplier confirmation test now asserts that the existing success status region exposes `aria-live="polite"`, in addition to its accessible `role="status"` and confirmation text. The page/component runtime is unchanged.
+- QIMA CI workflow-run discovery returned no run immediately after the push. The combined commit status currently shows Vercel **PENDING**. TypeScript, Playwright, PostgreSQL 16/17.6, CodeQL and Preview completion for this new test commit are therefore **PENDING / NOT YET OBSERVED**; no pass is claimed.
+- Previous code snapshot `7a98c7e4` remains validated by QIMA CI #2268 (447 Playwright tests, PostgreSQL 16/17.6, TypeScript, audit, build and CodeQL). That run does not validate this new assertion.
+- This is a focused Chromium accessibility-semantic regression, not a complete WCAG or screen-reader certification. No Supabase Production data/schema, migration, secret, grant, RLS policy, Production deployment, merge, force-push or protection-rule change was made.
