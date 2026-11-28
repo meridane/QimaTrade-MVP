@@ -179,3 +179,9 @@ Validate the new AST guard in Verify, then obtain an authorized staging project 
 - PostgreSQL 16 job `141086114960` and PostgreSQL 17.6 job `141086115241` were still **IN PROGRESS** at the latest read; PostgreSQL 17.6's base integration/concurrency step is successful, with later characterization steps pending. Overall QIMA CI is therefore not yet closed.
 - CodeQL [46179658293](https://github.com/meridane/QimaTrade-MVP/actions/runs/46179658293) is **SUCCESS** and Vercel Preview is **SUCCESS**.
 - The new guard validates only static query shape; it is not a latency/throughput benchmark. No Production query or runtime optimization was performed.
+
+
+## Preview quota status — 2026-11-29
+
+- The combined Vercel status on current documentation head `4dcc75b4` is **FAILURE** with target `build-rate-limit`; PR #31's Vercel bot also reports the free-plan limit `api-deployments-free-per-day` (more than 100 deployments). A separate Vercel bot update reports a **Ready** Preview deployment for the performance branch snapshot (`bbsQ2GHHQxHPQWmChEVoDyuNxiPP`). This Preview comment is not treated as proof that the latest documentation head deployed, and neither status is a Production deployment.
+- GitHub Verify and CodeQL results remain independent of this external Preview quota. No quota bypass or Production deployment was attempted.
