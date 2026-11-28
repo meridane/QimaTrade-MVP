@@ -103,3 +103,15 @@ Validate the new AST guard in Verify, then obtain an authorized staging project 
 - Dependency security audit, TypeScript and Next.js production build completed **SUCCESS**. CodeQL [#2172](https://github.com/meridane/QimaTrade-MVP/actions/runs/46117451489) is **SUCCESS**. Vercel Preview is **SUCCESS**.
 - PostgreSQL 16 and 17.6 remain **IN PROGRESS** at the full CREATE_OFFER runner write-privilege characterization step; earlier integration/replay/concurrency steps are successful. The overall QIMA CI run is not yet closed.
 - Both AST checks are static regression guards, not latency or throughput benchmarks. No optimization or Production query was performed; staging and p50/p95/p99/SQL-plan measurements remain unavailable.
+
+
+## Shared identity query-budget guard — final CI closeout — 2026-11-28
+
+- Tested code head: [86b1988c](https://github.com/meridane/QimaTrade-MVP/commit/86b1988c7ff57d0bd5c6fce1e46577c89c1d5a2a); documentation head before this closeout: `4e482022`.
+- QIMA CI [#2248](https://github.com/meridane/QimaTrade-MVP/actions/runs/46117451473) completed **SUCCESS**. Verify job `140894333908` completed **SUCCESS** with **437 Playwright tests passed (36.3s)**. The new `getCurrentProfile` AST guard passed in **8 ms**; the existing `getOfferContext` query/projection guard passed in **26 ms**.
+- Dependency audit, TypeScript, Next.js production build, Chromium and the isolated QIMA security fixture all passed.
+- PostgreSQL 16 job `140894334175` completed **SUCCESS** (48/48 steps); PostgreSQL 17.6 job `140894334172` completed **SUCCESS** (33/33 steps). CodeQL [#2172](https://github.com/meridane/QimaTrade-MVP/actions/runs/46117451489) completed **SUCCESS**.
+- The prepared-transaction failure-injection jobs and intentionally skipped harness retain their expected outcomes; their independent assertion jobs completed SUCCESS. No unexpected failing job remains.
+- The combined Vercel status for documentation head `4e482022` is **FAILURE** with provider target `build-rate-limit`. This is an external Preview quota failure, not a Verify, PostgreSQL or CodeQL failure.
+- Both AST guards are static structural checks only. They do not establish latency, throughput, p50/p95/p99, query plans, buffers, lock waits, CPU or memory. QIMA Supabase remains inactive and no authorized non-Production staging environment is available; no live query or optimization was attempted.
+- No Production data/schema, migration, secret, grant, RLS policy, persistent configuration, Production deployment, merge, force-push or protection-rule change was made. This is a documentation-only `[skip ci]` closeout; tested code head is unchanged.
