@@ -108,3 +108,11 @@ Wait for the final-head Verify and CodeQL workflows to complete; inspect the exa
 - At this documentation checkpoint, PostgreSQL 16 and PostgreSQL 17.6 for QIMA CI #2236 remain **IN PROGRESS**. The overall run is not marked complete until both jobs finish.
 - These concurrency checks use synthetic UUIDs and a disposable local Compose PostgreSQL service only. They do not verify the live Supabase catalog, Production ACLs, or current deployed RPC definition, and they do not establish a Production vulnerability.
 - No Supabase Production data/schema, migration, secret, grant, RLS policy, persistent configuration, Production deployment, merge, force-push, or protection-rule change was made.
+
+
+## SECURITY DEFINER search-path guard — 2026-11-28
+
+- The previous membership-lock snapshot is now fully validated by QIMA CI [#2240](https://github.com/meridane/QimaTrade-MVP/actions/runs/46113112144): Verify **464 Playwright passed (38.2s)**, PostgreSQL 16 and PostgreSQL 17.6 **SUCCESS**, and CodeQL [#2164](https://github.com/meridane/QimaTrade-MVP/actions/runs/46113112137) **SUCCESS**. The run includes the concurrent membership-delete block and post-commit revocation checks from code head `bfa399c9`.
+- Added static assertions to `tests/sql/test-product-request-publish-membership-contract.sh`: the publish function must remain `SECURITY DEFINER`, pin `search_path = public`, and call the schema-qualified `auth.uid()` helper. This guards the security context of the RPC without changing its SQL definition, grants, or policies.
+- The new guard has not yet been run in GitHub Actions at this checkpoint. It is a source/fixture regression assertion, not evidence about the live Supabase catalog or Production exploitability.
+- No Production data/schema, migration, secret, grant, RLS policy, persistent configuration, Production deployment, merge, force-push, or protection-rule change was made.
