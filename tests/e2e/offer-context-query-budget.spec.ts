@@ -115,3 +115,45 @@ test("getOfferContext keeps Supabase reads grouped outside per-attribute map cal
   expect(findNodes(parallelWaves[1], isInCall)).toHaveLength(3);
   expect(findNodes(getOfferContext, isInCall)).toHaveLength(3);
 });
+
+
+test("getCurrentProfile keeps authentication and tenant lookups bounded", () => {
+  const source = readFileSync(
+    `${process.cwd()}/app/offers/actions.ts`,
+    "utf8",
+  );
+  const sourceFile = ts.createSourceFile(
+    "app/offers/actions.ts",
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TS,
+  );
+  const getCurrentProfile = findNodes(
+    sourceFile,
+    (node): node is ts.FunctionDeclaration =>
+      ts.isFunctionDeclaration(node) && node.name?.text === "getCurrentProfile",
+  )[0];
+
+  if (!getCurrentProfile) throw new Error("getCurrentProfile function must remain discoverable");
+
+  const tables = findNodes(getCurrentProfile, isFromCall).map((call) =>
+    call.arguments[0] && ts.isStringLiteral(call.arguments[0]) ? call.arguments[0].text : "<dynamic>",
+  ).sort();
+  expect(tables).toEqual(["dt_memberships", "profiles"]);
+
+  const projections = findNodes(getCurrentProfile, isSelectCall).map((call) => {
+    const projection = call.arguments[0];
+    return projection && ts.isStringLiteral(projection) ? projection.text : "<dynamic>";
+  }).sort();
+  expect(projections).toEqual(["actor_id", "tenant_id"]);
+  expect(findNodes(getCurrentProfile, isFromCall)).toHaveLength(2);
+  expect(getCurrentProfile.getText(sourceFile).split("supabase.auth.getUser()")).toHaveLength(2);
+
+  const mapCallbacks = findNodes(getCurrentProfile, isMapCall)
+    .flatMap((call) => call.arguments.filter(
+      (argument): argument is ts.ArrowFunction | ts.FunctionExpression =>
+        ts.isArrowFunction(argument) || ts.isFunctionExpression(argument),
+    ));
+  expect(mapCallbacks.flatMap((callback) => findNodes(callback, isFromCall))).toHaveLength(0);
+});

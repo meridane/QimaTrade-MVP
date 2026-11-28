@@ -87,3 +87,11 @@ Validate the new AST guard in Verify, then obtain an authorized staging project 
 - CodeQL [#2162](https://github.com/meridane/QimaTrade-MVP/actions/runs/46113004493) completed **SUCCESS**. Vercel Preview for the code snapshot reports the external `build-rate-limit` quota failure.
 - PostgreSQL 16 and PostgreSQL 17.6 jobs in #2238 remain **IN PROGRESS** at the full CREATE_OFFER runner write-privilege characterization step; the overall QIMA CI run is not yet closed.
 - This is a source-level projection regression guard, not a database benchmark. It does not provide latency percentiles, EXPLAIN plans, buffers, lock, CPU, or memory measurements. No optimization or Production query was performed.
+
+
+## Shared profile and membership query-budget guard — 2026-11-28
+
+- The prior projection-guard snapshot is now fully validated by QIMA CI [#2242](https://github.com/meridane/QimaTrade-MVP/actions/runs/46113212524): Verify **436 Playwright passed (37.0s)**, PostgreSQL 16 and PostgreSQL 17.6 **SUCCESS**, and CodeQL [#2166](https://github.com/meridane/QimaTrade-MVP/actions/runs/46113212532) **SUCCESS**.
+- Added a second AST regression for `getCurrentProfile`: exactly two bounded reads (`profiles.actor_id` and `dt_memberships.tenant_id`), one `auth.getUser()` call, and no Supabase reads inside map callbacks. This complements the existing `getOfferContext` query/projection guard.
+- The new check is a source-level budget guard only. It does not provide p50/p95/p99, SQL plans, buffer, lock, CPU, or memory measurements; no optimization was made.
+- The new guard has not yet been validated by GitHub Actions. No Production query, schema/data change, migration, secret, grant, RLS policy, deployment, merge, force-push, or protection-rule change was made.
