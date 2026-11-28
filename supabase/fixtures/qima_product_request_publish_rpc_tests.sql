@@ -99,6 +99,53 @@ begin
 end;
 $$;
 
+-- Membership in the correct tenant is not sufficient when the request belongs to another user.
+insert into public.dt_memberships (tenant_id, user_id, role) values
+  ('11111111-1111-4111-8111-111111111111', 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', 'member');
+
+select set_config('request.jwt.claim.sub', 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', false);
+set role authenticated;
+
+do $
+declare
+  v_denied boolean := false;
+begin
+  begin
+    perform public.dt_publish_product_request(
+      '55555555-5555-4555-8555-555555555555',
+      'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
+    );
+  exception when others then
+    if sqlerrm = 'PRODUCT_REQUEST_NOT_FOUND' then
+      v_denied := true;
+    else
+      raise;
+    end if;
+  end;
+
+  if not v_denied then
+    raise exception 'tenant member published a request owned by a different user';
+  end if;
+end;
+$;
+
+reset role;
+
+do $
+begin
+  if (select count(*) from public.demands) <> 0 then
+    raise exception 'non-owner tenant member unexpectedly created a demand';
+  end if;
+  if (select status from public.product_requests where id = '55555555-5555-4555-8555-555555555555') <> 'draft' then
+    raise exception 'non-owner tenant member unexpectedly changed request status';
+  end if;
+end;
+$;
+
+delete from public.dt_memberships
+where tenant_id = '11111111-1111-4111-8111-111111111111'
+  and user_id = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+
 -- Restore membership in the request's exact tenant; the same owner can now publish.
 insert into public.dt_memberships (tenant_id, user_id, role) values
   ('11111111-1111-4111-8111-111111111111', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'member');
