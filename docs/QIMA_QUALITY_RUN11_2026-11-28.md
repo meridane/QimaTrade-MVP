@@ -59,7 +59,14 @@ Complete QIMA CI #2215 and CodeQL #2139. If the Tab assertion fails, inspect the
 
 ### Run 12 validation status
 - QIMA CI #2222: [run 46094839888](https://github.com/meridane/QimaTrade-MVP/actions/runs/46094839888) is IN PROGRESS. PostgreSQL 16 and 17.6 jobs are active; Verify is still installing dependencies.
-- CodeQL #2146: [run 46094839871](https://github.com/meridane/QimaTrade-MVP/actions/runs/46094839871) is IN PROGRESS.
+- CodeQL #2146: [run 46094839871](https://github.com/meridane/QimaTrade-MVP/actions/runs/46094839871) completed SUCCESS.
 - The reverse-tab assertion is not declared passing until Verify completes.
 
 This is a focused keyboard-navigation regression, not a complete WCAG or screen-reader certification. This docs-only snapshot uses [skip ci] and does not claim a separate test run.
+
+
+### Status refresh — 2026-11-28 10:45 KST
+
+- CodeQL #2146 completed SUCCESS.
+- QIMA CI #2222 remains IN PROGRESS. Verify passed dependency audit, TypeScript, production build and Chromium installation; browser smoke tests are running. PostgreSQL 16 and 17.6 jobs remain active.
+- The reverse Shift+Tab assertion has no final Playwright result yet.
