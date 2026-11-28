@@ -41,3 +41,12 @@ The runtime implementation and business contract were not changed.
 ## Next step
 
 Complete QIMA CI #2214 and CodeQL #2138, then inspect the PostgreSQL 16/17.6 conclusions. Only add further runtime cases if the logs reveal a distinct uncovered contract.
+
+## Post-push validation update
+
+- QIMA CI #2214: [run 46090754067](https://github.com/meridane/QimaTrade-MVP/actions/runs/46090754067). Verify completed **SUCCESS** with **460 Playwright passed (36.6 s)**. The four new action-definition HTTP 500/502/503/504 cases are explicitly PASS; npm audit, TypeScript, Next.js build, Chromium and the isolated security fixture passed.
+- CodeQL #2138: [run 46090754024](https://github.com/meridane/QimaTrade-MVP/actions/runs/46090754024) **SUCCESS**.
+- PostgreSQL 16 and PostgreSQL 17.6 remain **IN PROGRESS** at step 26, full CREATE_OFFER runner write-privilege characterization. Later RLS/ACL steps remain pending; the overall QIMA CI run is not yet closed.
+- Vercel Preview for the code commit `6fde5b7a` was pending at the last status read.
+- The docs-only branch HEAD triggered QIMA CI #2217 [run 46090838015], which remains PENDING with no jobs published; CodeQL #2141 is IN PROGRESS. No test result is attributed to that docs-only HEAD.
+- The expected prepared-transaction failure-injection harnesses have their deliberate FAILURE conclusions, with separate assertion jobs successful; the skipped harness is intentionally SKIPPED and separately asserted.
