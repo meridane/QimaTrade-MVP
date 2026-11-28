@@ -279,3 +279,10 @@ Wait for the final-head Verify and CodeQL workflows to complete; inspect the exa
 - No SQL query was attempted, no project restore/reactivation was requested, and no database catalog, data, migration, grant, secret or policy was accessed or changed. The deployed function definition and effective Production ACL/RLS state therefore remain **unverified**.
 - The source-level authorization gap in the earlier SECURITY DEFINER function and the branch-only membership/lock mitigation remain as documented above. The disposable fixture's successful results are not evidence of the live Production catalog or exploitability.
 - This is documentation-only. No Production deployment, merge, force-push or branch-protection change was made.
+
+
+## Non-Production branch availability check — 2026-11-29
+
+- Read-only Supabase branch listing for QIMA returned **zero development branches**. Together with project status **INACTIVE**, there is currently no active isolated Supabase branch available for live catalog/ACL verification.
+- No development branch was created (which could incur compute charges), and the paused project was not restored. No SQL or database query was attempted.
+- Next safe path: obtain an already-approved active non-Production Supabase environment or explicit approval for a cost-bearing development branch. Until then, keep authorization conclusions limited to repository source and disposable CI fixtures.
