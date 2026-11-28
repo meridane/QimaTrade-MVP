@@ -146,3 +146,13 @@ Validate the new AST guard in Verify, then obtain an authorized staging project 
 - The prepared-transaction failure-injection jobs reported their expected injected **FAILURE** outcomes; the independent assertion jobs completed **SUCCESS**. The intentionally skipped harness remained **SKIPPED** and its assertion completed **SUCCESS**. The overall QIMA CI run completed **SUCCESS** with no unexpected failing job.
 - This is a static query-shape guard only. It does not establish database latency, throughput, p50/p95/p99, EXPLAIN plans, buffers, lock waits, CPU or memory. No runtime optimization or Production query was performed; an authorized non-Production staging environment is still required.
 - No Supabase Production data/schema, migration, secret, grant, RLS policy, Production deployment, merge, force-push or branch-protection change was made. Documentation-only `[skip ci]` closeout; tested code head remains `8f7f9b87`.
+
+
+## Per-attribute RPC N+1 guard — validation pending — 2026-11-29
+
+- Added test-only commit [`7ae99848`](https://github.com/meridane/QimaTrade-MVP/commit/7ae99848eafb378644fe0b0a0338192dc3d35db2) to `tests/e2e/offer-context-query-budget.spec.ts`.
+- Extended the existing AST query-shape guards for `getOfferContext`, `getCurrentProfile`, and `createOffer` to reject both Supabase `.from()` reads and `.rpc()` calls inside per-item `.map()` callbacks. The `createOffer` guard also rejects `executeUniversalAction` dispatch inside those callbacks while preserving the exactly-one dispatch assertion.
+- No application runtime, database query, business contract, migration, or production configuration changed. This is a static structural regression guard, not a latency benchmark.
+- Immediately after the code push, the PR #31 head was `7ae99848`; GitHub Actions workflow-run discovery returned no run yet. The combined commit status exposed only Vercel **PENDING**. Therefore TypeScript, Playwright, PostgreSQL 16/17.6, CodeQL, and Vercel deployment results for this new code head remain **PENDING / NOT YET OBSERVED**; no test pass is claimed.
+- The previous code snapshot `8f7f9b87` remains fully validated by QIMA CI #2270 (438 Playwright, PostgreSQL 16/17.6, TypeScript, audit, build, CodeQL). That result does not validate the new RPC-in-map assertions.
+- No Supabase Production data/schema, migration, secret, grant, RLS policy, Production deployment, merge, force-push, or branch-protection rule was changed.
