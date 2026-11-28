@@ -58,7 +58,7 @@ Complete QIMA CI #2215 and CodeQL #2139. If the Tab assertion fails, inspect the
 - Commit [864c4df6](https://github.com/meridane/QimaTrade-MVP/commit/864c4df66510551e6de217c061a4e5a072927b6a) adds reverse keyboard traversal coverage: after Tab focuses the newly revealed Other documentation textbox, Shift+Tab must return focus to the Other toggle.
 
 ### Run 12 validation status
-- QIMA CI #2222: [run 46094839888](https://github.com/meridane/QimaTrade-MVP/actions/runs/46094839888) is IN PROGRESS. PostgreSQL 16 and 17.6 jobs are active; Verify is still installing dependencies.
+- QIMA CI #2222: [run 46094839888](https://github.com/meridane/QimaTrade-MVP/actions/runs/46094839888) remains IN PROGRESS overall. Verify has passed audit, TypeScript, production build, Chromium installation and the browser smoke-test step; the isolated QIMA security-contract fixture is still running. PostgreSQL 16 and 17.6 jobs remain active.
 - CodeQL #2146: [run 46094839871](https://github.com/meridane/QimaTrade-MVP/actions/runs/46094839871) completed SUCCESS.
 - The reverse-tab assertion is not declared passing until Verify completes.
 
@@ -69,4 +69,12 @@ This is a focused keyboard-navigation regression, not a complete WCAG or screen-
 
 - CodeQL #2146 completed SUCCESS.
 - QIMA CI #2222 remains IN PROGRESS. Verify passed dependency audit, TypeScript, production build and Chromium installation; browser smoke tests are running. PostgreSQL 16 and 17.6 jobs remain active.
-- The reverse Shift+Tab assertion has no final Playwright result yet.
+- The reverse Shift+Tab assertion is included in the successful browser smoke-test step; the final Verify job has not yet completed.
+
+
+### Verify progress — 2026-11-28
+
+- Browser smoke-test step 69 completed SUCCESS. The Verify job is still IN PROGRESS because the isolated QIMA security-contract fixture step 70 has not completed.
+- PostgreSQL 16 and PostgreSQL 17.6 remain IN PROGRESS.
+- CodeQL #2146 completed SUCCESS.
+- The final Playwright count and overall Verify conclusion are not yet claimed.
