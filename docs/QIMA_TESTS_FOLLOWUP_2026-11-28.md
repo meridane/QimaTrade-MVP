@@ -71,3 +71,11 @@ Inspect the new test in the Verify log, then wait for PostgreSQL 16/17.6 and Cod
 - The later documentation-only branch HEAD `c60850f2` currently has combined Vercel status **FAILURE** with provider target `build-rate-limit`. This is an external preview quota issue, not a failed QIMA CI, PostgreSQL or CodeQL check. The code head above is the validated snapshot.
 - These tests use synthetic HTTP responses and verify error normalization, no-retry/no-redirect behavior and output minimization. They do not establish a live Production RPC outage or data leak.
 - No Production data/schema, migration, secret, grant, RLS policy, persistent configuration, Production deployment, merge, force-push or protection-rule change was made in this closeout. Documentation only; `[skip ci]` is used because the tested code head is unchanged.
+
+## Ambiguous legacy draft response — behavior characterized, decision deferred
+
+- The existing browser regression `characterizes an ambiguous response after the legacy draft INSERT commits before the browser connection is lost` passed in QIMA CI [#2230](https://github.com/meridane/QimaTrade-MVP/actions/runs/46106205447), Verify job `140859414003` (466 Playwright tests total).
+- The synthetic fixture lets the first POST commit, then drops only the browser-facing response. Retrying the unchanged form creates a second draft with a different UUID; the test verifies both persisted rows and their payloads.
+- This is a **confirmed behavior of the legacy route in the disposable browser fixture**, not evidence of duplicate records in Production.
+- The likely product-level question is whether an ambiguous retry should reuse a stable idempotency key or whether the legacy draft flow intentionally treats each POST as a new draft. The existing CREATE_OFFER idempotency contract does not automatically settle the legacy multipart draft route.
+- No runtime behavior was changed. Keep this as a documented decision point until the product owner defines the retry/idempotency contract; do not silently deduplicate or alter the route in this test-only mission.
