@@ -17,6 +17,10 @@ printf '%s\n' "$function_body" | grep -Fq "auth.uid()" || {
   echo "FAIL: publish RPC must use the schema-qualified auth.uid() helper"; exit 1;
 }
 
+printf '%s\\n' "$function_body" | grep -Eiq 'auth\\.uid\\(\\)[[:space:]]+is[[:space:]]+null' || {
+  echo "FAIL: publish RPC must reject a null authenticated subject"; exit 1;
+}
+
 printf '%s\n' "$function_body" | grep -Eiq 'auth\.uid\(\)[[:space:]]*<>[[:space:]]*p_user_id' || {
   echo "FAIL: publish RPC must bind p_user_id to the authenticated subject"; exit 1;
 }
