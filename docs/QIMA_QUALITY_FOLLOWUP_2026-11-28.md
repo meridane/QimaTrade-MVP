@@ -56,3 +56,16 @@ Verify the new `aria-live` assertion in the browser test, then complete PostgreS
 
 - Vercel Preview for code head d5cb6758 reports SUCCESS.
 - QIMA CI overall remains IN PROGRESS only because PostgreSQL 16 and 17.6 runner-write-privilege characterization jobs have not completed yet; Verify and CodeQL are successful.
+
+
+## Final PostgreSQL and CI closeout — 2026-11-28 14:10 KST
+
+- Final tested code head: `d5cb6758377cd9a7f0e92efb582499320e4f9727`.
+- QIMA CI [#2232](https://github.com/meridane/QimaTrade-MVP/actions/runs/46106211924) is **SUCCESS**. Verify job `140859433578` completed **SUCCESS** with **441 Playwright tests passed**. The keyboard Enter submission regression passed in 578 ms and retained the exact generic alert text and `aria-live="assertive"` assertion. Dependency audit, TypeScript, Next.js production build, Chromium and the isolated QIMA security fixture all passed.
+- PostgreSQL 16 job `140859433384` completed **SUCCESS** (48 job steps); PostgreSQL 17.6 job `140859433597` completed **SUCCESS** (33 job steps).
+- CodeQL [#2156](https://github.com/meridane/QimaTrade-MVP/actions/runs/46106211938) is **SUCCESS**. Vercel Preview for code head `d5cb6758` was **SUCCESS**.
+- Prepared-transaction failure-injection jobs report their expected negative outcomes; the independent blocking assertions succeeded. The intentionally skipped harness was checked by a successful assertion job.
+- The later documentation-only branch HEAD `28a1ae59` currently has combined Vercel status **FAILURE** with provider target `build-rate-limit`. This is an external preview quota issue, not a QIMA CI, PostgreSQL or CodeQL failure.
+- The earlier Playwright strict-mode ambiguity was confined to the test locator and corrected by scoping it to `p[role="alert"]`; the corrected selector passed in the prior run, and the subsequent keyboard Enter scenario passed in the current run.
+- This verifies the tested keyboard path in Chromium; it is not a full WCAG or screen-reader certification.
+- No Production data/schema, migration, secret, grant, RLS policy, persistent configuration, Production deployment, merge, force-push or protection-rule change was made in this closeout. Documentation only; `[skip ci]` is used because the tested code head is unchanged.
