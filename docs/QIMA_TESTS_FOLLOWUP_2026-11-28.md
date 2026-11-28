@@ -43,3 +43,13 @@ Inspect the new test in the Verify log, then wait for PostgreSQL 16/17.6 and Cod
 - Previous head 175ff9f5 is fully validated by QIMA CI #46098391508: 462 Playwright passed, including the unknown-metadata allowlist regression; Verify succeeded; PostgreSQL 16 48/48 and PostgreSQL 17.6 33/33 succeeded. CodeQL #46098391500 succeeded.
 - New head 7d61b99f has QIMA CI #46106205447 QUEUED and CodeQL #46106205431 IN PROGRESS at this checkpoint. The new 5xx matrix is not yet marked PASS.
 - All 5xx responses are synthetic local-server fixtures; this does not establish a Production RPC outage or data exposure.
+
+ 
+## Publish RPC 5xx matrix — Verify closeout
+
+- New code head 7d61b99f: QIMA CI [#46106205447](https://github.com/meridane/QimaTrade-MVP/actions/runs/46106205447), Verify job 140859414003 **SUCCESS**, **466 Playwright passed**.
+- All four new HTTP 500, 502, 503 and 504 publish-RPC cases explicitly passed. Each asserts no retry, no redirect, normalized upstream-unavailable error and no details/hint disclosure.
+- TypeScript, dependency audit, production build and isolated QIMA security fixture all passed.
+- CodeQL [#46106205431](https://github.com/meridane/QimaTrade-MVP/actions/runs/46106205431) **SUCCESS**.
+- PostgreSQL 16 and 17.6 remain IN PROGRESS at full runner write-privilege characterization. Overall QIMA CI is not yet closed.
+- The two deliberately failing prepared-transaction harness jobs are expected; their separate blocking assertion jobs passed. The intentionally skipped harness and its assertion also behaved as expected.
