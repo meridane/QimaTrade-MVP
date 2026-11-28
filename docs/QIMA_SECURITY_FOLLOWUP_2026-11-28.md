@@ -243,3 +243,12 @@ Wait for the final-head Verify and CodeQL workflows to complete; inspect the exa
 - The static shell contract now checks the source migrations for enabled RLS, the `dt_memberships` self-read policy, the exact-tenant `product_requests` SELECT policy, and the authenticated SELECT grant. This guards against the disposable fixture silently drifting from those source declarations.
 - Only disposable fixture SQL and its test/static contract were changed. No production migration, table grant, RLS policy, or Supabase project was changed.
 - QIMA CI / PostgreSQL validation for `ac877284` is **pending**; no pass is claimed for the new direct-RLS assertions until the workflow completes.
+
+
+## Direct RLS fixture — delimiter correction and fresh validation — 2026-11-28
+
+- Review of the GitHub diff for initial RLS test commit [`ac877284`](https://github.com/meridane/QimaTrade-MVP/commit/ac877284d697abaf00efa0e6d02b8f4c9762f9f8) caught three malformed dollar-quote lines in the SQL test file (`$;` and two `do $` openers) before treating the fixture as valid.
+- Corrected the delimiters in [`066da056`](https://github.com/meridane/QimaTrade-MVP/commit/066da056d66f97063f458938b1e8d3b72f253211). A structural check now reports 7 matching `do $$` / `$$;` pairs, 9 matching `do $q$` / `$q$;` pairs, and no malformed `do $` or `$;` lines.
+- QIMA CI [run 46142812112](https://github.com/meridane/QimaTrade-MVP/actions/runs/46142812112) targets the superseded malformed snapshot `ac877284`; it was still in progress at the last read and is not a validation result for the corrected code.
+- Corrected code head [`066da056`](https://github.com/meridane/QimaTrade-MVP/commit/066da056d66f97063f458938b1e8d3b72f253211) has a fresh QIMA CI [run 46142947939](https://github.com/meridane/QimaTrade-MVP/actions/runs/46142947939) **PENDING** and CodeQL [run 46142947871](https://github.com/meridane/QimaTrade-MVP/actions/runs/46142947871) **IN PROGRESS**. No RLS test pass is claimed yet.
+- The correction changes only disposable fixture test syntax. It does not change the source migrations, production grants, production RLS policies, or application behavior.
