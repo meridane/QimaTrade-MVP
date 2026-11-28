@@ -209,3 +209,44 @@ test("offer country selectors preserve their values in native form data", async 
   });
   expect(serialized).toEqual({ market: "South Korea", geography: "Morocco" });
 });
+
+test("offer commercial terms and documentation serialize selected and custom values into native form data", async ({ page, request }) => {
+  await authenticatePage(page, request, `/offers/new?productMasterId=${PRODUCT_MASTER_GATE_ID}`);
+  await page.goto(`/offers/new?productMasterId=${PRODUCT_MASTER_GATE_ID}`);
+
+  const commercialGroup = page.getByRole("group", { name: "Commercial terms" });
+  const documentationGroup = page.getByRole("group", { name: "Documentation available" });
+
+  const exw = commercialGroup.getByRole("button", { name: "EXW", exact: true });
+  const invoice = documentationGroup.getByRole("button", { name: "Commercial Invoice", exact: true });
+  await exw.click();
+  await invoice.click();
+  await expect(exw).toHaveAttribute("aria-pressed", "true");
+  await expect(invoice).toHaveAttribute("aria-pressed", "true");
+
+  const otherCommercialButton = commercialGroup.getByRole("button", { name: "Other", exact: true });
+  const otherCommercialInput = commercialGroup.getByRole("textbox", { name: "Other commercial term" });
+  await otherCommercialButton.click();
+  await expect(otherCommercialInput).toBeFocused();
+  await otherCommercialInput.fill("  Custom inspection window  ");
+
+  const otherDocumentationButton = documentationGroup.getByRole("button", { name: "Other", exact: true });
+  await otherDocumentationButton.click();
+  await expect(otherDocumentationButton).toHaveAttribute("aria-pressed", "true");
+  const otherDocumentationInput = documentationGroup.getByRole("textbox", { name: "Other documentation" });
+  await expect(otherDocumentationInput).toBeVisible();
+  await otherDocumentationInput.fill("  Mill test report  ");
+
+  const serialized = await page.locator("form").evaluate((element) => {
+    const formData = new FormData(element as HTMLFormElement);
+    return {
+      conditions: formData.get("conditions"),
+      documentation: formData.get("documentation"),
+    };
+  });
+
+  expect(serialized).toEqual({
+    conditions: "EXW, Other: Custom inspection window",
+    documentation: "Commercial Invoice, Other: Mill test report",
+  });
+});
