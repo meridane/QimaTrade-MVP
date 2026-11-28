@@ -85,3 +85,11 @@ Verify the new `aria-live` assertion in the browser test, then complete PostgreS
 - Added one final focused assertion in [e8e428b6](https://github.com/meridane/QimaTrade-MVP/commit/e8e428b6322208c08b4938b1859f353551e9fef1): the visible Target market label's `for` attribute must equal the trigger button's `id` before the label is clicked. This directly verifies the label/control association in addition to the activation behavior.
 - For corrected code head `e8e428b6`, replacement QIMA CI [#2244](https://github.com/meridane/QimaTrade-MVP/actions/runs/46113299985) is **PENDING with no jobs published** at this checkpoint; CodeQL [#2168](https://github.com/meridane/QimaTrade-MVP/actions/runs/46113299866) is **IN PROGRESS**. No Playwright pass is claimed for this final head.
 - The previous QIMA CI #2237 failure remains accurately classified: 440 tests passed and one test failed only because the test expected the trigger to stay focused after opening a dropdown that intentionally autofocuses its search field. The corrected test retains the search-focus assertion.
+
+
+## Country selector form-data regression — 2026-11-28
+
+- The corrected label/button association snapshot is now fully validated by QIMA CI [#2245](https://github.com/meridane/QimaTrade-MVP/actions/runs/46113355441): Verify **441 Playwright passed (36.1s)**, PostgreSQL 16 and PostgreSQL 17.6 **SUCCESS**, and CodeQL [#2169](https://github.com/meridane/QimaTrade-MVP/actions/runs/46113355457) **SUCCESS**. The earlier #2237 focus assertion failure remains a test-only failure corrected by moving focus expectations to the intentionally auto-focused search input.
+- Added a browser regression that selects Target market and Supplier geography, then constructs native `FormData` and asserts the hidden named controls still serialize `market=South Korea` and `geography=Morocco`. This protects the form payload while the visible labels target the trigger buttons.
+- The new test has not yet been validated by CI. It does not submit data to the API or alter the application runtime.
+- No Production data/schema, migration, secret, grant, RLS policy, persistent configuration, Production deployment, merge, force-push, or protection-rule change was made.

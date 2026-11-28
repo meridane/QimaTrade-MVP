@@ -180,3 +180,32 @@ test("offer country search announces an empty result set through a polite status
   await expect(emptyStatus).toHaveText("No country found.");
   await expect(emptyStatus).toHaveAttribute("aria-live", "polite");
 });
+
+
+test("offer country selectors preserve their values in native form data", async ({ page, request }) => {
+  await authenticatePage(page, request, `/offers/new?productMasterId=${PRODUCT_MASTER_GATE_ID}`);
+  await page.goto(`/offers/new?productMasterId=${PRODUCT_MASTER_GATE_ID}`);
+
+  const marketTrigger = page.getByRole("button", { name: /^Target market: / });
+  await marketTrigger.click();
+  const marketOptions = page.getByRole("group", { name: "Target market options" });
+  const marketSearch = page.getByRole("textbox", { name: "Search countries" });
+  await marketSearch.fill("South Korea");
+  await marketOptions.getByRole("button", { name: "South Korea", exact: true }).click();
+
+  const geographyTrigger = page.getByRole("button", { name: /^Supplier geography: / });
+  await geographyTrigger.click();
+  const geographyOptions = page.getByRole("group", { name: "Supplier geography options" });
+  const geographySearch = page.getByRole("textbox", { name: "Search countries" });
+  await geographySearch.fill("Morocco");
+  await geographyOptions.getByRole("button", { name: "Morocco", exact: true }).click();
+
+  const serialized = await page.locator("form").evaluate((element) => {
+    const formData = new FormData(element as HTMLFormElement);
+    return {
+      market: formData.get("market"),
+      geography: formData.get("geography"),
+    };
+  });
+  expect(serialized).toEqual({ market: "South Korea", geography: "Morocco" });
+});
