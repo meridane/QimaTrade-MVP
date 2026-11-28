@@ -14,7 +14,10 @@ test("offer market selector has a field name and exposes its choices as buttons"
   await expect(marketTrigger).toHaveAttribute("aria-expanded", "false");
   await expect(page.getByRole("button", { name: /^Supplier geography: / })).toBeVisible();
 
-  await page.getByText("Target market", { exact: true }).click();
+  const marketLabel = page.getByText("Target market", { exact: true });
+  await expect(marketLabel).toHaveAttribute("for", "market");
+  await expect(marketTrigger).toHaveAttribute("id", "market");
+  await marketLabel.click();
   await expect(marketTrigger).toHaveAttribute("aria-expanded", "true");
 
   const choices = page.getByRole("group", { name: "Target market options" });
