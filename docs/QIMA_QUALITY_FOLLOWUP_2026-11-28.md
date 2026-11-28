@@ -40,3 +40,13 @@ Verify the new `aria-live` assertion in the browser test, then complete PostgreS
 - Previous corrected code head 2d196854 is fully validated by QIMA CI #46098624833: 441 Playwright passed, including the scoped alert selector; Verify succeeded; PostgreSQL 16 48/48 and PostgreSQL 17.6 33/33 succeeded. CodeQL #46098624871 succeeded.
 - No QIMA CI or CodeQL run was visible for new head d5cb6758 at this checkpoint. The workflow is configured for push to main, pull requests targeting main, schedule and workflow_dispatch; this mission PR targets the temporary validation base. The new Enter-submission case remains unvalidated pending an authorized CI trigger.
 - This is a keyboard interaction regression, not a complete WCAG or screen-reader certification. No application runtime or Production data was changed.
+
+ 
+## Keyboard error submission — Verify closeout
+
+- New code head d5cb6758: QIMA CI [#46106211924](https://github.com/meridane/QimaTrade-MVP/actions/runs/46106211924), Verify job 140859433578 **SUCCESS**, **441 Playwright passed**.
+- The PostgREST draft-insert failure regression passed with keyboard Enter submission (578 ms), retaining the exact generic alert text and aria-live=assertive assertion.
+- TypeScript, dependency audit, production build and isolated QIMA security fixture all passed.
+- CodeQL [#46106211938](https://github.com/meridane/QimaTrade-MVP/actions/runs/46106211938) **SUCCESS**.
+- PostgreSQL 16 and 17.6 jobs remain IN PROGRESS at full runner write-privilege characterization. Overall QIMA CI is not yet closed.
+- This verifies keyboard submission and the alert assertion in Chromium; it is not a full WCAG or screen-reader certification.
