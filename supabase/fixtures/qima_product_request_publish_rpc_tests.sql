@@ -20,10 +20,57 @@ begin
     raise exception 'anon role unexpectedly inherits EXECUTE on the product-request publish RPC';
   end if;
 end;
-$$;
+$;
+
+do $q$
+begin
+  if not (select relrowsecurity from pg_class where oid = 'public.dt_memberships'::regclass) then
+    raise exception 'dt_memberships RLS is not enabled in the disposable fixture';
+  end if;
+  if not (select relrowsecurity from pg_class where oid = 'public.product_requests'::regclass) then
+    raise exception 'product_requests RLS is not enabled in the disposable fixture';
+  end if;
+  if not has_table_privilege('authenticated', 'public.dt_memberships', 'SELECT')
+     or not has_table_privilege('authenticated', 'public.product_requests', 'SELECT') then
+    raise exception 'authenticated role is missing the source SELECT grants';
+  end if;
+  if has_table_privilege('authenticated', 'public.product_requests', 'INSERT') then
+    raise exception 'authenticated unexpectedly has direct product_requests INSERT privilege';
+  end if;
+  if has_table_privilege('anon', 'public.dt_memberships', 'SELECT')
+     or has_table_privilege('anon', 'public.product_requests', 'SELECT') then
+    raise exception 'anon unexpectedly has direct SELECT privilege on tenant/request tables';
+  end if;
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public' and tablename = 'dt_memberships'
+      and policyname = 'dt_memberships_select' and cmd = 'SELECT'
+  ) then
+    raise exception 'dt_memberships self-read policy is missing';
+  end if;
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public' and tablename = 'product_requests'
+      and policyname = 'product_requests_select_own_tenant' and cmd = 'SELECT'
+  ) then
+    raise exception 'product_requests tenant-read policy is missing';
+  end if;
+end;
+$q$;
 
 select set_config('request.jwt.claim.sub', '', false);
 set role authenticated;
+
+do $q$
+begin
+  if (select count(*) from public.dt_memberships) <> 0 then
+    raise exception 'null authenticated subject unexpectedly sees membership rows';
+  end if;
+  if (select count(*) from public.product_requests where id = '55555555-5555-4555-8555-555555555555') <> 0 then
+    raise exception 'null authenticated subject unexpectedly sees product requests';
+  end if;
+end;
+$q$;
 
 do $q$
 declare
@@ -64,7 +111,18 @@ $q$;
 select set_config('request.jwt.claim.sub', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', false);
 set role authenticated;
 
-do $$
+do $q$
+begin
+  if (select count(*) from public.dt_memberships) <> 1 then
+    raise exception 'membership RLS did not restrict user A to their own membership row';
+  end if;
+  if (select count(*) from public.product_requests where id = '55555555-5555-4555-8555-555555555555') <> 0 then
+    raise exception 'user A can read a request in a tenant where they have no current membership';
+  end if;
+end;
+$q$;
+
+do $
 declare
   v_denied boolean := false;
 begin
@@ -146,6 +204,17 @@ select set_config('request.jwt.claim.sub', 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb
 set role authenticated;
 
 do $q$
+begin
+  if (select count(*) from public.dt_memberships) <> 1 then
+    raise exception 'membership RLS exposed rows belonging to another user';
+  end if;
+  if (select count(*) from public.product_requests where id = '55555555-5555-4555-8555-555555555555') <> 1 then
+    raise exception 'same-tenant member cannot read the tenant-scoped product request';
+  end if;
+end;
+$q$;
+
+do $q$
 declare
   v_denied boolean := false;
 begin
@@ -192,7 +261,15 @@ insert into public.dt_memberships (tenant_id, user_id, role) values
 select set_config('request.jwt.claim.sub', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', false);
 set role authenticated;
 
-do $$
+do $q$
+begin
+  if (select count(*) from public.product_requests where id = '55555555-5555-4555-8555-555555555555') <> 1 then
+    raise exception 'request owner with restored exact-tenant membership cannot read the request';
+  end if;
+end;
+$q$;
+
+do $
 declare
   v_result jsonb;
 begin

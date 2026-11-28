@@ -75,6 +75,12 @@ as $$
 $$;
 grant execute on function public.dt_publish_product_request(uuid, uuid) to anon;
 
+-- Mirror the source dt_memberships and product_requests SELECT policies in this disposable fixture.
+alter table public.dt_memberships enable row level security;
+create policy dt_memberships_select on public.dt_memberships
+  for select to authenticated
+  using (user_id = auth.uid());
+
 alter table public.product_requests enable row level security;
 create policy product_requests_select_own_tenant on public.product_requests
   for select to authenticated
@@ -85,6 +91,10 @@ create policy product_requests_select_own_tenant on public.product_requests
         and m.user_id = auth.uid()
     )
   );
+
+-- Fixture-only client grants mirror the source migration: authenticated can read,
+-- while anon has no table access and authenticated has no direct INSERT privilege.
+grant select on public.dt_memberships, public.product_requests to authenticated;
 
 insert into public.dt_tenants (id, name) values
   ('11111111-1111-4111-8111-111111111111', 'Tenant A'),
