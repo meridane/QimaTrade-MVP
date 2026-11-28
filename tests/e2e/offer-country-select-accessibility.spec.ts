@@ -158,6 +158,8 @@ test("offer commercial-term and documentation toggles expose their fieldset grou
   await expect(otherDocumentationInput).toBeVisible();
   await page.keyboard.press("Tab");
   await expect(otherDocumentationInput).toBeFocused();
+  await page.keyboard.press("Shift+Tab");
+  await expect(otherDocumentationButton).toBeFocused();
 });
 
 
