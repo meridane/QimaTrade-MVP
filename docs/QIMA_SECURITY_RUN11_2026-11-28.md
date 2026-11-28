@@ -44,3 +44,24 @@ Complete QIMA CI #2213 and CodeQL #2137. Inspect any failing step before adding 
 - PostgreSQL 16 and PostgreSQL 17.6 are still **IN PROGRESS** at the full CREATE_OFFER runner write-privilege characterization (step 26). Later RLS/ACL steps remain pending; the overall QIMA CI run is not yet closed.
 - Vercel Preview for the code commit `0d3daab0` reports SUCCESS. The docs-only branch HEAD has a separate pending Preview status.
 - The two prepared-transaction failure-injection harnesses retain expected FAILURE conclusions; their independent assertion jobs succeeded. The deliberately skipped harness remains SKIPPED and separately asserted.
+
+
+## Run 11 closeout and run 12 change snapshot — 2026-11-28
+
+### Previous validation closeout
+- QIMA CI #2213: [run 46090747586](https://github.com/meridane/QimaTrade-MVP/actions/runs/46090747586) completed **SUCCESS**; Verify reported **461 Playwright passed (36.3 s)**.
+- PostgreSQL 16 integration and PostgreSQL 17.6 compatibility jobs both completed **SUCCESS**.
+- CodeQL #2137: [run 46090747578](https://github.com/meridane/QimaTrade-MVP/actions/runs/46090747578) completed **SUCCESS**.
+- Expected prepared-transaction failure-injection jobs ended with FAILURE by design; independent assertions passed. The skipped cleanup harness was separately asserted.
+
+### New run 12 change
+- Commit [33bfc399](https://github.com/meridane/QimaTrade-MVP/commit/33bfc39950e1f4faf32d635adf094248ace5bd19) allows HTTP 429 in the local Auth fixture.
+- Commit [566c2f4e](https://github.com/meridane/QimaTrade-MVP/commit/566c2f4eb06c2374fb0db0050ab2e7184a612fd3) adds Auth HTTP 429 to the authenticated publish-route fail-closed matrix, alongside 500/502/503/504.
+- Each case expects 401 UNAUTHENTICATED and zero membership, definition-RPC or publication-RPC requests. Fixture state is restored in finally.
+
+### Run 12 validation status
+- QIMA CI #2221: [run 46094838391](https://github.com/meridane/QimaTrade-MVP/actions/runs/46094838391) is PENDING; the jobs endpoint currently returns no jobs. No Playwright result is claimed.
+- CodeQL #2145: [run 46094838407](https://github.com/meridane/QimaTrade-MVP/actions/runs/46094838407) is IN PROGRESS.
+- No Production Auth failure, RLS defect, data exposure or exploitable vulnerability is inferred from this synthetic fixture.
+
+The run-12 test commit is validated only when its own Verify workflow completes. This docs-only snapshot uses [skip ci] and does not claim a separate test run.
