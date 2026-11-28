@@ -95,3 +95,15 @@ Inspect the new test in the Verify log, then wait for PostgreSQL 16/17.6 and Cod
 - Dependency security audit, TypeScript, Next.js production build, browser fixture, and audit-result enforcement all completed **SUCCESS**. CodeQL [#2171](https://github.com/meridane/QimaTrade-MVP/actions/runs/46117420576) is **SUCCESS**. Vercel Preview is **SUCCESS**.
 - PostgreSQL 16 and 17.6 remain **IN PROGRESS** at the full CREATE_OFFER runner write-privilege characterization step; the earlier integration/replay/concurrency steps are successful. The overall QIMA CI run is not yet closed.
 - These are synthetic PostgREST responses after a successful Auth lookup. They do not prove a live permission failure or a Production exposure. No Production data/schema, migration, secret, grant, RLS policy, deployment, merge, force-push, or protection-rule change was made.
+
+
+## Publish RPC authorization-status matrix — final CI closeout — 2026-11-28
+
+- Tested code head: [337eff3b](https://github.com/meridane/QimaTrade-MVP/commit/337eff3b9d5c4dafc6a4bcc4f12d8a22aaa10806); documentation head before this closeout: `e5ef6457`.
+- QIMA CI [#2247](https://github.com/meridane/QimaTrade-MVP/actions/runs/46117420584) completed **SUCCESS**. Verify job `140894244340` completed **SUCCESS** with **468 Playwright tests passed**; the new synthetic publish-RPC HTTP 401 and 403 cases passed, alongside the existing 429 and 5xx no-retry/non-disclosure matrix.
+- Dependency audit, TypeScript, Next.js production build, Chromium and the isolated QIMA security fixture all passed.
+- PostgreSQL 16 job `140894244403` completed **SUCCESS** (48/48 steps); PostgreSQL 17.6 job `140894244352` completed **SUCCESS** (33/33 steps). CodeQL [#2171](https://github.com/meridane/QimaTrade-MVP/actions/runs/46117420576) completed **SUCCESS**.
+- The prepared-transaction setup/cleanup failure jobs and skipped harness retain their expected outcomes; the independent assertions that those outcomes remain blocking completed SUCCESS. No unexpected failing job remains.
+- The combined Vercel status for later documentation head `e5ef6457` is **FAILURE** with provider target `build-rate-limit`; the tested code head's Preview was SUCCESS in the preceding code validation. The quota failure does not change the GitHub Verify/CodeQL result.
+- QA340 still characterizes an ambiguous legacy draft POST: a committed insert followed by a lost response and a second independent POST can create a second draft in the synthetic fixture. Whether retries should reuse an idempotency key or create independent drafts remains a product-contract decision. No behavior was changed and no Production duplicate is inferred.
+- No Production data/schema, migration, secret, grant, RLS policy, persistent configuration, Production deployment, merge, force-push or protection-rule change was made. This is a documentation-only `[skip ci]` closeout; tested code head is unchanged.
