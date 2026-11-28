@@ -266,7 +266,7 @@ export default function NewOfferPage() {
                   const selected = selectedTerms.includes(term);
                   return <button key={term} type="button" aria-pressed={selected} onClick={() => toggleTerm(term)} className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-bold transition-colors ${selected ? "border-orange-500 bg-orange-500 text-white" : "border-slate-200 bg-white text-slate-700 hover:border-orange-300 hover:text-orange-600"}`}>{selected && <Check size={14} strokeWidth={3} />}{term}</button>;
                 })}
-                <button type="button" aria-pressed={Boolean(commercialOther)} onClick={() => document.getElementById("commercial-other")?.focus()} className={`rounded-lg border px-3 py-2 text-sm font-bold ${commercialOther ? "border-orange-500 bg-orange-500 text-white" : "border-slate-200 bg-white text-slate-700 hover:border-orange-300 hover:text-orange-600"}`}>Other</button>
+                <button type="button" onClick={() => document.getElementById("commercial-other")?.focus()} className={`rounded-lg border px-3 py-2 text-sm font-bold ${commercialOther ? "border-orange-500 bg-orange-500 text-white" : "border-slate-200 bg-white text-slate-700 hover:border-orange-300 hover:text-orange-600"}`}>Other</button>
               </div>
               <label className="sr-only" htmlFor="commercial-other">Other commercial term</label>
               <input id="commercial-other" value={commercialOther} onChange={(event) => setCommercialOther(event.target.value)} placeholder="Other commercial term..." className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm" />

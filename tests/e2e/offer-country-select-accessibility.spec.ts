@@ -278,3 +278,25 @@ test("deselecting Other documentation excludes stale custom text from native for
   expect(serialized).toBe("Commercial Invoice");
 });
 
+test("commercial Other shortcut is an action button and focuses its custom field", async ({ page, request }) => {
+  await authenticatePage(page, request, `/offers/new?productMasterId=${PRODUCT_MASTER_GATE_ID}`);
+  await page.goto(`/offers/new?productMasterId=${PRODUCT_MASTER_GATE_ID}`);
+
+  const commercialGroup = page.getByRole("group", { name: "Commercial terms" });
+  const otherButton = commercialGroup.getByRole("button", { name: "Other", exact: true });
+  const otherInput = commercialGroup.getByRole("textbox", { name: "Other commercial term" });
+
+  await expect(otherButton).not.toHaveAttribute("aria-pressed");
+  await otherButton.click();
+  await expect(otherInput).toBeFocused();
+
+  await otherInput.fill("  Custom inspection window  ");
+  await expect(otherButton).not.toHaveAttribute("aria-pressed");
+
+  const serialized = await page.locator("form").evaluate((element) => {
+    const formData = new FormData(element as HTMLFormElement);
+    return formData.get("conditions");
+  });
+
+  expect(serialized).toBe("Other: Custom inspection window");
+});
