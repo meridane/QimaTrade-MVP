@@ -585,7 +585,8 @@ test("offer draft form exposes its pending submission state to assistive technol
 
     releaseResponse();
 
-    await expect(page.getByRole("alert")).toHaveText("We couldn't submit your offer. Please try again.");
+    const submissionError = form.locator('p[role="alert"]');
+    await expect(submissionError).toHaveText("We couldn't submit your offer. Please try again.");
     await expect(form).toHaveAttribute("aria-busy", "false");
     await expect(submit).toBeEnabled();
     await expect(submit).toHaveText("Create offer");
