@@ -78,3 +78,12 @@ Validate the new AST guard in Verify, then obtain an authorized staging project 
 - The AST guard proves only the inspected static query shape: six table reads, no Supabase reads inside per-attribute map callbacks, and two explicit Promise.all waves with grouped metadata .in() calls. It is not a latency benchmark and does not establish p50/p95/p99, buffers, lock waits, CPU or memory.
 - QIMA Supabase remains inactive and no authorized non-Production staging environment is available. No SQL profiling or live query was run.
 - No Production data/schema, migration, secret, grant, RLS policy, persistent configuration, Production deployment, merge, force-push or protection-rule change was made in this closeout. Documentation only; `[skip ci]` is used because the tested code head is unchanged.
+
+## Narrow query-projection regression — 2026-11-28
+
+- Extended `tests/e2e/offer-context-query-budget.spec.ts` in commit [03be500a](https://github.com/meridane/QimaTrade-MVP/commit/03be500aa84f12c508dc47f0624b926181080309).
+- The AST guard now asserts the exact six explicit `.select(...)` projections used inside `getOfferContext` and rejects wildcard/dynamic projections. This complements the existing six-table inventory, two parallel waves, three metadata `.in()` lookups, and no-per-attribute-read assertion.
+- QIMA CI [#2238](https://github.com/meridane/QimaTrade-MVP/actions/runs/46113004405), Verify job `140880491411`, completed **SUCCESS** with **436 Playwright tests passed (37.8s)**. The query-budget AST test passed in 28 ms; dependency audit, TypeScript, Next.js production build and isolated security fixture also passed.
+- CodeQL [#2162](https://github.com/meridane/QimaTrade-MVP/actions/runs/46113004493) completed **SUCCESS**. Vercel Preview for the code snapshot reports the external `build-rate-limit` quota failure.
+- PostgreSQL 16 and PostgreSQL 17.6 jobs in #2238 remain **IN PROGRESS** at the full CREATE_OFFER runner write-privilege characterization step; the overall QIMA CI run is not yet closed.
+- This is a source-level projection regression guard, not a database benchmark. It does not provide latency percentiles, EXPLAIN plans, buffers, lock, CPU, or memory measurements. No optimization or Production query was performed.
