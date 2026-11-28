@@ -210,7 +210,7 @@ export default function NewOfferPage() {
   }
 
   const commercialValue = [...selectedTerms, ...(commercialOther.trim() ? [`Other: ${commercialOther.trim()}`] : [])].join(", ");
-  const documentationValue = [...selectedDocs.filter((doc) => doc !== "Other"), ...(documentationOther.trim() ? [`Other: ${documentationOther.trim()}`] : [])].join(", ");
+  const documentationValue = [...selectedDocs.filter((doc) => doc !== "Other"), ...(selectedDocs.includes("Other") && documentationOther.trim() ? [`Other: ${documentationOther.trim()}`] : [])].join(", ");
 
   return (
     <main className="min-h-screen bg-slate-50 px-5 py-10 sm:px-8">

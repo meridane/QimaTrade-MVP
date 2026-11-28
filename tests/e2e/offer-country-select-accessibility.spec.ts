@@ -250,3 +250,31 @@ test("offer commercial terms and documentation serialize selected and custom val
     documentation: "Commercial Invoice, Other: Mill test report",
   });
 });
+
+test("deselecting Other documentation excludes stale custom text from native form data", async ({ page, request }) => {
+  await authenticatePage(page, request, `/offers/new?productMasterId=${PRODUCT_MASTER_GATE_ID}`);
+  await page.goto(`/offers/new?productMasterId=${PRODUCT_MASTER_GATE_ID}`);
+
+  const documentationGroup = page.getByRole("group", { name: "Documentation available" });
+  const invoice = documentationGroup.getByRole("button", { name: "Commercial Invoice", exact: true });
+  const otherButton = documentationGroup.getByRole("button", { name: "Other", exact: true });
+
+  await invoice.click();
+  await otherButton.click();
+  await expect(otherButton).toHaveAttribute("aria-pressed", "true");
+
+  const otherInput = documentationGroup.getByRole("textbox", { name: "Other documentation" });
+  await otherInput.fill("Mill test report");
+
+  await otherButton.click();
+  await expect(otherButton).toHaveAttribute("aria-pressed", "false");
+  await expect(otherInput).toBeHidden();
+
+  const serialized = await page.locator("form").evaluate((element) => {
+    const formData = new FormData(element as HTMLFormElement);
+    return formData.get("documentation");
+  });
+
+  expect(serialized).toBe("Commercial Invoice");
+});
+
