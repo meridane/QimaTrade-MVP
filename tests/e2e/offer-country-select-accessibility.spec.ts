@@ -156,6 +156,8 @@ test("offer commercial-term and documentation toggles expose their fieldset grou
   await expect(otherDocumentationButton).toHaveAttribute("aria-pressed", "true");
   const otherDocumentationInput = documentationGroup.getByRole("textbox", { name: "Other documentation" });
   await expect(otherDocumentationInput).toBeVisible();
+  await page.keyboard.press("Tab");
+  await expect(otherDocumentationInput).toBeFocused();
 });
 
 
