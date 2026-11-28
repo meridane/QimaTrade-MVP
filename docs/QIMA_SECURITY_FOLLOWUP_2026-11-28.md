@@ -54,3 +54,14 @@ Wait for the final-head Verify and CodeQL workflows to complete; inspect the exa
 - The previous final code head ff1643ed is now fully validated by QIMA CI #46098403789: 463 Playwright passed, including Auth 401/429/500/502/503/504; Verify succeeded; PostgreSQL 16 48/48 and PostgreSQL 17.6 33/33 succeeded. CodeQL #46098403749 succeeded.
 - New head 9bae97ec has QIMA CI #46106187513 IN PROGRESS and CodeQL #46106187493 IN PROGRESS at this checkpoint. No passing result is attributed to the new 403 case yet.
 - The new 403 case is synthetic. It does not prove a live Auth outage, RLS defect, cross-tenant leak or exploitable Production vulnerability. No Production data, schema, policy, grant or secret was changed.
+
+ 
+## Auth 403 Verify and repository-source authorization review — 2026-11-28
+
+- New code head 9bae97ec: QIMA CI [#46106187513](https://github.com/meridane/QimaTrade-MVP/actions/runs/46106187513), Verify job 140859359087 **SUCCESS**, **464 Playwright passed**. Auth HTTP 401, 403, 429, 500, 502, 503 and 504 cases all passed; the new 403 case explicitly passed before membership lookup.
+- CodeQL [#46106187493](https://github.com/meridane/QimaTrade-MVP/actions/runs/46106187493) **SUCCESS**.
+- PostgreSQL 16 and 17.6 jobs are still IN PROGRESS at the full CREATE_OFFER runner write-privilege characterization step. The overall QIMA CI is not yet closed.
+- Repository-source review: the earlier migration 20260829110000_product_request_to_demand_bridge_v1.sql defines dt_publish_product_request as SECURITY DEFINER and selects a request by id/user, without checking membership in that request's tenant. Because the function is SECURITY DEFINER, the product_requests RLS policy alone does not enforce the same tenant boundary inside this RPC.
+- The branch-only migration 20261127100000_harden_product_request_publish_tenant_membership.sql adds an exact request-tenant membership predicate, then takes FOR KEY SHARE on that membership row before publishing; it also revokes PUBLIC and anon EXECUTE and grants authenticated EXECUTE.
+- The disposable two-tenant fixture proves the branch migration rejects a user who owns a request in Tenant A but is currently a member only of Tenant B, performs no demand write, and permits the same request after Tenant A membership is restored. The isolated security fixture passed in Verify.
+- Classification: **confirmed source-level authorization gap in the earlier repository function; branch-only mitigation covered by a synthetic PostgreSQL fixture.** This is not proof that the live Production function currently has that exact definition or that Production was exploitable. The live catalog remains unverified; prior read-only connection attempts failed before query execution with 28P01. No Production migration, data, policy, grant or secret was changed.
