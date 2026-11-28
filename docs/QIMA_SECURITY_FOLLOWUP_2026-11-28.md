@@ -224,3 +224,22 @@ Wait for the final-head Verify and CodeQL workflows to complete; inspect the exa
 - Current PR #27 documentation head is [`6978a88e`](https://github.com/meridane/QimaTrade-MVP/commit/6978a88edec061be798350d6f6af16eb11b7cc7a); tested code remains `e30db97c`.
 - QIMA CI [#2259](https://github.com/meridane/QimaTrade-MVP/actions/runs/46137131974) is still **PENDING with no jobs published**. CodeQL [#2183](https://github.com/meridane/QimaTrade-MVP/actions/runs/46137132017) completed **SUCCESS** for the documentation head.
 - The null-auth SQL regression has therefore not yet received Verify/PostgreSQL validation. The previous owner-boundary snapshot remains fully validated by QIMA CI #2255; that result does not cover the new null-auth case.
+
+
+## Null-auth regression — final CI closeout — 2026-11-28
+
+- Tested code head: `e30db97cc1c5dc15a9eec98fdd4a911cd8afe099`; the PR branch's later documentation snapshots `6978a88e` and `97fe617c` do not change the tested code.
+- QIMA CI [#2259](https://github.com/meridane/QimaTrade-MVP/actions/runs/46137131974) completed **SUCCESS** on snapshot `6978a88edec061be798350d6f6af16eb11b7cc7a`. Verify job `140956425318` completed **SUCCESS** with **464 Playwright tests passed (36.8 s)**; dependency audit, TypeScript, Next.js production build, Chromium and the isolated security fixture all passed.
+- The fixture log confirms the publish-RPC ACL/tenant-membership assertions and the concurrent membership-delete/revocation assertions completed successfully. The null-subject test is part of the disposable fixture tree at the tested code head; it is not a live Supabase test.
+- PostgreSQL 16 job `140956425499` and PostgreSQL 17.6 job `140956425604` both completed **SUCCESS**. CodeQL [#2183](https://github.com/meridane/QimaTrade-MVP/actions/runs/46137132017) completed **SUCCESS**.
+- The earlier #2258 run was cancelled after a newer snapshot superseded it; no test result is attributed to that cancelled run.
+- This closes the null-auth regression for the tested code snapshot. It does not establish a Production authorization failure or vulnerability. No Production data/schema, migration, secret, grant, RLS policy, persistent configuration, deployment, merge, force-push or protection-rule change was made.
+
+## Product-request direct RLS regression — added, validation pending — 2026-11-28
+
+- New code commit: [`ac877284`](https://github.com/meridane/QimaTrade-MVP/commit/ac877284d697abaf00efa0e6d02b8f4c9762f9f8).
+- The disposable fixture now mirrors the source `dt_memberships` self-read RLS policy and `product_requests_select_own_tenant` policy, with fixture-only SELECT grants for `authenticated`. It deliberately gives neither `anon` SELECT nor `authenticated` direct INSERT on `product_requests`.
+- Runtime assertions cover: NULL Auth sees no membership/request rows; user A with membership only in Tenant B cannot read a Tenant A request; a non-owner member B of Tenant A can read the tenant-scoped request but the publish RPC still rejects B because B is not its owner; after restoring A's Tenant A membership, A can read and publish.
+- The static shell contract now checks the source migrations for enabled RLS, the `dt_memberships` self-read policy, the exact-tenant `product_requests` SELECT policy, and the authenticated SELECT grant. This guards against the disposable fixture silently drifting from those source declarations.
+- Only disposable fixture SQL and its test/static contract were changed. No production migration, table grant, RLS policy, or Supabase project was changed.
+- QIMA CI / PostgreSQL validation for `ac877284` is **pending**; no pass is claimed for the new direct-RLS assertions until the workflow completes.
