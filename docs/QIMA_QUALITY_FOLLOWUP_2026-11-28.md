@@ -50,3 +50,9 @@ Verify the new `aria-live` assertion in the browser test, then complete PostgreS
 - CodeQL [#46106211938](https://github.com/meridane/QimaTrade-MVP/actions/runs/46106211938) **SUCCESS**.
 - PostgreSQL 16 and 17.6 jobs remain IN PROGRESS at full runner write-privilege characterization. Overall QIMA CI is not yet closed.
 - This verifies keyboard submission and the alert assertion in Chromium; it is not a full WCAG or screen-reader certification.
+
+ 
+## External preview
+
+- Vercel Preview for code head d5cb6758 reports SUCCESS.
+- QIMA CI overall remains IN PROGRESS only because PostgreSQL 16 and 17.6 runner-write-privilege characterization jobs have not completed yet; Verify and CodeQL are successful.
