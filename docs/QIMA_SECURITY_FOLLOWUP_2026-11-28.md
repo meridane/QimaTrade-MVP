@@ -85,3 +85,16 @@ Wait for the final-head Verify and CodeQL workflows to complete; inspect the exa
 - The later documentation-only branch HEAD `263b7fe5` currently has combined Vercel status **FAILURE** with provider target `build-rate-limit`. This is an external preview quota failure, not a GitHub Verify, PostgreSQL or CodeQL failure. The code head above remains the tested snapshot.
 - The source-level authorization gap and branch-only tenant-membership mitigation described above remain repository-source findings. Disposable PostgreSQL tests do not establish the live Production catalog or exploitability. QIMA remains inactive; no Production query or migration was performed.
 - No Production data/schema, migration, secret, grant, RLS policy, persistent configuration, Production deployment, merge, force-push or protection-rule change was made in this closeout. Documentation only; `[skip ci]` is used because the tested code head is unchanged.
+
+
+## Membership-revocation concurrency regression — 2026-11-28 14:14 KST
+
+- Added `tests/sql/test-product-request-publish-membership-lock.sh`. It runs only against the disposable `qima-security-db` Compose service created by `scripts/test-qima-security-fixture.sh`.
+- The test starts a synthetic authenticated publish RPC in an explicit transaction, waits until the RPC has returned and the session is holding the transaction open, then attempts a privileged DELETE of the exact `dt_memberships(tenant_id, user_id)` row from a second PostgreSQL session with a 750 ms `lock_timeout`.
+- Expected result: the concurrent DELETE is blocked by the RPC's `FOR KEY SHARE` and fails specifically with PostgreSQL's lock-timeout message; after the publish transaction commits, the membership row remains and the existing demand count remains exactly one.
+- Added commits: [a745f832](https://github.com/meridane/QimaTrade-MVP/commit/a745f832145c8f414faade407692951c7a6146a5) (new concurrency test), [ecef31c7](https://github.com/meridane/QimaTrade-MVP/commit/ecef31c793e4419712d9a5338ea68b462a9cdb20) (preserve holder exit status), and [940304f7](https://github.com/meridane/QimaTrade-MVP/commit/940304f7282f2d95080ebd86933b5c249f2cc5a4) (wire test into disposable fixture driver).
+- The test uses only synthetic UUIDs and a local disposable PostgreSQL container; it does not connect to Supabase Cloud.
+- New QIMA CI [#2235](https://github.com/meridane/QimaTrade-MVP/actions/runs/46111093869) for final code head `940304f7` is **PENDING with no jobs published** at this checkpoint. CodeQL [#2159](https://github.com/meridane/QimaTrade-MVP/actions/runs/46111093800) is **IN PROGRESS**. No passing result is claimed for the new concurrency test yet.
+- The immediately preceding SECURITY code head `9bae97ec` remains fully validated by QIMA CI #2229 (464 Playwright tests, PostgreSQL 16/17.6 SUCCESS) and CodeQL #2153 SUCCESS. Those results do not validate the new lock-concurrency script.
+- The latest branch PR #27 remains OPEN / DRAFT / mergeable. The new test and driver touch only SECURITY-owned files; the other three mission file sets remain separate.
+- No Production data/schema, migration, secret, grant, RLS policy, persistent configuration, Production deployment, merge, force-push or protection-rule change was made. The live catalog remains unverified while QIMA Supabase is inactive.
