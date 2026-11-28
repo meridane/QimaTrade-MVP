@@ -48,3 +48,13 @@ Validate the new AST guard in Verify, then obtain an authorized staging project 
 - Previous code head 46a2d4fa is fully validated by QIMA CI #46098455377: 436 Playwright passed, including the original AST guard; Verify succeeded; PostgreSQL 16 48/48 and PostgreSQL 17.6 33/33 succeeded. CodeQL #46098455416 succeeded.
 - No QIMA CI or CodeQL run was visible for new head 6cfbe7ff at this checkpoint. The repository workflow file currently triggers on push to main, pull requests targeting main, schedule and workflow_dispatch; the mission PR targets the temporary validation base. An authorized workflow dispatch or equivalent CI trigger is required before claiming this new AST assertion passed.
 - This remains a static query-shape guard, not a latency benchmark. No optimization or Production query was performed. A non-Production staging environment is still required for p50/p95/p99, EXPLAIN/BUFFERS, CPU and memory profiling.
+
+ 
+## Parallel-wave AST guard — Verify closeout
+
+- New code head 6cfbe7ff: QIMA CI [#46106210330](https://github.com/meridane/QimaTrade-MVP/actions/runs/46106210330), Verify job 140859428821 **SUCCESS**, **436 Playwright passed**.
+- The strengthened query-plan AST guard explicitly passed (31 ms), confirming the first Promise.all holds the product/product-attribute reads and the second holds the three grouped metadata reads.
+- TypeScript, dependency audit, production build and isolated QIMA security fixture all passed.
+- CodeQL [#46106210349](https://github.com/meridane/QimaTrade-MVP/actions/runs/46106210349) **SUCCESS**.
+- PostgreSQL 16 and 17.6 jobs remain IN PROGRESS at full runner write-privilege characterization. Overall QIMA CI is not yet closed.
+- No latency claim is made from this AST test or Playwright duration. The staging/benchmark gate remains unchanged.
