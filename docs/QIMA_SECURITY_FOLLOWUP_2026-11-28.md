@@ -132,3 +132,16 @@ Wait for the final-head Verify and CodeQL workflows to complete; inspect the exa
 - The shell file was replaced in commit [feb6f5c1](https://github.com/meridane/QimaTrade-MVP/commit/feb6f5c157b1cfe26c4f03538ce4685eaa2c434c). A fresh QIMA CI [#2250](https://github.com/meridane/QimaTrade-MVP/actions/runs/46117582536) is **PENDING with no jobs published** at this checkpoint. No Verify result is claimed for the corrected script yet.
 - CodeQL [#2174](https://github.com/meridane/QimaTrade-MVP/actions/runs/46117582499) for corrected code head feb6f5c1 completed **SUCCESS**. Vercel reports the external build-rate-limit quota failure.
 - No Production catalog, data, schema, migration, secret, grant, RLS policy, persistent configuration, deployment, merge, force-push, or protection-rule change was made.
+
+
+## Corrected SECURITY DEFINER guard — final CI closeout — 2026-11-28
+
+- Corrected code head: [feb6f5c1](https://github.com/meridane/QimaTrade-MVP/commit/feb6f5c157b1cfe26c4f03538ce4685eaa2c434c); documentation head before this closeout: `f921ae03`.
+- QIMA CI [#2250](https://github.com/meridane/QimaTrade-MVP/actions/runs/46117582536) completed **SUCCESS**. Verify job `140895916416` completed **SUCCESS** with **464 Playwright tests passed (37.2s)**; dependency audit, TypeScript, Next.js production build, Chromium and the isolated QIMA security fixture all passed.
+- The corrected static contract script explicitly passed: the publish RPC remains `SECURITY DEFINER`, pins `search_path = public`, uses schema-qualified `auth.uid()`, checks membership for the exact request tenant/user, and preserves the intended EXECUTE ACL assertions.
+- The fixture also explicitly passed both concurrency phases: a membership DELETE is blocked while the publish transaction holds `FOR KEY SHARE`; after commit, revocation succeeds and a subsequent publish is denied without another demand write.
+- PostgreSQL 16 job `140895916363` completed **SUCCESS** (48/48 steps). PostgreSQL 17.6 job `140895916105` completed **SUCCESS** (33/33 steps). CodeQL [#2174](https://github.com/meridane/QimaTrade-MVP/actions/runs/46117582499) completed **SUCCESS**.
+- Prepared-transaction setup/cleanup jobs retain their expected injected FAILURE outcomes and the intentionally skipped harness remains SKIPPED; their independent blocking/assertion jobs completed SUCCESS. No unexpected failing job remains.
+- The combined Vercel status for documentation head `f921ae03` is **FAILURE** solely with the provider target `build-rate-limit`. This is an external preview quota failure, not a Verify, PostgreSQL or CodeQL failure. No deployment retry or quota bypass was attempted.
+- The historical source-level membership gap and branch-only mitigation remain as previously classified. Disposable tests do not prove the deployed Production catalog or exploitability. QIMA Supabase remains inactive and live ACL/function definitions remain unverified.
+- No Production data/schema, migration, secret, grant, RLS policy, persistent configuration, Production deployment, merge, force-push or protection-rule change was made. This commit is documentation-only and uses `[skip ci]`; the tested code head is unchanged.
