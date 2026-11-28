@@ -476,6 +476,25 @@ test("PUBLISH_PRODUCT_REQUEST runtime accepts matching camelCase and snake_case 
   });
 });
 
+test("PUBLISH_PRODUCT_REQUEST runtime discards unrecognized publish RPC metadata", async () => {
+  const outcome = await executePublishProductRequestRuntime(null, "publish", 200, {
+    demandId: "70000000-0000-4000-8000-000000000001",
+    details: "SYNTHETIC_INTERNAL_DETAILS",
+    hint: "SYNTHETIC_PRIVATE_HINT",
+    tenant_id: "90000000-0000-4000-8000-000000000001",
+  });
+
+  expect(outcome.errorMessage).toBeNull();
+  expect(outcome.result?.status).toBe("succeeded");
+  expect(outcome.result?.result).toEqual({
+    requestId: outcome.requestId,
+    demandId: outcome.demandId,
+    source: "dt_publish_product_request",
+  });
+  expect(JSON.stringify(outcome.result)).not.toContain("SYNTHETIC_INTERNAL_DETAILS");
+  expect(JSON.stringify(outcome.result)).not.toContain("SYNTHETIC_PRIVATE_HINT");
+});
+
 test("PUBLISH_PRODUCT_REQUEST runtime rejects an empty HTTP 204 response instead of reporting success", async () => {
   const outcome = await executePublishProductRequestRuntime(null, "publish", 204);
 
