@@ -66,7 +66,14 @@ Complete QIMA CI #2214 and CodeQL #2138, then inspect the PostgreSQL 16/17.6 con
 
 ### Run 12 validation status
 - QIMA CI #2219: [run 46094833714](https://github.com/meridane/QimaTrade-MVP/actions/runs/46094833714) is IN PROGRESS. PostgreSQL 16 and 17.6 jobs are active; Verify is at TypeScript after dependency audit passed.
-- CodeQL #2143: [run 46094833583](https://github.com/meridane/QimaTrade-MVP/actions/runs/46094833583) is IN PROGRESS.
+- CodeQL #2143: [run 46094833583](https://github.com/meridane/QimaTrade-MVP/actions/runs/46094833583) completed SUCCESS.
 - No Playwright result is claimed until Verify completes.
 
 The malformed response is local and synthetic. This docs-only snapshot uses [skip ci] and does not claim a separate test run.
+
+
+### Status refresh — 2026-11-28 10:45 KST
+
+- CodeQL #2143 is SUCCESS.
+- QIMA CI #2219 remains IN PROGRESS. Verify passed dependency audit, TypeScript, production build and Chromium installation; browser smoke tests are running. PostgreSQL 16 and 17.6 jobs remain active.
+- The malformed publish-response Playwright assertion has no final result yet.
