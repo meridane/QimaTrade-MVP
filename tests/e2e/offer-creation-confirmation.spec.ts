@@ -149,7 +149,7 @@ test("an authenticated supplier sees a generic retry message and no confirmation
     const postResponsePromise = page.waitForResponse((response) =>
       response.url().endsWith("/api/offers") && response.request().method() === "POST",
     );
-    await page.getByRole("button", { name: "Create offer", exact: true }).click();
+    await page.getByRole("button", { name: "Create offer", exact: true }).press("Enter");
     const postResponse = await postResponsePromise;
 
     // The handler intentionally maps all upstream insert failures to one generic response.
