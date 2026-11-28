@@ -13,14 +13,14 @@ test("offer draft form exposes accessible field names and native validation cons
   const currency = page.getByRole("combobox", { name: "Currency" });
 
   await expect(offerName).toBeVisible();
-  await expect(offerName).toBeRequired();
+  await expect(offerName).toHaveAttribute("required", "");
   await expect(quantity).toBeVisible();
-  await expect(quantity).toBeRequired();
+  await expect(quantity).toHaveAttribute("required", "");
   await expect(quantity).toHaveAttribute("min", "0.000001");
   await expect(quantity).toHaveAttribute("step", "any");
 
   await expect(price).toBeVisible();
-  await expect(price).not.toBeRequired();
+  await expect(price).not.toHaveAttribute("required");
   await expect(price).toHaveAttribute("min", "0");
 
   await expect(currency).toBeVisible();
