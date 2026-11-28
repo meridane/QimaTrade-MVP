@@ -31,3 +31,12 @@ Verify the new `aria-live` assertion in the browser test, then complete PostgreS
 - Corrected in commit [`2d196854`](https://github.com/meridane/QimaTrade-MVP/commit/2d196854266a1f821b55374b53948a5a233e528f): scope the locator to `p[role="alert"]`, then assert the exact generic message and `aria-live="assertive"`.
 - Replacement QIMA CI [run 46098624833](https://github.com/meridane/QimaTrade-MVP/actions/runs/46098624833) is PENDING with no jobs published at the latest read; no passing Playwright result is claimed for the correction yet.
 - CodeQL [run 46098398780](https://github.com/meridane/QimaTrade-MVP/actions/runs/46098398780) for the first code head completed SUCCESS; CodeQL for the corrected head [run 46098624871](https://github.com/meridane/QimaTrade-MVP/actions/runs/46098624871) is IN PROGRESS.
+
+ 
+## Keyboard submission of generic error state — 2026-11-28
+
+- Changed the existing PostgREST draft-insert failure regression to submit the form with Enter instead of a mouse click, while retaining the generic p[role=alert] text and aria-live=assertive assertions.
+- Commit: https://github.com/meridane/QimaTrade-MVP/commit/d5cb6758377cd9a7f0e92efb582499320e4f9727.
+- Previous corrected code head 2d196854 is fully validated by QIMA CI #46098624833: 441 Playwright passed, including the scoped alert selector; Verify succeeded; PostgreSQL 16 48/48 and PostgreSQL 17.6 33/33 succeeded. CodeQL #46098624871 succeeded.
+- No QIMA CI or CodeQL run was visible for new head d5cb6758 at this checkpoint. The workflow is configured for push to main, pull requests targeting main, schedule and workflow_dispatch; this mission PR targets the temporary validation base. The new Enter-submission case remains unvalidated pending an authorized CI trigger.
+- This is a keyboard interaction regression, not a complete WCAG or screen-reader certification. No application runtime or Production data was changed.
