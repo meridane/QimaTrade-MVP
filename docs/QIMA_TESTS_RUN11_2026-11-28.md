@@ -50,3 +50,23 @@ Complete QIMA CI #2214 and CodeQL #2138, then inspect the PostgreSQL 16/17.6 con
 - Vercel Preview for the code commit `6fde5b7a` was pending at the last status read.
 - The docs-only branch HEAD triggered QIMA CI #2217 [run 46090838015], which remains PENDING with no jobs published; CodeQL #2141 is IN PROGRESS. No test result is attributed to that docs-only HEAD.
 - The expected prepared-transaction failure-injection harnesses have their deliberate FAILURE conclusions, with separate assertion jobs successful; the skipped harness is intentionally SKIPPED and separately asserted.
+
+
+## Run 11 closeout and run 12 change snapshot — 2026-11-28
+
+### Previous validation closeout
+- QIMA CI #2214: [run 46090754067](https://github.com/meridane/QimaTrade-MVP/actions/runs/46090754067) completed SUCCESS; Verify reported 460 Playwright passed (36.6 s).
+- PostgreSQL 16 integration and PostgreSQL 17.6 compatibility jobs both completed SUCCESS.
+- CodeQL #2138: [run 46090754024](https://github.com/meridane/QimaTrade-MVP/actions/runs/46090754024) completed SUCCESS.
+- Expected prepared-transaction failure-injection conclusions and the intentionally skipped harness were separately asserted.
+
+### New run 12 change
+- Commit [3d3041a3](https://github.com/meridane/QimaTrade-MVP/commit/3d3041a35860464ab887104bd8c295e6638199a4) adds a malformed HTTP 200 JSON response case for the publish RPC.
+- The test expects no successful result, a non-empty normalized error, no internal PostgREST diagnostics, exactly one definition request and one publication request, and no redirect. Runtime and business contracts are unchanged.
+
+### Run 12 validation status
+- QIMA CI #2219: [run 46094833714](https://github.com/meridane/QimaTrade-MVP/actions/runs/46094833714) is IN PROGRESS. PostgreSQL 16 and 17.6 jobs are active; Verify is at TypeScript after dependency audit passed.
+- CodeQL #2143: [run 46094833583](https://github.com/meridane/QimaTrade-MVP/actions/runs/46094833583) is IN PROGRESS.
+- No Playwright result is claimed until Verify completes.
+
+The malformed response is local and synthetic. This docs-only snapshot uses [skip ci] and does not claim a separate test run.
