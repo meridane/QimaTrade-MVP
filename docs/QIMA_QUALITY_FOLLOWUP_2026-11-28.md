@@ -222,3 +222,10 @@ Verify the new `aria-live` assertion in the browser test, then complete PostgreS
 - QIMA CI workflow-run discovery returned no run immediately after the push. The combined commit status currently shows Vercel **PENDING**. TypeScript, Playwright, PostgreSQL 16/17.6, CodeQL and Preview completion for this new test commit are therefore **PENDING / NOT YET OBSERVED**; no pass is claimed.
 - Previous code snapshot `7a98c7e4` remains validated by QIMA CI #2268 (447 Playwright tests, PostgreSQL 16/17.6, TypeScript, audit, build and CodeQL). That run does not validate this new assertion.
 - This is a focused Chromium accessibility-semantic regression, not a complete WCAG or screen-reader certification. No Supabase Production data/schema, migration, secret, grant, RLS policy, Production deployment, merge, force-push or protection-rule change was made.
+
+
+## Offer-confirmation live-region announcement — workflow progress — 2026-11-29
+
+- QIMA CI [46179720782](https://github.com/meridane/QimaTrade-MVP/actions/runs/46179720782) for code commit [`41ccc5f1`](https://github.com/meridane/QimaTrade-MVP/commit/41ccc5f1998bc664ab4d9c4559e1d12feaa559db) is **IN PROGRESS**. Verify job `141086313653`: dependency audit and TypeScript **SUCCESS**; production build **IN PROGRESS**; Chromium, Playwright and the isolated security fixture are pending. PostgreSQL 16 job `141086313417` and PostgreSQL 17.6 job `141086313626` are **IN PROGRESS** at the initial integration stage. No result is claimed for the new `aria-live="polite"` assertion yet.
+- CodeQL [46179720732](https://github.com/meridane/QimaTrade-MVP/actions/runs/46179720732) is **IN PROGRESS** at analysis. Vercel Preview status for the code commit is **PENDING**.
+- This is a focused Chromium semantics assertion only; it is not a complete WCAG or screen-reader certification. No application runtime or Production resource changed.
