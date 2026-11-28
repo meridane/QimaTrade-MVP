@@ -572,7 +572,8 @@ test("offer draft form exposes its pending submission state to assistive technol
   });
 
   const form = page.locator('form[action="/api/offers"]');
-  const submit = page.getByRole("button", { name: "Create offer", exact: true });
+  // Keep this locator stable while the accessible button name changes to "Creating...".
+  const submit = form.locator('button[type="submit"]');
 
   try {
     await submit.click();
