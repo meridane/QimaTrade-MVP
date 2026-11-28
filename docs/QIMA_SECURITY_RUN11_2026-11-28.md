@@ -36,3 +36,11 @@ Files changed:
 ## Next step
 
 Complete QIMA CI #2213 and CodeQL #2137. Inspect any failing step before adding further cases; avoid duplicating the existing route and Auth error-boundary coverage.
+
+## Post-push validation update
+
+- QIMA CI #2213: [run 46090747586](https://github.com/meridane/QimaTrade-MVP/actions/runs/46090747586). Verify completed **SUCCESS** with **461 Playwright passed (36.3 s)**. The four new Auth 500/502/503/504 cases are explicitly PASS; npm audit, TypeScript, Next.js build, Chromium and the isolated security fixture passed.
+- CodeQL #2137: [run 46090747578](https://github.com/meridane/QimaTrade-MVP/actions/runs/46090747578) **SUCCESS**.
+- PostgreSQL 16 and PostgreSQL 17.6 are still **IN PROGRESS** at the full CREATE_OFFER runner write-privilege characterization (step 26). Later RLS/ACL steps remain pending; the overall QIMA CI run is not yet closed.
+- Vercel Preview for the code commit `0d3daab0` reports SUCCESS. The docs-only branch HEAD has a separate pending Preview status.
+- The two prepared-transaction failure-injection harnesses retain expected FAILURE conclusions; their independent assertion jobs succeeded. The deliberately skipped harness remains SKIPPED and separately asserted.
