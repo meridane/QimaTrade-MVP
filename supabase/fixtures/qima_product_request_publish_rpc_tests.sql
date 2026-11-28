@@ -22,6 +22,45 @@ begin
 end;
 $$;
 
+select set_config('request.jwt.claim.sub', '', false);
+set role authenticated;
+
+do $q$
+declare
+  v_denied boolean := false;
+begin
+  begin
+    perform public.dt_publish_product_request(
+      '55555555-5555-4555-8555-555555555555',
+      'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+    );
+  exception when others then
+    if sqlerrm = 'UNAUTHENTICATED' then
+      v_denied := true;
+    else
+      raise;
+    end if;
+  end;
+
+  if not v_denied then
+    raise exception 'publish RPC accepted a caller with a null authenticated subject';
+  end if;
+end;
+$q$;
+
+reset role;
+
+do $q$
+begin
+  if (select count(*) from public.demands) <> 0 then
+    raise exception 'unauthenticated publish unexpectedly created a demand';
+  end if;
+  if (select status from public.product_requests where id = '55555555-5555-4555-8555-555555555555') <> 'draft' then
+    raise exception 'unauthenticated publish unexpectedly changed request status';
+  end if;
+end;
+$q$;
+
 select set_config('request.jwt.claim.sub', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', false);
 set role authenticated;
 
