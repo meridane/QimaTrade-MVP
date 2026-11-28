@@ -138,3 +138,14 @@ Verify the new `aria-live` assertion in the browser test, then complete PostgreS
 - Corrected test code head [`9f1df0b8`](https://github.com/meridane/QimaTrade-MVP/commit/9f1df0b86175538f73c0576fd585e16d032a703e) is now represented by QIMA CI [#2262](https://github.com/meridane/QimaTrade-MVP/actions/runs/46137234263), which remains **PENDING with no jobs published**. CodeQL [#2186](https://github.com/meridane/QimaTrade-MVP/actions/runs/46137234171) completed **SUCCESS**.
 - No TypeScript, Playwright, PostgreSQL or full Verify pass is claimed for corrected head `9f1df0b8` until QIMA CI #2262 starts and completes. Vercel for that code head remains **PENDING** at this checkpoint.
 - The preceding QIMA CI #2260 belongs to superseded code head `fb5e92a5`; its TS2339 failure is documented above and is not attributed to the corrected commit.
+
+
+## Offer-form field semantics — final CI closeout — 2026-11-28
+
+- Corrected code head [`9f1df0b8`](https://github.com/meridane/QimaTrade-MVP/commit/9f1df0b86175538f73c0576fd585e16d032a703e) is validated by QIMA CI [#2262](https://github.com/meridane/QimaTrade-MVP/actions/runs/46137234263). Verify job `140956623704` completed **SUCCESS** with **443 Playwright tests passed (36.9 s)**.
+- The new `offer draft form exposes accessible field names and native validation constraints` test passed explicitly at `tests/e2e/offer-form-field-accessibility.spec.ts:6`. It checks accessible names for Offer name, Quantity, Price and Currency; native required/min/step attributes; USD default; and the five configured currency options.
+- Dependency audit, TypeScript, Next.js production build, Chromium and the isolated QIMA security fixture all completed **SUCCESS**. PostgreSQL 16 job `140956623481` and PostgreSQL 17.6 job `140956623494` both completed **SUCCESS**. CodeQL [#2186](https://github.com/meridane/QimaTrade-MVP/actions/runs/46137234171) completed **SUCCESS**.
+- The earlier #2260 failure belongs to superseded code head `fb5e92a5` and was the unsupported `toBeRequired()` matcher (TS2339). The corrected assertions in `9f1df0b8` passed the full Verify run; the earlier failure is not attributed to the corrected snapshot.
+- Current QUALITY documentation head `4e114590` is two documentation-only commits after the tested code head; comparing those refs shows only `docs/QIMA_QUALITY_FOLLOWUP_2026-11-28.md` changed. No application component or runtime behavior changed in this test task.
+- Vercel's status for the later documentation snapshot reports the provider's `build-rate-limit` quota. This is separate from the successful GitHub Verify, PostgreSQL and CodeQL results.
+- The coverage is Chromium/Playwright and native HTML semantics, not a complete WCAG audit or screen-reader certification. No Production data/schema, migration, secret, grant, RLS policy, persistent configuration, deployment, merge, force-push or protection-rule change was made.
