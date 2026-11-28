@@ -41,6 +41,12 @@ function isInCall(node: ts.Node): node is ts.CallExpression {
     && node.expression.name.text === "in";
 }
 
+function isSelectCall(node: ts.Node): node is ts.CallExpression {
+  return ts.isCallExpression(node)
+    && ts.isPropertyAccessExpression(node.expression)
+    && node.expression.name.text === "select";
+}
+
 test("getOfferContext keeps Supabase reads grouped outside per-attribute map callbacks", () => {
   const source = readFileSync(
     `${process.cwd()}/app/offers/actions.ts`,
@@ -74,6 +80,21 @@ test("getOfferContext keeps Supabase reads grouped outside per-attribute map cal
     "product_master_attributes",
     "product_masters",
   ]);
+
+  const projections = findNodes(getOfferContext, isSelectCall).map((call) => {
+    const projection = call.arguments[0];
+    return projection && ts.isStringLiteral(projection) ? projection.text : "<dynamic>";
+  }).sort();
+
+  expect(projections).toEqual([
+    "attribute_definition_id, label, code, sort_order",
+    "attribute_key, attribute_value, value_type, is_required, attribute_definition_id, unit_id",
+    "id, code, name, canonical_name",
+    "id, name, value_type",
+    "id, symbol, name",
+    "scope",
+  ]);
+  expect(projections).not.toContain("*");
 
   const mapCallbacks = findNodes(getOfferContext, isMapCall)
     .flatMap((call) => call.arguments.filter(
