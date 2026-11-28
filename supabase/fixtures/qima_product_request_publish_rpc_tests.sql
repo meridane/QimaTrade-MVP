@@ -20,7 +20,7 @@ begin
     raise exception 'anon role unexpectedly inherits EXECUTE on the product-request publish RPC';
   end if;
 end;
-$;
+$$;
 
 do $q$
 begin
@@ -122,7 +122,7 @@ begin
 end;
 $q$;
 
-do $
+do $$
 declare
   v_denied boolean := false;
 begin
@@ -269,7 +269,7 @@ begin
 end;
 $q$;
 
-do $
+do $$
 declare
   v_result jsonb;
 begin
