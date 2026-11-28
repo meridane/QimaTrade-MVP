@@ -163,3 +163,10 @@ Validate the new AST guard in Verify, then obtain an authorized staging project 
 - QIMA CI run [46179658296](https://github.com/meridane/QimaTrade-MVP/actions/runs/46179658296) for code commit [`7ae99848`](https://github.com/meridane/QimaTrade-MVP/commit/7ae99848eafb378644fe0b0a0338192dc3d35db2) is **IN PROGRESS**. Verify job `141086115198`: dependency audit and TypeScript **SUCCESS**; production build **SUCCESS**; Chromium installation **IN PROGRESS**; Playwright and the isolated security fixture have not run yet. PostgreSQL 16 job `141086114960` and PostgreSQL 17.6 job `141086115241` are **IN PROGRESS**; the PostgreSQL 16 job is at client setup and PostgreSQL 17.6 has begun the base integration step. No result is claimed for the new RPC-in-map assertions.
 - CodeQL [46179658293](https://github.com/meridane/QimaTrade-MVP/actions/runs/46179658293) completed **SUCCESS**. Vercel Preview for the tested code snapshot is **SUCCESS**.
 - The new AST assertions remain unvalidated by Playwright until Verify completes. No application runtime, production query, or Supabase Production resource was touched.
+
+
+## Per-attribute RPC N+1 guard — live Verify checkpoint — 2026-11-29
+
+- QIMA CI [46179658296](https://github.com/meridane/QimaTrade-MVP/actions/runs/46179658296) remains **IN PROGRESS**. Verify job `141086115198`: dependency audit, TypeScript, production build and Chromium installation are **SUCCESS**; browser tests are **IN PROGRESS**; isolated security fixture is pending. The new AST test has not yet been individually confirmed by the Playwright log.
+- PostgreSQL 16 job `141086114960` remains **IN PROGRESS**. PostgreSQL 17.6 job `141086115241` has passed its base CREATE_OFFER integration/concurrency step and remains **IN PROGRESS** for subsequent checks.
+- CodeQL [46179658293](https://github.com/meridane/QimaTrade-MVP/actions/runs/46179658293) is **SUCCESS**; Vercel Preview is **SUCCESS**. No new test pass is claimed before Verify and both PostgreSQL jobs finish.
