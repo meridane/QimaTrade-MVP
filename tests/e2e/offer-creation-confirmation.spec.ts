@@ -541,3 +541,56 @@ test("characterizes an ambiguous response after the legacy draft INSERT commits 
   );
   expect(cleanup.ok()).toBe(true);
 });
+
+test("offer draft form exposes its pending submission state to assistive technology", async ({ page, request }) => {
+  await authenticatePage(page, request, `/offers/new?productMasterId=${PRODUCT_MASTER_GATE_ID}`);
+  await page.goto(`/offers/new?productMasterId=${PRODUCT_MASTER_GATE_ID}`);
+
+  await page.getByLabel("Offer name").fill("QA448 accessible pending submission");
+  await page.getByLabel("Quantity").fill("2");
+
+  const countrySelectors = page.getByRole("button", { name: /^(Target market|Supplier geography): / });
+  await countrySelectors.nth(0).click();
+  await page.getByRole("group", { name: "Target market options" }).getByRole("button", { name: "South Korea", exact: true }).click();
+  await countrySelectors.nth(1).click();
+  await page.getByRole("group", { name: "Supplier geography options" }).getByRole("button", { name: "Morocco", exact: true }).click();
+
+  let postCount = 0;
+  let releaseResponse!: () => void;
+  const responseGate = new Promise<void>((resolve) => {
+    releaseResponse = resolve;
+  });
+
+  await page.route("**/api/offers", async (route) => {
+    postCount += 1;
+    await responseGate;
+    await route.fulfill({
+      status: 500,
+      contentType: "application/json",
+      body: JSON.stringify({ error: "SYNTHETIC_UPSTREAM_FAILURE" }),
+    });
+  });
+
+  const form = page.locator('form[action="/api/offers"]');
+  const submit = page.getByRole("button", { name: "Create offer", exact: true });
+
+  try {
+    await submit.click();
+
+    await expect(form).toHaveAttribute("aria-busy", "true");
+    await expect(submit).toBeDisabled();
+    await expect(submit).toHaveText("Creating...");
+    expect(postCount).toBe(1);
+
+    releaseResponse();
+
+    await expect(page.getByRole("alert")).toHaveText("We couldn't submit your offer. Please try again.");
+    await expect(form).toHaveAttribute("aria-busy", "false");
+    await expect(submit).toBeEnabled();
+    await expect(submit).toHaveText("Create offer");
+    expect(postCount).toBe(1);
+  } finally {
+    releaseResponse();
+  }
+});
+
