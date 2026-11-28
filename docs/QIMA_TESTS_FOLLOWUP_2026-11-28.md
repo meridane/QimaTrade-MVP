@@ -25,3 +25,11 @@ The test checks response normalization and output minimization in a local synthe
 
 ## Next step
 Inspect the new test in the Verify log, then wait for PostgreSQL 16/17.6 and CodeQL conclusions.
+
+
+## Verify closeout update
+- Verify job `140834981554` in QIMA CI [run 46098391508](https://github.com/meridane/QimaTrade-MVP/actions/runs/46098391508) completed SUCCESS: npm audit, TypeScript, production build, Chromium and the isolated security fixture passed; Playwright completed **462 tests**.
+- The new `PUBLISH_PRODUCT_REQUEST runtime discards unrecognized publish RPC metadata` test is explicitly PASS (5 ms).
+- PostgreSQL 16 and 17.6 jobs remained IN PROGRESS at the latest read, so the overall QIMA CI run is not yet closed.
+- CodeQL [run 46098391500](https://github.com/meridane/QimaTrade-MVP/actions/runs/46098391500) completed SUCCESS.
+- Vercel Preview was PENDING at the latest status read.
