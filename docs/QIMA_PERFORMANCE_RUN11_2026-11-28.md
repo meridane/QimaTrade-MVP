@@ -74,3 +74,13 @@ A source-level count of the inspected `app/offers/actions.ts` path yields:
 The first six calls are sequential/required for a successful context. The two product/attribute reads are issued in one `Promise.all`; the three metadata lookups are issued in a second `Promise.all` and are conditionally skipped when their identifier arrays are empty.
 
 This is a source-derived call budget, not an observed request count or latency measurement. Duplicate IDs in the arrays, data cardinality, PostgREST planning, network overhead and database execution time are not measured here. No deduplication or other optimization is proposed without a controlled benchmark.
+
+## New run 11 code/test validation samples
+
+| Mission | QIMA CI | Playwright | Verify | CodeQL | PostgreSQL 16 / 17.6 |
+|---|---|---:|---|---|---|
+| SECURITY | [#2213](https://github.com/meridane/QimaTrade-MVP/actions/runs/46090747586) | 461 passed, 36.3 s | SUCCESS | [#2137](https://github.com/meridane/QimaTrade-MVP/actions/runs/46090747578) SUCCESS | IN PROGRESS / IN PROGRESS |
+| TESTS | [#2214](https://github.com/meridane/QimaTrade-MVP/actions/runs/46090754067) | 460 passed, 36.6 s | SUCCESS | [#2138](https://github.com/meridane/QimaTrade-MVP/actions/runs/46090754024) SUCCESS | IN PROGRESS / IN PROGRESS |
+| QUALITY | [#2215](https://github.com/meridane/QimaTrade-MVP/actions/runs/46090757958) | 441 passed, 35.8 s | SUCCESS | [#2139](https://github.com/meridane/QimaTrade-MVP/actions/runs/46090757968) SUCCESS | IN PROGRESS / IN PROGRESS |
+
+The three Verify jobs completed successfully, including dependency audit, TypeScript, production build, Chromium and Playwright. The three PostgreSQL pairs are still at step 26, full CREATE_OFFER runner write-privilege characterization; no PostgreSQL conclusion is claimed yet. These suite durations remain CI measurements, not application latency benchmarks.
