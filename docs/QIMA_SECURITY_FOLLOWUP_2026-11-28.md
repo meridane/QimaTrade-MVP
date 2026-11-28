@@ -124,3 +124,11 @@ Wait for the final-head Verify and CodeQL workflows to complete; inspect the exa
 - The first generated search-path guard snapshot in commit [9787a91d](https://github.com/meridane/QimaTrade-MVP/commit/9787a91d7167fd476c5a436408282aee33c29b4c) contained a malformed shell insertion. It is superseded by this commit before treating the guard as validated.
 - Replaced the affected test script with a complete, single-pass assertion set preserving the original tenant, lock and ACL checks and adding only the `SECURITY DEFINER`, pinned `search_path = public`, and qualified `auth.uid()` invariants.
 - QIMA CI [#2246](https://github.com/meridane/QimaTrade-MVP/actions/runs/46117390159) belongs to the superseded snapshot; its result must not be attributed to this corrected file. A new run will validate the corrected HEAD.
+
+
+## Search-path guard validation checkpoint — 2026-11-28
+
+- The superseded QIMA CI [#2246](https://github.com/meridane/QimaTrade-MVP/actions/runs/46117390159) Verify job 140894152546 completed **FAILURE** after **464 Playwright tests passed (36.5s)**. The failure came from the malformed generated shell assertion in commit 9787a91d; the exact shell diagnostic was `tests/sql/test-product-request-publish-membership-contract.sh: 25: /for: not found`. The PostgreSQL 16/17.6 jobs from that superseded run remain in progress and do not validate the corrected script.
+- The shell file was replaced in commit [feb6f5c1](https://github.com/meridane/QimaTrade-MVP/commit/feb6f5c157b1cfe26c4f03538ce4685eaa2c434c). A fresh QIMA CI [#2250](https://github.com/meridane/QimaTrade-MVP/actions/runs/46117582536) is **PENDING with no jobs published** at this checkpoint. No Verify result is claimed for the corrected script yet.
+- CodeQL [#2174](https://github.com/meridane/QimaTrade-MVP/actions/runs/46117582499) for corrected code head feb6f5c1 completed **SUCCESS**. Vercel reports the external build-rate-limit quota failure.
+- No Production catalog, data, schema, migration, secret, grant, RLS policy, persistent configuration, deployment, merge, force-push, or protection-rule change was made.
