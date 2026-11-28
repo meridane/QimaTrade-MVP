@@ -128,3 +128,16 @@ Inspect the new test in the Verify log, then wait for PostgreSQL 16/17.6 and Cod
 - PostgreSQL 16 job `141040291818` and PostgreSQL 17.6 job `141040292065` remain **IN PROGRESS** at the final CREATE_OFFER runner write-privilege characterization step. The overall QIMA CI run is not yet closed; no PostgreSQL completion is claimed for this new code head.
 - This is synthetic request-construction coverage. It does not prove a Production identity-spoofing vulnerability; the production runtime was not changed.
 - No Supabase Production data/schema, migration, secret, grant, RLS policy, deployment, merge, force-push or branch-protection change was made.
+
+
+
+## Publish actor identity provenance — final CI closeout — 2026-11-29
+
+- Tested code head: [`c9fd8064`](https://github.com/meridane/QimaTrade-MVP/commit/c9fd80642610d91c40e3d607f9048bae2d9fd867).
+- QIMA CI [#2269](https://github.com/meridane/QimaTrade-MVP/actions/runs/46164948032) completed **SUCCESS**. Verify job `141040292043` completed **SUCCESS** with **469 Playwright tests passed (34.4 s)**; the new actor-identity provenance regression passed explicitly in 5 ms.
+- Dependency audit, TypeScript, Next.js production build, Chromium/browser tests and the isolated QIMA security fixture completed **SUCCESS**.
+- PostgreSQL 16 job `141040291818` and PostgreSQL 17.6 job `141040292065` both completed **SUCCESS**. Their full CREATE_OFFER integration/concurrency, replay, runner-safety and legacy RLS/ACL checks completed.
+- CodeQL [#2193](https://github.com/meridane/QimaTrade-MVP/actions/runs/46164948010) completed **SUCCESS**. The Vercel Preview Comments check for the tested code snapshot completed **SUCCESS**.
+- The prepared-transaction failure-injection jobs reported their expected injected **FAILURE** outcomes; the independent assertion jobs completed **SUCCESS**. The intentionally skipped harness remained **SKIPPED** and its assertion completed **SUCCESS**. The overall QIMA CI run completed **SUCCESS** with no unexpected failing job.
+- This is synthetic request-construction coverage. It does not prove a Production identity-spoofing vulnerability; the application runtime was not changed.
+- No Supabase Production data/schema, migration, secret, grant, RLS policy, Production deployment, merge, force-push or branch-protection change was made. Documentation-only `[skip ci]` closeout; tested code head remains `c9fd8064`.
