@@ -33,3 +33,13 @@ Inspect the new test in the Verify log, then wait for PostgreSQL 16/17.6 and Cod
 - PostgreSQL 16 and 17.6 jobs remained IN PROGRESS at the latest read, so the overall QIMA CI run is not yet closed.
 - CodeQL [run 46098391500](https://github.com/meridane/QimaTrade-MVP/actions/runs/46098391500) completed SUCCESS.
 - Vercel Preview was PENDING at the latest status read.
+
+ 
+## Publish RPC 5xx retry boundary — 2026-11-28
+
+- Added parameterized HTTP 500, 502, 503 and 504 cases to tests/e2e/action-runtime-publish-product-request.spec.ts.
+- Each case requires a null result, the normalized upstream-unavailable message, no details/hint disclosure, exactly one definition request followed by one publish request, and no redirect/retry.
+- Commit: https://github.com/meridane/QimaTrade-MVP/commit/7d61b99f40ad0895c068eabc25d55d17ac30d19b.
+- Previous head 175ff9f5 is fully validated by QIMA CI #46098391508: 462 Playwright passed, including the unknown-metadata allowlist regression; Verify succeeded; PostgreSQL 16 48/48 and PostgreSQL 17.6 33/33 succeeded. CodeQL #46098391500 succeeded.
+- New head 7d61b99f has QIMA CI #46106205447 QUEUED and CodeQL #46106205431 IN PROGRESS at this checkpoint. The new 5xx matrix is not yet marked PASS.
+- All 5xx responses are synthetic local-server fixtures; this does not establish a Production RPC outage or data exposure.
