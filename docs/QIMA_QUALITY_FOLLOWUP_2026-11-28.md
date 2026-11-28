@@ -171,3 +171,12 @@ Verify the new `aria-live` assertion in the browser test, then complete PostgreS
 - The two prepared-transaction setup/cleanup jobs report their intentionally injected failure outcomes; their separate assertion jobs succeeded. The deliberately skipped harness is **SKIPPED** and its assertion succeeded. No unexpected failure is established.
 - This is a focused accessibility semantics correction, not evidence of a security issue. No Supabase Production data/schema, migration, secret, grant, persistent RLS policy, Production deployment, merge, force-push or branch-protection change was made.
 
+
+## QIMA CI #2267 Verify closeout — PostgreSQL jobs pending — 2026-11-28
+
+- For code commit [`618405fa`](https://github.com/meridane/QimaTrade-MVP/commit/618405faaab0444e8344f0cfafba2eb4a6e424e2), Verify job `141016121971` in QIMA CI [run 46157121516](https://github.com/meridane/QimaTrade-MVP/actions/runs/46157121516) completed **SUCCESS**: **446 Playwright tests passed (36.2 s)**, dependency audit reported 0 vulnerabilities, TypeScript and Next.js production build passed, Chromium/browser tests passed, and the isolated QIMA security fixture passed.
+- PostgreSQL 16 job `141016121967` and PostgreSQL 17.6 job `141016122002` remain **IN PROGRESS** at this checkpoint. The overall QIMA CI run therefore remains **IN PROGRESS**; no PostgreSQL completion is claimed.
+- CodeQL [run 46157121469](https://github.com/meridane/QimaTrade-MVP/actions/runs/46157121469) (#2191) completed **SUCCESS**. Vercel Preview for code commit `618405fa` is **SUCCESS**.
+- The prepared-transaction setup/cleanup harness jobs report their intentionally injected failure outcomes; their separate assertion jobs succeeded. The skipped harness is **SKIPPED** and its assertion succeeded. No unexpected failure is established in the completed Verify job.
+- This entry records the final browser/Verify evidence while PostgreSQL compatibility remains pending. No Supabase Production data/schema, migration, secret, grant, persistent RLS policy, Production deployment, merge, force-push or branch-protection change was made.
+
